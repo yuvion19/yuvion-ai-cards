@@ -865,6 +865,9 @@ function renderProfile(){
   profileStyle.value=d.style||'minimal';
   profileDiscount2.value=String(d.discount2??5);
   profileDiscount3.value=String(d.discount3??10);
+  profileSkuPrefix.value=String(d.skuPrefix||'YU-');
+  profileSkuNext.value=String(Math.max(1,Number(d.skuNext)||1));
+  profileAutoSku.value=d.autoSku==='on'?'on':'off';
   const bits=[];
   if(d.brand)bits.push(d.brand);
   if(d.category)bits.push(d.category);
@@ -884,6 +887,82 @@ function moneyNumber(value){
   const n=Number(normalized.replace(/[^\d.-]/g,''));
   return Number.isFinite(n)?n:0;
 }
+
+function collectPrivateData(){
+  return {cost:String(privateCost.value||'').trim()};
+}
+
+function fillPrivateData(data={}){
+  currentPrivateData={cost:String(data?.cost||'')};
+  privateCost.value=currentPrivateData.cost;
+  renderMargin();
+}
+
+function marginMetric(price,cost){
+  const p=moneyNumber(price),c=moneyNumber(cost);
+  if(p<=0||c<0)return null;
+  return {
+    profit:p-c,
+    margin:p>0?((p-c)/p*100):0,
+    markup:c>0?((p-c)/c*100):null
+  };
+}
+
+function renderMargin(){
+  const cost=privateCost.value;
+  const rows=[
+    ['1 шт.',extraFields.price1.value],
+    ['от 2 шт.',extraFields.price2.value],
+    ['от 3 шт.',extraFields.price3.value]
+  ];
+  marginGrid.innerHTML=rows.map(([label,price])=>{
+    const m=marginMetric(price,cost);
+    const text=m
+      ? Math.round(m.profit)+' ₽ · маржа '+m.margin.toFixed(1)+'%'+(m.markup===null?'':' · наценка '+m.markup.toFixed(1)+'%')
+      : 'Укажите себестоимость и цену';
+    return '<div class="margin-cell"><span>'+esc(label)+'</span><strong>'+esc(text)+'</strong></div>';
+  }).join('');
+}
+
+async function skuExists(candidate,excludeId=currentHistoryId){
+  const target=normalizeSku(candidate);
+  if(!target)return false;
+  const all=await dbAll();
+  return all.some(item=>item.id!==excludeId&&skuOfStoredItem(item)===target);
+}
+
+async function nextGeneratedSku(){
+  const d=loadSellerDefaults();
+  const prefix=String(d.skuPrefix||'YU-').trim().slice(0,32);
+  let next=Math.max(1,Math.floor(Number(d.skuNext)||1));
+  for(let attempts=0;attempts<10000;attempts++,next++){
+    const candidate=prefix+String(next).padStart(4,'0');
+    if(!(await skuExists(candidate))){
+      persistSellerDefaults({...d,skuNext:next+1,skuPrefix:prefix});
+      return candidate;
+    }
+  }
+  throw new Error('Не удалось подобрать свободный SKU.');
+}
+
+async function assignGeneratedSku(force=false){
+  if(extraFields.sku.value.trim()&&!force)return extraFields.sku.value.trim();
+  try{
+    const sku=await nextGeneratedSku();
+    extraFields.sku.value=sku;
+    extraFields.sku.dispatchEvent(new Event('input',{bubbles:true}));
+    await checkDuplicateSku();
+    return sku;
+  }catch(e){
+    showError(e.message||'Не удалось сгенерировать SKU.');
+    return '';
+  }
+}
+
+async function maybeAutoAssignSku(){
+  if(loadSellerDefaults().autoSku==='on'&&!extraFields.sku.value.trim())await assignGeneratedSku(false);
+}
+
 function setWholesalePreset(discount2,discount3){
   const base=moneyNumber(extraFields.price1.value);
   if(base<=0){
@@ -1361,7 +1440,10 @@ saveProfileBtn.onclick=()=>{
     mode:profileMode.value,
     style:profileStyle.value,
     discount2:Math.max(0,Math.min(90,Number(profileDiscount2.value)||0)),
-    discount3:Math.max(0,Math.min(90,Number(profileDiscount3.value)||0))
+    discount3:Math.max(0,Math.min(90,Number(profileDiscount3.value)||0)),
+    skuPrefix:profileSkuPrefix.value.trim().slice(0,32),
+    skuNext:Math.max(1,Math.floor(Number(profileSkuNext.value)||1)),
+    autoSku:profileAutoSku.value==='on'?'on':'off'
   };
   persistSellerDefaults(next);
   applySellerDefaults();
@@ -1373,7 +1455,7 @@ saveProfileBtn.onclick=()=>{
 resetProfileBtn.onclick=()=>{
   localStorage.removeItem(SELLER_DEFAULTS_KEY);
   renderProfile();
-  profileMode.value='full';profileStyle.value='minimal';profileDiscount2.value='5';profileDiscount3.value='10';
+  profileMode.value='full';profileStyle.value='minimal';profileDiscount2.value='5';profileDiscount3.value='10';profileSkuPrefix.value='YU-';profileSkuNext.value='1';profileAutoSku.value='off';
 };
 
 extraFields.price1.addEventListener('blur',()=>{
