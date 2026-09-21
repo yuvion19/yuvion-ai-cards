@@ -20,7 +20,7 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 30;
-const MAX_CARD_BATCHES_PER_WINDOW = 5;
+const MAX_CARD_BATCHES_PER_WINDOW = 12;
 const MAX_REGENERATIONS_PER_WINDOW = 12;
 
 const requestsByIp = new Map();
@@ -828,7 +828,7 @@ app.post("/api/generate-cards", async (req, res) => {
     if (!imagesEnabled) return res.status(503).json({ error: "Генерация изображений временно отключена администратором." });
     if (limitMap(cardRequestsByIp, ip, MAX_CARD_BATCHES_PER_WINDOW)) {
       stats.rateLimitErrors += 1;
-      return res.status(429).json({ error: "Лимит: не более 5 комплектов карточек в час с одного подключения." });
+      return res.status(429).json({ error: "Лимит: не более 12 комплектов карточек в час с одного подключения." });
     }
 
     const { image, mimeType, card, style = "minimal" } = req.body ?? {};
