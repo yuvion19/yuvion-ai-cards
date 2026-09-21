@@ -1193,7 +1193,7 @@ async function nextGeneratedSku(category=editor.category.value){
   for(let attempts=0;attempts<10000;attempts++,next++){
     const candidate=prefix+String(next).padStart(4,'0');
     if(!(await skuExists(candidate))){
-      persistSellerDefaults({...d,skuNext:next+1,skuPrefix:prefix});
+      persistSellerDefaults({...d,skuNext:next+1});
       return candidate;
     }
   }
