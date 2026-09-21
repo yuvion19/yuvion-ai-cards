@@ -227,10 +227,19 @@ const fastNote=document.getElementById('fastNote');
 const fullActions=document.getElementById('fullActions');
 const creative=document.getElementById('creative');
 const creativeStatus=document.getElementById('creativeStatus');
+const qaSummary=document.getElementById('qaSummary');
 const cardsPreview=document.getElementById('cardsPreview');
 const generateAll=document.getElementById('generateAll');
 const zipImages=document.getElementById('zipImages');
 const zipFull=document.getElementById('zipFull');
+const batchFilesInput=document.getElementById('batchFiles');
+const batchMode=document.getElementById('batchMode');
+const batchStyle=document.getElementById('batchStyle');
+const startBatch=document.getElementById('startBatch');
+const batchList=document.getElementById('batchList');
+const batchProgress=document.getElementById('batchProgress');
+const batchBar=document.getElementById('batchBar');
+const batchProgressText=document.getElementById('batchProgressText');
 
 const editor={
   title:document.getElementById('edTitle'),
@@ -262,6 +271,9 @@ let currentHistoryId=null;
 let busy=false;
 let cardsBusy=false;
 let cardsStale=false;
+let currentQuality=null;
+let batchFiles=[];
+let batchBusy=false;
 
 const sessionKey='yuvionSessionId';
 let sessionId=localStorage.getItem(sessionKey);
