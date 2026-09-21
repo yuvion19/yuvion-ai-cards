@@ -2467,6 +2467,230 @@ async function bulkDeleteSelected(){
 }
 
 
+
+function normalizeImportHeader(value){
+  return String(value||'')
+    .trim()
+    .toLocaleLowerCase('ru')
+    .replace(/ё/g,'е')
+    .replace(/[^a-zа-я0-9]+/g,' ');
+}
+
+function parseCsvText(text){
+  const sample=String(text||'').split(/\r?\n/).slice(0,4).join('\n');
+  const counts={',':0,';':0,'\t':0};
+  let quoted=false;
+  for(let i=0;i<sample.length;i++){
+    const ch=sample[i];
+    if(ch==='"'){
+      if(quoted&&sample[i+1]==='"'){i++;continue}
+      quoted=!quoted;continue;
+    }
+    if(!quoted&&Object.prototype.hasOwnProperty.call(counts,ch))counts[ch]++;
+  }
+  const delimiter=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows=[];let row=[],field='',inQuotes=false;
+  const src=String(text||'').replace(/^\uFEFF/,'');
+  for(let i=0;i<src.length;i++){
+    const ch=src[i];
+    if(ch==='"'){
+      if(inQuotes&&src[i+1]==='"'){field+='"';i++;continue}
+      inQuotes=!inQuotes;continue;
+    }
+    if(!inQuotes&&ch===delimiter){row.push(field);field='';continue}
+    if(!inQuotes&&(ch==='\n'||ch==='\r')){
+      if(ch==='\r'&&src[i+1]==='\n')i++;
+      row.push(field);field='';
+      if(row.some(v=>String(v).trim()!==''))rows.push(row);
+      row=[];continue;
+    }
+    field+=ch;
+  }
+  row.push(field);
+  if(row.some(v=>String(v).trim()!==''))rows.push(row);
+  return rows;
+}
+
+function excelColumnIndex(ref){
+  const letters=(String(ref||'').match(/[A-Z]+/i)||['A'])[0].toUpperCase();
+  let n=0;
+  for(const ch of letters)n=n*26+(ch.charCodeAt(0)-64);
+  return Math.max(0,n-1);
+}
+
+async function parseXlsxFile(file){
+  if(typeof JSZip==='undefined')throw new Error('Модуль XLSX временно недоступен.');
+  const zip=await JSZip.loadAsync(await file.arrayBuffer());
+  const parser=new DOMParser();
+
+  let shared=[];
+  const sharedEntry=zip.file('xl/sharedStrings.xml');
+  if(sharedEntry){
+    const xml=parser.parseFromString(await sharedEntry.async('string'),'application/xml');
+    shared=[...xml.getElementsByTagName('si')].map(si=>[...si.getElementsByTagName('t')].map(t=>t.textContent||'').join(''));
+  }
+
+  const sheetNames=Object.keys(zip.files)
+    .filter(name=>/^xl\/worksheets\/sheet\d+\.xml$/i.test(name))
+    .sort((a,b)=>{
+      const na=Number((a.match(/sheet(\d+)/i)||[])[1]||0);
+      const nb=Number((b.match(/sheet(\d+)/i)||[])[1]||0);
+      return na-nb;
+    });
+  if(!sheetNames.length)throw new Error('В Excel-файле не найден лист с данными.');
+
+  const xml=parser.parseFromString(await zip.file(sheetNames[0]).async('string'),'application/xml');
+  const result=[];
+  for(const rowEl of [...xml.getElementsByTagName('row')]){
+    const arr=[];
+    for(const cell of [...rowEl.getElementsByTagName('c')]){
+      const idx=excelColumnIndex(cell.getAttribute('r')||'A1');
+      const type=cell.getAttribute('t')||'';
+      let value='';
+      if(type==='inlineStr'){
+        value=[...cell.getElementsByTagName('t')].map(t=>t.textContent||'').join('');
+      }else{
+        const raw=cell.getElementsByTagName('v')[0]?.textContent||'';
+        value=type==='s'?(shared[Number(raw)]??''):raw;
+      }
+      arr[idx]=value;
+    }
+    if(arr.some(v=>String(v??'').trim()!==''))result.push(arr.map(v=>v??''));
+  }
+  return result;
+}
+
+function pickImported(record,aliases){
+  for(const alias of aliases){
+    const key=Object.keys(record).find(k=>k===alias||k.includes(alias));
+    if(key&&String(record[key]??'').trim()!=='')return String(record[key]).trim();
+  }
+  return '';
+}
+
+function importRecordFromRow(headers,row){
+  const record={};
+  headers.forEach((header,index)=>record[normalizeImportHeader(header)]=String(row[index]??'').trim());
+  return {
+    title:pickImported(record,['название','наименование','товар','name','title']),
+    sku:pickImported(record,['артикул','sku']),
+    brand:pickImported(record,['бренд','brand']),
+    barcode:pickImported(record,['штрихкод','ean','barcode','gtin']),
+    category:pickImported(record,['категория','category']),
+    price1:pickImported(record,['цена за 1','розничная цена','розница','цена 1','price']),
+    price2:pickImported(record,['цена от 2','опт 2','цена 2']),
+    price3:pickImported(record,['цена от 3','опт 3','цена 3']),
+    oldPrice:pickImported(record,['старая цена','old price']),
+    cost:pickImported(record,['себестоимость','закупочная цена','закупка','cost']),
+    material:pickImported(record,['материал','material']),
+    size:pickImported(record,['размеры','размер','size']),
+    description:pickImported(record,['описание','description'])
+  };
+}
+
+async function importProductRows(rows,filename='таблица'){
+  if(!Array.isArray(rows)||rows.length<2)throw new Error('В таблице нужны заголовки и хотя бы одна строка товара.');
+  const headers=rows[0].map(v=>String(v||'').trim());
+  if(!headers.some(Boolean))throw new Error('Не удалось определить заголовки таблицы.');
+
+  const defaults=loadSellerDefaults();
+  let imported=0,skipped=0;
+  for(const row of rows.slice(1,501)){
+    const record=importRecordFromRow(headers,row);
+    if(!Object.values(record).some(Boolean)){skipped++;continue}
+
+    if(!record.sku&&defaults.autoSku==='on')record.sku=await nextGeneratedSku();
+    if(record.price1&&!record.price2){
+      const p=moneyNumber(record.price1);
+      record.price2=p?String(Math.max(0,Math.round(p*(1-Number(defaults.discount2??5)/100)))):'';
+    }
+    if(record.price1&&!record.price3){
+      const p=moneyNumber(record.price1);
+      record.price3=p?String(Math.max(0,Math.round(p*(1-Number(defaults.discount3??10)/100)))):'';
+    }
+
+    const title=record.title||[record.brand,record.sku].filter(Boolean).join(' ')||'Импортированный товар';
+    const characteristics=[];
+    if(record.brand)characteristics.push({name:'Бренд',value:record.brand});
+    if(record.sku)characteristics.push({name:'Артикул',value:record.sku});
+    if(record.barcode)characteristics.push({name:'Штрихкод/EAN',value:record.barcode});
+    if(record.size)characteristics.push({name:'Размеры',value:record.size});
+    if(record.material)characteristics.push({name:'Материал',value:record.material});
+
+    const extraData={
+      name:record.title||'',
+      brand:record.brand||'',
+      sku:record.sku||'',
+      barcode:record.barcode||'',
+      size:record.size||'',
+      material:record.material||'',
+      price1:record.price1||'',
+      price2:record.price2||'',
+      price3:record.price3||'',
+      oldPrice:record.oldPrice||''
+    };
+    const data={
+      seoTitle:title,
+      category:record.category||defaults.category||'',
+      shortDescription:record.description||'',
+      fullDescription:record.description||'',
+      characteristics,
+      keywords:[],
+      benefits:[],
+      usage:[],
+      needsClarification:['Добавьте фотографию товара и выполните AI-анализ, чтобы дополнить карточку только подтверждёнными данными.'],
+      confidence:'импорт из таблицы',
+      photoQuality:{score:0,issues:['Основная фотография ещё не добавлена.']},
+      confirmedData:extraData
+    };
+    await dbPut({
+      id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
+      updatedAt:Date.now()-imported,
+      title,
+      data,
+      extraData,
+      privateData:{cost:record.cost||''},
+      sourceDataUrl:'',
+      additionalPhotos:[],
+      cards:[],
+      variations:[],
+      revisions:[],
+      mode:defaults.mode||'full',
+      style:defaults.style||'minimal',
+      published:false,
+      importedFrom:String(filename||'таблица').slice(0,120)
+    });
+    imported++;
+  }
+  await trimCatalog();
+  await renderHistory();
+  importNote.className='import-note show';
+  importNote.textContent='Импортировано: '+imported+'. Пропущено пустых строк: '+skipped+'. Фото можно добавить позже, открыв черновик.';
+  document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function importProductsFileNow(file){
+  if(!file)return;
+  importNote.className='import-note show';
+  importNote.textContent='Читаем таблицу локально в браузере…';
+  try{
+    let rows;
+    if(/\.csv$/i.test(file.name)||String(file.type).includes('csv')){
+      rows=parseCsvText(await file.text());
+    }else if(/\.xlsx$/i.test(file.name)){
+      rows=await parseXlsxFile(file);
+    }else{
+      throw new Error('Поддерживаются .xlsx и .csv.');
+    }
+    await importProductRows(rows,file.name);
+  }catch(e){
+    importNote.className='import-note show';
+    importNote.textContent='Импорт не выполнен: '+(e.message||'ошибка файла');
+  }finally{
+    importProductsFile.value='';
+  }
+}
+
 function renderDashboard(allItems){
   const all=Array.isArray(allItems)?allItems:[];
   const skuCounts=new Map();
