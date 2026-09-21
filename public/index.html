@@ -1520,7 +1520,11 @@ async function renderHistory(){
       return true;
     });
 
+    const validIds=new Set(all.map(item=>item.id));
+    for(const id of [...selectedDraftIds])if(!validIds.has(id))selectedDraftIds.delete(id);
+    lastVisibleDraftIds=filtered.map(item=>item.id);
     catalogCount.textContent=filtered.length+' из '+all.length+' товаров';
+    updateBulkBar();
     grid.innerHTML='';
     empty.style.display=filtered.length?'none':'block';
     empty.textContent=all.length
@@ -1535,8 +1539,9 @@ async function renderHistory(){
       const when=item.updatedAt?new Date(item.updatedAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
       const ready=storedReadiness(item);
       const el=document.createElement('div');
-      el.className='history-item';
+      el.className='history-item'+(selectedDraftIds.has(item.id)?' selected':'');
       el.innerHTML=
+        '<input class="draft-select" type="checkbox" aria-label="Выбрать товар" '+(selectedDraftIds.has(item.id)?'checked':'')+'>'+
         '<img src="'+esc(item.sourceDataUrl||'')+'" alt="">'+
         '<div class="history-meta"><span class="draft-status '+status.key+'">'+esc(status.label)+'</span><small>'+esc(when)+'</small></div>'+
         '<b>'+esc(item.title||d.seoTitle||'Черновик')+'</b>'+
@@ -1548,7 +1553,13 @@ async function renderHistory(){
           '<button class="btn btn-danger btn-small wide del">Удалить</button>'+
         '</div>';
 
-      el.querySelector('.restore').onclick=()=>restoreHistory(item);
+      const selectBox=el.querySelector('.draft-select');
+      selectBox.onchange=()=>{
+        if(selectBox.checked)selectedDraftIds.add(item.id);else selectedDraftIds.delete(item.id);
+        el.classList.toggle('selected',selectBox.checked);
+        updateBulkBar();
+      };
+            el.querySelector('.restore').onclick=()=>restoreHistory(item);
       el.querySelector('.similar').onclick=async()=>{
         if(!item.data)return;
         await restoreHistory(item);
