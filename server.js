@@ -324,13 +324,17 @@ const styleProfiles = {
 
 function normalizeExtraData(raw) {
   const data = raw && typeof raw === "object" ? raw : {};
+  const price1 = compact(data.price1 || data.price || "", 80);
   return {
     name: compact(data.name || "", 140),
     brand: compact(data.brand || "", 100),
     sku: compact(data.sku || "", 100),
     size: compact(data.size || "", 120),
     material: compact(data.material || "", 160),
-    price: compact(data.price || "", 80)
+    price1,
+    price2: compact(data.price2 || "", 80),
+    price3: compact(data.price3 || "", 80),
+    oldPrice: compact(data.oldPrice || "", 80)
   };
 }
 
@@ -342,7 +346,7 @@ function confirmedDataText(raw) {
   if (data.sku) rows.push("Артикул: " + data.sku);
   if (data.size) rows.push("Размеры: " + data.size);
   if (data.material) rows.push("Материал: " + data.material);
-  if (data.price) rows.push("Цена: " + data.price);
+  if (data.price1) rows.push("Цена за 1 шт.: " + data.price1);\n  if (data.price2) rows.push("Цена от 2 шт.: " + data.price2);\n  if (data.price3) rows.push("Цена от 3 шт. и более: " + data.price3);\n  if (data.oldPrice) rows.push("Старая цена: " + data.oldPrice);
   if (!rows.length) return "Дополнительные подтвержденные данные продавца не предоставлены.";
   return [
     "ПОДТВЕРЖДЕННЫЕ ДАННЫЕ ОТ ПРОДАВЦА:",
@@ -361,8 +365,7 @@ function mergeConfirmedData(cardRaw, extraRaw) {
     ["Бренд", extra.brand],
     ["Артикул", extra.sku],
     ["Размеры", extra.size],
-    ["Материал", extra.material],
-    ["Цена", extra.price]
+    ["Материал", extra.material]
   ].filter((pair) => pair[1]);
 
   const byName = new Map(card.characteristics.map((item) => [item.name.toLocaleLowerCase("ru"), item]));
@@ -387,7 +390,7 @@ function mergeConfirmedData(cardRaw, extraRaw) {
   if (extra.sku) blocked.push("артикул", "модель");
   if (extra.size) blocked.push("размер", "габарит");
   if (extra.material) blocked.push("материал", "состав");
-  if (extra.price) blocked.push("цен");
+  if (extra.price1 || extra.price2 || extra.price3 || extra.oldPrice) blocked.push("цен");
   card.needsClarification = card.needsClarification.filter((item) => {
     const lower = item.toLocaleLowerCase("ru");
     return !blocked.some((word) => lower.includes(word));
@@ -427,7 +430,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "4.3.0",
+    version: "4.4.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled
   });
@@ -1038,5 +1041,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v4.3 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v4.4 listening on port ${port}`);
 });
