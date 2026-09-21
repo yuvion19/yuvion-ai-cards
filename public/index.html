@@ -2144,6 +2144,81 @@ function saveHistoryDebounced(){
   saveTimer=setTimeout(()=>saveHistory(),700);
 }
 
+function revisionSnapshot(label=''){
+  if(!currentData)return null;
+  return {
+    id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
+    createdAt:Date.now(),
+    label:String(label||'').slice(0,80),
+    data:collectEdits(),
+    extraData:collectExtraData(),
+    privateData:collectPrivateData(),
+    variations:variationsForExport(),
+    mode:currentMode,
+    style:styleSelect.value
+  };
+}
+
+function renderRevisionList(){
+  revisionCount.textContent=currentRevisions.length+' '+(currentRevisions.length===1?'сохранённая':'сохранённых');
+  revisionList.innerHTML='';
+  if(!currentRevisions.length){
+    revisionList.innerHTML='<div class="muted" style="font-size:11px">Версий пока нет. Сохраните версию перед крупными изменениями.</div>';
+    return;
+  }
+  currentRevisions.slice().sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)).forEach(revision=>{
+    const row=document.createElement('div');
+    row.className='revision-row';
+    const title=revision.label||revision.data?.seoTitle||'Версия';
+    const time=new Date(revision.createdAt||Date.now()).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+    row.innerHTML='<div><b style="font-size:11px">'+esc(title)+'</b><small>'+esc(time)+'</small></div><div class="revision-actions"><button class="btn btn-ghost btn-small restore-revision">Вернуть</button><button class="btn btn-danger btn-small delete-revision">×</button></div>';
+    row.querySelector('.restore-revision').onclick=()=>restoreRevision(revision.id);
+    row.querySelector('.delete-revision').onclick=async()=>{
+      currentRevisions=currentRevisions.filter(x=>x.id!==revision.id);
+      renderRevisionList();
+      await saveHistory();
+    };
+    revisionList.appendChild(row);
+  });
+}
+
+async function saveCurrentRevision(){
+  if(!currentData)return;
+  const label=prompt('Название версии (необязательно):','Перед изменениями');
+  if(label===null)return;
+  const snapshot=revisionSnapshot(label);
+  if(!snapshot)return;
+  currentRevisions=[snapshot,...currentRevisions].slice(0,12);
+  renderRevisionList();
+  revisionBox.open=true;
+  await saveHistory();
+}
+
+async function restoreRevision(id){
+  const revision=currentRevisions.find(x=>x.id===id);
+  if(!revision)return;
+  if(!confirm('Вернуть данные товара к этой локальной версии? Текущие изображения останутся, но будут помечены как устаревшие.'))return;
+  currentData={...(revision.data||{})};
+  fillEditor(currentData);
+  fillExtraData(revision.extraData||{});
+  fillPrivateData(revision.privateData||{});
+  currentVariations=Array.isArray(revision.variations)?revision.variations.map(normalizeVariation):[];
+  renderVariations();
+  currentMode=revision.mode||currentMode;
+  styleSelect.value=revision.style||styleSelect.value;
+  document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
+  renderAiQuality(currentData);
+  updatePlan();
+  renderCategoryMemory();
+  renderSpecTemplateHint();
+  renderYuvionExport();
+  markCardsStale();
+  syncModeUi();
+  await checkDuplicateSku();
+  await saveHistory();
+}
+
+
 async function saveHistory(){
   if(!currentData||!currentHistoryId)return;
   try{
