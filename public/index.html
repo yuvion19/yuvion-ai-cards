@@ -1435,7 +1435,8 @@ async function createEncryptedBackup(){
       settings:{
         sellerDefaults:loadSellerDefaults(),
         categoryMemory:loadCategoryMemory(),
-        specTemplates:loadSpecTemplates()
+        specTemplates:loadSpecTemplates(),
+        categoryRules:loadCategoryRules()
       }
     };
     const salt=crypto.getRandomValues(new Uint8Array(16));
@@ -1481,6 +1482,7 @@ async function restoreEncryptedBackup(file){
     if(payload.settings?.sellerDefaults)persistSellerDefaults(payload.settings.sellerDefaults);
     if(Array.isArray(payload.settings?.categoryMemory))localStorage.setItem(CATEGORY_MEMORY_KEY,JSON.stringify(payload.settings.categoryMemory.slice(0,30)));
     if(payload.settings?.specTemplates&&typeof payload.settings.specTemplates==='object')localStorage.setItem(SPEC_TEMPLATE_KEY,JSON.stringify(payload.settings.specTemplates));
+    if(Array.isArray(payload.settings?.categoryRules))saveCategoryRules(payload.settings.categoryRules);
     await trimCatalog();
     renderProfile();renderCategoryMemory();renderCategoryValidation();await renderHistory();
     alert('Резервная копия восстановлена локально.');
@@ -2080,6 +2082,9 @@ analyzeBtn.onclick=async()=>{
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
     currentData=data;currentCards=[];cardsStale=false;currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
     fillEditor(data);
+    applyCategoryRule({applyTemplate:true});
+    currentData=collectEdits();
+    if(!extraFields.sku.value.trim())await maybeAutoAssignSku();
     if(pendingSimilarTemplate?.category){
       editor.category.value=pendingSimilarTemplate.category;
       currentData=collectEdits();
@@ -2143,6 +2148,11 @@ Object.values(editor).forEach(el=>el.addEventListener('input',()=>{
 editor.category.addEventListener('input',()=>{renderCategoryValidation();renderSpecTemplateHint()});
 editor.category.addEventListener('blur',()=>{
   if(currentData&&editor.category.value.trim())rememberCategory(editor.category.value.trim(),editor.title.value.trim());
+  const rule=applyCategoryRule({applyTemplate:true});
+  if(rule&&currentData){
+    currentData=collectEdits();
+    updatePlan();renderSpecTemplateHint();markCardsStale();saveHistoryDebounced();
+  }
   renderCategoryValidation();
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
