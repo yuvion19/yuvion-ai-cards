@@ -267,7 +267,7 @@ usage должны содержать только очевидные сцена
 Не упоминай Ozon, Wildberries или другие маркетплейсы.
 Пиши на русском языке, в деловом e-commerce стиле.
 SEO-заголовок должен быть естественным, без спама, капслока и неподтвержденных брендов.
-Полное описание должно продавать через видимые свойства и сценарии использования, но не придумывать технические факты.
+Полное описание должно продавать через видимые свойства и сценарии использования, но не придумывать технические факты.\nЕсли пользователь передал подтвержденные данные о товаре (название, бренд, артикул, размеры, материал, цена), используй их как достоверные факты. Не пытайся опровергать, угадывать заново или переносить их в needsClarification.
 `;
 
 const styleProfiles = {
@@ -313,6 +313,81 @@ const styleProfiles = {
   }
 };
 
+
+function normalizeExtraData(raw) {
+  const data = raw && typeof raw === "object" ? raw : {};
+  return {
+    name: compact(data.name || "", 140),
+    brand: compact(data.brand || "", 100),
+    sku: compact(data.sku || "", 100),
+    size: compact(data.size || "", 120),
+    material: compact(data.material || "", 160),
+    price: compact(data.price || "", 80)
+  };
+}
+
+function confirmedDataText(raw) {
+  const data = normalizeExtraData(raw);
+  const rows = [];
+  if (data.name) rows.push("Название товара: " + data.name);
+  if (data.brand) rows.push("Бренд: " + data.brand);
+  if (data.sku) rows.push("Артикул: " + data.sku);
+  if (data.size) rows.push("Размеры: " + data.size);
+  if (data.material) rows.push("Материал: " + data.material);
+  if (data.price) rows.push("Цена: " + data.price);
+  if (!rows.length) return "Дополнительные подтвержденные данные продавца не предоставлены.";
+  return [
+    "ПОДТВЕРЖДЕННЫЕ ДАННЫЕ ОТ ПРОДАВЦА:",
+    ...rows,
+    "",
+    "Эти значения считай достоверными и используй точно как передано.",
+    "Не пытайся переопределять их по фотографии и не переноси их в needsClarification.",
+    "Если визуально что-то кажется иным, для текстовой карточки приоритет имеют данные продавца."
+  ].join("\\n");
+}
+
+function mergeConfirmedData(cardRaw, extraRaw) {
+  const card = normalizeCard(cardRaw);
+  const extra = normalizeExtraData(extraRaw);
+  const confirmed = [
+    ["Бренд", extra.brand],
+    ["Артикул", extra.sku],
+    ["Размеры", extra.size],
+    ["Материал", extra.material],
+    ["Цена", extra.price]
+  ].filter((pair) => pair[1]);
+
+  const byName = new Map(card.characteristics.map((item) => [item.name.toLocaleLowerCase("ru"), item]));
+  for (const pair of confirmed) {
+    const name = pair[0];
+    const value = pair[1];
+    byName.set(name.toLocaleLowerCase("ru"), { name, value });
+  }
+  card.characteristics = [...byName.values()].slice(0, 12);
+
+  if (extra.name) {
+    const titleLower = card.seoTitle.toLocaleLowerCase("ru");
+    if (!titleLower.includes(extra.name.toLocaleLowerCase("ru"))) {
+      card.seoTitle = compact(extra.name + (extra.brand ? " " + extra.brand : "") + (card.seoTitle ? " — " + card.seoTitle : ""), 180);
+    }
+  } else if (extra.brand && !card.seoTitle.toLocaleLowerCase("ru").includes(extra.brand.toLocaleLowerCase("ru"))) {
+    card.seoTitle = compact(extra.brand + " " + card.seoTitle, 180);
+  }
+
+  const blocked = [];
+  if (extra.brand) blocked.push("бренд");
+  if (extra.sku) blocked.push("артикул", "модель");
+  if (extra.size) blocked.push("размер", "габарит");
+  if (extra.material) blocked.push("материал", "состав");
+  if (extra.price) blocked.push("цен");
+  card.needsClarification = card.needsClarification.filter((item) => {
+    const lower = item.toLocaleLowerCase("ru");
+    return !blocked.some((word) => lower.includes(word));
+  });
+
+  return { ...card, confirmedData: extra };
+}
+
 function normalizeCard(raw) {
   const card = raw && typeof raw === "object" ? raw : {};
   return {
@@ -344,7 +419,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "4.0.0",
+    version: "4.1.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled
   });
@@ -358,7 +433,7 @@ app.post("/api/analyze", async (req, res) => {
       return res.status(429).json({ error: "Слишком много запросов. Попробуйте немного позже." });
     }
 
-    const { image, mimeType, mode = "full" } = req.body ?? {};
+    const { image, mimeType, mode = "full", extraData = {} } = req.body ?? {};
     if (typeof image !== "string" || typeof mimeType !== "string") {
       return res.status(400).json({ error: "Изображение не передано." });
     }
@@ -379,7 +454,7 @@ app.post("/api/analyze", async (req, res) => {
       input: [{
         role: "user",
         content: [
-          { type: "input_text", text: "Проанализируй фотографию и подготовь структурированную карточку товара для каталога Yuvion." },
+          { type: "input_text", text: "Проанализируй фотографию и подготовь структурированную карточку товара для каталога Yuvion.\n\n" + confirmedDataText(extraData) },
           { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "high" }
         ]
       }],
@@ -400,7 +475,7 @@ app.post("/api/analyze", async (req, res) => {
 
     let parsed;
     try {
-      parsed = normalizeCard(JSON.parse(raw));
+      parsed = mergeConfirmedData(JSON.parse(raw), extraData);
     } catch {
       return res.status(502).json({ error: "Не удалось разобрать ответ AI." });
     }
@@ -847,5 +922,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v4 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v4.1 listening on port ${port}`);
 });
