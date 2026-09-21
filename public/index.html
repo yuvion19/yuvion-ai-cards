@@ -1538,11 +1538,10 @@ async function saveBatchHistory({data,dataUrl,cards,mode,style}){
   const item={
     id,updatedAt:Date.now(),title:data.seoTitle||'Товар',
     data,extraData:{},sourceDataUrl:dataUrl,cards:cards||[],
-    mode,style
+    mode,style,published:false
   };
   await dbPut(item);
-  const all=(await dbAll()).sort((a,b)=>b.updatedAt-a.updatedAt);
-  for(const extra of all.slice(10))await dbDelete(extra.id);
+  await trimCatalog();
 }
 
 startBatch.onclick=async()=>{
@@ -1611,7 +1610,10 @@ startBatch.onclick=async()=>{
   batchBusy=false;batchFilesInput.disabled=false;batchMode.disabled=false;batchStyle.disabled=false;startBatch.disabled=false;
 };
 
-document.getElementById('clearHistory').onclick=async()=>{if(confirm('Очистить локальную историю товаров?')){await dbClear();renderHistory()}};
+document.getElementById('clearHistory').onclick=async()=>{if(confirm('Очистить локальный каталог товаров на этом устройстве?')){await dbClear();renderHistory()}};
+
+catalogSearch.addEventListener('input',()=>renderHistory());
+catalogStatus.addEventListener('change',()=>renderHistory());
 
 document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
 document.getElementById('jumpHistory').onclick=()=>document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
