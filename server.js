@@ -35,6 +35,12 @@ function limitMap(map, ip, max) {
   return current.count > max;
 }
 
+function rollbackLimit(map, ip) {
+  const current = map.get(ip);
+  if (!current) return;
+  current.count = Math.max(0, current.count - 1);
+}
+
 function decodedImageSize(base64) {
   const cleaned = base64.replace(/\s/g, "");
   const padding = cleaned.endsWith("==") ? 2 : cleaned.endsWith("=") ? 1 : 0;
@@ -530,7 +536,16 @@ app.post("/api/generate-cards", async (req, res) => {
       return res.status(400).json({ error: "Генерация изображения остановлена проверкой безопасности. Попробуйте другую фотографию." });
     }
     if (error?.status === 401) return res.status(503).json({ error: "AI-ключ недействителен." });
-    if (error?.status === 429) return res.status(429).json({ error: "Лимит генерации изображений временно исчерпан." });
+    if (error?.code === "credit_balance_exhausted") {
+      rollbackLimit(cardRequestsByIp, req.ip || "unknown");
+      return res.status(402).json({
+        error: "На балансе OpenAI API закончились кредиты. Пополните API-баланс и повторите генерацию."
+      });
+    }
+    if (error?.status === 429) {
+      rollbackLimit(cardRequestsByIp, req.ip || "unknown");
+      return res.status(429).json({ error: "Достигнут лимит запросов OpenAI API. Попробуйте немного позже." });
+    }
     if (error?.status === 402) return res.status(503).json({ error: "Для генерации изображений требуется пополнить баланс API." });
     if (error?.code === "organization_verification_required" || error?.code === "verification_required") {
       return res.status(503).json({ error: "Для генерации изображений требуется подтверждение организации OpenAI API." });
