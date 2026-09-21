@@ -972,11 +972,12 @@ function renderVariations(){
       '<button type="button" class="variation-remove" aria-label="Удалить вариант">×</button>';
     row.querySelectorAll('input[data-v]').forEach(input=>input.addEventListener('input',()=>{
       currentVariations[index][input.dataset.v]=input.value.trim();
+      renderProductCockpit();
       saveHistoryDebounced();
     }));
     row.querySelector('.variation-remove').onclick=()=>{
       currentVariations.splice(index,1);
-      renderVariations();
+      renderVariations();renderProductCockpit();
       saveHistoryDebounced();
     };
     variationList.appendChild(row);
@@ -986,7 +987,7 @@ function renderVariations(){
 function addVariation(seed={}){
   currentVariations.push(normalizeVariation(seed));
   variationsBox.open=true;
-  renderVariations();
+  renderVariations();renderProductCockpit();
   saveHistoryDebounced();
 }
 
@@ -1526,7 +1527,12 @@ async function openNextQueueItem(){
     alert('Локальный каталог пока пуст.');
     return;
   }
-  const ranked=all
+  const actionable=all.filter(item=>!item.published);
+  if(!actionable.length){
+    alert('Все товары в локальном каталоге уже отмечены опубликованными.');
+    return;
+  }
+  const ranked=actionable
     .map(item=>({item,action:nextActionForItem(item,all)}))
     .sort((a,b)=>(QUEUE_PRIORITY[a.action.key]??99)-(QUEUE_PRIORITY[b.action.key]??99)||Number(a.item.updatedAt||0)-Number(b.item.updatedAt||0));
   const next=ranked[0];
@@ -1573,11 +1579,13 @@ function renderProductCockpit(){
     data:d,
     extraData:x,
     privateData:p,
-    sourceDataUrl:sourceDataUrl||preview.src||'',
+    sourceDataUrl:sourceDataUrl||(selectedFile?'selected-file':''),
     cards:currentCards,
     moderation:currentModeration
   };
-  const action=nextActionForItem(pseudo,[]);
+  let action=nextActionForItem(pseudo,[]);
+  if(duplicateSkuId)action={key:'sku',label:'Исправить дублирующийся SKU'};
+  else if(duplicateBarcodeId)action={key:'sku',label:'Исправить дублирующийся штрихкод'};
   cockpitName.textContent=d.seoTitle||'Товар';
   cockpitNext.textContent='Следующее действие: '+action.label+'.';
   cockpitReady.textContent=readiness.percent+'%';
@@ -2354,7 +2362,7 @@ analyzeBtn.onclick=async()=>{
       currentData=collectEdits();
       rememberCategory(pendingSimilarTemplate.category,editor.title.value);
     }
-    renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderYuvionExport();syncModeUi();creative.classList.remove('show');cardsPreview.innerHTML='';
+    renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderYuvionExport();renderProductCockpit();syncModeUi();creative.classList.remove('show');cardsPreview.innerHTML='';
     if(pendingSimilarTemplate){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
     confidence.textContent='Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
@@ -2500,7 +2508,7 @@ generateAll.onclick=async()=>{
     const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
-    currentCards=data.cards||[];cardsStale=false;renderCards();
+    currentCards=data.cards||[];cardsStale=false;renderCards();renderProductCockpit();
     zipImages.disabled=false;zipFull.disabled=false;
     creativeStatus.className='creative-status show';creativeStatus.textContent='Карточки созданы. Выполняем автоматическую проверку качества.';
     await saveHistory();
@@ -3984,6 +3992,12 @@ document.querySelectorAll('[data-dash-status]').forEach(card=>card.addEventListe
 
 saveRevisionBtn.onclick=()=>saveCurrentRevision();
 addModerationEntry.onclick=()=>recordModeration();
+moderationStatus.addEventListener('change',()=>{
+  cockpitModeration.textContent=moderationLabel(moderationStatus.value);
+  cockpitNext.textContent=moderationStatus.value==='rejected'
+    ? 'Следующее действие: исправить замечания после отклонения.'
+    : cockpitNext.textContent;
+});
 generateSkuBtn.onclick=()=>assignGeneratedSku(true);
 extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosInput.files));
 [privateCost,privateStock,privateBoxes,privateMinStock,privateLocation,privateCollections,privateNotes].forEach(el=>el.addEventListener('input',()=>{
