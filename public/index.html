@@ -2384,6 +2384,8 @@ function storedReadiness(item){
   const p3=moneyNumber(x.price3);
   const old=moneyNumber(x.oldPrice);
   const categoryState=categoryValidity(d.category);
+  const barcode=normalizeBarcode(x.barcode||storedCharValue(d,'Штрихкод/EAN'));
+  const barcodeOk=!barcode||validateEan(barcode).valid;
   const checks=[
     Boolean(d.seoTitle),
     Boolean(d.category),
@@ -2395,6 +2397,7 @@ function storedReadiness(item){
     p2>0&&p2<=p1,
     p3>0&&p3<=p2,
     !x.oldPrice||old>p1,
+    barcodeOk,
     duplicateCharacteristicNames(d).length===0,
     Array.isArray(item?.cards)&&item.cards.length===4
   ];
@@ -2591,6 +2594,11 @@ async function togglePublished(id){
     const duplicate=duplicateSkuInCatalog(item,all);
     if(duplicate){
       alert('Нельзя отметить товар опубликованным: SKU уже используется в товаре «'+String(duplicate.title||'другой товар')+'».');
+      return;
+    }
+    const barcodeDuplicate=duplicateBarcodeInCatalog(item,all);
+    if(barcodeDuplicate){
+      alert('Нельзя отметить товар опубликованным: штрихкод уже используется в товаре «'+String(barcodeDuplicate.title||'другой товар')+'».');
       return;
     }
   }
@@ -2874,7 +2882,7 @@ async function bulkSetPublished(value){
   for(const id of [...selectedDraftIds]){
     const item=all.find(x=>x.id===id);
     if(!item)continue;
-    if(value&&(!storedReadiness(item).ready||duplicateSkuInCatalog(item,all))){
+    if(value&&(!storedReadiness(item).ready||duplicateSkuInCatalog(item,all)||duplicateBarcodeInCatalog(item,all))){
       skipped++;
       continue;
     }
