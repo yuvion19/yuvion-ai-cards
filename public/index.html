@@ -661,6 +661,153 @@ async function restoreHistory(item){
   workspace.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+
+function batchRender(){
+  batchList.innerHTML='';
+  batchFiles.forEach((item,index)=>{
+    const el=document.createElement('div');
+    el.className='batch-item';
+    el.innerHTML='<img src="'+esc(item.preview)+'" alt=""><div><b>'+(index+1)+'. '+esc(item.file.name)+'</b><small>'+((item.file.size/1024/1024).toFixed(2))+' МБ</small></div><div class="batch-status '+esc(item.state||'wait')+'">'+esc(item.label||'Ожидает')+'</div>';
+    batchList.appendChild(el);
+  });
+}
+
+batchFilesInput.addEventListener('change',()=>{
+  const allowed=['image/jpeg','image/png','image/webp'];
+  const chosen=[...batchFilesInput.files].slice(0,10);
+  batchFiles=chosen.filter(file=>allowed.includes(file.type)&&file.size<=10*1024*1024).map(file=>({
+    file,
+    preview:URL.createObjectURL(file),
+    state:'wait',
+    label:'Ожидает'
+  }));
+  startBatch.disabled=!batchFiles.length||batchBusy;
+  batchRender();
+  if(chosen.length>10)alert('За один запуск можно обработать максимум 10 товаров.');
+});
+
+async function batchAnalyze(file,mode){
+  const dataUrl=await fileToDataUrl(file);
+  const src={mimeType:file.type,image:dataUrl.split(',')[1]};
+  const response=await fetch('/api/analyze',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({...src,mode,extraData:{}})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось проанализировать товар.');
+  return {data,src,dataUrl};
+}
+
+async function batchQuality(cards,card){
+  const response=await fetch('/api/quality-check',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({cards,card})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)return null;
+  return data;
+}
+
+async function packageCardsForBatch(cards,card,includeDescription=true){
+  const response=await fetch('/api/package',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({cards,card,includeDescription})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось собрать ZIP.');
+  return data;
+}
+
+function downloadBase64Zip(data,name){
+  const binary=atob(data);
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  const blob=new Blob([bytes],{type:'application/zip'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=name;a.style.display='none';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+
+async function saveBatchHistory({data,dataUrl,cards,mode,style}){
+  const id=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+  const item={
+    id,updatedAt:Date.now(),title:data.seoTitle||'Товар',
+    data,extraData:{},sourceDataUrl:dataUrl,cards:cards||[],
+    mode,style
+  };
+  await dbPut(item);
+  const all=(await dbAll()).sort((a,b)=>b.updatedAt-a.updatedAt);
+  for(const extra of all.slice(10))await dbDelete(extra.id);
+}
+
+startBatch.onclick=async()=>{
+  if(batchBusy||!batchFiles.length)return;
+  batchBusy=true;startBatch.disabled=true;batchFilesInput.disabled=true;
+  batchMode.disabled=true;batchStyle.disabled=true;
+  batchProgress.classList.add('show');
+  batchBar.style.width='0%';
+  const mode=batchMode.value;
+  const style=batchStyle.value;
+  let done=0;
+
+  try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:batchFiles.length})})}catch{}
+
+  for(let index=0;index<batchFiles.length;index++){
+    const item=batchFiles[index];
+    item.state='work';item.label='Анализ…';batchRender();
+    batchProgressText.textContent='Обрабатываем '+(index+1)+' из '+batchFiles.length+': '+item.file.name;
+
+    try{
+      const analyzed=await batchAnalyze(item.file,mode);
+      let cards=[];
+      if(mode==='full'){
+        item.label='4 карточки…';batchRender();
+        const gen=await fetch('/api/generate-cards',{
+          method:'POST',headers:apiHeaders(),
+          body:JSON.stringify({...analyzed.src,card:analyzed.data,style})
+        });
+        const genData=await gen.json().catch(()=>({}));
+        if(!gen.ok)throw new Error(genData.error||'Не удалось создать карточки.');
+        cards=genData.cards||[];
+
+        item.label='Проверка качества…';batchRender();
+        const quality=await batchQuality(cards,analyzed.data);
+        const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,1);
+        for(const badIndex of bad){
+          item.label='Исправляем №'+(badIndex+1);batchRender();
+          const updated=await fetch('/api/regenerate-card',{
+            method:'POST',headers:apiHeaders(),
+            body:JSON.stringify({...analyzed.src,card:analyzed.data,style,index:badIndex})
+          });
+          const updatedData=await updated.json().catch(()=>({}));
+          if(updated.ok&&updatedData.card)cards[badIndex]=updatedData.card;
+        }
+
+        item.label='ZIP…';batchRender();
+        const packed=await packageCardsForBatch(cards,analyzed.data,true);
+        const base=safeFileBase(analyzed.data.seoTitle||('product_'+(index+1)));
+        downloadBase64Zip(packed.zipBase64,base+'_yuvion.zip');
+      }
+
+      const storedSource=await compressFileToDataUrl(item.file);
+      await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,mode,style});
+      item.state='ok';item.label=mode==='full'?'Готово + ZIP':'Текст готов';
+    }catch(e){
+      item.state='fail';item.label=e.message||'Ошибка';
+    }
+
+    done++;
+    batchBar.style.width=Math.round(done/batchFiles.length*100)+'%';
+    batchRender();
+    await renderHistory();
+  }
+
+  batchProgressText.textContent='Очередь завершена: '+done+' из '+batchFiles.length+'.';
+  batchBusy=false;batchFilesInput.disabled=false;batchMode.disabled=false;batchStyle.disabled=false;startBatch.disabled=false;
+};
+
 document.getElementById('clearHistory').onclick=async()=>{if(confirm('Очистить локальную историю товаров?')){await dbClear();renderHistory()}};
 renderHistory();syncModeUi();
 </script>
