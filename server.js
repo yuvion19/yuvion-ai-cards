@@ -346,7 +346,10 @@ function confirmedDataText(raw) {
   if (data.sku) rows.push("Артикул: " + data.sku);
   if (data.size) rows.push("Размеры: " + data.size);
   if (data.material) rows.push("Материал: " + data.material);
-  if (data.price1) rows.push("Цена за 1 шт.: " + data.price1);\n  if (data.price2) rows.push("Цена от 2 шт.: " + data.price2);\n  if (data.price3) rows.push("Цена от 3 шт. и более: " + data.price3);\n  if (data.oldPrice) rows.push("Старая цена: " + data.oldPrice);
+  if (data.price1) rows.push("Цена за 1 шт.: " + data.price1);
+  if (data.price2) rows.push("Цена от 2 шт.: " + data.price2);
+  if (data.price3) rows.push("Цена от 3 шт. и более: " + data.price3);
+  if (data.oldPrice) rows.push("Старая цена: " + data.oldPrice);
   if (!rows.length) return "Дополнительные подтвержденные данные продавца не предоставлены.";
   return [
     "ПОДТВЕРЖДЕННЫЕ ДАННЫЕ ОТ ПРОДАВЦА:",
