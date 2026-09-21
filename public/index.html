@@ -1822,7 +1822,7 @@ async function regenerateOne(index,el){
 async function downloadPackage(includeDescription,auto=false){
   if(currentCards.length!==4)return;
   try{
-    const response=await fetch('/api/package',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards:currentCards,card:collectEdits(),includeDescription})});
+    const response=await fetch('/api/package',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards:currentCards,card:collectEdits(),extraData:collectExtraData(),variations:variationsForExport(),includeDescription})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось собрать ZIP.');
     const binary=atob(data.zipBase64);const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
