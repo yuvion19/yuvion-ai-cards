@@ -429,11 +429,31 @@ function normalizeCard(raw) {
   };
 }
 
+app.get("/downloads/yuvion-helper.zip", async (_req, res) => {
+  try {
+    const helperDir = path.join(__dirname, "public", "yuvion-helper");
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", 'attachment; filename="yuvion-helper.zip"');
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.on("error", (error) => {
+      console.error("Helper ZIP error:", error);
+      if (!res.headersSent) res.status(500).end();
+      else res.end();
+    });
+    archive.pipe(res);
+    archive.directory(helperDir, "yuvion-helper");
+    await archive.finalize();
+  } catch (error) {
+    console.error("Helper ZIP route error:", error);
+    if (!res.headersSent) res.status(500).json({ error: "Не удалось собрать Yuvion Helper." });
+  }
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "5.0.0",
+    version: "5.1.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled
   });
@@ -1044,5 +1064,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v5.0.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v5.1.0 listening on port ${port}`);
 });
