@@ -1396,13 +1396,56 @@ generateAll.onclick=async()=>{
   }
 };
 
+function normalizeCardFilenames(){
+  currentCards=currentCards.map((card,index)=>({
+    ...card,
+    filename:String(index+1).padStart(2,'0')+'_card.png'
+  }));
+}
+
+async function moveCard(from,to){
+  if(from===to||from<0||to<0||from>=currentCards.length||to>=currentCards.length)return;
+  const [card]=currentCards.splice(from,1);
+  currentCards.splice(to,0,card);
+  normalizeCardFilenames();
+  currentQuality=null;
+  renderCards();
+  await saveHistory();
+}
+
 function renderCards(){
   cardsPreview.innerHTML='';
+  let draggedIndex=null;
   currentCards.forEach((card,index)=>{
     const q=currentQuality?.cards?.find(x=>x.index===index);
     const badge=q?'<span class="qa-badge '+(q.status==='OK'?'ok':q.status==='Переделать'?'bad':'warn')+'">'+esc(q.status)+'</span>':'';
-    const el=document.createElement('div');el.className='preview-card';
-    el.innerHTML='<img alt="'+esc(card.title)+'" src="data:image/png;base64,'+card.base64+'"><strong>'+(index+1)+'. '+esc(card.title)+'</strong>'+badge+'<div class="card-actions"><button class="btn btn-ghost btn-small download-one">PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>';
+    const el=document.createElement('div');
+    el.className='preview-card';
+    el.draggable=true;
+    el.dataset.index=String(index);
+    el.innerHTML=
+      '<img alt="'+esc(card.title)+'" src="data:image/png;base64,'+card.base64+'">'+
+      '<strong>'+(index+1)+'. '+esc(card.title)+'</strong>'+badge+
+      '<div class="reorder-hint">Перетащите карточку или используйте стрелки, чтобы изменить порядок загрузки.</div>'+
+      '<div class="reorder-actions"><button class="btn btn-ghost btn-small move-left" '+(index===0?'disabled':'')+'>←</button><button class="btn btn-ghost btn-small move-right" '+(index===currentCards.length-1?'disabled':'')+'>→</button></div>'+
+      '<div class="card-actions"><button class="btn btn-ghost btn-small download-one">PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>';
+
+    el.addEventListener('dragstart',e=>{
+      draggedIndex=index;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+    });
+    el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+    el.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move'});
+    el.addEventListener('drop',async e=>{
+      e.preventDefault();
+      if(draggedIndex===null)return;
+      await moveCard(draggedIndex,index);
+      draggedIndex=null;
+    });
+
+    el.querySelector('.move-left').onclick=()=>moveCard(index,index-1);
+    el.querySelector('.move-right').onclick=()=>moveCard(index,index+1);
     el.querySelector('.download-one').onclick=()=>{const a=document.createElement('a');a.href='data:image/png;base64,'+card.base64;a.download=card.filename;a.click()};
     el.querySelector('.regen-one').onclick=()=>regenerateOne(index,el);
     cardsPreview.appendChild(el);
