@@ -1350,6 +1350,163 @@ async function togglePublished(id){
   await renderHistory();
 }
 
+
+function updateBulkBar(){
+  const count=selectedDraftIds.size;
+  bulkBar.classList.toggle('show',count>0);
+  bulkCount.textContent=count+' '+(count===1?'товар выбран':count<5?'товара выбрано':'товаров выбрано');
+  bulkDownload.disabled=count===0;
+  bulkPublish.disabled=count===0;
+  bulkDraft.disabled=count===0;
+  bulkDelete.disabled=count===0;
+  bulkClear.disabled=count===0;
+}
+
+function itemDescriptionText(item){
+  const d=item?.data||{};
+  const x=item?.extraData||d.confirmedData||{};
+  const specs=(d.characteristics||[]).map(v=>v.name+': '+v.value).join('\n');
+  return [
+    'Название:',
+    d.seoTitle||item?.title||'',
+    '',
+    'Категория:',
+    d.category||'',
+    '',
+    'Бренд:',
+    x.brand||storedCharValue(d,'Бренд')||'',
+    '',
+    'Артикул (SKU):',
+    x.sku||storedCharValue(d,'Артикул')||'',
+    '',
+    'Описание:',
+    d.fullDescription||d.shortDescription||'',
+    '',
+    'Характеристики:',
+    specs,
+    '',
+    'Цена за 1 шт.: '+(x.price1||x.price||''),
+    'Цена от 2 шт.: '+(x.price2||''),
+    'Цена от 3 шт. и более: '+(x.price3||''),
+    'Старая цена: '+(x.oldPrice||'')
+  ].join('\n');
+}
+
+function itemAutofillPayload(item){
+  const d=item?.data||{};
+  const x=item?.extraData||d.confirmedData||{};
+  return {
+    type:'yuvion-product-autofill',
+    version:1,
+    product:{
+      title:d.seoTitle||item?.title||'',
+      category:d.category||'',
+      brand:x.brand||storedCharValue(d,'Бренд')||'',
+      sku:x.sku||storedCharValue(d,'Артикул')||'',
+      description:d.fullDescription||d.shortDescription||'',
+      prices:{
+        one:x.price1||x.price||'',
+        two:x.price2||'',
+        three:x.price3||'',
+        old:x.oldPrice||''
+      },
+      characteristics:(d.characteristics||[]).filter(v=>!['бренд','артикул','цена'].includes(String(v.name||'').toLocaleLowerCase('ru')))
+    }
+  };
+}
+
+function dataUrlParts(dataUrl){
+  const m=String(dataUrl||'').match(/^data:([^;]+);base64,(.+)$/);
+  return m?{mime:m[1],base64:m[2]}:null;
+}
+
+function extensionFromMime(mime){
+  if(mime==='image/png')return 'png';
+  if(mime==='image/webp')return 'webp';
+  return 'jpg';
+}
+
+function downloadBlob(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=name;a.style.display='none';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+
+async function bulkDownloadLocalPackage(){
+  if(!selectedDraftIds.size)return;
+  if(typeof JSZip==='undefined'){
+    alert('Модуль ZIP не загрузился. Обновите страницу и попробуйте снова.');
+    return;
+  }
+  bulkDownload.disabled=true;
+  const old=bulkDownload.textContent;
+  bulkDownload.textContent='Собираем…';
+  try{
+    const zip=new JSZip();
+    const manifest=[];
+    let index=0;
+    for(const id of [...selectedDraftIds]){
+      const item=await dbGet(id);
+      if(!item)continue;
+      index++;
+      const folder=zip.folder(String(index).padStart(2,'0')+'_'+safeFileBase(item.title||item.data?.seoTitle||'product'));
+      const source=dataUrlParts(item.sourceDataUrl);
+      if(source)folder.file('source.'+extensionFromMime(source.mime),source.base64,{base64:true});
+      if(Array.isArray(item.cards)){
+        item.cards.forEach((card,cardIndex)=>{
+          if(card?.base64)folder.file(card.filename||String(cardIndex+1).padStart(2,'0')+'_card.png',card.base64,{base64:true});
+        });
+      }
+      folder.file('description.txt',itemDescriptionText(item));
+      folder.file('yuvion-autofill.json',JSON.stringify(itemAutofillPayload(item),null,2));
+      const status=draftStatus(item);
+      manifest.push({folder:folder.name,title:item.title||'',status:status.key,ready:storedReadiness(item).ready,published:Boolean(item.published)});
+    }
+    zip.file('manifest.json',JSON.stringify({
+      type:'yuvion-local-bulk-export',
+      version:1,
+      createdAt:new Date().toISOString(),
+      privacy:'Пакет собран локально в браузере. Персональные данные арендатора не добавляются.',
+      products:manifest
+    },null,2));
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    downloadBlob(blob,'yuvion-selected-products.zip');
+  }catch(e){
+    alert('Не удалось собрать общий ZIP: '+(e.message||'ошибка'));
+  }finally{
+    bulkDownload.disabled=false;
+    bulkDownload.textContent=old;
+  }
+}
+
+async function bulkSetPublished(value){
+  if(!selectedDraftIds.size)return;
+  let changed=0,skipped=0;
+  for(const id of [...selectedDraftIds]){
+    const item=await dbGet(id);
+    if(!item)continue;
+    if(value&&!storedReadiness(item).ready){skipped++;continue}
+    item.published=value;
+    item.publishedAt=value?Date.now():null;
+    item.updatedAt=Date.now();
+    await dbPut(item);
+    changed++;
+  }
+  if(skipped)alert('Отмечено опубликованными: '+changed+'. Пропущено без полной готовности: '+skipped+'.');
+  await renderHistory();
+}
+
+async function bulkDeleteSelected(){
+  if(!selectedDraftIds.size)return;
+  if(!confirm('Удалить выбранные локальные черновики с этого устройства?'))return;
+  for(const id of [...selectedDraftIds])await dbDelete(id);
+  if(currentHistoryId&&selectedDraftIds.has(currentHistoryId))resetProduct(false);
+  selectedDraftIds.clear();
+  await renderHistory();
+}
+
 async function renderHistory(){
   const grid=document.getElementById('historyGrid'),empty=document.getElementById('emptyHistory');
   try{
