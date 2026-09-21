@@ -533,6 +533,11 @@ const extraFields={
   price3:document.getElementById('extraPrice3'),
   oldPrice:document.getElementById('extraOldPrice')
 };
+const privateCost=document.getElementById('privateCost');
+const marginGrid=document.getElementById('marginGrid');
+const generateSkuBtn=document.getElementById('generateSku');
+const extraPhotosInput=document.getElementById('extraPhotosInput');
+const extraPhotoGrid=document.getElementById('extraPhotoGrid');
 const extraDataBox=document.getElementById('extraDataBox');
 const rememberBrandBtn=document.getElementById('rememberBrand');
 const tenantProfile=document.getElementById('tenantProfile');
@@ -543,6 +548,9 @@ const profileMode=document.getElementById('profileMode');
 const profileStyle=document.getElementById('profileStyle');
 const profileDiscount2=document.getElementById('profileDiscount2');
 const profileDiscount3=document.getElementById('profileDiscount3');
+const profileSkuPrefix=document.getElementById('profileSkuPrefix');
+const profileSkuNext=document.getElementById('profileSkuNext');
+const profileAutoSku=document.getElementById('profileAutoSku');
 const saveProfileBtn=document.getElementById('saveProfile');
 const resetProfileBtn=document.getElementById('resetProfile');
 const similarProductBtn=document.getElementById('similarProduct');
@@ -567,6 +575,14 @@ const dashPhoto=document.getElementById('dashPhoto');
 const dashNeeds=document.getElementById('dashNeeds');
 const dashDuplicates=document.getElementById('dashDuplicates');
 const dashReady=document.getElementById('dashReady');
+const saveRevisionBtn=document.getElementById('saveRevision');
+const revisionBox=document.getElementById('revisionBox');
+const revisionCount=document.getElementById('revisionCount');
+const revisionList=document.getElementById('revisionList');
+const importProductsBtn=document.getElementById('importProducts');
+const importProductsFile=document.getElementById('importProductsFile');
+const importNote=document.getElementById('importNote');
+const bulkLabels=document.getElementById('bulkLabels');
 
 let selectedFile=null;
 let sourceDataUrl=null;
@@ -589,6 +605,9 @@ let currentVariations=[];
 let scannerStream=null;
 let scannerFrame=0;
 let dashboardFilter='all';
+let currentAdditionalPhotos=[];
+let currentPrivateData={cost:''};
+let currentRevisions=[];
 
 localStorage.removeItem('yuvionSessionId');
 function apiHeaders(){return {'Content-Type':'application/json'}}
