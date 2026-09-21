@@ -1785,10 +1785,10 @@ async function compressedSource(){
 analyzeBtn.onclick=async()=>{
   if(busy)return;
   busy=true;analyzeBtn.disabled=true;clearError();loading.classList.add('show');
-  loadingTitle.textContent='Анализируем товар';loadingText.textContent='Определяем подтверждённые данные и проверяем качество исходного фото.';
+  loadingTitle.textContent='Анализируем товар';loadingText.textContent=currentAdditionalPhotos.length?'Сверяем основной снимок и дополнительные ракурсы, не выдумывая характеристики.':'Определяем подтверждённые данные и проверяем качество исходного фото.';
   try{
     const src=await getSource();
-    const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData()})});
+    const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
     currentData=data;currentCards=[];cardsStale=false;currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
