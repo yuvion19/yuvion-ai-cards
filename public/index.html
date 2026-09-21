@@ -2389,8 +2389,10 @@ function draftSearchText(item){
   const d=item?.data||{};
   const x=item?.extraData||d.confirmedData||{};
   return [
-    item?.title,d.seoTitle,d.category,x.brand,x.sku,
-    storedCharValue(d,'Бренд'),storedCharValue(d,'Артикул')
+    item?.title,d.seoTitle,d.category,x.brand,x.sku,x.barcode,
+    storedCharValue(d,'Бренд'),storedCharValue(d,'Артикул'),
+    ...(Array.isArray(item?.privateData?.collections)?item.privateData.collections:[]),
+    item?.privateData?.location
   ].filter(Boolean).join(' ').toLocaleLowerCase('ru');
 }
 
@@ -3184,11 +3186,13 @@ function renderDashboard(allItems){
   const photo=all.filter(item=>!item.data).length;
   const ready=all.filter(item=>item.data&&storedReadiness(item).ready&&!item.published).length;
   const needs=all.filter(item=>item.data&&!storedReadiness(item).ready).length;
+  const lowStock=all.filter(item=>lowStockState(item.privateData||{})).length;
   dashAll.textContent=String(all.length);
   dashPhoto.textContent=String(photo);
   dashNeeds.textContent=String(needs);
   dashDuplicates.textContent=String(duplicates);
   dashReady.textContent=String(ready);
+  dashLowStock.textContent=String(lowStock);
 }
 
 function dashboardMatches(item,allItems){
@@ -3197,6 +3201,7 @@ function dashboardMatches(item,allItems){
   if(dashboardFilter==='needs')return Boolean(item.data)&&!storedReadiness(item).ready;
   if(dashboardFilter==='duplicate')return Boolean(duplicateSkuInCatalog(item,allItems));
   if(dashboardFilter==='ready')return Boolean(item.data)&&storedReadiness(item).ready&&!item.published;
+  if(dashboardFilter==='lowstock')return lowStockState(item.privateData||{});
   return true;
 }
 
@@ -3205,11 +3210,17 @@ async function renderHistory(){
   try{
     const all=(await dbAll()).sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
     renderDashboard(all);
+    const collections=[...new Set(all.flatMap(item=>Array.isArray(item?.privateData?.collections)?item.privateData.collections:[]))].sort((a,b)=>a.localeCompare(b,'ru'));
+    const previousCollection=catalogCollection.value||'all';
+    catalogCollection.innerHTML='<option value="all">Все коллекции</option>'+collections.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');
+    catalogCollection.value=collections.includes(previousCollection)?previousCollection:'all';
     const query=String(catalogSearch?.value||'').trim().toLocaleLowerCase('ru');
     const statusFilter=catalogStatus?.value||'all';
+    const collectionFilter=catalogCollection?.value||'all';
     const filtered=all.filter(item=>{
       const status=draftStatus(item);
       if(statusFilter!=='all'&&status.key!==statusFilter)return false;
+      if(collectionFilter!=='all'&&!(item?.privateData?.collections||[]).includes(collectionFilter))return false;
       if(!dashboardMatches(item,all))return false;
       if(query&&!draftSearchText(item).includes(query))return false;
       return true;
@@ -3230,7 +3241,9 @@ async function renderHistory(){
       const status=draftStatus(item);
       const d=item.data||{};
       const x=item.extraData||d.confirmedData||{};
-      const secondary=d.category||x.brand||'Локальный черновик';
+      const collectionsText=(item?.privateData?.collections||[]).slice(0,2).join(', ');
+      const stockAlert=lowStockState(item.privateData||{})?' · низкий остаток':'';
+      const secondary=(d.category||x.brand||'Локальный черновик')+(collectionsText?' · '+collectionsText:'')+stockAlert;
       const when=item.updatedAt?new Date(item.updatedAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
       const ready=storedReadiness(item);
       const el=document.createElement('div');
@@ -3528,15 +3541,17 @@ document.querySelectorAll('[data-dash-status]').forEach(card=>card.addEventListe
 saveRevisionBtn.onclick=()=>saveCurrentRevision();
 generateSkuBtn.onclick=()=>assignGeneratedSku(true);
 extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosInput.files));
-privateCost.addEventListener('input',()=>{
+[privateCost,privateStock,privateBoxes,privateMinStock,privateLocation,privateCollections].forEach(el=>el.addEventListener('input',()=>{
   currentPrivateData=collectPrivateData();
-  renderMargin();
+  renderMargin();renderCollectionChips();
   if(currentData)saveHistoryDebounced();
-});
+}));
 [extraFields.price1,extraFields.price2,extraFields.price3].forEach(el=>el.addEventListener('input',()=>renderMargin()));
 
 importProductsBtn.onclick=()=>importProductsFile.click();
 importProductsFile.addEventListener('change',()=>importProductsFileNow(importProductsFile.files?.[0]));
+importRulesBtn.onclick=()=>importRulesFile.click();
+importRulesFile.addEventListener('change',()=>importRulesFileNow(importRulesFile.files?.[0]));
 
 backupCatalogBtn.onclick=()=>createEncryptedBackup();
 restoreCatalogBtn.onclick=()=>restoreCatalogFile.click();
@@ -3564,6 +3579,7 @@ if('serviceWorker' in navigator){
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
 catalogStatus.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
+catalogCollection.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
 
 bulkSelectVisible.onclick=()=>{
   if(!lastVisibleDraftIds.length)return;
