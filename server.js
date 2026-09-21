@@ -433,7 +433,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "4.4.0",
+    version: "4.4.1",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled
   });
@@ -1044,5 +1044,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v4.4 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v4.4.1 listening on port ${port}`);
 });
