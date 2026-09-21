@@ -1436,23 +1436,109 @@ function inspectImage(file){
     const url=URL.createObjectURL(file);
     img.onload=()=>{
       const warnings=[];
+      const notes=[];
       if(img.width<800||img.height<800)warnings.push('Низкое разрешение — желательно минимум 800 px по каждой стороне.');
       const ratio=img.width/img.height;
       if(ratio>2.2||ratio<0.45)warnings.push('Сильно вытянутое кадрирование может ухудшить результат.');
-      const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;
-      const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,64,64);
-      const data=ctx.getImageData(0,0,64,64).data;
+
+      const N=96;
+      const canvas=document.createElement('canvas');canvas.width=N;canvas.height=N;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(img,0,0,N,N);
+      const data=ctx.getImageData(0,0,N,N).data;
+      const gray=new Float32Array(N*N);
       let sum=0,sumSq=0,edge=0,count=0;
-      const gray=[];
-      for(let i=0;i<data.length;i+=4){const g=.299*data[i]+.587*data[i+1]+.114*data[i+2];gray.push(g);sum+=g;sumSq+=g*g;count++}
-      const avg=sum/count;const st=Math.sqrt(Math.max(0,sumSq/count-avg*avg));
-      for(let y=0;y<64;y++)for(let x=1;x<64;x++)edge+=Math.abs(gray[y*64+x]-gray[y*64+x-1]);
-      edge/=64*63;
+
+      for(let i=0,p=0;i<data.length;i+=4,p++){
+        const g=.299*data[i]+.587*data[i+1]+.114*data[i+2];
+        gray[p]=g;sum+=g;sumSq+=g*g;count++;
+      }
+      const avg=sum/count;
+      const st=Math.sqrt(Math.max(0,sumSq/count-avg*avg));
+
+      for(let y=0;y<N;y++){
+        for(let x=0;x<N;x++){
+          const i=y*N+x;
+          if(x>0)edge+=Math.abs(gray[i]-gray[i-1]);
+          if(y>0)edge+=Math.abs(gray[i]-gray[i-N]);
+        }
+      }
+      edge/=((N*(N-1))*2);
+
+      let br=0,bg=0,bb=0,bcount=0,bvar=0;
+      const border=[];
+      for(let y=0;y<N;y++){
+        for(let x=0;x<N;x++){
+          if(x<5||x>=N-5||y<5||y>=N-5){
+            const p=(y*N+x)*4;
+            br+=data[p];bg+=data[p+1];bb+=data[p+2];bcount++;
+            border.push([data[p],data[p+1],data[p+2]]);
+          }
+        }
+      }
+      br/=bcount;bg/=bcount;bb/=bcount;
+      for(const px of border)bvar+=(px[0]-br)**2+(px[1]-bg)**2+(px[2]-bb)**2;
+      const borderStd=Math.sqrt(bvar/(bcount*3));
+
+      const threshold=Math.max(42,Math.min(85,35+borderStd*.9));
+      const mask=new Uint8Array(N*N);
+      let fg=0,minX=N,minY=N,maxX=-1,maxY=-1;
+      for(let y=0;y<N;y++){
+        for(let x=0;x<N;x++){
+          const p=(y*N+x)*4;
+          const dist=Math.sqrt((data[p]-br)**2+(data[p+1]-bg)**2+(data[p+2]-bb)**2);
+          if(dist>threshold){
+            const idx=y*N+x;mask[idx]=1;fg++;
+            if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;
+          }
+        }
+      }
+      const fgRatio=fg/(N*N);
+
+      let components=0;
+      const seen=new Uint8Array(N*N);
+      const minArea=Math.max(16,Math.round(N*N*.012));
+      for(let i=0;i<mask.length;i++){
+        if(!mask[i]||seen[i])continue;
+        let area=0;
+        const stack=[i];seen[i]=1;
+        while(stack.length){
+          const cur=stack.pop();area++;
+          const x=cur%N,y=Math.floor(cur/N);
+          const neighbors=[cur-1,cur+1,cur-N,cur+N];
+          for(const n of neighbors){
+            if(n<0||n>=mask.length||seen[n]||!mask[n])continue;
+            const nx=n%N,ny=Math.floor(n/N);
+            if(Math.abs(nx-x)+Math.abs(ny-y)!==1)continue;
+            seen[n]=1;stack.push(n);
+          }
+        }
+        if(area>=minArea)components++;
+      }
+
       if(avg<48)warnings.push('Фото выглядит слишком тёмным.');
       if(avg>226)warnings.push('Фото выглядит пересвеченным.');
       if(st<22||edge<7)warnings.push('Фото может быть размытым или малоконтрастным.');
+      if(fgRatio>0&&fgRatio<.07)warnings.push('Товар может занимать слишком мало места в кадре — лучше снять ближе.');
+      if(maxX>=0){
+        const touches=minX<=2||minY<=2||maxX>=N-3||maxY>=N-3;
+        if(touches&&fgRatio>.12)warnings.push('Товар очень близко к краю кадра; часть объекта может быть обрезана.');
+        const centerX=(minX+maxX)/2/N,centerY=(minY+maxY)/2/N;
+        if(Math.abs(centerX-.5)>.27||Math.abs(centerY-.5)>.27)notes.push('Товар заметно смещён от центра кадра.');
+      }
+      if(components>=3&&fgRatio>.12)warnings.push('Эвристика видит несколько раздельных объектов — проверьте, что в кадре действительно один товар.');
+      if(borderStd>48&&edge>16)warnings.push('Фон выглядит сложным или неоднородным; однотонный фон обычно даёт стабильнее результат.');
+
+      if(!warnings.length){
+        if(fgRatio>=.07&&fgRatio<=.8)notes.push('Размер товара в кадре выглядит приемлемо.');
+        notes.push('Яркость, контраст и резкость выглядят приемлемо.');
+      }
+
       localQuality.className='quality-box show '+(warnings.length?'warn':'good');
-      localQuality.innerHTML='<strong>'+(warnings.length?'Есть замечания к фото':'Фото подходит для анализа')+'</strong>'+(warnings.length?warnings.map(x=>'• '+esc(x)).join('<br>'):'Разрешение, яркость и резкость выглядят приемлемо.');
+      localQuality.innerHTML=
+        '<strong>'+(warnings.length?'Есть замечания к фото':'Фото подходит для анализа')+'</strong>'+
+        (warnings.length?warnings.map(x=>'• '+esc(x)).join('<br>'):notes.map(x=>'• '+esc(x)).join('<br>'))+
+        '<br><span class="muted" style="font-size:11px">Это локальная эвристическая проверка до платного AI-запроса; она не заменяет визуальную проверку результата.</span>';
       URL.revokeObjectURL(url);resolve();
     };
     img.onerror=()=>{URL.revokeObjectURL(url);resolve()};
