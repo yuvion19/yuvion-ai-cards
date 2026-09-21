@@ -1,0 +1,19 @@
+{
+  "name": "Yuvion AI Cards",
+  "short_name": "Yuvion AI",
+  "description": "AI-подготовка карточек товаров и приватный локальный каталог для Yuvion.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F8F5F5",
+  "theme_color": "#F03E4A",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/icons/yuvion-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
