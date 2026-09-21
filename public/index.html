@@ -407,6 +407,9 @@ const batchList=document.getElementById('batchList');
 const batchProgress=document.getElementById('batchProgress');
 const batchBar=document.getElementById('batchBar');
 const batchProgressText=document.getElementById('batchProgressText');
+const catalogSearch=document.getElementById('catalogSearch');
+const catalogStatus=document.getElementById('catalogStatus');
+const catalogCount=document.getElementById('catalogCount');
 
 const editor={
   title:document.getElementById('edTitle'),
@@ -902,12 +905,13 @@ async function setFile(file){
   const ok=['image/jpeg','image/png','image/webp'];
   if(!ok.includes(file.type))return showError('Поддерживаются только JPG, PNG и WebP.');
   if(file.size>10*1024*1024)return showError('Файл больше 10 МБ.');
-  selectedFile=file;sourceDataUrl=null;currentHistoryId=null;currentData=null;currentCards=[];cardsStale=false;
+  selectedFile=file;sourceDataUrl=null;currentHistoryId=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));currentData=null;currentCards=[];cardsStale=false;
   preview.src=URL.createObjectURL(file);preview.classList.add('show');drop.classList.add('has');dropText.style.display='none';
   meta.textContent=file.name+' • '+(file.size/1024/1024).toFixed(2)+' МБ';
   analyzeBtn.disabled=false;workspace.classList.remove('show');
   updateWorkflow();
   await inspectImage(file);
+  await savePhotoDraft(file);
 }
 
 function inspectImage(file){
@@ -977,7 +981,7 @@ analyzeBtn.onclick=async()=>{
     const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData()})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
-    currentData=data;currentCards=[];cardsStale=false;currentHistoryId=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36);
+    currentData=data;currentCards=[];cardsStale=false;currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
     fillEditor(data);
     if(pendingSimilarTemplate?.category){
       editor.category.value=pendingSimilarTemplate.category;
