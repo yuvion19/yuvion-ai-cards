@@ -2062,6 +2062,7 @@ Object.values(extraFields).forEach(el=>el.addEventListener('input',()=>{
     localQuality.className='quality-box show warn';
     localQuality.innerHTML='<strong>Подтверждённые данные изменены</strong>Нажмите «Проанализировать фото» ещё раз, чтобы AI пересобрал текст с учётом новых значений.';
     renderYuvionExport();
+    renderProductCockpit();
     saveHistoryDebounced();
   }
 }));
@@ -2406,7 +2407,7 @@ function updatePlan(){
 
 Object.values(editor).forEach(el=>el.addEventListener('input',()=>{
   if(!currentData)return;
-  currentData=collectEdits();updatePlan();renderYuvionExport();markCardsStale();saveHistoryDebounced();
+  currentData=collectEdits();updatePlan();renderYuvionExport();renderProductCockpit();markCardsStale();saveHistoryDebounced();
 }));
 editor.category.addEventListener('input',()=>{renderCategoryValidation();renderSpecTemplateHint()});
 editor.category.addEventListener('blur',()=>{
@@ -2419,7 +2420,7 @@ editor.category.addEventListener('blur',()=>{
   renderCategoryValidation();
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
-styleSelect.onchange=()=>{markCardsStale();saveHistoryDebounced()};
+styleSelect.onchange=()=>{markCardsStale();renderProductCockpit();saveHistoryDebounced()};
 
 function markCardsStale(){
   if(currentCards.length){
