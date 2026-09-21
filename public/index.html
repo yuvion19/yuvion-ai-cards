@@ -56,6 +56,7 @@
     .extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.extra-field{display:flex;flex-direction:column;gap:6px}.extra-field label{font-size:13px;font-weight:800;color:#544A4C}
     .extra-field input{width:100%;border:1px solid var(--line);background:#fff;border-radius:11px;padding:11px 12px;color:var(--text);outline:none}.extra-field input:focus{border-color:#F09AA2;box-shadow:0 0 0 3px #FFF1F2}
     .confirmed-badge{display:inline-flex;margin-top:12px;padding:7px 10px;border-radius:999px;background:#EEF9F1;color:#226B38;font-size:12px;font-weight:800}
+    .seller-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}.seller-tools-label{font-size:12px;font-weight:850;color:#65595C;margin-right:3px}.tool-chip{border:1px solid #E9DADC;background:#fff;color:#674E53;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer}.tool-chip:hover{border-color:#E7A5AE;color:var(--brand2)}
     .qa-badge{display:inline-flex;align-items:center;margin:0 2px 8px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:850;background:#F1F1F2;color:#5F585A}
     .qa-badge.ok{background:#EAF8EE;color:#226B38}.qa-badge.warn{background:#FFF6DF;color:#8A5A00}.qa-badge.bad{background:#FFF0F0;color:#A62A2A}
     .qa-summary{margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:#FCFAFA;font-size:13px;line-height:1.45}
@@ -143,6 +144,12 @@
           <div class="extra-field"><label>Старая цена, ₽</label><input id="extraOldPrice" maxlength="80" inputmode="decimal" placeholder="Необязательно" /></div>
         </div>
         <div class="confirmed-badge">Заполненные значения имеют приоритет над распознаванием по фото</div>
+        <div class="seller-tools">
+          <span class="seller-tools-label">Быстрые действия:</span>
+          <button type="button" class="tool-chip" id="rememberBrand">Запомнить бренд</button>
+          <button type="button" class="tool-chip" data-price-preset="5,10">Опт −5% / −10%</button>
+          <button type="button" class="tool-chip" data-price-preset="10,15">Опт −10% / −15%</button>
+        </div>
       </div>
     </details>
 
@@ -365,6 +372,7 @@ const extraFields={
   oldPrice:document.getElementById('extraOldPrice')
 };
 const extraDataBox=document.getElementById('extraDataBox');
+const rememberBrandBtn=document.getElementById('rememberBrand');
 
 let selectedFile=null;
 let sourceDataUrl=null;
@@ -402,9 +410,39 @@ function fillExtraData(data={}){
 }
 function clearExtraData(){
   for(const el of Object.values(extraFields))el.value='';
-  extraDataBox.open=false;
+  applySellerDefaults();
+  extraDataBox.open=Boolean(extraFields.brand.value);
 }
 
+
+
+const SELLER_DEFAULTS_KEY='yuvionSellerDefaultsV1';
+
+function loadSellerDefaults(){
+  try{return JSON.parse(localStorage.getItem(SELLER_DEFAULTS_KEY)||'{}')||{}}catch{return {}}
+}
+function applySellerDefaults(){
+  const defaults=loadSellerDefaults();
+  if(defaults.brand&&!extraFields.brand.value)extraFields.brand.value=defaults.brand;
+}
+function moneyNumber(value){
+  const normalized=String(value||'').replace(/\s/g,'').replace(',','.');
+  const n=Number(normalized.replace(/[^\d.-]/g,''));
+  return Number.isFinite(n)?n:0;
+}
+function setWholesalePreset(discount2,discount3){
+  const base=moneyNumber(extraFields.price1.value);
+  if(base<=0){
+    extraFields.price1.focus();
+    localQuality.className='quality-box show warn';
+    localQuality.innerHTML='<strong>Сначала укажите цену за 1 шт.</strong>После этого можно автоматически рассчитать оптовые цены.';
+    return;
+  }
+  extraFields.price2.value=String(Math.max(0,Math.round(base*(1-discount2/100))));
+  extraFields.price3.value=String(Math.max(0,Math.round(base*(1-discount3/100))));
+  extraFields.price2.dispatchEvent(new Event('input',{bubbles:true}));
+  extraFields.price3.dispatchEvent(new Event('input',{bubbles:true}));
+}
 
 const CATEGORY_MEMORY_KEY='yuvionCategoryMemoryV1';
 const BASE_CATEGORIES=[
@@ -628,6 +666,24 @@ copyYuvionAll.onclick=async()=>{
 };
 
 exportImagesZip.onclick=()=>downloadPackage(false,false);
+
+rememberBrandBtn.onclick=()=>{
+  const brand=extraFields.brand.value.trim();
+  if(!brand){
+    extraFields.brand.focus();
+    localQuality.className='quality-box show warn';
+    localQuality.innerHTML='<strong>Введите бренд</strong>После этого его можно сохранить как значение по умолчанию.';
+    return;
+  }
+  localStorage.setItem(SELLER_DEFAULTS_KEY,JSON.stringify({brand}));
+  rememberBrandBtn.textContent='Бренд сохранён';
+  setTimeout(()=>rememberBrandBtn.textContent='Запомнить бренд',1300);
+};
+
+document.querySelectorAll('[data-price-preset]').forEach(btn=>btn.onclick=()=>{
+  const parts=btn.dataset.pricePreset.split(',').map(Number);
+  setWholesalePreset(parts[0]||0,parts[1]||0);
+});
 
 
 Object.values(extraFields).forEach(el=>el.addEventListener('input',()=>{
@@ -1191,7 +1247,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-renderHistory();renderCategoryMemory();renderYuvionExport();syncModeUi();updateWorkflow();
+applySellerDefaults();renderHistory();renderCategoryMemory();renderYuvionExport();syncModeUi();updateWorkflow();
 </script>
 </body>
 </html>
