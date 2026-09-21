@@ -56,6 +56,11 @@
     .extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.extra-field{display:flex;flex-direction:column;gap:6px}.extra-field label{font-size:13px;font-weight:800;color:#544A4C}
     .extra-field input{width:100%;border:1px solid var(--line);background:#fff;border-radius:11px;padding:11px 12px;color:var(--text);outline:none}.extra-field input:focus{border-color:#F09AA2;box-shadow:0 0 0 3px #FFF1F2}
     .confirmed-badge{display:inline-flex;margin-top:12px;padding:7px 10px;border-radius:999px;background:#EEF9F1;color:#226B38;font-size:12px;font-weight:800}
+    .tenant-profile{max-width:900px;margin:0 auto 16px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.82);box-shadow:0 10px 30px rgba(72,31,37,.04);overflow:hidden}
+    .tenant-profile summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:850;display:flex;justify-content:space-between;align-items:center;gap:12px}.tenant-profile summary::-webkit-details-marker{display:none}.tenant-profile summary:after{content:"Настроить";font-size:11px;color:var(--brand);background:var(--soft);padding:6px 8px;border-radius:999px}.tenant-profile[open] summary:after{content:"Скрыть"}
+    .profile-body{padding:0 16px 16px}.profile-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.profile-field{display:flex;flex-direction:column;gap:6px}.profile-field label{font-size:12px;font-weight:800;color:#5D5255}.profile-field input,.profile-field select{border:1px solid var(--line);border-radius:11px;padding:10px 11px;background:#fff;outline:none}.profile-field input:focus,.profile-field select:focus{border-color:#F09AA2;box-shadow:0 0 0 3px #FFF1F2}.profile-actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:12px;flex-wrap:wrap}.profile-hint{font-size:12px;color:var(--muted);margin-right:auto}
+    .helper-box{margin-top:12px;padding:14px;border:1px solid #DCE6ED;border-radius:14px;background:#F7FBFD}.helper-box b{display:block;margin-bottom:5px}.helper-box p{margin:0;color:#60717C;font-size:12px;line-height:1.45}.helper-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .similar-banner{display:none;margin:12px auto 0;max-width:900px;padding:12px 14px;border-radius:14px;background:#EEF9F1;color:#226B38;font-size:13px}.similar-banner.show{display:block}
     .seller-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}.seller-tools-label{font-size:12px;font-weight:850;color:#65595C;margin-right:3px}.tool-chip{border:1px solid #E9DADC;background:#fff;color:#674E53;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer}.tool-chip:hover{border-color:#E7A5AE;color:var(--brand2)}
     .qa-badge{display:inline-flex;align-items:center;margin:0 2px 8px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:850;background:#F1F1F2;color:#5F585A}
     .qa-badge.ok{background:#EAF8EE;color:#226B38}.qa-badge.warn{background:#FFF6DF;color:#8A5A00}.qa-badge.bad{background:#FFF0F0;color:#A62A2A}
@@ -70,8 +75,8 @@
     .batch-progress{display:none;margin-top:13px}.batch-progress.show{display:block}.progress-track{height:9px;background:#F2E9EA;border-radius:999px;overflow:hidden}.progress-bar{height:100%;width:0;background:var(--brand);transition:width .25s}
     .history{max-width:1050px;margin:28px auto 0}.history-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.history h2{font-size:23px;margin:0}.history-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-top:13px}.history-item{background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px;box-shadow:0 8px 24px rgba(100,40,47,.04)}.history-item img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;background:#f5f2f2}.history-item b{display:block;font-size:13px;margin:8px 0 3px}.history-item small{display:block;color:var(--muted);margin-bottom:8px}.history-actions{display:flex;gap:5px}.empty-history{margin-top:12px;color:var(--muted);font-size:14px}
     footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}footer a{color:var(--brand);text-decoration:none;font-weight:750}
-    @media(max-width:960px){.workflow{grid-template-columns:repeat(2,1fr)}.readiness-list{grid-template-columns:1fr}.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(3,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
-    @media(max-width:720px){.hero-shell{padding:28px 18px;border-radius:22px}.workflow{grid-template-columns:1fr 1fr}.workflow-step{padding:8px;font-size:11px}.smart-strip{align-items:flex-start;flex-direction:column}.sticky-dock{bottom:8px}.dock-status{display:none}.dock-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}.dock-btn{padding:10px 8px}.readiness-top{grid-template-columns:70px 1fr}.readiness-ring{width:66px;height:66px}.export-row{grid-template-columns:1fr}.export-row .btn{justify-self:start}.export-actions{width:100%}.export-actions .btn{flex:1}.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
+    @media(max-width:960px){.profile-grid{grid-template-columns:1fr 1fr}.workflow{grid-template-columns:repeat(2,1fr)}.readiness-list{grid-template-columns:1fr}.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(3,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
+    @media(max-width:720px){.profile-grid{grid-template-columns:1fr}.profile-actions .btn{flex:1}.hero-shell{padding:28px 18px;border-radius:22px}.workflow{grid-template-columns:1fr 1fr}.workflow-step{padding:8px;font-size:11px}.smart-strip{align-items:flex-start;flex-direction:column}.sticky-dock{bottom:8px}.dock-status{display:none}.dock-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}.dock-btn{padding:10px 8px}.readiness-top{grid-template-columns:70px 1fr}.readiness-ring{width:66px;height:66px}.export-row{grid-template-columns:1fr}.export-row .btn{justify-self:start}.export-actions{width:100%}.export-actions .btn{flex:1}.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
   </style>
 </head>
 <body>
@@ -112,6 +117,27 @@
       <button class="smart-pill" id="jumpHistory">Последние товары</button>
     </div>
   </div>
+
+  <details class="tenant-profile" id="tenantProfile">
+    <summary>Профиль арендатора <span class="muted" id="profileSummary" style="font-size:12px;font-weight:650">настройки по умолчанию</span></summary>
+    <div class="profile-body">
+      <div class="profile-grid">
+        <div class="profile-field"><label>Бренд по умолчанию</label><input id="profileBrand" placeholder="Например: B*B Toys" /></div>
+        <div class="profile-field"><label>Любимая категория / путь</label><input id="profileCategory" placeholder="Например: Игрушки / Мягкие игрушки" /></div>
+        <div class="profile-field"><label>Режим по умолчанию</label><select id="profileMode"><option value="full">Полный комплект</option><option value="fast">Быстро</option></select></div>
+        <div class="profile-field"><label>Стиль карточек</label><select id="profileStyle"><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select></div>
+        <div class="profile-field"><label>Скидка от 2 шт., %</label><input id="profileDiscount2" inputmode="decimal" value="5" /></div>
+        <div class="profile-field"><label>Скидка от 3 шт., %</label><input id="profileDiscount3" inputmode="decimal" value="10" /></div>
+      </div>
+      <div class="profile-actions">
+        <span class="profile-hint">Профиль хранится только в этом браузере и автоматически применяется к новым товарам.</span>
+        <button class="btn btn-ghost btn-small" id="resetProfile">Сбросить</button>
+        <button class="btn btn-primary btn-small" id="saveProfile">Сохранить профиль</button>
+      </div>
+    </div>
+  </details>
+
+  <div class="similar-banner" id="similarBanner">Режим похожего товара: бренд, категория и цены сохранены. Загрузите новое фото — название, артикул и описания будут созданы заново.</div>
 
   <section class="card upload">
     <div class="mode-row">
@@ -168,7 +194,7 @@
   <section class="workspace" id="workspace">
     <div class="workspace-head">
       <div><div class="section-kicker">Этап 2 · Данные товара</div><h2>Проверьте данные</h2><div class="muted" id="confidence"></div><div class="save-state saved" id="saveState" style="margin-top:7px">Изменения сохраняются автоматически</div></div>
-      <button class="btn btn-ghost" id="newProduct">Новый товар</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" id="similarProduct">Создать похожий</button><button class="btn btn-ghost" id="newProduct">Новый товар</button></div>
     </div>
 
     <section class="editor">
@@ -235,6 +261,14 @@
         <button class="btn btn-ghost" id="exportImagesZip" disabled>Скачать 4 PNG</button>
       </div>
       <div class="export-tip">Порядок переноса: название → категория → бренд → артикул (SKU) → описание → характеристики → цены → изображения → «Отправить на модерацию».</div>
+      <div class="helper-box">
+        <b>Помощник автозаполнения admin.yuvion.ru</b>
+        <p>Для Chrome/Edge на компьютере: скопируйте пакет товара, откройте личный кабинет и запустите расширение Yuvion Helper. Оно заполнит текстовые поля; категорию нужно подтвердить в выпадающем списке, изображения загружаются отдельно.</p>
+        <div class="helper-actions">
+          <button class="btn btn-ghost btn-small" id="copyAutofillPackage">Скопировать пакет автозаполнения</button>
+          <a class="btn btn-ghost btn-small" href="/downloads/yuvion-helper.zip">Скачать Yuvion Helper</a>
+        </div>
+      </div>
     </section>
 
     <section class="creative" id="creative">
