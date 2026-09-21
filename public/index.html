@@ -1948,6 +1948,9 @@ function itemDescriptionText(item){
     'Артикул (SKU):',
     x.sku||storedCharValue(d,'Артикул')||'',
     '',
+    'Штрихкод / EAN:',
+    x.barcode||'',
+    '',
     'Описание:',
     d.fullDescription||d.shortDescription||'',
     '',
@@ -1957,7 +1960,12 @@ function itemDescriptionText(item){
     'Цена за 1 шт.: '+(x.price1||x.price||''),
     'Цена от 2 шт.: '+(x.price2||''),
     'Цена от 3 шт. и более: '+(x.price3||''),
-    'Старая цена: '+(x.oldPrice||'')
+    'Старая цена: '+(x.oldPrice||''),
+    '',
+    'Вариации:',
+    ...(Array.isArray(item?.variations)&&item.variations.length
+      ? item.variations.map(v=>[v.name,v.option,v.sku,v.barcode,v.price].filter(Boolean).join(' · '))
+      : ['Нет'])
   ].join('\n');
 }
 
@@ -1972,6 +1980,7 @@ function itemAutofillPayload(item){
       category:d.category||'',
       brand:x.brand||storedCharValue(d,'Бренд')||'',
       sku:x.sku||storedCharValue(d,'Артикул')||'',
+      barcode:x.barcode||'',
       description:d.fullDescription||d.shortDescription||'',
       prices:{
         one:x.price1||x.price||'',
@@ -1979,7 +1988,8 @@ function itemAutofillPayload(item){
         three:x.price3||'',
         old:x.oldPrice||''
       },
-      characteristics:(d.characteristics||[]).filter(v=>!['бренд','артикул','цена'].includes(String(v.name||'').toLocaleLowerCase('ru')))
+      characteristics:(d.characteristics||[]).filter(v=>!['бренд','артикул','цена'].includes(String(v.name||'').toLocaleLowerCase('ru'))),
+      variations:Array.isArray(item?.variations)?item.variations:[]
     }
   };
 }
@@ -2030,6 +2040,7 @@ async function bulkDownloadLocalPackage(){
       }
       folder.file('description.txt',itemDescriptionText(item));
       folder.file('yuvion-autofill.json',JSON.stringify(itemAutofillPayload(item),null,2));
+      if(Array.isArray(item.variations)&&item.variations.length)folder.file('variations.json',JSON.stringify(item.variations,null,2));
       const status=draftStatus(item);
       manifest.push({folder:folder.name,title:item.title||'',status:status.key,ready:storedReadiness(item).ready,published:Boolean(item.published)});
     }
