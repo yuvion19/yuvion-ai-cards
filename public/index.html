@@ -2091,15 +2091,48 @@ async function bulkDeleteSelected(){
   await renderHistory();
 }
 
+
+function renderDashboard(allItems){
+  const all=Array.isArray(allItems)?allItems:[];
+  const skuCounts=new Map();
+  for(const item of all){
+    const sku=skuOfStoredItem(item);
+    if(sku)skuCounts.set(sku,(skuCounts.get(sku)||0)+1);
+  }
+  const duplicates=all.filter(item=>{
+    const sku=skuOfStoredItem(item);
+    return sku&&(skuCounts.get(sku)||0)>1;
+  }).length;
+  const photo=all.filter(item=>!item.data).length;
+  const ready=all.filter(item=>item.data&&storedReadiness(item).ready&&!item.published).length;
+  const needs=all.filter(item=>item.data&&!storedReadiness(item).ready).length;
+  dashAll.textContent=String(all.length);
+  dashPhoto.textContent=String(photo);
+  dashNeeds.textContent=String(needs);
+  dashDuplicates.textContent=String(duplicates);
+  dashReady.textContent=String(ready);
+}
+
+function dashboardMatches(item,allItems){
+  if(dashboardFilter==='all')return true;
+  if(dashboardFilter==='photo')return !item.data;
+  if(dashboardFilter==='needs')return Boolean(item.data)&&!storedReadiness(item).ready;
+  if(dashboardFilter==='duplicate')return Boolean(duplicateSkuInCatalog(item,allItems));
+  if(dashboardFilter==='ready')return Boolean(item.data)&&storedReadiness(item).ready&&!item.published;
+  return true;
+}
+
 async function renderHistory(){
   const grid=document.getElementById('historyGrid'),empty=document.getElementById('emptyHistory');
   try{
     const all=(await dbAll()).sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
+    renderDashboard(all);
     const query=String(catalogSearch?.value||'').trim().toLocaleLowerCase('ru');
     const statusFilter=catalogStatus?.value||'all';
     const filtered=all.filter(item=>{
       const status=draftStatus(item);
       if(statusFilter!=='all'&&status.key!==statusFilter)return false;
+      if(!dashboardMatches(item,all))return false;
       if(query&&!draftSearchText(item).includes(query))return false;
       return true;
     });
