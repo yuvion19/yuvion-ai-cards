@@ -1872,6 +1872,14 @@ extraFields.sku.addEventListener('input',()=>{
   skuCheckTimer=setTimeout(()=>checkDuplicateSku(),220);
 });
 extraFields.sku.addEventListener('blur',()=>checkDuplicateSku());
+let barcodeCheckTimer;
+extraFields.barcode.addEventListener('input',()=>{
+  clearTimeout(barcodeCheckTimer);
+  barcodeCheckTimer=setTimeout(()=>checkBarcodeState('product'),220);
+});
+extraFields.barcode.addEventListener('blur',()=>checkBarcodeState('product'));
+intakeBarcode.addEventListener('input',()=>checkBarcodeState('intake'));
+intakeBarcode.addEventListener('blur',()=>checkBarcodeState('intake'));
 
 document.querySelectorAll('.mode').forEach(btn=>btn.onclick=()=>{
   currentMode=btn.dataset.mode;
@@ -3681,8 +3689,15 @@ clearEmptySpecsBtn.onclick=()=>clearEmptySpecRows();
 addVariationBtn.onclick=()=>addVariation();
 variantsFromProductBtn.onclick=()=>seedMainProductVariation();
 
-scanBarcodeBtn.onclick=()=>startBarcodeScanner();
+scanBarcodeBtn.onclick=()=>startBarcodeScanner('product');
+scanIntakeBarcode.onclick=()=>startBarcodeScanner('intake');
 closeScannerBtn.onclick=()=>stopBarcodeScanner();
+openIntakeBtn.onclick=()=>openIntake();
+closeIntakeBtn.onclick=()=>closeIntakeModal();
+createIntakeDraft.onclick=()=>createIntakeDraftNow();
+intakeModal.addEventListener('click',e=>{if(e.target===intakeModal)closeIntakeModal()});
+closeDiff.onclick=()=>diffModal.classList.remove('show');
+diffModal.addEventListener('click',e=>{if(e.target===diffModal)diffModal.classList.remove('show')});
 scannerModal.addEventListener('click',e=>{if(e.target===scannerModal)stopBarcodeScanner()});
 
 document.querySelectorAll('[data-dash-status]').forEach(card=>card.addEventListener('click',()=>{
