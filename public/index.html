@@ -2311,6 +2311,7 @@ function updateBulkBar(){
   bulkBar.classList.toggle('show',count>0);
   bulkCount.textContent=count+' '+(count===1?'товар выбран':count<5?'товара выбрано':'товаров выбрано');
   bulkDownload.disabled=count===0;
+  bulkLabels.disabled=count===0;
   bulkPublish.disabled=count===0;
   bulkDraft.disabled=count===0;
   bulkDelete.disabled=count===0;
@@ -2729,7 +2730,7 @@ async function importProductRows(rows,filename='таблица'){
 
   const defaults=loadSellerDefaults();
   let imported=0,skipped=0;
-  for(const row of rows.slice(1,501)){
+  for(const row of rows.slice(1,CATALOG_LIMIT+1)){
     const record=importRecordFromRow(headers,row);
     if(!Object.values(record).some(Boolean)){skipped++;continue}
 
@@ -2798,8 +2799,9 @@ async function importProductRows(rows,filename='таблица'){
   }
   await trimCatalog();
   await renderHistory();
+  const truncated=Math.max(0,rows.length-1-CATALOG_LIMIT);
   importNote.className='import-note show';
-  importNote.textContent='Импортировано: '+imported+'. Пропущено пустых строк: '+skipped+'. Фото можно добавить позже, открыв черновик.';
+  importNote.textContent='Импортировано: '+imported+'. Пропущено пустых строк: '+skipped+(truncated?' · строк сверх локального лимита: '+truncated:'')+'. Фото можно добавить позже, открыв черновик.';
   document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -2810,7 +2812,13 @@ async function importProductsFileNow(file){
   try{
     let rows;
     if(/\.csv$/i.test(file.name)||String(file.type).includes('csv')){
-      rows=parseCsvText(await file.text());
+      const bytes=new Uint8Array(await file.arrayBuffer());
+      let text=new TextDecoder('utf-8').decode(bytes);
+      const bad=(text.match(/�/g)||[]).length;
+      if(bad>Math.max(2,text.length*.002)){
+        try{text=new TextDecoder('windows-1251').decode(bytes)}catch{}
+      }
+      rows=parseCsvText(text);
     }else if(/\.xlsx$/i.test(file.name)){
       rows=await parseXlsxFile(file);
     }else{
