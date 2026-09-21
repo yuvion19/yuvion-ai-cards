@@ -97,7 +97,7 @@
         <div class="extra-grid">
           <div class="extra-field"><label>Название товара</label><input id="extraName" maxlength="140" placeholder="Например: Настольная лампа" /></div>
           <div class="extra-field"><label>Бренд</label><input id="extraBrand" maxlength="100" placeholder="Например: Yuvion" /></div>
-          <div class="extra-field"><label>Артикул</label><input id="extraSku" maxlength="100" placeholder="Например: LM-204" /></div>
+          <div class="extra-field"><label>Артикул (SKU)</label><input id="extraSku" maxlength="100" placeholder="Например: LM-204" /></div>
           <div class="extra-field"><label>Размеры</label><input id="extraSize" maxlength="120" placeholder="Например: 25×12×12 см" /></div>
           <div class="extra-field"><label>Материал</label><input id="extraMaterial" maxlength="160" placeholder="Например: металл, пластик" /></div>
           <div class="extra-field"><label>Цена</label><input id="extraPrice" maxlength="80" placeholder="Например: 2 490 ₽" /></div>
@@ -126,11 +126,11 @@
 
     <section class="editor">
       <h3>Редактирование перед генерацией</h3>
-      <div class="editor-sub">Все поля ниже можно исправить. Именно эти данные попадут в текст и инфографику.</div>
+      <div class="editor-sub">Все поля ниже можно исправить. Именно эти данные попадут в текст и инфографику.</div><div class="notice" style="margin-top:0;margin-bottom:16px">Slug здесь не нужен — личный кабинет Yuvion формирует его автоматически из названия. SKU в кабинете = артикул товара.</div>
 
       <div class="form-grid">
         <div class="field full"><label>SEO-заголовок</label><input id="edTitle" /></div>
-        <div class="field"><label>Категория</label><input id="edCategory" /></div>
+        <div class="field"><label>Категория для поиска в admin.yuvion.ru</label><input id="edCategory" placeholder="Например: Дом и сад / Освещение / Настольные светильники" /></div>
         <div class="field"><label>Ключевые слова через запятую</label><input id="edKeywords" /></div>
         <div class="field full"><label>Краткое описание</label><textarea id="edShort"></textarea></div>
         <div class="field full"><label>Полное описание</label><textarea id="edFull"></textarea></div>
