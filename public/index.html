@@ -989,12 +989,15 @@ function variationsForExport(){
 
 function variationValidation(){
   const list=variationsForExport();
-  if(!list.length)return {enabled:false,complete:true,unique:true};
+  if(!list.length)return {enabled:false,complete:true,unique:true,barcodesValid:true,barcodesUnique:true};
   const mainSku=normalizeSku(extraFields.sku.value);
+  const mainBarcode=normalizeBarcode(extraFields.barcode.value);
   const seen=new Set();
-  let complete=true,unique=true;
+  const seenBarcodes=new Set();
+  let complete=true,unique=true,barcodesValid=true,barcodesUnique=true;
   for(const variant of list){
     const sku=normalizeSku(variant.sku);
+    const barcode=normalizeBarcode(variant.barcode);
     const hasLabel=Boolean(String(variant.name||variant.option||'').trim());
     const price=moneyNumber(variant.price);
     if(!hasLabel||!sku||price<=0)complete=false;
@@ -1002,8 +1005,14 @@ function variationValidation(){
       if(seen.has(sku)||sku===mainSku)unique=false;
       seen.add(sku);
     }
+    if(barcode){
+      const ean=validateEan(barcode);
+      if(!ean.valid)barcodesValid=false;
+      if(seenBarcodes.has(barcode)||barcode===mainBarcode)barcodesUnique=false;
+      seenBarcodes.add(barcode);
+    }
   }
-  return {enabled:true,complete,unique};
+  return {enabled:true,complete,unique,barcodesValid,barcodesUnique};
 }
 
 
@@ -1508,6 +1517,10 @@ function moderationChecks(){
     {label:'Бренд',ok:Boolean(brand),target:'extraBrand',extra:true},
     {label:'Артикул (SKU)',ok:Boolean(sku),target:'extraSku',extra:true},
     {label:'SKU не дублируется',ok:Boolean(sku)&&!duplicateSkuId,target:'extraSku',extra:true},
+    ...(x.barcode?[
+      {label:'EAN / штрихкод корректен',ok:currentBarcodeValid,target:'extraBarcode',extra:true},
+      {label:'Штрихкод не дублируется',ok:!duplicateBarcodeId,target:'extraBarcode',extra:true}
+    ]:[]),
     {label:'Описание',ok:Boolean(d.fullDescription||d.shortDescription),target:'edFull'},
     {label:'Цена за 1 шт. > 0',ok:p1>0,target:'extraPrice1',extra:true},
     {label:'Цена от 2 шт. ≤ розничной',ok:p2>0&&p2<=p1,target:'extraPrice2',extra:true},
@@ -1516,7 +1529,9 @@ function moderationChecks(){
     {label:'Характеристики без дублей',ok:dupes.length===0,target:'edSpecs'},
     ...(variationValidation().enabled?[
       {label:'Вариации заполнены',ok:variationValidation().complete,target:'variationsBox'},
-      {label:'SKU вариаций уникальны',ok:variationValidation().unique,target:'variationsBox'}
+      {label:'SKU вариаций уникальны',ok:variationValidation().unique,target:'variationsBox'},
+      {label:'EAN вариаций корректны',ok:variationValidation().barcodesValid,target:'variationsBox'},
+      {label:'Штрихкоды вариаций уникальны',ok:variationValidation().barcodesUnique,target:'variationsBox'}
     ]:[]),
     {label:'4 изображения',ok:currentCards.length===4,target:'generateAll'}
   ];
