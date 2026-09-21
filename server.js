@@ -297,6 +297,7 @@ function normalizeExtraData(raw) {
     name: compact(data.name || "", 140),
     brand: compact(data.brand || "", 100),
     sku: compact(data.sku || "", 100),
+    barcode: compact(data.barcode || "", 64),
     size: compact(data.size || "", 120),
     material: compact(data.material || "", 160),
     price1,
@@ -312,6 +313,7 @@ function confirmedDataText(raw) {
   if (data.name) rows.push("Название товара: " + data.name);
   if (data.brand) rows.push("Бренд: " + data.brand);
   if (data.sku) rows.push("Артикул: " + data.sku);
+  if (data.barcode) rows.push("Штрихкод/EAN: " + data.barcode);
   if (data.size) rows.push("Размеры: " + data.size);
   if (data.material) rows.push("Материал: " + data.material);
   if (data.price1) rows.push("Цена за 1 шт.: " + data.price1);
@@ -335,6 +337,7 @@ function mergeConfirmedData(cardRaw, extraRaw) {
   const confirmed = [
     ["Бренд", extra.brand],
     ["Артикул", extra.sku],
+    ["Штрихкод/EAN", extra.barcode],
     ["Размеры", extra.size],
     ["Материал", extra.material]
   ].filter((pair) => pair[1]);
