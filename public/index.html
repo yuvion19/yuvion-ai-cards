@@ -469,9 +469,71 @@ function markCardsStale(){
   }
 }
 
+async function checkQualityAndAutofix(autoFix=true){
+  if(currentCards.length!==4||!currentData)return null;
+  qaSummary.style.display='block';
+  qaSummary.innerHTML='<b>AI-проверка качества:</b> анализируем готовые карточки…';
+  try{
+    const response=await fetch('/api/quality-check',{
+      method:'POST',
+      headers:apiHeaders(),
+      body:JSON.stringify({cards:currentCards,card:collectEdits()})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось проверить качество.');
+    currentQuality=data;
+    renderCards();
+
+    const bad=(data.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(x=>Number.isInteger(x));
+    const notes=(data.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(x.index+1)+': '+issue));
+    qaSummary.innerHTML='<b>AI-проверка: '+esc(data.overall||'готово')+'</b>'+(notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
+
+    if(autoFix&&bad.length){
+      const fixing=bad.slice(0,2);
+      creativeStatus.className='creative-status show';
+      creativeStatus.textContent='Проверка нашла серьёзные проблемы в '+fixing.length+' карточк'+(fixing.length===1?'е':'ах')+'. Автоматически переделываем только их.';
+      const src=await getSource();
+      for(const index of fixing){
+        const updated=await regenerateCardApi(index,src,collectEdits(),styleSelect.value);
+        currentCards[index]=updated;
+      }
+      renderCards();
+      await saveHistory();
+
+      const second=await fetch('/api/quality-check',{
+        method:'POST',headers:apiHeaders(),
+        body:JSON.stringify({cards:currentCards,card:collectEdits()})
+      });
+      const secondData=await second.json().catch(()=>({}));
+      if(second.ok){
+        currentQuality=secondData;
+        renderCards();
+        const secondNotes=(secondData.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(x.index+1)+': '+issue));
+        qaSummary.innerHTML='<b>Повторная AI-проверка: '+esc(secondData.overall||'готово')+'</b>'+(secondNotes.length?'<br>'+secondNotes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
+      }
+    }
+    return currentQuality;
+  }catch(e){
+    qaSummary.style.display='block';
+    qaSummary.innerHTML='<b>Проверка качества пропущена:</b> '+esc(e.message||'не удалось выполнить проверку.');
+    return null;
+  }
+}
+
+async function regenerateCardApi(index,src,cardData,styleValue){
+  const response=await fetch('/api/regenerate-card',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({...src,card:cardData,style:styleValue,index})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку №'+(index+1)+'.');
+  return data.card;
+}
+
 generateAll.onclick=async()=>{
   if(cardsBusy||!currentData)return;
   currentData=collectEdits();cardsBusy=true;generateAll.disabled=true;creative.classList.add('show');
+  currentQuality=null;qaSummary.style.display='none';
   creativeStatus.className='creative-status show';creativeStatus.textContent='Создаём 4 изображения и накладываем инфографику. Это может занять несколько минут.';
   cardsPreview.innerHTML='';
   try{
@@ -480,19 +542,26 @@ generateAll.onclick=async()=>{
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
     currentCards=data.cards||[];cardsStale=false;renderCards();
-    creativeStatus.className='creative-status show done';creativeStatus.textContent='Готово: 4 карточки 900×1200 созданы. Можно переделать любую отдельно.';
     zipImages.disabled=false;zipFull.disabled=false;
+    creativeStatus.className='creative-status show';creativeStatus.textContent='Карточки созданы. Выполняем автоматическую проверку качества.';
     await saveHistory();
+    await checkQualityAndAutofix(true);
+    creativeStatus.className='creative-status show done';creativeStatus.textContent='Комплект готов. AI-проверка завершена; серьёзные проблемы, если они были, исправлены точечно.';
     await downloadPackage(false,true);
-  }catch(e){creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось создать карточки.'}
-  finally{cardsBusy=false;generateAll.disabled=false}
+  }catch(e){
+    creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось создать карточки.';
+  }finally{
+    cardsBusy=false;generateAll.disabled=false;
+  }
 };
 
 function renderCards(){
   cardsPreview.innerHTML='';
   currentCards.forEach((card,index)=>{
+    const q=currentQuality?.cards?.find(x=>x.index===index);
+    const badge=q?'<span class="qa-badge '+(q.status==='OK'?'ok':q.status==='Переделать'?'bad':'warn')+'">'+esc(q.status)+'</span>':'';
     const el=document.createElement('div');el.className='preview-card';
-    el.innerHTML='<img alt="'+esc(card.title)+'" src="data:image/png;base64,'+card.base64+'"><strong>'+(index+1)+'. '+esc(card.title)+'</strong><div class="card-actions"><button class="btn btn-ghost btn-small download-one">PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>';
+    el.innerHTML='<img alt="'+esc(card.title)+'" src="data:image/png;base64,'+card.base64+'"><strong>'+(index+1)+'. '+esc(card.title)+'</strong>'+badge+'<div class="card-actions"><button class="btn btn-ghost btn-small download-one">PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>';
     el.querySelector('.download-one').onclick=()=>{const a=document.createElement('a');a.href='data:image/png;base64,'+card.base64;a.download=card.filename;a.click()};
     el.querySelector('.regen-one').onclick=()=>regenerateOne(index,el);
     cardsPreview.appendChild(el);
@@ -505,14 +574,15 @@ async function regenerateOne(index,el){
   const btn=el.querySelector('.regen-one');btn.disabled=true;btn.textContent='Генерация…';
   try{
     const src=await getSource();
-    const response=await fetch('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,index})});
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку.');
-    currentCards[index]=data.card;cardsStale=false;renderCards();
-    creativeStatus.className='creative-status show done';creativeStatus.textContent='Карточка №'+(index+1)+' обновлена. ZIP будет собран с новой версией.';
+    currentCards[index]=await regenerateCardApi(index,src,currentData,styleSelect.value);
+    cardsStale=false;currentQuality=null;renderCards();
+    creativeStatus.className='creative-status show';creativeStatus.textContent='Карточка №'+(index+1)+' обновлена. Повторно проверяем комплект.';
     await saveHistory();
-  }catch(e){creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось переделать карточку.'}
-  finally{cardsBusy=false}
+    await checkQualityAndAutofix(false);
+    creativeStatus.className='creative-status show done';creativeStatus.textContent='Карточка №'+(index+1)+' обновлена и проверена.';
+  }catch(e){
+    creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось переделать карточку.';
+  }finally{cardsBusy=false}
 }
 
 async function downloadPackage(includeDescription,auto=false){
