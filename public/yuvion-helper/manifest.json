@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Yuvion Helper",
+  "version": "1.0.0",
+  "description": "Заполняет текстовые поля нового товара в admin.yuvion.ru из пакета Yuvion AI Cards.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "clipboardRead"
+  ],
+  "host_permissions": [
+    "https://admin.yuvion.ru/*"
+  ],
+  "action": {
+    "default_title": "Yuvion Helper",
+    "default_popup": "popup.html"
+  }
+}
