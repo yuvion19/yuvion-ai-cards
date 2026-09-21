@@ -1628,12 +1628,32 @@ async function saveHistory(){
   }catch(e){console.warn('History save failed',e);setSaveState('error')}
 }
 
+function skuOfStoredItem(item){
+  const d=item?.data||{};
+  const x=item?.extraData||d.confirmedData||{};
+  return normalizeSku(x.sku||storedCharValue(d,'Артикул'));
+}
+
+function duplicateSkuInCatalog(item,allItems){
+  const sku=skuOfStoredItem(item);
+  if(!sku)return null;
+  return (allItems||[]).find(other=>other?.id!==item?.id&&skuOfStoredItem(other)===sku)||null;
+}
+
 async function togglePublished(id){
   const item=await dbGet(id);
   if(!item)return;
-  if(!item.published&&!storedReadiness(item).ready){
-    alert('Сначала заполните обязательные поля и подготовьте 4 изображения. После этого товар можно отметить как опубликованный.');
-    return;
+  if(!item.published){
+    if(!storedReadiness(item).ready){
+      alert('Сначала исправьте обязательные поля, цены, категорию, характеристики и подготовьте 4 изображения.');
+      return;
+    }
+    const all=await dbAll();
+    const duplicate=duplicateSkuInCatalog(item,all);
+    if(duplicate){
+      alert('Нельзя отметить товар опубликованным: SKU уже используется в товаре «'+String(duplicate.title||'другой товар')+'».');
+      return;
+    }
   }
   item.published=!item.published;
   item.publishedAt=item.published?Date.now():null;
@@ -1776,17 +1796,21 @@ async function bulkDownloadLocalPackage(){
 async function bulkSetPublished(value){
   if(!selectedDraftIds.size)return;
   let changed=0,skipped=0;
+  const all=await dbAll();
   for(const id of [...selectedDraftIds]){
-    const item=await dbGet(id);
+    const item=all.find(x=>x.id===id);
     if(!item)continue;
-    if(value&&!storedReadiness(item).ready){skipped++;continue}
+    if(value&&(!storedReadiness(item).ready||duplicateSkuInCatalog(item,all))){
+      skipped++;
+      continue;
+    }
     item.published=value;
     item.publishedAt=value?Date.now():null;
     item.updatedAt=Date.now();
     await dbPut(item);
     changed++;
   }
-  if(skipped)alert('Отмечено опубликованными: '+changed+'. Пропущено без полной готовности: '+skipped+'.');
+  if(skipped)alert('Изменено: '+changed+'. Пропущено из-за незаполненных данных или дублирующегося SKU: '+skipped+'.');
   await renderHistory();
 }
 
