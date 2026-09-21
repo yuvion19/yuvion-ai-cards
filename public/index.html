@@ -73,10 +73,13 @@
     .batch-item img{width:48px;height:48px;border-radius:9px;object-fit:cover;background:#f3efef}.batch-item b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.batch-item small{color:var(--muted)}
     .batch-status{font-size:12px;font-weight:800;text-align:right}.batch-status.wait{color:#777}.batch-status.work{color:#8A5A00}.batch-status.ok{color:#226B38}.batch-status.fail{color:#A62A2A}
     .batch-progress{display:none;margin-top:13px}.batch-progress.show{display:block}.progress-track{height:9px;background:#F2E9EA;border-radius:999px;overflow:hidden}.progress-bar{height:100%;width:0;background:var(--brand);transition:width .25s}
-    .history{max-width:1050px;margin:28px auto 0}.history-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.history h2{font-size:23px;margin:0}.history-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-top:13px}.history-item{background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px;box-shadow:0 8px 24px rgba(100,40,47,.04)}.history-item img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;background:#f5f2f2}.history-item b{display:block;font-size:13px;margin:8px 0 3px}.history-item small{display:block;color:var(--muted);margin-bottom:8px}.history-actions{display:flex;gap:5px}.empty-history{margin-top:12px;color:var(--muted);font-size:14px}
+    .history{max-width:1050px;margin:28px auto 0;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:var(--shadow)}
+    .history-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}.history h2{font-size:26px;margin:0 0 5px}.history-sub{font-size:13px;color:var(--muted);line-height:1.45;max-width:660px}
+    .catalog-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 210px auto;gap:9px;margin-top:16px;align-items:center}.catalog-toolbar input,.catalog-toolbar select{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff;outline:none}.catalog-toolbar input:focus,.catalog-toolbar select:focus{border-color:#F09AA2;box-shadow:0 0 0 3px #FFF1F2}.catalog-count{font-size:12px;color:var(--muted);white-space:nowrap}
+    .history-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}.history-item{background:#fff;border:1px solid var(--line);border-radius:17px;padding:10px;box-shadow:0 8px 24px rgba(100,40,47,.04);display:flex;flex-direction:column;min-width:0}.history-item img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;background:#f5f2f2}.history-item b{display:block;font-size:13px;line-height:1.35;margin:8px 0 4px;min-height:35px}.history-item small{display:block;color:var(--muted);margin-bottom:7px;font-size:11px;line-height:1.35}.history-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:7px}.draft-status{display:inline-flex;align-items:center;padding:5px 7px;border-radius:999px;font-size:10px;font-weight:900}.draft-status.photo{background:#EEF1F4;color:#53616C}.draft-status.text{background:#FFF6DF;color:#8A5A00}.draft-status.cards{background:#EFF3FF;color:#425C9C}.draft-status.ready{background:#EAF8EE;color:#226B38}.draft-status.published{background:#E9F8F5;color:#166C60}.history-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:auto}.history-actions .wide{grid-column:1/-1}.empty-history{margin-top:14px;color:var(--muted);font-size:14px;padding:24px;border:1px dashed var(--line);border-radius:14px;text-align:center;background:#FCFAFA}.privacy-inline{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#F3F7F5;color:#35604A;font-size:11px;font-weight:800}.privacy-inline:before{content:"";width:7px;height:7px;border-radius:50%;background:#48A66A}
     footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}footer a{color:var(--brand);text-decoration:none;font-weight:750}
-    @media(max-width:960px){.profile-grid{grid-template-columns:1fr 1fr}.workflow{grid-template-columns:repeat(2,1fr)}.readiness-list{grid-template-columns:1fr}.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(3,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
-    @media(max-width:720px){.profile-grid{grid-template-columns:1fr}.profile-actions .btn{flex:1}.hero-shell{padding:28px 18px;border-radius:22px}.workflow{grid-template-columns:1fr 1fr}.workflow-step{padding:8px;font-size:11px}.smart-strip{align-items:flex-start;flex-direction:column}.sticky-dock{bottom:8px}.dock-status{display:none}.dock-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}.dock-btn{padding:10px 8px}.readiness-top{grid-template-columns:70px 1fr}.readiness-ring{width:66px;height:66px}.export-row{grid-template-columns:1fr}.export-row .btn{justify-self:start}.export-actions{width:100%}.export-actions .btn{flex:1}.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
+    @media(max-width:960px){.profile-grid{grid-template-columns:1fr 1fr}.workflow{grid-template-columns:repeat(2,1fr)}.readiness-list{grid-template-columns:1fr}.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(2,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
+    @media(max-width:720px){.catalog-toolbar{grid-template-columns:1fr}.catalog-count{white-space:normal}.profile-grid{grid-template-columns:1fr}.profile-actions .btn{flex:1}.hero-shell{padding:28px 18px;border-radius:22px}.workflow{grid-template-columns:1fr 1fr}.workflow-step{padding:8px;font-size:11px}.smart-strip{align-items:flex-start;flex-direction:column}.sticky-dock{bottom:8px}.dock-status{display:none}.dock-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}.dock-btn{padding:10px 8px}.readiness-top{grid-template-columns:70px 1fr}.readiness-ring{width:66px;height:66px}.export-row{grid-template-columns:1fr}.export-row .btn{justify-self:start}.export-actions{width:100%}.export-actions .btn{flex:1}.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
   </style>
 </head>
 <body>
@@ -114,7 +117,7 @@
     <div><strong>Рабочий процесс без лишних действий</strong><br><span>Фото → проверка данных → изображения → перенос в личный кабинет.</span></div>
     <div class="smart-strip-actions">
       <button class="smart-pill" id="jumpBatch">Пакет до 10 товаров</button>
-      <button class="smart-pill" id="jumpHistory">Последние товары</button>
+      <button class="smart-pill" id="jumpHistory">Каталог черновиков</button>
     </div>
   </div>
 
@@ -308,9 +311,31 @@
   </section>
 
 <section class="history" id="history">
-    <div class="history-head"><h2>Последние товары</h2><button class="btn btn-ghost btn-small" id="clearHistory">Очистить историю</button></div>
+    <div class="history-head">
+      <div>
+        <div class="section-kicker">Локальный рабочий стол</div>
+        <h2>Каталог черновиков</h2>
+        <div class="history-sub">Фото, тексты, карточки и статусы хранятся только в этом браузере. Сервер и админ-панель не получают каталог арендатора или его персональные данные.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="privacy-inline">Приватно на устройстве</span>
+        <button class="btn btn-ghost btn-small" id="clearHistory">Очистить каталог</button>
+      </div>
+    </div>
+    <div class="catalog-toolbar">
+      <input id="catalogSearch" type="search" placeholder="Поиск по названию, категории, бренду или артикулу" />
+      <select id="catalogStatus">
+        <option value="all">Все статусы</option>
+        <option value="photo">Фото</option>
+        <option value="text">Текст готов</option>
+        <option value="cards">Карточки готовы</option>
+        <option value="ready">Готов к Yuvion</option>
+        <option value="published">Опубликован</option>
+      </select>
+      <div class="catalog-count" id="catalogCount">0 товаров</div>
+    </div>
     <div id="historyGrid" class="history-grid"></div>
-    <div id="emptyHistory" class="empty-history">История пока пустая. Она хранится только в этом браузере.</div>
+    <div id="emptyHistory" class="empty-history">Каталог пока пуст. Добавьте фотографию — черновик сохранится локально автоматически.</div>
   </section>
 </div>
 </main>
@@ -435,14 +460,8 @@ let batchFiles=[];
 let batchBusy=false;
 let pendingSimilarTemplate=null;
 
-const sessionKey='yuvionSessionId';
-let sessionId=localStorage.getItem(sessionKey);
-if(!sessionId){
-  sessionId=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36)).replace(/[^a-zA-Z0-9_-]/g,'');
-  localStorage.setItem(sessionKey,sessionId);
-}
-
-function apiHeaders(){return {'Content-Type':'application/json','X-Yuvion-Session':sessionId}}
+localStorage.removeItem('yuvionSessionId');
+function apiHeaders(){return {'Content-Type':'application/json'}}
 function showError(message){error.textContent=message;error.classList.add('show')}
 function clearError(){error.classList.remove('show');error.textContent=''}
 function esc(s){const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML}
