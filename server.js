@@ -424,6 +424,14 @@ app.get("/vendor/jszip.min.js", (_req, res) => {
   res.sendFile(path.join(__dirname, "node_modules", "jszip", "dist", "jszip.min.js"));
 });
 
+app.get("/vendor/jspdf.umd.min.js", (_req, res) => {
+  res.sendFile(path.join(__dirname, "node_modules", "jspdf", "dist", "jspdf.umd.min.js"));
+});
+
+app.get("/vendor/jsbarcode.all.min.js", (_req, res) => {
+  res.sendFile(path.join(__dirname, "node_modules", "jsbarcode", "dist", "JsBarcode.all.min.js"));
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
