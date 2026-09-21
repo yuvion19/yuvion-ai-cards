@@ -654,7 +654,7 @@ async function addAdditionalPhotos(files){
   for(const file of list){
     if(!['image/jpeg','image/png','image/webp'].includes(file.type))continue;
     if(file.size>10*1024*1024)continue;
-    const dataUrl=await compressFileToDataUrl(file);
+    const dataUrl=await compressFileToDataUrl(file,1200,.78);
     currentAdditionalPhotos.push({
       id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
       name:String(file.name||'photo').slice(0,120),
@@ -2036,7 +2036,16 @@ async function downloadPackage(includeDescription,auto=false){
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось собрать ZIP.');
     const binary=atob(data.zipBase64);const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-    const blob=new Blob([bytes],{type:'application/zip'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.zipName||'yuvion.zip';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    let blob=new Blob([bytes],{type:'application/zip'});
+    if(includeDescription&&currentAdditionalPhotos.length&&typeof JSZip!=='undefined'){
+      const localZip=await JSZip.loadAsync(bytes);
+      currentAdditionalPhotos.slice(0,4).forEach((photo,index)=>{
+        const parsed=dataUrlParts(photo?.dataUrl);
+        if(parsed)localZip.file('extra-photo-'+String(index+1).padStart(2,'0')+'.'+extensionFromMime(parsed.mime),parsed.base64,{base64:true});
+      });
+      blob=await localZip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    }
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.zipName||'yuvion.zip';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
     if(!auto){creativeStatus.className='creative-status show done';creativeStatus.textContent=includeDescription?'Скачан полный ZIP: 4 PNG + description.txt.':'Скачан ZIP с четырьмя PNG.'}
   }catch(e){creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось собрать ZIP.'}
 }
@@ -2527,6 +2536,12 @@ async function bulkDownloadLocalPackage(){
       const folder=zip.folder(String(index).padStart(2,'0')+'_'+safeFileBase(item.title||item.data?.seoTitle||'product'));
       const source=dataUrlParts(item.sourceDataUrl);
       if(source)folder.file('source.'+extensionFromMime(source.mime),source.base64,{base64:true});
+      if(Array.isArray(item.additionalPhotos)){
+        item.additionalPhotos.slice(0,4).forEach((photo,photoIndex)=>{
+          const parsed=dataUrlParts(photo?.dataUrl);
+          if(parsed)folder.file('extra-photo-'+String(photoIndex+1).padStart(2,'0')+'.'+extensionFromMime(parsed.mime),parsed.base64,{base64:true});
+        });
+      }
       if(Array.isArray(item.cards)){
         item.cards.forEach((card,cardIndex)=>{
           if(card?.base64)folder.file(card.filename||String(cardIndex+1).padStart(2,'0')+'_card.png',card.base64,{base64:true});
@@ -2982,18 +2997,17 @@ function safeFileBase(value){
     .slice(0,60)||'product';
 }
 
-async function compressFileToDataUrl(file){
+async function compressFileToDataUrl(file,max=1600,quality=.84){
   const original=await fileToDataUrl(file);
   return new Promise(resolve=>{
     const img=new Image();
     img.onload=()=>{
-      const max=1600;
       const scale=Math.min(1,max/Math.max(img.width,img.height));
       const canvas=document.createElement('canvas');
       canvas.width=Math.round(img.width*scale);
       canvas.height=Math.round(img.height*scale);
       canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-      resolve(canvas.toDataURL('image/jpeg',.84));
+      resolve(canvas.toDataURL('image/jpeg',quality));
     };
     img.onerror=()=>resolve(original);
     img.src=original;
