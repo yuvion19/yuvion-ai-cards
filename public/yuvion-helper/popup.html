@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;width:320px;margin:0;padding:16px;background:#faf7f7;color:#211b1d}
+h1{font-size:18px;margin:0 0 7px}p{font-size:12px;line-height:1.45;color:#6f6568;margin:0 0 12px}
+button{width:100%;border:0;border-radius:11px;padding:11px 12px;background:#F03E4A;color:#fff;font-weight:800;cursor:pointer}
+button.secondary{margin-top:8px;background:#f3e9eb;color:#513b40}.status{margin-top:10px;padding:9px 10px;border-radius:9px;background:#fff;border:1px solid #eee0e2;font-size:12px;line-height:1.4}
+small{display:block;margin-top:10px;color:#8a7f82;line-height:1.35}
+</style>
+</head>
+<body>
+<h1>Yuvion Helper</h1>
+<p>1) На Yuvion AI нажмите «Скопировать пакет автозаполнения». 2) Откройте страницу «Новый товар» в admin.yuvion.ru. 3) Нажмите кнопку ниже.</p>
+<button id="fill">Вставить из буфера и заполнить</button>
+<button class="secondary" id="open">Открыть admin.yuvion.ru</button>
+<div class="status" id="status">Готов к работе.</div>
+<small>Изображения браузер не загружает автоматически — используйте ZIP из Yuvion AI. Категорию после подстановки подтвердите в выпадающем списке.</small>
+<script src="popup.js"></script>
+</body>
+</html>
