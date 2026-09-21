@@ -424,6 +424,14 @@ const batchProgressText=document.getElementById('batchProgressText');
 const catalogSearch=document.getElementById('catalogSearch');
 const catalogStatus=document.getElementById('catalogStatus');
 const catalogCount=document.getElementById('catalogCount');
+const bulkBar=document.getElementById('bulkBar');
+const bulkCount=document.getElementById('bulkCount');
+const bulkSelectVisible=document.getElementById('bulkSelectVisible');
+const bulkDownload=document.getElementById('bulkDownload');
+const bulkPublish=document.getElementById('bulkPublish');
+const bulkDraft=document.getElementById('bulkDraft');
+const bulkDelete=document.getElementById('bulkDelete');
+const bulkClear=document.getElementById('bulkClear');
 
 const editor={
   title:document.getElementById('edTitle'),
@@ -475,6 +483,8 @@ let cardsStale=false;
 let currentQuality=null;
 let batchFiles=[];
 let batchBusy=false;
+const selectedDraftIds=new Set();
+let lastVisibleDraftIds=[];
 let pendingSimilarTemplate=null;
 
 localStorage.removeItem('yuvionSessionId');
