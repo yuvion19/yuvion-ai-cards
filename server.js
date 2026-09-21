@@ -46,6 +46,9 @@ const stats = {
   textOutputTokens: 0,
   estimatedTextUsd: 0,
   estimatedImageOutputUsd: 0,
+  qualityChecks: 0,
+  qualityFailures: 0,
+  batchProducts: 0,
   recentErrors: []
 };
 
@@ -419,7 +422,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "4.1.0",
+    version: "4.2.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled
   });
@@ -495,6 +498,111 @@ app.post("/api/analyze", async (req, res) => {
     if (error?.status === 429) return res.status(429).json({ error: "Достигнут лимит OpenAI API. Попробуйте немного позже." });
     return res.status(500).json({ error: "Не удалось создать карточку. Попробуйте ещё раз." });
   }
+});
+
+
+const qualityCheckSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["overall", "cards"],
+  properties: {
+    overall: { type: "string", enum: ["Отлично", "Есть замечания", "Нужно исправить"] },
+    cards: {
+      type: "array",
+      minItems: 4,
+      maxItems: 4,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["index", "status", "issues", "needsRegeneration"],
+        properties: {
+          index: { type: "integer", minimum: 0, maximum: 3 },
+          status: { type: "string", enum: ["OK", "Замечание", "Переделать"] },
+          issues: { type: "array", items: { type: "string" } },
+          needsRegeneration: { type: "boolean" }
+        }
+      }
+    }
+  }
+};
+
+async function makeQualityPreview(base64) {
+  return sharp(Buffer.from(base64, "base64"))
+    .resize(480, 640, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 78 })
+    .toBuffer();
+}
+
+app.post("/api/quality-check", async (req, res) => {
+  try {
+    const { cards, card } = req.body ?? {};
+    if (!Array.isArray(cards) || cards.length !== 4) {
+      return res.status(400).json({ error: "Для проверки нужны четыре карточки." });
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ error: "AI для проверки качества не настроен." });
+    }
+
+    const previews = [];
+    for (let i = 0; i < 4; i += 1) {
+      if (!cards[i] || typeof cards[i].base64 !== "string") {
+        return res.status(400).json({ error: "Одна из карточек повреждена." });
+      }
+      const thumb = await makeQualityPreview(cards[i].base64);
+      previews.push("data:image/jpeg;base64," + thumb.toString("base64"));
+    }
+
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const content = [{
+      type: "input_text",
+      text:
+        "Проверь четыре готовые товарные карточки Yuvion. Сопоставь их с данными товара: " +
+        JSON.stringify(normalizeCard(card || {})) +
+        "\\nПроверяй: товар не обрезан; товар визуально правдоподобен; нет явных искажений; " +
+        "текст и инфографика читаемы; нет явной бессмыслицы или противоречия данным товара; " +
+        "нет лишних водяных знаков или случайных надписей. " +
+        "Статус Переделать ставь только при серьезной визуальной проблеме. Мелкие эстетические замечания — Замечание."
+    }];
+
+    previews.forEach((url) => content.push({ type: "input_image", image_url: url, detail: "high" }));
+
+    const response = await client.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
+      input: [{ role: "user", content }],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "yuvion_card_quality",
+          strict: true,
+          schema: qualityCheckSchema
+        }
+      },
+      max_output_tokens: 1200
+    });
+
+    recordTextUsage(response);
+    const parsed = JSON.parse(response.output_text || "{}");
+    if (!Array.isArray(parsed.cards) || parsed.cards.length !== 4) {
+      throw new Error("Invalid quality-check response");
+    }
+
+    stats.qualityChecks += 1;
+    stats.qualityFailures += parsed.cards.filter((x) => x.needsRegeneration).length;
+
+    return res.json(parsed);
+  } catch (error) {
+    recordError("quality-check", error);
+    console.error("Quality check error:", { message: error?.message, status: error?.status, code: error?.code });
+    if (error?.code === "credit_balance_exhausted") return res.status(402).json({ error: "На балансе OpenAI API закончились кредиты." });
+    if (error?.status === 429) return res.status(429).json({ error: "Лимит AI временно исчерпан." });
+    return res.status(500).json({ error: "Не удалось выполнить автоматическую проверку качества." });
+  }
+});
+
+app.post("/api/batch-track", (req, res) => {
+  const count = Math.max(0, Math.min(20, Number(req.body?.count) || 0));
+  stats.batchProducts += count;
+  return res.json({ ok: true, count });
 });
 
 const cardScenes = [
@@ -906,6 +1014,9 @@ app.post("/api/admin/reset-stats", requireAdmin, (_req, res) => {
     textOutputTokens: 0,
     estimatedTextUsd: 0,
     estimatedImageOutputUsd: 0,
+    qualityChecks: 0,
+    qualityFailures: 0,
+    batchProducts: 0,
     recentErrors: []
   });
   sessions.clear();
@@ -922,5 +1033,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v4.1 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v4.2 listening on port ${port}`);
 });
