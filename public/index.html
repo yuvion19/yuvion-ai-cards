@@ -1202,11 +1202,83 @@ function resetProduct(keepSimilar=false){
 
 /* IndexedDB history */
 const DB_NAME='YuvionCardsHistoryV1',STORE='items';
+const CATALOG_LIMIT=20;
 function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function dbPut(item){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(item);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function dbGet(id){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)})}
 async function dbAll(){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
 async function dbDelete(id){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
 async function dbClear(){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+
+async function trimCatalog(){
+  const all=(await dbAll()).sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
+  for(const extra of all.slice(CATALOG_LIMIT))await dbDelete(extra.id);
+}
+
+function storedCharValue(data,name){
+  const target=String(name||'').toLocaleLowerCase('ru');
+  const item=(data?.characteristics||[]).find(x=>String(x?.name||'').toLocaleLowerCase('ru')===target);
+  return item?.value||'';
+}
+
+function storedReadiness(item){
+  const d=item?.data||{};
+  const x=item?.extraData||d.confirmedData||{};
+  const brand=x.brand||storedCharValue(d,'Бренд');
+  const sku=x.sku||storedCharValue(d,'Артикул');
+  const checks=[
+    Boolean(d.seoTitle),
+    Boolean(d.category),
+    Boolean(brand),
+    Boolean(sku),
+    Boolean(d.fullDescription||d.shortDescription),
+    Boolean(x.price1||x.price),
+    Boolean(x.price2),
+    Boolean(x.price3),
+    Array.isArray(item?.cards)&&item.cards.length===4
+  ];
+  return {done:checks.filter(Boolean).length,total:checks.length,ready:checks.every(Boolean)};
+}
+
+function draftStatus(item){
+  if(item?.published)return {key:'published',label:'Опубликован'};
+  if(!item?.data)return {key:'photo',label:'Фото'};
+  const cardsReady=Array.isArray(item.cards)&&item.cards.length===4;
+  if(!cardsReady)return {key:'text',label:'Текст готов'};
+  if(storedReadiness(item).ready)return {key:'ready',label:'Готов к Yuvion'};
+  return {key:'cards',label:'Карточки готовы'};
+}
+
+function draftSearchText(item){
+  const d=item?.data||{};
+  const x=item?.extraData||d.confirmedData||{};
+  return [
+    item?.title,d.seoTitle,d.category,x.brand,x.sku,
+    storedCharValue(d,'Бренд'),storedCharValue(d,'Артикул')
+  ].filter(Boolean).join(' ').toLocaleLowerCase('ru');
+}
+
+async function savePhotoDraft(file){
+  if(!currentHistoryId||!file)return;
+  try{
+    const src=await compressFileToDataUrl(file);
+    const plainName=String(file.name||'Новый товар').replace(/\.[^.]+$/,'');
+    await dbPut({
+      id:currentHistoryId,
+      updatedAt:Date.now(),
+      title:plainName||'Новый товар',
+      data:null,
+      extraData:collectExtraData(),
+      sourceDataUrl:src,
+      cards:[],
+      mode:currentMode,
+      style:styleSelect.value,
+      published:false
+    });
+    await trimCatalog();
+    await renderHistory();
+  }catch(e){console.warn('Photo draft save failed',e)}
+}
 
 let saveTimer;
 function saveHistoryDebounced(){
@@ -1220,42 +1292,152 @@ async function saveHistory(){
   try{
     const src=await compressedSource();
     const edited=collectEdits();
-    const item={id:currentHistoryId,updatedAt:Date.now(),title:edited.seoTitle||'Товар',data:edited,extraData:collectExtraData(),sourceDataUrl:src,cards:currentCards,mode:currentMode,style:styleSelect.value};
+    const item={
+      id:currentHistoryId,
+      updatedAt:Date.now(),
+      title:edited.seoTitle||'Товар',
+      data:edited,
+      extraData:collectExtraData(),
+      sourceDataUrl:src,
+      cards:currentCards,
+      mode:currentMode,
+      style:styleSelect.value,
+      published:false
+    };
     await dbPut(item);
     if(edited.category)rememberCategory(edited.category,edited.seoTitle);
-    const all=(await dbAll()).sort((a,b)=>b.updatedAt-a.updatedAt);
-    for(const extra of all.slice(10))await dbDelete(extra.id);
-    renderHistory();
+    await trimCatalog();
+    await renderHistory();
     setSaveState('saved');
   }catch(e){console.warn('History save failed',e);setSaveState('error')}
+}
+
+async function togglePublished(id){
+  const item=await dbGet(id);
+  if(!item)return;
+  if(!item.published&&!storedReadiness(item).ready){
+    alert('Сначала заполните обязательные поля и подготовьте 4 изображения. После этого товар можно отметить как опубликованный.');
+    return;
+  }
+  item.published=!item.published;
+  item.publishedAt=item.published?Date.now():null;
+  item.updatedAt=Date.now();
+  await dbPut(item);
+  await renderHistory();
 }
 
 async function renderHistory(){
   const grid=document.getElementById('historyGrid'),empty=document.getElementById('emptyHistory');
   try{
-    const all=(await dbAll()).sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,10);
-    grid.innerHTML='';empty.style.display=all.length?'none':'block';
-    all.forEach(item=>{
-      const el=document.createElement('div');el.className='history-item';
-      el.innerHTML='<img src="'+esc(item.sourceDataUrl||'')+'" alt=""><b>'+esc(item.title||'Товар')+'</b><small>'+(item.cards&&item.cards.length===4?'4 карточки готовы':'Только текст')+'</small><div class="history-actions"><button class="btn btn-ghost btn-small restore">Открыть</button><button class="btn btn-danger btn-small del">×</button></div>';
+    const all=(await dbAll()).sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
+    const query=String(catalogSearch?.value||'').trim().toLocaleLowerCase('ru');
+    const statusFilter=catalogStatus?.value||'all';
+    const filtered=all.filter(item=>{
+      const status=draftStatus(item);
+      if(statusFilter!=='all'&&status.key!==statusFilter)return false;
+      if(query&&!draftSearchText(item).includes(query))return false;
+      return true;
+    });
+
+    catalogCount.textContent=filtered.length+' из '+all.length+' товаров';
+    grid.innerHTML='';
+    empty.style.display=filtered.length?'none':'block';
+    empty.textContent=all.length
+      ? 'По выбранному фильтру товары не найдены.'
+      : 'Каталог пока пуст. Добавьте фотографию — черновик сохранится локально автоматически.';
+
+    filtered.forEach(item=>{
+      const status=draftStatus(item);
+      const d=item.data||{};
+      const x=item.extraData||d.confirmedData||{};
+      const secondary=d.category||x.brand||'Локальный черновик';
+      const when=item.updatedAt?new Date(item.updatedAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+      const ready=storedReadiness(item);
+      const el=document.createElement('div');
+      el.className='history-item';
+      el.innerHTML=
+        '<img src="'+esc(item.sourceDataUrl||'')+'" alt="">'+
+        '<div class="history-meta"><span class="draft-status '+status.key+'">'+esc(status.label)+'</span><small>'+esc(when)+'</small></div>'+
+        '<b>'+esc(item.title||d.seoTitle||'Черновик')+'</b>'+
+        '<small>'+esc(secondary)+(item.data?' · '+ready.done+'/'+ready.total:'')+'</small>'+
+        '<div class="history-actions">'+
+          '<button class="btn btn-ghost btn-small restore">Открыть</button>'+
+          '<button class="btn btn-ghost btn-small similar" '+(!item.data?'disabled':'')+'>Похожий</button>'+
+          '<button class="btn '+(item.published?'btn-ghost':'btn-primary')+' btn-small wide publish" '+(!item.published&&!ready.ready?'disabled':'')+'>'+(item.published?'Вернуть в черновик':'Отметить опубликованным')+'</button>'+
+          '<button class="btn btn-danger btn-small wide del">Удалить</button>'+
+        '</div>';
+
       el.querySelector('.restore').onclick=()=>restoreHistory(item);
-      el.querySelector('.del').onclick=async()=>{await dbDelete(item.id);renderHistory()};
+      el.querySelector('.similar').onclick=async()=>{
+        if(!item.data)return;
+        await restoreHistory(item);
+        beginSimilarProduct();
+        document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+      };
+      el.querySelector('.publish').onclick=()=>togglePublished(item.id);
+      el.querySelector('.del').onclick=async()=>{
+        if(confirm('Удалить этот локальный черновик?')){
+          await dbDelete(item.id);
+          if(currentHistoryId===item.id)resetProduct(false);
+          await renderHistory();
+        }
+      };
       grid.appendChild(el);
     });
-  }catch{empty.textContent='Не удалось открыть локальную историю.'}
+  }catch{
+    empty.textContent='Не удалось открыть локальный каталог.';
+  }
 }
 
 async function restoreHistory(item){
-  selectedFile=null;sourceDataUrl=item.sourceDataUrl||null;currentHistoryId=item.id;currentData=item.data;currentCards=item.cards||[];currentMode=item.mode||'full';styleSelect.value=item.style||'minimal';cardsStale=false;
+  selectedFile=null;
+  sourceDataUrl=item.sourceDataUrl||null;
+  currentHistoryId=item.id;
+  currentData=item.data||null;
+  currentCards=item.cards||[];
+  currentMode=item.mode||'full';
+  styleSelect.value=item.style||'minimal';
+  cardsStale=false;
   fillExtraData(item.extraData||item.data?.confirmedData||{});
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
-  preview.src=sourceDataUrl||'';preview.classList.toggle('show',!!sourceDataUrl);drop.classList.toggle('has',!!sourceDataUrl);dropText.style.display=sourceDataUrl?'none':'';meta.textContent='Восстановлено из истории';analyzeBtn.disabled=false;
-  fillEditor(currentData);renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderYuvionExport();confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');workspace.classList.add('show');syncModeUi();
-  if(currentCards.length===4){renderCards();creative.classList.toggle('show',currentMode==='full');creativeStatus.className='creative-status show done';creativeStatus.textContent='Комплект восстановлен из истории.';zipImages.disabled=false;zipFull.disabled=false}else{creative.classList.remove('show');zipImages.disabled=true;zipFull.disabled=true}
+  preview.src=sourceDataUrl||'';
+  preview.classList.toggle('show',!!sourceDataUrl);
+  drop.classList.toggle('has',!!sourceDataUrl);
+  dropText.style.display=sourceDataUrl?'none':'';
+  meta.textContent=item.data?'Восстановлено из локального каталога':'Черновик фото из локального каталога';
+  analyzeBtn.disabled=!sourceDataUrl;
+
+  if(!currentData){
+    workspace.classList.remove('show');
+    creative.classList.remove('show');
+    cardsPreview.innerHTML='';
+    renderYuvionExport();
+    updateWorkflow();
+    document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+
+  fillEditor(currentData);
+  renderAiQuality(currentData);
+  updatePlan();
+  renderCategoryMemory();
+  renderYuvionExport();
+  confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');
+  workspace.classList.add('show');
+  syncModeUi();
+
+  if(currentCards.length===4){
+    renderCards();
+    creative.classList.toggle('show',currentMode==='full');
+    creativeStatus.className='creative-status show done';
+    creativeStatus.textContent=item.published?'Товар отмечен как опубликованный. Изменения переведут его обратно в черновик.':'Комплект восстановлен из локального каталога.';
+    zipImages.disabled=false;zipFull.disabled=false;
+  }else{
+    creative.classList.remove('show');
+    zipImages.disabled=true;zipFull.disabled=true;
+  }
   workspace.scrollIntoView({behavior:'smooth',block:'start'});
 }
-
-
 
 function safeFileBase(value){
   return String(value||'product')
