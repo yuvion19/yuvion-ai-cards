@@ -848,15 +848,26 @@ function moderationChecks(){
   const x=collectExtraData();
   const brand=x.brand||yuvionSpecValue(d,'Бренд');
   const sku=x.sku||yuvionSpecValue(d,'Артикул');
+  const p1=moneyNumber(x.price1);
+  const p2=moneyNumber(x.price2);
+  const p3=moneyNumber(x.price3);
+  const old=moneyNumber(x.oldPrice);
+  const categoryState=categoryValidity(d.category);
+  const dupes=duplicateCharacteristicNames(d);
+
   return [
     {label:'Название',ok:Boolean(d.seoTitle),target:'edTitle'},
-    {label:'Категория',ok:Boolean(d.category),target:'edCategory'},
+    {label:'Категория указана',ok:Boolean(d.category),target:'edCategory'},
+    {label:'Категория из известного раздела Yuvion',ok:categoryState.valid,target:'edCategory'},
     {label:'Бренд',ok:Boolean(brand),target:'extraBrand',extra:true},
     {label:'Артикул (SKU)',ok:Boolean(sku),target:'extraSku',extra:true},
+    {label:'SKU не дублируется',ok:Boolean(sku)&&!duplicateSkuId,target:'extraSku',extra:true},
     {label:'Описание',ok:Boolean(d.fullDescription||d.shortDescription),target:'edFull'},
-    {label:'Цена за 1 шт.',ok:Boolean(x.price1),target:'extraPrice1',extra:true},
-    {label:'Цена от 2 шт.',ok:Boolean(x.price2),target:'extraPrice2',extra:true},
-    {label:'Цена от 3 шт.',ok:Boolean(x.price3),target:'extraPrice3',extra:true},
+    {label:'Цена за 1 шт. > 0',ok:p1>0,target:'extraPrice1',extra:true},
+    {label:'Цена от 2 шт. ≤ розничной',ok:p2>0&&p2<=p1,target:'extraPrice2',extra:true},
+    {label:'Цена от 3 шт. ≤ цене от 2 шт.',ok:p3>0&&p3<=p2,target:'extraPrice3',extra:true},
+    {label:'Старая цена выше текущей или пустая',ok:!x.oldPrice||old>p1,target:'extraOldPrice',extra:true},
+    {label:'Характеристики без дублей',ok:dupes.length===0,target:'edSpecs'},
     {label:'4 изображения',ok:currentCards.length===4,target:'generateAll'}
   ];
 }
