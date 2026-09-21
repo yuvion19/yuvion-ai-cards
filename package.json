@@ -13,7 +13,7 @@
   "dependencies": {
     "express": "^5.1.0",
     "jszip": "^3.10.1",
-    "jspdf": "^3.0.2",
+    "jspdf": "^4.2.1",
     "jsbarcode": "^3.12.1",
     "openai": "^6.9.0",
     "sharp": "^0.35.4"
