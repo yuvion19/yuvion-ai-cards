@@ -32,10 +32,17 @@
     .creative{display:none;margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}.creative.show{display:block}.creative-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.creative h2{margin:0 0 6px;font-size:26px}.creative p{margin:0;color:var(--muted);line-height:1.55;max-width:700px}.creative-actions{display:flex;gap:9px;flex-wrap:wrap}
     .creative-status{margin-top:15px;padding:13px 15px;border-radius:12px;background:#FFF5F6;color:#8D3039;display:none}.creative-status.show{display:block}.creative-status.done{background:#EEF9F1;color:#226B38}.creative-status.fail{background:#FFF0F0;color:#A62A2A}.creative-status.stale{background:#FFF8E8;color:#8A5A00}
     .cards-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}.preview-card{background:#FCF7F8;border:1px solid var(--line);border-radius:16px;padding:10px}.preview-card img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:11px;background:#fff}.preview-card strong{display:block;font-size:13px;margin:9px 2px 7px}.card-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .extra-data{margin-top:16px;border:1px solid var(--line);border-radius:17px;background:#fff;overflow:hidden}
+    .extra-data summary{cursor:pointer;list-style:none;padding:16px 18px;font-weight:850;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .extra-data summary::-webkit-details-marker{display:none}.extra-data summary:after{content:"+";font-size:22px;color:var(--brand);line-height:1}.extra-data[open] summary:after{content:"−"}
+    .extra-data-body{padding:0 18px 18px}.extra-data-note{color:var(--muted);font-size:13px;line-height:1.45;margin:0 0 13px}
+    .extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.extra-field{display:flex;flex-direction:column;gap:6px}.extra-field label{font-size:13px;font-weight:800;color:#544A4C}
+    .extra-field input{width:100%;border:1px solid var(--line);background:#fff;border-radius:11px;padding:11px 12px;color:var(--text);outline:none}.extra-field input:focus{border-color:#F09AA2;box-shadow:0 0 0 3px #FFF1F2}
+    .confirmed-badge{display:inline-flex;margin-top:12px;padding:7px 10px;border-radius:999px;background:#EEF9F1;color:#226B38;font-size:12px;font-weight:800}
     .history{max-width:1050px;margin:28px auto 0}.history-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.history h2{font-size:23px;margin:0}.history-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-top:13px}.history-item{background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px;box-shadow:0 8px 24px rgba(100,40,47,.04)}.history-item img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;background:#f5f2f2}.history-item b{display:block;font-size:13px;margin:8px 0 3px}.history-item small{display:block;color:var(--muted);margin-bottom:8px}.history-actions{display:flex;gap:5px}.empty-history{margin-top:12px;color:var(--muted);font-size:14px}
     footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}footer a{color:var(--brand);text-decoration:none;font-weight:750}
     @media(max-width:960px){.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(3,1fr)}}
-    @media(max-width:720px){main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
+    @media(max-width:720px){.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
   </style>
 </head>
 <body>
@@ -68,6 +75,22 @@
       </div>
       <img id="preview" class="preview" alt="Предпросмотр товара" />
     </label>
+
+    <details class="extra-data" id="extraDataBox">
+      <summary>Добавить данные о товаре <span class="muted" style="font-size:12px;font-weight:650">необязательно</span></summary>
+      <div class="extra-data-body">
+        <p class="extra-data-note">Если вы знаете эти данные, укажите их здесь. AI будет считать их подтверждёнными продавцом и не станет пытаться угадывать по фотографии.</p>
+        <div class="extra-grid">
+          <div class="extra-field"><label>Название товара</label><input id="extraName" maxlength="140" placeholder="Например: Настольная лампа" /></div>
+          <div class="extra-field"><label>Бренд</label><input id="extraBrand" maxlength="100" placeholder="Например: Yuvion" /></div>
+          <div class="extra-field"><label>Артикул</label><input id="extraSku" maxlength="100" placeholder="Например: LM-204" /></div>
+          <div class="extra-field"><label>Размеры</label><input id="extraSize" maxlength="120" placeholder="Например: 25×12×12 см" /></div>
+          <div class="extra-field"><label>Материал</label><input id="extraMaterial" maxlength="160" placeholder="Например: металл, пластик" /></div>
+          <div class="extra-field"><label>Цена</label><input id="extraPrice" maxlength="80" placeholder="Например: 2 490 ₽" /></div>
+        </div>
+        <div class="confirmed-badge">Заполненные значения имеют приоритет над распознаванием по фото</div>
+      </div>
+    </details>
 
     <div id="localQuality" class="quality-box"></div>
 
@@ -187,6 +210,16 @@ const editor={
   usage:document.getElementById('edUsage')
 };
 
+const extraFields={
+  name:document.getElementById('extraName'),
+  brand:document.getElementById('extraBrand'),
+  sku:document.getElementById('extraSku'),
+  size:document.getElementById('extraSize'),
+  material:document.getElementById('extraMaterial'),
+  price:document.getElementById('extraPrice')
+};
+const extraDataBox=document.getElementById('extraDataBox');
+
 let selectedFile=null;
 let sourceDataUrl=null;
 let currentData=null;
@@ -208,6 +241,26 @@ function apiHeaders(){return {'Content-Type':'application/json','X-Yuvion-Sessio
 function showError(message){error.textContent=message;error.classList.add('show')}
 function clearError(){error.classList.remove('show');error.textContent=''}
 function esc(s){const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML}
+function collectExtraData(){
+  const out={};
+  for(const [key,el] of Object.entries(extraFields))out[key]=el.value.trim();
+  return out;
+}
+function fillExtraData(data={}){
+  for(const [key,el] of Object.entries(extraFields))el.value=String(data?.[key]||'');
+  extraDataBox.open=Object.values(data||{}).some(Boolean);
+}
+function clearExtraData(){
+  for(const el of Object.values(extraFields))el.value='';
+  extraDataBox.open=false;
+}
+
+Object.values(extraFields).forEach(el=>el.addEventListener('input',()=>{
+  if(currentData){
+    localQuality.className='quality-box show warn';
+    localQuality.innerHTML='<strong>Подтверждённые данные изменены</strong>Нажмите «Проанализировать фото» ещё раз, чтобы AI пересобрал текст с учётом новых значений.';
+  }
+}));
 
 document.querySelectorAll('.mode').forEach(btn=>btn.onclick=()=>{
   currentMode=btn.dataset.mode;
@@ -305,7 +358,7 @@ analyzeBtn.onclick=async()=>{
   loadingTitle.textContent='Анализируем товар';loadingText.textContent='Определяем подтверждённые данные и проверяем качество исходного фото.';
   try{
     const src=await getSource();
-    const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode})});
+    const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData()})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
     currentData=data;currentCards=[];cardsStale=false;currentHistoryId=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36);
@@ -442,7 +495,7 @@ document.getElementById('newProduct').onclick=resetProduct;
 
 function resetProduct(){
   selectedFile=null;sourceDataUrl=null;currentData=null;currentCards=[];currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;fileInput.value='';
-  preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
+  clearExtraData();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
 }
 
 /* IndexedDB history */
@@ -460,7 +513,7 @@ async function saveHistory(){
   if(!currentData||!currentHistoryId)return;
   try{
     const src=await compressedSource();
-    const item={id:currentHistoryId,updatedAt:Date.now(),title:collectEdits().seoTitle||'Товар',data:collectEdits(),sourceDataUrl:src,cards:currentCards,mode:currentMode,style:styleSelect.value};
+    const item={id:currentHistoryId,updatedAt:Date.now(),title:collectEdits().seoTitle||'Товар',data:collectEdits(),extraData:collectExtraData(),sourceDataUrl:src,cards:currentCards,mode:currentMode,style:styleSelect.value};
     await dbPut(item);
     const all=(await dbAll()).sort((a,b)=>b.updatedAt-a.updatedAt);
     for(const extra of all.slice(10))await dbDelete(extra.id);
@@ -484,7 +537,7 @@ async function renderHistory(){
 }
 
 async function restoreHistory(item){
-  selectedFile=null;sourceDataUrl=item.sourceDataUrl||null;currentHistoryId=item.id;currentData=item.data;currentCards=item.cards||[];currentMode=item.mode||'full';styleSelect.value=item.style||'minimal';cardsStale=false;
+  selectedFile=null;sourceDataUrl=item.sourceDataUrl||null;currentHistoryId=item.id;currentData=item.data;currentCards=item.cards||[];currentMode=item.mode||'full';styleSelect.value=item.style||'minimal';cardsStale=false;\n  fillExtraData(item.extraData||item.data?.confirmedData||{});
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   preview.src=sourceDataUrl||'';preview.classList.toggle('show',!!sourceDataUrl);drop.classList.toggle('has',!!sourceDataUrl);dropText.style.display=sourceDataUrl?'none':'';meta.textContent='Восстановлено из истории';analyzeBtn.disabled=false;
   fillEditor(currentData);renderAiQuality(currentData);updatePlan();confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');workspace.classList.add('show');syncModeUi();
