@@ -2039,7 +2039,7 @@ document.getElementById('copyText').onclick=async()=>{
 document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
-  selectedFile=null;sourceDataUrl=null;currentData=null;currentCards=[];currentVariations=[];renderVariations();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentData=null;currentCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentPrivateData={cost:''};renderVariations();renderExtraPhotos();renderRevisionList();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   clearExtraData();renderYuvionExport();renderCategoryMemory();updateWorkflow();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
@@ -2122,9 +2122,12 @@ async function savePhotoDraft(file){
       title:plainName||'Новый товар',
       data:null,
       extraData:collectExtraData(),
+      privateData:collectPrivateData(),
       sourceDataUrl:src,
+      additionalPhotos:currentAdditionalPhotos,
       cards:[],
       variations:[],
+      revisions:currentRevisions,
       mode:currentMode,
       style:styleSelect.value,
       published:false
@@ -2152,9 +2155,12 @@ async function saveHistory(){
       title:edited.seoTitle||'Товар',
       data:edited,
       extraData:collectExtraData(),
+      privateData:collectPrivateData(),
       sourceDataUrl:src,
+      additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
       variations:variationsForExport(),
+      revisions:currentRevisions,
       mode:currentMode,
       style:styleSelect.value,
       published:false
@@ -2487,11 +2493,14 @@ async function restoreHistory(item){
   currentData=item.data||null;
   currentCards=item.cards||[];
   currentVariations=Array.isArray(item.variations)?item.variations.map(normalizeVariation):[];
-  renderVariations();
+  currentAdditionalPhotos=Array.isArray(item.additionalPhotos)?item.additionalPhotos.slice(0,4):[];
+  currentRevisions=Array.isArray(item.revisions)?item.revisions.slice(0,12):[];
+  renderVariations();renderExtraPhotos();renderRevisionList();
   currentMode=item.mode||'full';
   styleSelect.value=item.style||'minimal';
   cardsStale=false;
   fillExtraData(item.extraData||item.data?.confirmedData||{});
+  fillPrivateData(item.privateData||{});
   duplicateSkuId=null;
   checkDuplicateSku();
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
@@ -2633,7 +2642,7 @@ async function saveBatchHistory({data,dataUrl,cards,mode,style}){
   const id=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
   const item={
     id,updatedAt:Date.now(),title:data.seoTitle||'Товар',
-    data,extraData:{},sourceDataUrl:dataUrl,cards:cards||[],variations:[],
+    data,extraData:{},privateData:{cost:''},sourceDataUrl:dataUrl,additionalPhotos:[],cards:cards||[],variations:[],revisions:[],
     mode,style,published:false
   };
   await dbPut(item);
