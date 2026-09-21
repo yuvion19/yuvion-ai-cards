@@ -1005,13 +1005,42 @@ function moneyNumber(value){
   return Number.isFinite(n)?n:0;
 }
 
+function parseCollections(value){
+  return [...new Set(String(value||'').split(',').map(x=>x.trim()).filter(Boolean))].slice(0,20);
+}
+
 function collectPrivateData(){
-  return {cost:String(privateCost.value||'').trim()};
+  return {
+    cost:String(privateCost.value||'').trim(),
+    stock:String(privateStock.value||'').trim(),
+    boxes:String(privateBoxes.value||'').trim(),
+    minStock:String(privateMinStock.value||'').trim(),
+    location:String(privateLocation.value||'').trim(),
+    collections:parseCollections(privateCollections.value)
+  };
+}
+
+function renderCollectionChips(){
+  const items=parseCollections(privateCollections.value);
+  collectionChips.innerHTML=items.map(x=>'<span class="collection-chip">'+esc(x)+'</span>').join('');
 }
 
 function fillPrivateData(data={}){
-  currentPrivateData={cost:String(data?.cost||'')};
+  currentPrivateData={
+    cost:String(data?.cost||''),
+    stock:String(data?.stock||''),
+    boxes:String(data?.boxes||''),
+    minStock:String(data?.minStock||''),
+    location:String(data?.location||''),
+    collections:Array.isArray(data?.collections)?data.collections.slice(0,20):parseCollections(data?.collections||'')
+  };
   privateCost.value=currentPrivateData.cost;
+  privateStock.value=currentPrivateData.stock;
+  privateBoxes.value=currentPrivateData.boxes;
+  privateMinStock.value=currentPrivateData.minStock;
+  privateLocation.value=currentPrivateData.location;
+  privateCollections.value=currentPrivateData.collections.join(', ');
+  renderCollectionChips();
   renderMargin();
 }
 
@@ -1190,6 +1219,64 @@ function renderCategoryValidation(){
 function normalizeSku(value){
   return String(value||'').trim().toLocaleLowerCase('ru').replace(/\s+/g,'');
 }
+
+function normalizeBarcode(value){
+  return String(value||'').replace(/[^\d]/g,'');
+}
+
+function validateEan(value){
+  const code=normalizeBarcode(value);
+  if(!code)return {empty:true,valid:true,type:''};
+  if(!/^\d{8}$|^\d{13}$/.test(code))return {empty:false,valid:false,type:'other'};
+  const digits=code.split('').map(Number);
+  const check=digits.pop();
+  let sum=0;
+  for(let i=digits.length-1,pos=1;i>=0;i--,pos++){
+    sum+=digits[i]*(pos%2===1?3:1);
+  }
+  const expected=(10-(sum%10))%10;
+  return {empty:false,valid:check===expected,type:code.length===13?'EAN-13':'EAN-8',expected};
+}
+
+function barcodeOfStoredItem(item){
+  const d=item?.data||{};
+  const x=item?.extraData||d.confirmedData||{};
+  return normalizeBarcode(x.barcode||storedCharValue(d,'Штрихкод/EAN'));
+}
+
+async function checkBarcodeState(target='product'){
+  const input=target==='intake'?intakeBarcode:extraFields.barcode;
+  const box=target==='intake'?intakeBarcodeWarning:barcodeWarning;
+  const code=normalizeBarcode(input.value);
+  if(!code){
+    box.className='barcode-warning';box.textContent='';return {valid:true,duplicate:null};
+  }
+  const ean=validateEan(code);
+  let duplicate=null;
+  try{
+    const all=await dbAll();
+    duplicate=all.find(item=>item.id!==currentHistoryId&&barcodeOfStoredItem(item)===code)||null;
+  }catch{}
+  if(!ean.valid){
+    box.className='barcode-warning bad';
+    box.textContent=(ean.type==='other'?'Для EAN нужен код из 8 или 13 цифр.':'Неверная контрольная цифра '+ean.type+'.')+(duplicate?' Также код уже есть в локальном каталоге.':'');
+  }else if(duplicate){
+    box.className='barcode-warning bad';
+    box.textContent=(ean.type?ean.type+' корректен. ':'')+'Этот штрихкод уже используется: '+String(duplicate.title||'другой товар');
+  }else{
+    box.className='barcode-warning ok';
+    box.textContent=(ean.type?ean.type+' корректен. ':'Код сохранён.')+'Дублей в локальном каталоге нет.';
+  }
+  if(target==='product'&&currentData)renderReadiness();
+  return {valid:ean.valid,duplicate};
+}
+
+function lowStockState(data){
+  const stock=Number(data?.stock);
+  const min=Number(data?.minStock);
+  return Number.isFinite(stock)&&Number.isFinite(min)&&min>0&&stock<min;
+}
+
 
 async function checkDuplicateSku(){
   const sku=normalizeSku(extraFields.sku.value);
