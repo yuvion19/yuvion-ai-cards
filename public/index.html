@@ -564,6 +564,7 @@ let deferredInstallPrompt=null;
 let currentVariations=[];
 let scannerStream=null;
 let scannerFrame=0;
+let dashboardFilter='all';
 
 localStorage.removeItem('yuvionSessionId');
 function apiHeaders(){return {'Content-Type':'application/json'}}
@@ -587,6 +588,202 @@ function clearExtraData(){
 }
 
 
+
+
+const SPEC_TEMPLATE_KEY='yuvionSpecTemplatesV1';
+const DEFAULT_SPEC_TEMPLATES={
+  'Обувь':['Размер','Материал верха','Материал подошвы','Сезон','Цвет'],
+  'Электроника':['Модель','Питание','Мощность','Материал','Цвет'],
+  'Дом и сад':['Материал','Размеры','Цвет','Назначение','Комплектация'],
+  'Красота и здоровье':['Объём / вес','Тип средства','Назначение','Аромат','Состав'],
+  'Спорт и отдых':['Материал','Размер','Вес','Назначение','Комплектация'],
+  'Строительство и ремонт':['Материал','Размеры','Назначение','Тип','Комплектация'],
+  'Туризм и отдых на природе':['Материал','Размеры','Вес','Назначение','Комплектация'],
+  'Хобби и творчество':['Материал','Размеры','Цвет','Назначение','Комплектация'],
+  'Канцелярские товары':['Материал','Формат / размер','Цвет','Количество','Назначение'],
+  'Бытовая химия и гигиена':['Объём / вес','Назначение','Тип средства','Аромат','Состав']
+};
+
+function categoryRoot(value){
+  const text=String(value||'').trim().toLocaleLowerCase('ru');
+  return BASE_CATEGORIES.find(x=>text===x.toLocaleLowerCase('ru')||text.startsWith(x.toLocaleLowerCase('ru')+' /'))||'';
+}
+
+function loadSpecTemplates(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(SPEC_TEMPLATE_KEY)||'{}');
+    return raw&&typeof raw==='object'?raw:{};
+  }catch{return {}}
+}
+
+function templateForCategory(){
+  const root=categoryRoot(editor.category.value);
+  const custom=loadSpecTemplates()[root||'__default'];
+  return Array.isArray(custom)&&custom.length?custom:(DEFAULT_SPEC_TEMPLATES[root]||[]);
+}
+
+function currentSpecNames(){
+  return parseLines(editor.specs.value).map(line=>{
+    const i=line.indexOf(':');
+    return (i>0?line.slice(0,i):line).trim();
+  }).filter(Boolean);
+}
+
+function applySpecTemplate(){
+  const names=templateForCategory();
+  if(!names.length){
+    specTemplateHint.textContent='Для этой категории шаблон ещё не сохранён.';
+    return;
+  }
+  const existing=new Set(currentSpecNames().map(x=>x.toLocaleLowerCase('ru')));
+  const additions=names.filter(name=>!existing.has(name.toLocaleLowerCase('ru'))).map(name=>name+':');
+  if(additions.length){
+    editor.specs.value=[editor.specs.value.trim(),...additions].filter(Boolean).join('\n');
+    editor.specs.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  specTemplateHint.textContent='Добавлены названия полей без значений. Заполните только подтверждённые данные.';
+}
+
+function saveCurrentSpecTemplate(){
+  const root=categoryRoot(editor.category.value)||'__default';
+  const names=[...new Set(currentSpecNames())].slice(0,20);
+  if(!names.length){
+    specTemplateHint.textContent='Сначала добавьте хотя бы одну характеристику.';
+    return;
+  }
+  const all=loadSpecTemplates();
+  all[root]=names;
+  localStorage.setItem(SPEC_TEMPLATE_KEY,JSON.stringify(all));
+  specTemplateHint.textContent='Шаблон характеристик сохранён локально для '+(root==='__default'?'прочих категорий':root)+'.';
+}
+
+function clearEmptySpecRows(){
+  editor.specs.value=String(editor.specs.value||'').split('\n').filter(line=>{
+    if(!line.trim())return false;
+    const i=line.indexOf(':');
+    if(i<0)return Boolean(line.trim());
+    return Boolean(line.slice(i+1).trim());
+  }).join('\n');
+  editor.specs.dispatchEvent(new Event('input',{bubbles:true}));
+}
+
+function renderSpecTemplateHint(){
+  const root=categoryRoot(editor.category.value);
+  const names=templateForCategory();
+  specTemplateHint.textContent=names.length
+    ? 'Доступен шаблон '+(root||'для этой категории')+': '+names.slice(0,5).join(', ')+(names.length>5?'…':'')
+    : 'Для категории пока нет локального шаблона.';
+}
+
+function normalizeVariation(raw={}){
+  return {
+    id:String(raw.id||((crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)))),
+    name:String(raw.name||'').slice(0,100),
+    option:String(raw.option||'').slice(0,100),
+    sku:String(raw.sku||'').slice(0,100),
+    barcode:String(raw.barcode||'').slice(0,64),
+    price:String(raw.price||'').slice(0,80)
+  };
+}
+
+function renderVariations(){
+  currentVariations=currentVariations.map(normalizeVariation);
+  variationCount.textContent=currentVariations.length+' '+(currentVariations.length===1?'вариант':currentVariations.length>1&&currentVariations.length<5?'варианта':'вариантов');
+  variationList.innerHTML='';
+  currentVariations.forEach((variant,index)=>{
+    const row=document.createElement('div');
+    row.className='variation-row';
+    row.innerHTML=
+      '<input data-v="name" placeholder="Красный / XL" value="'+esc(variant.name)+'">'+
+      '<input data-v="option" placeholder="Цвет / размер" value="'+esc(variant.option)+'">'+
+      '<input data-v="sku" placeholder="SKU" value="'+esc(variant.sku)+'">'+
+      '<input data-v="barcode" inputmode="numeric" placeholder="EAN" value="'+esc(variant.barcode)+'">'+
+      '<input data-v="price" inputmode="decimal" placeholder="Цена" value="'+esc(variant.price)+'">'+
+      '<button type="button" class="variation-remove" aria-label="Удалить вариант">×</button>';
+    row.querySelectorAll('input[data-v]').forEach(input=>input.addEventListener('input',()=>{
+      currentVariations[index][input.dataset.v]=input.value.trim();
+      saveHistoryDebounced();
+    }));
+    row.querySelector('.variation-remove').onclick=()=>{
+      currentVariations.splice(index,1);
+      renderVariations();
+      saveHistoryDebounced();
+    };
+    variationList.appendChild(row);
+  });
+}
+
+function addVariation(seed={}){
+  currentVariations.push(normalizeVariation(seed));
+  variationsBox.open=true;
+  renderVariations();
+  saveHistoryDebounced();
+}
+
+function seedMainProductVariation(){
+  const x=collectExtraData();
+  addVariation({
+    name:collectEdits().seoTitle||'Основной вариант',
+    option:'',
+    sku:x.sku||'',
+    barcode:x.barcode||'',
+    price:x.price1||''
+  });
+}
+
+async function stopBarcodeScanner(){
+  cancelAnimationFrame(scannerFrame);
+  scannerFrame=0;
+  if(scannerStream){
+    scannerStream.getTracks().forEach(track=>track.stop());
+    scannerStream=null;
+  }
+  scannerVideo.srcObject=null;
+  scannerModal.classList.remove('show');
+}
+
+async function startBarcodeScanner(){
+  if(!('BarcodeDetector' in window)){
+    alert('В этом браузере встроенный сканер штрихкодов не поддерживается. Введите код вручную или откройте сайт в Chrome/Edge на совместимом устройстве.');
+    return;
+  }
+  if(!navigator.mediaDevices?.getUserMedia){
+    alert('Камера в этом браузере недоступна.');
+    return;
+  }
+  try{
+    const detector=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code']});
+    scannerModal.classList.add('show');
+    scannerStatus.textContent='Запрашиваем доступ к камере…';
+    scannerStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    scannerVideo.srcObject=scannerStream;
+    await scannerVideo.play();
+    scannerStatus.textContent='Наведите камеру на штрихкод. Распознавание выполняется локально браузером.';
+    const detect=async()=>{
+      if(!scannerStream)return;
+      try{
+        const codes=await detector.detect(scannerVideo);
+        const raw=String(codes?.[0]?.rawValue||'').trim();
+        if(raw){
+          extraFields.barcode.value=raw;
+          extraFields.barcode.dispatchEvent(new Event('input',{bubbles:true}));
+          scannerStatus.textContent='Код распознан: '+raw;
+          setTimeout(()=>stopBarcodeScanner(),500);
+          return;
+        }
+      }catch{}
+      scannerFrame=requestAnimationFrame(detect);
+    };
+    scannerFrame=requestAnimationFrame(detect);
+  }catch(e){
+    await stopBarcodeScanner();
+    alert('Не удалось открыть камеру. Проверьте разрешение браузера.');
+  }
+}
+
+function variationsForExport(){
+  return currentVariations.map(v=>({...v})).filter(v=>v.name||v.option||v.sku||v.barcode||v.price);
+}
 
 const SELLER_DEFAULTS_KEY='yuvionSellerDefaultsV1';
 
