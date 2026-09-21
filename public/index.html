@@ -696,6 +696,19 @@ const scanIntakeBarcode=document.getElementById('scanIntakeBarcode');
 const createIntakeDraft=document.getElementById('createIntakeDraft');
 const diffModal=document.getElementById('diffModal');
 const diffList=document.getElementById('diffList');
+const privateNotes=document.getElementById('privateNotes');
+const moderationStatus=document.getElementById('moderationStatus');
+const moderationReason=document.getElementById('moderationReason');
+const addModerationEntry=document.getElementById('addModerationEntry');
+const moderationLog=document.getElementById('moderationLog');
+const cockpitName=document.getElementById('cockpitName');
+const cockpitNext=document.getElementById('cockpitNext');
+const cockpitReady=document.getElementById('cockpitReady');
+const cockpitSku=document.getElementById('cockpitSku');
+const cockpitPrice=document.getElementById('cockpitPrice');
+const cockpitStock=document.getElementById('cockpitStock');
+const cockpitModeration=document.getElementById('cockpitModeration');
+const catalogQueue=document.getElementById('catalogQueue');
 const closeDiff=document.getElementById('closeDiff');
 const saveRevisionBtn=document.getElementById('saveRevision');
 const revisionBox=document.getElementById('revisionBox');
@@ -735,6 +748,7 @@ let currentRevisions=[];
 let currentPhotoHash='';
 let scannerTarget='product';
 let dashboardCollection='all';
+let currentModeration={status:'none',reason:'',log:[]};
 
 localStorage.removeItem('yuvionSessionId');
 function apiHeaders(){return {'Content-Type':'application/json'}}
