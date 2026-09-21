@@ -2388,6 +2388,123 @@ function downloadBlob(blob,name){
   setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 
+
+function wrapCanvasText(ctx,text,x,y,maxWidth,lineHeight,maxLines=2){
+  const words=String(text||'').split(/\s+/).filter(Boolean);
+  const lines=[];let line='';
+  for(const word of words){
+    const test=line?line+' '+word:word;
+    if(ctx.measureText(test).width>maxWidth&&line){
+      lines.push(line);line=word;
+      if(lines.length>=maxLines)break;
+    }else line=test;
+  }
+  if(lines.length<maxLines&&line)lines.push(line);
+  if(lines.length>maxLines)lines.length=maxLines;
+  lines.forEach((value,index)=>{
+    let out=value;
+    if(index===maxLines-1&&words.join(' ').length>lines.join(' ').length){
+      while(ctx.measureText(out+'…').width>maxWidth&&out.length>2)out=out.slice(0,-1);
+      out+='…';
+    }
+    ctx.fillText(out,x,y+index*lineHeight);
+  });
+}
+
+function labelEntriesFromItem(item){
+  const d=item?.data||{};
+  const x=item?.extraData||d.confirmedData||{};
+  const main={
+    title:d.seoTitle||item?.title||'Товар',
+    sku:x.sku||storedCharValue(d,'Артикул')||'',
+    barcode:x.barcode||storedCharValue(d,'Штрихкод/EAN')||'',
+    price:x.price1||x.price||''
+  };
+  const entries=[main];
+  for(const variant of Array.isArray(item?.variations)?item.variations:[]){
+    entries.push({
+      title:[main.title,variant.name||variant.option].filter(Boolean).join(' — '),
+      sku:variant.sku||'',
+      barcode:variant.barcode||'',
+      price:variant.price||main.price||''
+    });
+  }
+  return entries;
+}
+
+function renderLabelCanvas(entry){
+  const canvas=document.createElement('canvas');
+  canvas.width=1200;canvas.height=460;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#D7D7D7';ctx.lineWidth=3;ctx.strokeRect(2,2,canvas.width-4,canvas.height-4);
+  ctx.fillStyle='#171717';
+  ctx.font='700 42px Arial, sans-serif';
+  wrapCanvasText(ctx,entry.title,38,62,660,50,2);
+  ctx.font='700 30px Arial, sans-serif';
+  ctx.fillText('SKU: '+(entry.sku||'—'),38,190);
+  ctx.font='800 50px Arial, sans-serif';
+  ctx.fillText(entry.price?entry.price+' ₽':'Цена не указана',38,275);
+  ctx.font='24px Arial, sans-serif';
+  ctx.fillStyle='#555';
+  ctx.fillText(entry.barcode?'Код: '+entry.barcode:'Штрихкод не указан',38,335);
+
+  if(entry.barcode&&typeof JsBarcode!=='undefined'){
+    const b=document.createElement('canvas');
+    try{
+      const format=/^\d{13}$/.test(entry.barcode)?'EAN13':/^\d{8}$/.test(entry.barcode)?'EAN8':'CODE128';
+      JsBarcode(b,entry.barcode,{format,displayValue:false,margin:0,width:2.2,height:115,background:'#ffffff',lineColor:'#000000'});
+    }catch{
+      try{JsBarcode(b,entry.barcode,{format:'CODE128',displayValue:false,margin:0,width:2,height:115})}catch{}
+    }
+    if(b.width&&b.height){
+      const maxW=430,maxH=150;
+      const scale=Math.min(maxW/b.width,maxH/b.height);
+      const w=b.width*scale,h=b.height*scale;
+      ctx.drawImage(b,735,105,w,h);
+      ctx.fillStyle='#111';ctx.font='24px Arial, sans-serif';
+      ctx.textAlign='center';ctx.fillText(entry.barcode,735+w/2,285);ctx.textAlign='left';
+    }
+  }
+  ctx.fillStyle='#F03E4A';ctx.fillRect(735,340,390,5);
+  ctx.fillStyle='#555';ctx.font='20px Arial, sans-serif';
+  ctx.fillText('Yuvion',1010,395);
+  return canvas;
+}
+
+async function bulkGenerateLabelsPdf(){
+  if(!selectedDraftIds.size)return;
+  const jsPDF=window.jspdf?.jsPDF;
+  if(!jsPDF||typeof JsBarcode==='undefined'){
+    alert('Модуль PDF-этикеток не загрузился. Обновите страницу.');
+    return;
+  }
+  const entries=[];
+  for(const id of [...selectedDraftIds]){
+    const item=await dbGet(id);
+    if(item)entries.push(...labelEntriesFromItem(item));
+  }
+  if(!entries.length)return;
+
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+  const pageW=210,pageH=297,marginX=7,marginY=8,gapX=4,gapY=3;
+  const cols=2,rows=7;
+  const labelW=(pageW-marginX*2-gapX*(cols-1))/cols;
+  const labelH=(pageH-marginY*2-gapY*(rows-1))/rows;
+  let slot=0;
+  for(const entry of entries){
+    if(slot>0&&slot%(cols*rows)===0)doc.addPage();
+    const local=slot%(cols*rows);
+    const col=local%cols,row=Math.floor(local/cols);
+    const x=marginX+col*(labelW+gapX);
+    const y=marginY+row*(labelH+gapY);
+    const canvas=renderLabelCanvas(entry);
+    doc.addImage(canvas.toDataURL('image/png'),'PNG',x,y,labelW,labelH,undefined,'FAST');
+    slot++;
+  }
+  doc.save('yuvion-labels.pdf');
+}
+
 async function bulkDownloadLocalPackage(){
   if(!selectedDraftIds.size)return;
   if(typeof JSZip==='undefined'){
