@@ -2495,7 +2495,8 @@ function renderRevisionList(){
     row.className='revision-row';
     const title=revision.label||revision.data?.seoTitle||'Версия';
     const time=new Date(revision.createdAt||Date.now()).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
-    row.innerHTML='<div><b style="font-size:11px">'+esc(title)+'</b><small>'+esc(time)+'</small></div><div class="revision-actions"><button class="btn btn-ghost btn-small restore-revision">Вернуть</button><button class="btn btn-danger btn-small delete-revision">×</button></div>';
+    row.innerHTML='<div><b style="font-size:11px">'+esc(title)+'</b><small>'+esc(time)+'</small></div><div class="revision-actions"><button class="btn btn-ghost btn-small compare-revision">Сравнить</button><button class="btn btn-ghost btn-small restore-revision">Вернуть</button><button class="btn btn-danger btn-small delete-revision">×</button></div>';
+    row.querySelector('.compare-revision').onclick=()=>showRevisionDiff(revision.id);
     row.querySelector('.restore-revision').onclick=()=>restoreRevision(revision.id);
     row.querySelector('.delete-revision').onclick=async()=>{
       currentRevisions=currentRevisions.filter(x=>x.id!==revision.id);
@@ -2504,6 +2505,54 @@ function renderRevisionList(){
     };
     revisionList.appendChild(row);
   });
+}
+
+
+function revisionComparable(snapshot){
+  const d=snapshot?.data||{};
+  const x=snapshot?.extraData||{};
+  const p=snapshot?.privateData||{};
+  return {
+    'Название':d.seoTitle||'',
+    'Категория':d.category||'',
+    'Бренд':x.brand||'',
+    'SKU':x.sku||'',
+    'Штрихкод':x.barcode||'',
+    'Цена 1 шт.':x.price1||'',
+    'Цена от 2':x.price2||'',
+    'Цена от 3':x.price3||'',
+    'Старая цена':x.oldPrice||'',
+    'Себестоимость':p.cost||'',
+    'Остаток':p.stock||'',
+    'Коробок':p.boxes||'',
+    'Мин. остаток':p.minStock||'',
+    'Место хранения':p.location||'',
+    'Коллекции':(p.collections||[]).join(', '),
+    'Описание':d.fullDescription||d.shortDescription||'',
+    'Характеристики':(d.characteristics||[]).map(v=>v.name+': '+v.value).join('\n'),
+    'Вариации':(snapshot?.variations||[]).map(v=>[v.name,v.option,v.sku,v.barcode,v.price].filter(Boolean).join(' · ')).join('\n')
+  };
+}
+
+function currentComparableSnapshot(){
+  return {
+    data:collectEdits(),
+    extraData:collectExtraData(),
+    privateData:collectPrivateData(),
+    variations:variationsForExport()
+  };
+}
+
+function showRevisionDiff(id){
+  const revision=currentRevisions.find(x=>x.id===id);
+  if(!revision)return;
+  const oldState=revisionComparable(revision);
+  const newState=revisionComparable(currentComparableSnapshot());
+  const changes=Object.keys(newState).filter(key=>String(oldState[key]??'')!==String(newState[key]??''));
+  diffList.innerHTML=changes.length
+    ? changes.map(key=>'<div class="diff-row"><b>'+esc(key)+'</b><div class="diff-values"><div class="diff-old">'+esc(oldState[key]||'—')+'</div><div class="diff-new">'+esc(newState[key]||'—')+'</div></div></div>').join('')
+    : '<div class="muted">Отличий от этой версии нет.</div>';
+  diffModal.classList.add('show');
 }
 
 async function saveCurrentRevision(){
