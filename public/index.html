@@ -1807,6 +1807,18 @@ document.getElementById('clearHistory').onclick=async()=>{if(confirm('Очист
 catalogSearch.addEventListener('input',()=>renderHistory());
 catalogStatus.addEventListener('change',()=>renderHistory());
 
+bulkSelectVisible.onclick=()=>{
+  if(!lastVisibleDraftIds.length)return;
+  const allSelected=lastVisibleDraftIds.every(id=>selectedDraftIds.has(id));
+  lastVisibleDraftIds.forEach(id=>allSelected?selectedDraftIds.delete(id):selectedDraftIds.add(id));
+  renderHistory();
+};
+bulkClear.onclick=()=>{selectedDraftIds.clear();renderHistory()};
+bulkDownload.onclick=()=>bulkDownloadLocalPackage();
+bulkPublish.onclick=()=>bulkSetPublished(true);
+bulkDraft.onclick=()=>bulkSetPublished(false);
+bulkDelete.onclick=()=>bulkDeleteSelected();
+
 document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
 document.getElementById('jumpHistory').onclick=()=>document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
 dockData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
