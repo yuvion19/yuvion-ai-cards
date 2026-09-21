@@ -941,7 +941,7 @@ app.post("/api/regenerate-card", async (req, res) => {
 
 app.post("/api/package", async (req, res) => {
   try {
-    const { cards, card, includeDescription = false } = req.body ?? {};
+    const { cards, card, extraData = {}, variations = [], includeDescription = false } = req.body ?? {};
     if (!Array.isArray(cards) || cards.length !== 4) {
       return res.status(400).json({ error: "Для ZIP нужны четыре готовые карточки." });
     }
@@ -961,6 +961,23 @@ app.post("/api/package", async (req, res) => {
         name: "description.txt",
         buffer: Buffer.from(descriptionText(card || {}), "utf8")
       });
+      entries.push({
+        name: "seller-data.json",
+        buffer: Buffer.from(JSON.stringify(normalizeExtraData(extraData), null, 2), "utf8")
+      });
+      if (Array.isArray(variations) && variations.length) {
+        const safeVariations = variations.slice(0, 100).map((item) => ({
+          name: compact(item?.name || "", 100),
+          option: compact(item?.option || "", 100),
+          sku: compact(item?.sku || "", 100),
+          barcode: compact(item?.barcode || "", 64),
+          price: compact(item?.price || "", 80)
+        }));
+        entries.push({
+          name: "variations.json",
+          buffer: Buffer.from(JSON.stringify(safeVariations, null, 2), "utf8")
+        });
+      }
     }
 
     const zip = await zipBuffers(entries);
