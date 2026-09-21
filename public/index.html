@@ -751,6 +751,7 @@ function additionalPhotosForAnalyze(){
 
 
 const SPEC_TEMPLATE_KEY='yuvionSpecTemplatesV1';
+const CATEGORY_RULES_KEY='yuvionCategoryRulesV1';
 const DEFAULT_SPEC_TEMPLATES={
   'Обувь':['Размер','Материал верха','Материал подошвы','Сезон','Цвет'],
   'Электроника':['Модель','Питание','Мощность','Материал','Цвет'],
@@ -776,7 +777,43 @@ function loadSpecTemplates(){
   }catch{return {}}
 }
 
+function loadCategoryRules(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(CATEGORY_RULES_KEY)||'[]');
+    return Array.isArray(raw)?raw.slice(0,100):[];
+  }catch{return []}
+}
+
+function saveCategoryRules(rules){
+  localStorage.setItem(CATEGORY_RULES_KEY,JSON.stringify((Array.isArray(rules)?rules:[]).slice(0,100)));
+}
+
+function categoryRuleFor(value){
+  const text=String(value||'').trim().toLocaleLowerCase('ru');
+  if(!text)return null;
+  const rules=loadCategoryRules();
+  return rules.find(rule=>{
+    const cat=String(rule.category||'').trim().toLocaleLowerCase('ru');
+    return cat&&(text===cat||text.startsWith(cat+' /')||cat.startsWith(text+' /'));
+  })||null;
+}
+
+function applyCategoryRule({applyTemplate=false}={}){
+  const rule=categoryRuleFor(editor.category.value);
+  if(!rule)return null;
+  if(rule.style&&styleSelect.querySelector('option[value="'+rule.style+'"]'))styleSelect.value=rule.style;
+  if(applyTemplate&&Array.isArray(rule.specs)&&rule.specs.length){
+    const existing=new Set(currentSpecNames().map(x=>x.toLocaleLowerCase('ru')));
+    const additions=rule.specs.filter(name=>!existing.has(String(name).toLocaleLowerCase('ru'))).map(name=>name+':');
+    if(additions.length)editor.specs.value=[editor.specs.value.trim(),...additions].filter(Boolean).join('\n');
+  }
+  return rule;
+}
+
+
 function templateForCategory(){
+  const rule=categoryRuleFor(editor.category.value);
+  if(Array.isArray(rule?.specs)&&rule.specs.length)return rule.specs;
   const root=categoryRoot(editor.category.value);
   const custom=loadSpecTemplates()[root||'__default'];
   return Array.isArray(custom)&&custom.length?custom:(DEFAULT_SPEC_TEMPLATES[root]||[]);
@@ -1077,9 +1114,10 @@ async function skuExists(candidate,excludeId=currentHistoryId){
   return all.some(item=>item.id!==excludeId&&skuOfStoredItem(item)===target);
 }
 
-async function nextGeneratedSku(){
+async function nextGeneratedSku(category=editor.category.value){
   const d=loadSellerDefaults();
-  const prefix=String(d.skuPrefix||'YU-').trim().slice(0,32);
+  const rule=categoryRuleFor(category);
+  const prefix=String(rule?.skuPrefix||d.skuPrefix||'YU-').trim().slice(0,32);
   let next=Math.max(1,Math.floor(Number(d.skuNext)||1));
   for(let attempts=0;attempts<10000;attempts++,next++){
     const candidate=prefix+String(next).padStart(4,'0');
