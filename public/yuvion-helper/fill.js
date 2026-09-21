@@ -40,6 +40,7 @@
   if(setValue(findInputByLabel(['название']),p.title))filled++;
   if(setValue(findInputByLabel(['бренд']),p.brand))filled++;
   if(setValue(findInputByLabel(['sku','артикул']),p.sku))filled++;
+  if(setValue(findInputByLabel(['штрихкод','ean','barcode']),p.barcode))filled++;
   if(setValue(findInputByLabel(['описание'],{textarea:true}),p.description))filled++;
 
   const categoryInput=findInputByLabel(['категория']);
