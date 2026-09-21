@@ -668,6 +668,8 @@ const selectedDraftIds=new Set();
 let lastVisibleDraftIds=[];
 let pendingSimilarTemplate=null;
 let duplicateSkuId=null;
+let duplicateBarcodeId=null;
+let currentBarcodeValid=true;
 let deferredInstallPrompt=null;
 let currentVariations=[];
 let scannerStream=null;
@@ -1290,6 +1292,7 @@ async function checkBarcodeState(target='product'){
   const box=target==='intake'?intakeBarcodeWarning:barcodeWarning;
   const code=normalizeBarcode(input.value);
   if(!code){
+    if(target==='product'){duplicateBarcodeId=null;currentBarcodeValid=true}
     box.className='barcode-warning';box.textContent='';return {valid:true,duplicate:null};
   }
   const ean=validateEan(code);
@@ -1308,7 +1311,11 @@ async function checkBarcodeState(target='product'){
     box.className='barcode-warning ok';
     box.textContent=(ean.type?ean.type+' корректен. ':'Код сохранён.')+'Дублей в локальном каталоге нет.';
   }
-  if(target==='product'&&currentData)renderReadiness();
+  if(target==='product'){
+    duplicateBarcodeId=duplicate?.id||null;
+    currentBarcodeValid=ean.valid;
+    if(currentData)renderReadiness();
+  }
   return {valid:ean.valid,duplicate};
 }
 
@@ -2549,6 +2556,13 @@ function duplicateSkuInCatalog(item,allItems){
   if(!sku)return null;
   return (allItems||[]).find(other=>other?.id!==item?.id&&skuOfStoredItem(other)===sku)||null;
 }
+
+function duplicateBarcodeInCatalog(item,allItems){
+  const barcode=barcodeOfStoredItem(item);
+  if(!barcode)return null;
+  return (allItems||[]).find(other=>other?.id!==item?.id&&barcodeOfStoredItem(other)===barcode)||null;
+}
+
 
 async function togglePublished(id){
   const item=await dbGet(id);
