@@ -405,6 +405,160 @@ function clearExtraData(){
   extraDataBox.open=false;
 }
 
+
+const CATEGORY_MEMORY_KEY='yuvionCategoryMemoryV1';
+const BASE_CATEGORIES=[
+  'Обувь','Электроника','Дом и сад','Красота и здоровье','Спорт и отдых',
+  'Строительство и ремонт','Туризм и отдых на природе','Хобби и творчество',
+  'Канцелярские товары','Бытовая химия и гигиена'
+];
+
+function normalizeWords(value){
+  return String(value||'').toLocaleLowerCase('ru').replace(/[^a-zа-яё0-9]+/gi,' ').split(/\s+/).filter(x=>x.length>2);
+}
+
+function loadCategoryMemory(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(CATEGORY_MEMORY_KEY)||'[]');
+    return Array.isArray(raw)?raw.slice(0,30):[];
+  }catch{return []}
+}
+
+function rememberCategory(category,title){
+  const value=String(category||'').trim();
+  if(!value)return;
+  const now=Date.now();
+  const hints=[...new Set(normalizeWords(title).slice(0,10))];
+  const items=loadCategoryMemory().filter(x=>x&&x.category!==value);
+  items.unshift({category:value,hints,updatedAt:now});
+  localStorage.setItem(CATEGORY_MEMORY_KEY,JSON.stringify(items.slice(0,30)));
+  renderCategoryMemory();
+}
+
+function categoryScore(item,title){
+  const words=new Set(normalizeWords(title));
+  let score=0;
+  for(const hint of item.hints||[])if(words.has(hint))score+=3;
+  score+=Math.max(0,1-(Date.now()-Number(item.updatedAt||0))/(1000*60*60*24*90));
+  return score;
+}
+
+function renderCategoryMemory(){
+  const memory=loadCategoryMemory();
+  const all=[...new Set([...memory.map(x=>x.category),...BASE_CATEGORIES])];
+  categoryMemoryList.innerHTML=all.map(x=>'<option value="'+esc(x)+'"></option>').join('');
+  const title=currentData?collectEdits().seoTitle:'';
+  const ranked=[...memory].sort((a,b)=>categoryScore(b,title)-categoryScore(a,title));
+  const suggestions=[...new Set([...ranked.slice(0,4).map(x=>x.category),...BASE_CATEGORIES.slice(0,4)])].slice(0,5);
+  categorySuggestions.innerHTML=suggestions.map(x=>'<button type="button" class="cat-chip">'+esc(x)+'</button>').join('');
+  categorySuggestions.querySelectorAll('.cat-chip').forEach(btn=>btn.onclick=()=>{
+    editor.category.value=btn.textContent;
+    if(currentData){
+      currentData=collectEdits();
+      updatePlan();renderYuvionExport();markCardsStale();saveHistoryDebounced();
+    }
+  });
+}
+
+function setSaveState(state='saved'){
+  if(!saveState)return;
+  saveState.className='save-state '+state;
+  saveState.textContent=state==='saving'?'Сохраняем изменения…':state==='saved'?'Изменения сохранены':'Локальное сохранение недоступно';
+}
+
+function moderationChecks(){
+  if(!currentData)return [];
+  const d=collectEdits();
+  const x=collectExtraData();
+  const brand=x.brand||yuvionSpecValue(d,'Бренд');
+  const sku=x.sku||yuvionSpecValue(d,'Артикул');
+  return [
+    {label:'Название',ok:Boolean(d.seoTitle),target:'edTitle'},
+    {label:'Категория',ok:Boolean(d.category),target:'edCategory'},
+    {label:'Бренд',ok:Boolean(brand),target:'extraBrand',extra:true},
+    {label:'Артикул (SKU)',ok:Boolean(sku),target:'extraSku',extra:true},
+    {label:'Описание',ok:Boolean(d.fullDescription||d.shortDescription),target:'edFull'},
+    {label:'Цена за 1 шт.',ok:Boolean(x.price1),target:'extraPrice1',extra:true},
+    {label:'Цена от 2 шт.',ok:Boolean(x.price2),target:'extraPrice2',extra:true},
+    {label:'Цена от 3 шт.',ok:Boolean(x.price3),target:'extraPrice3',extra:true},
+    {label:'4 изображения',ok:currentCards.length===4,target:'generateAll'}
+  ];
+}
+
+function readinessInfo(){
+  const checks=moderationChecks();
+  if(!checks.length)return {checks:[],done:0,total:0,percent:0};
+  const done=checks.filter(x=>x.ok).length;
+  return {checks,done,total:checks.length,percent:Math.round(done/checks.length*100)};
+}
+
+function renderReadiness(){
+  const info=readinessInfo();
+  const p=info.percent||0;
+  readinessRing.style.setProperty('--p',String(p));
+  readinessPercent.textContent=p+'%';
+  readinessList.innerHTML=info.checks.map((item,index)=>'<div class="ready-item '+(item.ok?'ok':'missing')+'" data-ready-index="'+index+'" role="button" tabindex="0">'+esc(item.label)+'</div>').join('');
+  if(!info.total){
+    readinessTitle.textContent='Проверка готовности к модерации';
+    readinessText.textContent='Сначала проанализируйте товар.';
+  }else if(p===100){
+    readinessTitle.textContent='Товар готов к переносу';
+    readinessText.textContent='Все ключевые поля формы Yuvion заполнены.';
+  }else{
+    readinessTitle.textContent=info.done+' из '+info.total+' обязательных пунктов готовы';
+    const missing=info.checks.filter(x=>!x.ok).map(x=>x.label);
+    readinessText.textContent='Не хватает: '+missing.join(', ')+'.';
+  }
+  readinessList.querySelectorAll('[data-ready-index]').forEach(el=>{
+    const activate=()=>{
+      const item=info.checks[Number(el.dataset.readyIndex)];
+      if(!item||item.ok)return;
+      if(item.extra)extraDataBox.open=true;
+      const target=document.getElementById(item.target);
+      if(target){
+        target.scrollIntoView({behavior:'smooth',block:'center'});
+        setTimeout(()=>target.focus?.(),350);
+      }
+    };
+    el.onclick=activate;
+    el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate()}};
+  });
+  updateWorkflow();
+}
+
+function setStep(el,state){
+  el.classList.remove('active','done');
+  if(state)el.classList.add(state);
+}
+
+function updateWorkflow(){
+  const hasPhoto=Boolean(selectedFile||sourceDataUrl);
+  const hasData=Boolean(currentData);
+  const dataDone=hasData&&Boolean(collectEdits().seoTitle)&&Boolean(collectEdits().category);
+  const cardsDone=currentCards.length===4;
+  const ready=readinessInfo().percent===100;
+
+  const states=[
+    hasPhoto?'done':'active',
+    dataDone?'done':hasData?'active':'',
+    cardsDone?'done':dataDone?'active':'',
+    ready?'done':cardsDone?'active':''
+  ];
+  [stepPhoto,stepData,stepCards,stepExport].forEach((el,i)=>setStep(el,states[i]));
+
+  stickyDock.classList.toggle('show',hasPhoto||hasData);
+  if(!hasData){
+    dockTitle.textContent='Фото выбрано';
+    dockSubtitle.textContent='Следующий шаг — анализ товара';
+  }else{
+    const info=readinessInfo();
+    dockTitle.textContent=collectEdits().seoTitle||'Товар';
+    dockSubtitle.textContent=info.percent===100?'Готов к переносу в Yuvion':'Готовность к модерации: '+info.percent+'%';
+  }
+  dockCards.disabled=!hasData;
+  dockYuvion.disabled=!hasData;
+}
+
 function yuvionSpecValue(card,name){
   const target=String(name||'').toLocaleLowerCase('ru');
   const item=(card.characteristics||[]).find(x=>String(x.name||'').toLocaleLowerCase('ru')===target);
