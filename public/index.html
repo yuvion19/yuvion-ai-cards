@@ -71,6 +71,11 @@
     .extra-photos{margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:12px;background:#FCFAFA}.extra-photos-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.extra-photo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:9px}.extra-photo{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;aspect-ratio:1/1}.extra-photo img{width:100%;height:100%;object-fit:cover}.extra-photo button{position:absolute;right:5px;top:5px;border:0;border-radius:999px;width:24px;height:24px;background:rgba(20,20,20,.72);color:#fff;cursor:pointer}.extra-photo-note{font-size:10px;color:var(--muted);line-height:1.4;margin-top:6px}
     .revision-box{margin:10px 0 0;border:1px solid var(--line);border-radius:14px;background:#FCFAFA}.revision-box summary{cursor:pointer;list-style:none;padding:10px 12px;font-size:11px;font-weight:850}.revision-box summary::-webkit-details-marker{display:none}.revision-body{padding:0 12px 12px}.revision-list{display:grid;gap:6px}.revision-row{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px}.revision-row small{color:var(--muted);font-size:10px}.revision-actions{display:flex;gap:5px;flex-shrink:0}
     .import-note{display:none;margin-top:8px;padding:9px 10px;border-radius:10px;background:#F4F8FB;border:1px solid #DCE7EE;font-size:11px;color:#536875;line-height:1.4}.import-note.show{display:block}
+    .local-inventory{margin-top:10px;padding:12px;border:1px solid #DDE6EC;background:#F8FBFD;border-radius:13px}.local-inventory b{font-size:12px}.local-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:9px}.local-grid label{font-size:9px;color:var(--muted);font-weight:800;display:block;margin-bottom:4px}.local-grid input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px;background:#fff;font-size:11px}.collection-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.collection-chip{display:inline-flex;padding:4px 7px;border-radius:999px;background:#EEF3FA;color:#435E82;font-size:9px;font-weight:850}
+    .barcode-warning,.photo-hash-warning{margin-top:5px;font-size:10px;font-weight:800;line-height:1.35}.barcode-warning.ok,.photo-hash-warning.ok{color:#226B38}.barcode-warning.bad,.photo-hash-warning.bad{color:#A62A2A}.barcode-warning.warn,.photo-hash-warning.warn{color:#8A5A00}
+    .intake-modal,.diff-modal{position:fixed;inset:0;background:rgba(7,14,20,.76);z-index:82;display:none;align-items:center;justify-content:center;padding:18px}.intake-modal.show,.diff-modal.show{display:flex}.intake-card,.diff-card{width:min(620px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;padding:18px;box-shadow:0 30px 80px rgba(0,0,0,.35)}.intake-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.intake-field label{font-size:11px;font-weight:850;display:block;margin-bottom:5px}.intake-field input{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}.intake-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}.diff-list{display:grid;gap:7px;margin-top:10px}.diff-row{border:1px solid var(--line);border-radius:10px;padding:9px}.diff-row b{display:block;font-size:11px;margin-bottom:5px}.diff-values{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:10px}.diff-old,.diff-new{padding:7px;border-radius:8px;white-space:pre-wrap;word-break:break-word}.diff-old{background:#FFF3F3;color:#804047}.diff-new{background:#F0F8F2;color:#2E6D3E}
+    .rule-note{margin-top:7px;font-size:10px;color:#566B78}.catalog-toolbar{grid-template-columns:minmax(0,1fr) 180px 180px auto}
+
     .barcode-tools{display:flex;gap:6px;align-items:center}.barcode-tools input{flex:1}.scan-btn{border:1px solid #E5D8DB;background:#fff;border-radius:9px;padding:8px 9px;font-size:10px;font-weight:850;cursor:pointer;white-space:nowrap}.scanner-modal{position:fixed;inset:0;background:rgba(7,14,20,.78);z-index:80;display:none;align-items:center;justify-content:center;padding:18px}.scanner-modal.show{display:flex}.scanner-card{width:min(520px,100%);background:#fff;border-radius:20px;padding:16px;box-shadow:0 30px 80px rgba(0,0,0,.35)}.scanner-card video{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:13px;background:#111}.scanner-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.scanner-status{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4}
     .tenant-profile{max-width:900px;margin:0 auto 16px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.82);box-shadow:0 10px 30px rgba(72,31,37,.04);overflow:hidden}
     .tenant-profile summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:850;display:flex;justify-content:space-between;align-items:center;gap:12px}.tenant-profile summary::-webkit-details-marker{display:none}.tenant-profile summary:after{content:"Настроить";font-size:11px;color:var(--brand);background:var(--soft);padding:6px 8px;border-radius:999px}.tenant-profile[open] summary:after{content:"Скрыть"}
@@ -96,8 +101,8 @@
     .history-item{position:relative}.history-item.selected{border-color:#F09AA2;box-shadow:0 0 0 2px #FFF0F2,0 10px 28px rgba(100,40,47,.08)}.draft-select{position:absolute;top:17px;left:17px;z-index:2;width:22px;height:22px;accent-color:var(--brand);cursor:pointer;filter:drop-shadow(0 1px 2px rgba(0,0,0,.18))}
     .history-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}.history-item{background:#fff;border:1px solid var(--line);border-radius:17px;padding:10px;box-shadow:0 8px 24px rgba(100,40,47,.04);display:flex;flex-direction:column;min-width:0}.history-item img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;background:#f5f2f2}.history-item b{display:block;font-size:13px;line-height:1.35;margin:8px 0 4px;min-height:35px}.history-item small{display:block;color:var(--muted);margin-bottom:7px;font-size:11px;line-height:1.35}.history-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:7px}.draft-status{display:inline-flex;align-items:center;padding:5px 7px;border-radius:999px;font-size:10px;font-weight:900}.draft-status.photo{background:#EEF1F4;color:#53616C}.draft-status.text{background:#FFF6DF;color:#8A5A00}.draft-status.cards{background:#EFF3FF;color:#425C9C}.draft-status.ready{background:#EAF8EE;color:#226B38}.draft-status.published{background:#E9F8F5;color:#166C60}.history-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:auto}.history-actions .wide{grid-column:1/-1}.empty-history{margin-top:14px;color:var(--muted);font-size:14px;padding:24px;border:1px dashed var(--line);border-radius:14px;text-align:center;background:#FCFAFA}.privacy-inline{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#F3F7F5;color:#35604A;font-size:11px;font-weight:800}.privacy-inline:before{content:"";width:7px;height:7px;border-radius:50%;background:#48A66A}
     footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}footer a{color:var(--brand);text-decoration:none;font-weight:750}
-    @media(max-width:960px){.work-dashboard{grid-template-columns:repeat(3,1fr)}.variation-row{grid-template-columns:1fr 1fr}.variation-head{display:none}.variation-remove{width:100%}.profile-grid{grid-template-columns:1fr 1fr}.workflow{grid-template-columns:repeat(2,1fr)}.readiness-list{grid-template-columns:1fr}.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(2,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
-    @media(max-width:720px){.extra-photo-grid{grid-template-columns:1fr 1fr}.margin-grid{grid-template-columns:1fr}.work-dashboard{grid-template-columns:1fr 1fr}.variation-row{grid-template-columns:1fr}.bulk-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}.bulk-btn{width:100%}.catalog-toolbar{grid-template-columns:1fr}.catalog-count{white-space:normal}.profile-grid{grid-template-columns:1fr}.profile-actions .btn{flex:1}.hero-shell{padding:28px 18px;border-radius:22px}.workflow{grid-template-columns:1fr 1fr}.workflow-step{padding:8px;font-size:11px}.smart-strip{align-items:flex-start;flex-direction:column}.sticky-dock{bottom:8px}.dock-status{display:none}.dock-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}.dock-btn{padding:10px 8px}.readiness-top{grid-template-columns:70px 1fr}.readiness-ring{width:66px;height:66px}.export-row{grid-template-columns:1fr}.export-row .btn{justify-self:start}.export-actions{width:100%}.export-actions .btn{flex:1}.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
+    @media(max-width:960px){.local-grid{grid-template-columns:repeat(3,1fr)}.work-dashboard{grid-template-columns:repeat(3,1fr)}.variation-row{grid-template-columns:1fr 1fr}.variation-head{display:none}.variation-remove{width:100%}.profile-grid{grid-template-columns:1fr 1fr}.workflow{grid-template-columns:repeat(2,1fr)}.readiness-list{grid-template-columns:1fr}.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(2,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
+    @media(max-width:720px){.local-grid,.intake-grid{grid-template-columns:1fr}.diff-values{grid-template-columns:1fr}.extra-photo-grid{grid-template-columns:1fr 1fr}.margin-grid{grid-template-columns:1fr}.work-dashboard{grid-template-columns:1fr 1fr}.variation-row{grid-template-columns:1fr}.bulk-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}.bulk-btn{width:100%}.catalog-toolbar{grid-template-columns:1fr}.catalog-count{white-space:normal}.profile-grid{grid-template-columns:1fr}.profile-actions .btn{flex:1}.hero-shell{padding:28px 18px;border-radius:22px}.workflow{grid-template-columns:1fr 1fr}.workflow-step{padding:8px;font-size:11px}.smart-strip{align-items:flex-start;flex-direction:column}.sticky-dock{bottom:8px}.dock-status{display:none}.dock-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}.dock-btn{padding:10px 8px}.readiness-top{grid-template-columns:70px 1fr}.readiness-ring{width:66px;height:66px}.export-row{grid-template-columns:1fr}.export-row .btn{justify-self:start}.export-actions{width:100%}.export-actions .btn{flex:1}.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
   </style>
 </head>
 <body>
@@ -136,6 +141,7 @@
     <div class="smart-strip-actions">
       <button class="smart-pill" id="jumpBatch">Пакет до 10 товаров</button>
       <button class="smart-pill" id="jumpHistory">Каталог черновиков</button>
+      <button class="smart-pill" id="openIntake">Приёмка товара</button>
       <button class="smart-pill" id="installApp" style="display:none">Установить приложение</button>
     </div>
   </div>
@@ -168,6 +174,7 @@
     <div class="dash-card warn" data-dash-status="needs"><b id="dashNeeds">0</b><span>Требуют данных или цены</span></div>
     <div class="dash-card bad" data-dash-status="duplicate"><b id="dashDuplicates">0</b><span>Дубли SKU</span></div>
     <div class="dash-card good" data-dash-status="ready"><b id="dashReady">0</b><span>Готовы к Yuvion</span></div>
+    <div class="dash-card warn" data-dash-status="lowstock"><b id="dashLowStock">0</b><span>Остаток ниже минимума</span></div>
   </section>
 
   <div class="similar-banner" id="similarBanner">Режим похожего товара: бренд, категория и цены сохранены. Загрузите новое фото — название, артикул и описания будут созданы заново.</div>
@@ -195,7 +202,7 @@
           <div class="extra-field"><label>Название товара</label><input id="extraName" maxlength="140" placeholder="Например: Настольная лампа" /></div>
           <div class="extra-field"><label>Бренд</label><input id="extraBrand" maxlength="100" placeholder="Например: Yuvion" /></div>
           <div class="extra-field"><label>Артикул (SKU)</label><input id="extraSku" maxlength="100" placeholder="Например: LM-204" /><div class="sku-warning" id="skuWarning"></div></div>
-          <div class="extra-field"><label>Штрихкод / EAN</label><div class="barcode-tools"><input id="extraBarcode" maxlength="64" inputmode="numeric" placeholder="Например: 4601234567890" /><button type="button" class="scan-btn" id="scanBarcode">Сканировать</button></div><div class="muted" style="font-size:10px;margin-top:4px">Сохраняется локально и не отправляется в админ-панель.</div></div>
+          <div class="extra-field"><label>Штрихкод / EAN</label><div class="barcode-tools"><input id="extraBarcode" maxlength="64" inputmode="numeric" placeholder="Например: 4601234567890" /><button type="button" class="scan-btn" id="scanBarcode">Сканировать</button></div><div class="barcode-warning" id="barcodeWarning"></div><div class="muted" style="font-size:10px;margin-top:4px">Сохраняется локально и не отправляется в админ-панель.</div></div>
           <div class="extra-field"><label>Размеры</label><input id="extraSize" maxlength="120" placeholder="Например: 25×12×12 см" /></div>
           <div class="extra-field"><label>Материал</label><input id="extraMaterial" maxlength="160" placeholder="Например: металл, пластик" /></div>
           <div class="extra-field"><label>Цена за 1 шт., ₽</label><input id="extraPrice1" maxlength="80" inputmode="decimal" placeholder="Например: 2490" /></div>
@@ -213,6 +220,17 @@
           <button type="button" class="tool-chip" data-price-preset="10,15">Опт −10% / −15%</button>
         </div>
         <div class="margin-box" id="marginBox"><b>Маржа <span class="private-label">локально</span></b><div class="margin-grid" id="marginGrid"></div></div>
+        <div class="local-inventory">
+          <b>Локальный склад и коллекции <span class="private-label">не публикуется</span></b>
+          <div class="local-grid">
+            <div><label>Остаток, шт.</label><input id="privateStock" inputmode="numeric" placeholder="0"></div>
+            <div><label>Коробок</label><input id="privateBoxes" inputmode="numeric" placeholder="0"></div>
+            <div><label>Мин. остаток</label><input id="privateMinStock" inputmode="numeric" placeholder="0"></div>
+            <div><label>Место хранения</label><input id="privateLocation" maxlength="80" placeholder="Стеллаж A-3"></div>
+            <div><label>Коллекции</label><input id="privateCollections" maxlength="160" placeholder="Новинки, Поставка сентябрь"></div>
+          </div>
+          <div class="collection-chips" id="collectionChips"></div>
+        </div>
       </div>
     </details>
 
@@ -223,7 +241,7 @@
       <div class="extra-photo-note">Дополнительные фото сохраняются локально в черновике. При анализе они передаются AI вместе с основной фотографией только для сверки деталей товара.</div>
     </div>
 
-    <div id="localQuality" class="quality-box"></div>
+    <div id="localQuality" class="quality-box"></div><div class="photo-hash-warning" id="photoHashWarning"></div>
 
     <div class="row">
       <div class="filemeta" id="filemeta">Файл ещё не выбран</div>
@@ -373,6 +391,8 @@
         <span class="privacy-inline">Приватно на устройстве</span>
         <div class="backup-actions">
           <button class="btn btn-ghost btn-small" id="importProducts">Импорт Excel/CSV</button>
+          <button class="btn btn-ghost btn-small" id="importRules">Импорт правил</button>
+          <input id="importRulesFile" type="file" accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden />
           <input id="importProductsFile" type="file" accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden />
           <button class="btn btn-ghost btn-small" id="backupCatalog">Зашифрованная копия</button>
           <button class="btn btn-ghost btn-small" id="restoreCatalog">Восстановить</button>
@@ -391,6 +411,7 @@
         <option value="ready">Готов к Yuvion</option>
         <option value="published">Опубликован</option>
       </select>
+      <select id="catalogCollection"><option value="all">Все коллекции</option></select>
       <div class="catalog-count" id="catalogCount">0 товаров</div>
     </div>
     <div class="import-note" id="importNote"></div>
@@ -426,6 +447,27 @@
     <div class="scanner-top"><div><b>Сканер штрихкода</b><div class="muted" style="font-size:11px">Камера работает только после разрешения пользователя.</div></div><button class="btn btn-ghost btn-small" id="closeScanner">Закрыть</button></div>
     <video id="scannerVideo" playsinline muted></video>
     <div class="scanner-status" id="scannerStatus">Наведите камеру на штрихкод.</div>
+  </div>
+</div>
+
+<div class="intake-modal" id="intakeModal">
+  <div class="intake-card">
+    <div class="scanner-top"><div><b>Приёмка товара</b><div class="muted" style="font-size:11px">Штрихкод → фото → закупочная цена → локальный черновик</div></div><button class="btn btn-ghost btn-small" id="closeIntake">Закрыть</button></div>
+    <div class="intake-grid">
+      <div class="intake-field"><label>Штрихкод / EAN</label><div class="barcode-tools"><input id="intakeBarcode" inputmode="numeric" maxlength="64" placeholder="Сканируйте или введите"><button class="scan-btn" type="button" id="scanIntakeBarcode">Сканировать</button></div><div class="barcode-warning" id="intakeBarcodeWarning"></div></div>
+      <div class="intake-field"><label>Себестоимость, ₽</label><input id="intakeCost" inputmode="decimal" placeholder="Например: 850"></div>
+      <div class="intake-field"><label>Остаток, шт.</label><input id="intakeStock" inputmode="numeric" placeholder="Например: 24"></div>
+      <div class="intake-field"><label>Место хранения</label><input id="intakeLocation" maxlength="80" placeholder="Стеллаж A-3"></div>
+      <div class="intake-field" style="grid-column:1/-1"><label>Фото товара</label><input id="intakePhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div>
+    </div>
+    <div class="intake-actions"><button class="btn btn-primary" id="createIntakeDraft">Создать черновик</button></div>
+  </div>
+</div>
+
+<div class="diff-modal" id="diffModal">
+  <div class="diff-card">
+    <div class="scanner-top"><div><b>Сравнение версий</b><div class="muted" style="font-size:11px">Показываются только изменившиеся поля.</div></div><button class="btn btn-ghost btn-small" id="closeDiff">Закрыть</button></div>
+    <div class="diff-list" id="diffList"></div>
   </div>
 </div>
 
