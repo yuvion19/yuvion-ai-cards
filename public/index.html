@@ -1517,6 +1517,23 @@ function storedModeration(item){
   return normalizeModeration(item?.moderation||{});
 }
 
+
+const QUEUE_PRIORITY={rejected:0,photo:1,analysis:2,sku:3,category:4,price:5,cards:6,ready:7,sent:8};
+
+async function openNextQueueItem(){
+  const all=(await dbAll()).sort((a,b)=>Number(a.updatedAt||0)-Number(b.updatedAt||0));
+  if(!all.length){
+    alert('Локальный каталог пока пуст.');
+    return;
+  }
+  const ranked=all
+    .map(item=>({item,action:nextActionForItem(item,all)}))
+    .sort((a,b)=>(QUEUE_PRIORITY[a.action.key]??99)-(QUEUE_PRIORITY[b.action.key]??99)||Number(a.item.updatedAt||0)-Number(b.item.updatedAt||0));
+  const next=ranked[0];
+  if(!next)return;
+  await restoreHistory(next.item);
+}
+
 function nextActionForItem(item,allItems=[]){
   const moderation=storedModeration(item);
   if(moderation.status==='rejected')return {key:'rejected',label:'Исправить после отклонения'};
@@ -3977,6 +3994,7 @@ catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory(
 catalogStatus.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
 catalogCollection.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
 catalogQueue.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
+openNextTask.onclick=()=>openNextQueueItem();
 
 bulkSelectVisible.onclick=()=>{
   if(!lastVisibleDraftIds.length)return;
