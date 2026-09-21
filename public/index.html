@@ -1219,7 +1219,8 @@ async function createEncryptedBackup(){
       catalog:items,
       settings:{
         sellerDefaults:loadSellerDefaults(),
-        categoryMemory:loadCategoryMemory()
+        categoryMemory:loadCategoryMemory(),
+        specTemplates:loadSpecTemplates()
       }
     };
     const salt=crypto.getRandomValues(new Uint8Array(16));
@@ -1264,6 +1265,7 @@ async function restoreEncryptedBackup(file){
     for(const item of payload.catalog)if(item?.id)await dbPut(item);
     if(payload.settings?.sellerDefaults)persistSellerDefaults(payload.settings.sellerDefaults);
     if(Array.isArray(payload.settings?.categoryMemory))localStorage.setItem(CATEGORY_MEMORY_KEY,JSON.stringify(payload.settings.categoryMemory.slice(0,30)));
+    if(payload.settings?.specTemplates&&typeof payload.settings.specTemplates==='object')localStorage.setItem(SPEC_TEMPLATE_KEY,JSON.stringify(payload.settings.specTemplates));
     await trimCatalog();
     renderProfile();renderCategoryMemory();renderCategoryValidation();await renderHistory();
     alert('Резервная копия восстановлена локально.');
@@ -3163,6 +3165,19 @@ document.querySelectorAll('[data-dash-status]').forEach(card=>card.addEventListe
   renderHistory();
 }));
 
+saveRevisionBtn.onclick=()=>saveCurrentRevision();
+generateSkuBtn.onclick=()=>assignGeneratedSku(true);
+extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosInput.files));
+privateCost.addEventListener('input',()=>{
+  currentPrivateData=collectPrivateData();
+  renderMargin();
+  if(currentData)saveHistoryDebounced();
+});
+[extraFields.price1,extraFields.price2,extraFields.price3].forEach(el=>el.addEventListener('input',()=>renderMargin()));
+
+importProductsBtn.onclick=()=>importProductsFile.click();
+importProductsFile.addEventListener('change',()=>importProductsFileNow(importProductsFile.files?.[0]));
+
 backupCatalogBtn.onclick=()=>createEncryptedBackup();
 restoreCatalogBtn.onclick=()=>restoreCatalogFile.click();
 restoreCatalogFile.addEventListener('change',()=>restoreEncryptedBackup(restoreCatalogFile.files?.[0]));
@@ -3198,6 +3213,7 @@ bulkSelectVisible.onclick=()=>{
 };
 bulkClear.onclick=()=>{selectedDraftIds.clear();renderHistory()};
 bulkDownload.onclick=()=>bulkDownloadLocalPackage();
+bulkLabels.onclick=()=>bulkGenerateLabelsPdf();
 bulkPublish.onclick=()=>bulkSetPublished(true);
 bulkDraft.onclick=()=>bulkSetPublished(false);
 bulkDelete.onclick=()=>bulkDeleteSelected();
@@ -3212,7 +3228,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-renderProfile();applySellerDefaults();renderVariations();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+renderProfile();applySellerDefaults();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
