@@ -62,8 +62,9 @@
 
     <div class="two">
       <div class="card">
-        <b>Активные сессии</b>
-        <table><thead><tr><th>Сессия</th><th>Анализ</th><th>Комплекты</th><th>Переделки</th></tr></thead><tbody id="sessions"></tbody></table>
+        <b>Приватность арендаторов</b>
+        <div class="muted" id="privacyNote" style="margin-top:8px">Статистика агрегированная. Персональные данные и идентификаторы арендаторов не отображаются.</div>
+        <div class="muted" style="margin-top:10px">Локальные черновики, профили продавца и история товаров хранятся в браузере арендатора, а не в этой админ-панели.</div>
       </div>
       <div class="card">
         <div class="row"><b>Последние ошибки</b><button class="danger" id="reset">Сбросить статистику</button></div>
@@ -84,10 +85,9 @@ async function load(){
   document.getElementById('analyses').textContent=d.analyses||0;document.getElementById('batches').textContent=d.cardBatches||0;document.getElementById('images').textContent=d.imagesGenerated||0;
   document.getElementById('cost').textContent='$'+Number(d.estimatedTotalUsd||0).toFixed(3);document.getElementById('fast').textContent=d.fastMode||0;document.getElementById('full').textContent=d.fullMode||0;
   document.getElementById('regens').textContent=d.singleRegenerations||0;document.getElementById('imgErrors').textContent=d.imageErrors||0;document.getElementById('qualityChecks').textContent=d.qualityChecks||0;document.getElementById('qualityFailures').textContent=d.qualityFailures||0;document.getElementById('batchProducts').textContent=d.batchProducts||0;document.getElementById('credits').textContent=d.creditsExhausted||0;document.getElementById('rates').textContent=d.rateLimitErrors||0;document.getElementById('analysisErrors').textContent=d.analysisErrors||0;
-  document.getElementById('costNote').textContent=d.costNote||'';
+  document.getElementById('costNote').textContent=d.estimatedCostNote||d.costNote||'';document.getElementById('privacyNote').textContent=d.privacyNote||'Статистика агрегированная. Персональные данные арендаторов не отображаются.';
   const state=document.getElementById('imageState');state.textContent=d.imagesEnabled?'ВКЛ':'ВЫКЛ';state.className='status '+(d.imagesEnabled?'on':'off');
   const toggle=document.getElementById('toggleImages');toggle.textContent=d.imagesEnabled?'Отключить генерацию':'Включить генерацию';toggle.dataset.enabled=String(d.imagesEnabled);
-  document.getElementById('sessions').innerHTML=(d.topSessions||[]).map(x=>'<tr><td>'+x.session+'</td><td>'+x.analyses+'</td><td>'+x.batches+'</td><td>'+x.regenerations+'</td></tr>').join('')||'<tr><td colspan="4">Нет данных</td></tr>';
   document.getElementById('errors').innerHTML=(d.recentErrors||[]).slice(0,10).map(x=>'<tr><td>'+new Date(x.at).toLocaleTimeString('ru-RU')+'</td><td>'+String(x.type||'')+'</td><td>'+String(x.code||x.status||'—')+'</td></tr>').join('')||'<tr><td colspan="3">Ошибок нет</td></tr>';
 }
 document.getElementById('enter').onclick=async()=>{password=document.getElementById('password').value;sessionStorage.setItem('yuvionAdminPassword',password);try{await load()}catch(e){loginError.textContent=e.message}};
