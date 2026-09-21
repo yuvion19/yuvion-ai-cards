@@ -1166,7 +1166,7 @@ async function setFile(file){
   const ok=['image/jpeg','image/png','image/webp'];
   if(!ok.includes(file.type))return showError('Поддерживаются только JPG, PNG и WebP.');
   if(file.size>10*1024*1024)return showError('Файл больше 10 МБ.');
-  selectedFile=file;sourceDataUrl=null;currentHistoryId=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));currentData=null;currentCards=[];cardsStale=false;
+  selectedFile=file;sourceDataUrl=null;currentHistoryId=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));currentData=null;currentCards=[];cardsStale=false;duplicateSkuId=null;skuWarning.className='sku-warning';skuWarning.textContent='';
   preview.src=URL.createObjectURL(file);preview.classList.add('show');drop.classList.add('has');dropText.style.display='none';
   meta.textContent=file.name+' • '+(file.size/1024/1024).toFixed(2)+' МБ';
   analyzeBtn.disabled=false;workspace.classList.remove('show');
@@ -1502,7 +1502,8 @@ document.getElementById('copyText').onclick=async()=>{
 document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
-  selectedFile=null;sourceDataUrl=null;currentData=null;currentCards=[];currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentData=null;currentCards=[];currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;fileInput.value='';
+  skuWarning.className='sku-warning';skuWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   clearExtraData();renderYuvionExport();renderCategoryMemory();updateWorkflow();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -1533,15 +1534,23 @@ function storedReadiness(item){
   const x=item?.extraData||d.confirmedData||{};
   const brand=x.brand||storedCharValue(d,'Бренд');
   const sku=x.sku||storedCharValue(d,'Артикул');
+  const p1=moneyNumber(x.price1||x.price);
+  const p2=moneyNumber(x.price2);
+  const p3=moneyNumber(x.price3);
+  const old=moneyNumber(x.oldPrice);
+  const categoryState=categoryValidity(d.category);
   const checks=[
     Boolean(d.seoTitle),
     Boolean(d.category),
+    categoryState.valid,
     Boolean(brand),
     Boolean(sku),
     Boolean(d.fullDescription||d.shortDescription),
-    Boolean(x.price1||x.price),
-    Boolean(x.price2),
-    Boolean(x.price3),
+    p1>0,
+    p2>0&&p2<=p1,
+    p3>0&&p3<=p2,
+    !x.oldPrice||old>p1,
+    duplicateCharacteristicNames(d).length===0,
     Array.isArray(item?.cards)&&item.cards.length===4
   ];
   return {done:checks.filter(Boolean).length,total:checks.length,ready:checks.every(Boolean)};
@@ -1874,6 +1883,8 @@ async function restoreHistory(item){
   styleSelect.value=item.style||'minimal';
   cardsStale=false;
   fillExtraData(item.extraData||item.data?.confirmedData||{});
+  duplicateSkuId=null;
+  checkDuplicateSku();
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   preview.src=sourceDataUrl||'';
   preview.classList.toggle('show',!!sourceDataUrl);
