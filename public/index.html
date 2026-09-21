@@ -438,6 +438,14 @@ const batchProgressText=document.getElementById('batchProgressText');
 const catalogSearch=document.getElementById('catalogSearch');
 const catalogStatus=document.getElementById('catalogStatus');
 const catalogCount=document.getElementById('catalogCount');
+const categoryValidation=document.getElementById('categoryValidation');
+const categoryDirectorySearch=document.getElementById('categoryDirectorySearch');
+const categoryDirectoryList=document.getElementById('categoryDirectoryList');
+const skuWarning=document.getElementById('skuWarning');
+const backupCatalogBtn=document.getElementById('backupCatalog');
+const restoreCatalogBtn=document.getElementById('restoreCatalog');
+const restoreCatalogFile=document.getElementById('restoreCatalogFile');
+const installAppBtn=document.getElementById('installApp');
 const bulkBar=document.getElementById('bulkBar');
 const bulkCount=document.getElementById('bulkCount');
 const bulkSelectVisible=document.getElementById('bulkSelectVisible');
@@ -500,6 +508,8 @@ let batchBusy=false;
 const selectedDraftIds=new Set();
 let lastVisibleDraftIds=[];
 let pendingSimilarTemplate=null;
+let duplicateSkuId=null;
+let deferredInstallPrompt=null;
 
 localStorage.removeItem('yuvionSessionId');
 function apiHeaders(){return {'Content-Type':'application/json'}}
