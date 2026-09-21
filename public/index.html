@@ -39,10 +39,21 @@
     .extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.extra-field{display:flex;flex-direction:column;gap:6px}.extra-field label{font-size:13px;font-weight:800;color:#544A4C}
     .extra-field input{width:100%;border:1px solid var(--line);background:#fff;border-radius:11px;padding:11px 12px;color:var(--text);outline:none}.extra-field input:focus{border-color:#F09AA2;box-shadow:0 0 0 3px #FFF1F2}
     .confirmed-badge{display:inline-flex;margin-top:12px;padding:7px 10px;border-radius:999px;background:#EEF9F1;color:#226B38;font-size:12px;font-weight:800}
+    .qa-badge{display:inline-flex;align-items:center;margin:0 2px 8px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:850;background:#F1F1F2;color:#5F585A}
+    .qa-badge.ok{background:#EAF8EE;color:#226B38}.qa-badge.warn{background:#FFF6DF;color:#8A5A00}.qa-badge.bad{background:#FFF0F0;color:#A62A2A}
+    .qa-summary{margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:#FCFAFA;font-size:13px;line-height:1.45}
+    .batch{max-width:1050px;margin:28px auto 0;background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}
+    .batch-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.batch h2{margin:0 0 5px;font-size:26px}.batch p{margin:0;color:var(--muted);line-height:1.5;max-width:700px}
+    .batch-controls{display:grid;grid-template-columns:1fr 180px 200px auto;gap:10px;margin-top:16px;align-items:end}.batch-field{display:flex;flex-direction:column;gap:6px}.batch-field label{font-size:12px;font-weight:800;color:#544A4C}
+    .batch-field input,.batch-field select{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fff}.batch-file{padding:9px!important}
+    .batch-list{display:grid;gap:8px;margin-top:15px}.batch-item{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:11px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:13px;background:#FCFAFA}
+    .batch-item img{width:48px;height:48px;border-radius:9px;object-fit:cover;background:#f3efef}.batch-item b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.batch-item small{color:var(--muted)}
+    .batch-status{font-size:12px;font-weight:800;text-align:right}.batch-status.wait{color:#777}.batch-status.work{color:#8A5A00}.batch-status.ok{color:#226B38}.batch-status.fail{color:#A62A2A}
+    .batch-progress{display:none;margin-top:13px}.batch-progress.show{display:block}.progress-track{height:9px;background:#F2E9EA;border-radius:999px;overflow:hidden}.progress-bar{height:100%;width:0;background:var(--brand);transition:width .25s}
     .history{max-width:1050px;margin:28px auto 0}.history-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.history h2{font-size:23px;margin:0}.history-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-top:13px}.history-item{background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px;box-shadow:0 8px 24px rgba(100,40,47,.04)}.history-item img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;background:#f5f2f2}.history-item b{display:block;font-size:13px;margin:8px 0 3px}.history-item small{display:block;color:var(--muted);margin-bottom:8px}.history-actions{display:flex;gap:5px}.empty-history{margin-top:12px;color:var(--muted);font-size:14px}
     footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}footer a{color:var(--brand);text-decoration:none;font-weight:750}
-    @media(max-width:960px){.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(3,1fr)}}
-    @media(max-width:720px){.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
+    @media(max-width:960px){.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(3,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
+    @media(max-width:720px){.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
   </style>
 </head>
 <body>
@@ -159,11 +170,33 @@
         </div>
       </div>
       <div class="creative-status" id="creativeStatus"></div>
+      <div class="qa-summary" id="qaSummary" style="display:none"></div>
       <div class="cards-preview" id="cardsPreview"></div>
     </section>
   </section>
 
-  <section class="history" id="history">
+  
+  <section class="batch" id="batch">
+    <div class="batch-head">
+      <div>
+        <h2>Пакетная обработка товаров</h2>
+        <p>Выберите до 10 фотографий — по одной фотографии на каждый товар. Сервис обработает их по очереди. В полном режиме для каждого товара создаются 4 карточки и отдельный ZIP.</p>
+      </div>
+    </div>
+    <div class="batch-controls">
+      <div class="batch-field"><label>Фотографии товаров</label><input class="batch-file" id="batchFiles" type="file" multiple accept="image/jpeg,image/png,image/webp"></div>
+      <div class="batch-field"><label>Режим</label><select id="batchMode"><option value="fast">Быстро</option><option value="full">Полный комплект</option></select></div>
+      <div class="batch-field"><label>Стиль карточек</label><select id="batchStyle"><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select></div>
+      <button class="btn btn-primary" id="startBatch" disabled>Запустить очередь</button>
+    </div>
+    <div class="batch-progress" id="batchProgress">
+      <div class="progress-track"><div class="progress-bar" id="batchBar"></div></div>
+      <div class="muted" id="batchProgressText" style="margin-top:7px;font-size:13px"></div>
+    </div>
+    <div class="batch-list" id="batchList"></div>
+  </section>
+
+<section class="history" id="history">
     <div class="history-head"><h2>Последние товары</h2><button class="btn btn-ghost btn-small" id="clearHistory">Очистить историю</button></div>
     <div id="historyGrid" class="history-grid"></div>
     <div id="emptyHistory" class="empty-history">История пока пустая. Она хранится только в этом браузере.</div>
@@ -537,7 +570,8 @@ async function renderHistory(){
 }
 
 async function restoreHistory(item){
-  selectedFile=null;sourceDataUrl=item.sourceDataUrl||null;currentHistoryId=item.id;currentData=item.data;currentCards=item.cards||[];currentMode=item.mode||'full';styleSelect.value=item.style||'minimal';cardsStale=false;\n  fillExtraData(item.extraData||item.data?.confirmedData||{});
+  selectedFile=null;sourceDataUrl=item.sourceDataUrl||null;currentHistoryId=item.id;currentData=item.data;currentCards=item.cards||[];currentMode=item.mode||'full';styleSelect.value=item.style||'minimal';cardsStale=false;
+  fillExtraData(item.extraData||item.data?.confirmedData||{});
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   preview.src=sourceDataUrl||'';preview.classList.toggle('show',!!sourceDataUrl);drop.classList.toggle('has',!!sourceDataUrl);dropText.style.display=sourceDataUrl?'none':'';meta.textContent='Восстановлено из истории';analyzeBtn.disabled=false;
   fillEditor(currentData);renderAiQuality(currentData);updatePlan();confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');workspace.classList.add('show');syncModeUi();
