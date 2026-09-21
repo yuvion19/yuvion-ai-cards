@@ -29,6 +29,11 @@
     .plan{margin-top:16px}.plan-head{display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap}.plan h3{margin:0 0 5px}.style-select{display:flex;align-items:center;gap:9px}.style-select select{border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;font-weight:750}
     .plan-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}.plan-card{border:1px solid var(--line);background:#FCF9F9;border-radius:15px;padding:14px}.plan-card b{display:block;color:var(--brand);margin-bottom:7px}.plan-card p{font-size:13px;line-height:1.45;margin:0;color:#564D4F}
     .full-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-wrap:wrap}.fast-note{display:none;margin-top:16px;padding:14px;border-radius:14px;background:#F7F7F8;color:var(--muted)}.fast-note.show{display:block}
+    .yuvion-export{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}
+    .export-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}.export-head h2{margin:0 0 6px;font-size:26px}.export-head p{margin:0;color:var(--muted);line-height:1.5;max-width:680px}
+    .export-actions{display:flex;gap:8px;flex-wrap:wrap}.export-grid{display:grid;gap:8px;margin-top:15px}.export-row{display:grid;grid-template-columns:175px minmax(0,1fr) auto;gap:10px;align-items:start;border:1px solid var(--line);border-radius:13px;padding:11px 12px;background:#FCFAFA}
+    .export-label{font-size:12px;font-weight:850;color:#665B5E;padding-top:4px}.export-value{font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word}.export-empty{color:#A49A9C}
+    .export-media{margin-top:12px;padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:#FFFDFD;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.export-media b{display:block;margin-bottom:3px}.export-tip{margin-top:12px;padding:12px 14px;border-radius:12px;background:#EEF9F1;color:#226B38;font-size:13px;line-height:1.45}
     .creative{display:none;margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}.creative.show{display:block}.creative-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.creative h2{margin:0 0 6px;font-size:26px}.creative p{margin:0;color:var(--muted);line-height:1.55;max-width:700px}.creative-actions{display:flex;gap:9px;flex-wrap:wrap}
     .creative-status{margin-top:15px;padding:13px 15px;border-radius:12px;background:#FFF5F6;color:#8D3039;display:none}.creative-status.show{display:block}.creative-status.done{background:#EEF9F1;color:#226B38}.creative-status.fail{background:#FFF0F0;color:#A62A2A}.creative-status.stale{background:#FFF8E8;color:#8A5A00}
     .cards-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}.preview-card{background:#FCF7F8;border:1px solid var(--line);border-radius:16px;padding:10px}.preview-card img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:11px;background:#fff}.preview-card strong{display:block;font-size:13px;margin:9px 2px 7px}.card-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -53,7 +58,7 @@
     .history{max-width:1050px;margin:28px auto 0}.history-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.history h2{font-size:23px;margin:0}.history-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-top:13px}.history-item{background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px;box-shadow:0 8px 24px rgba(100,40,47,.04)}.history-item img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;background:#f5f2f2}.history-item b{display:block;font-size:13px;margin:8px 0 3px}.history-item small{display:block;color:var(--muted);margin-bottom:8px}.history-actions{display:flex;gap:5px}.empty-history{margin-top:12px;color:var(--muted);font-size:14px}
     footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}footer a{color:var(--brand);text-decoration:none;font-weight:750}
     @media(max-width:960px){.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(3,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
-    @media(max-width:720px){.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
+    @media(max-width:720px){.export-row{grid-template-columns:1fr}.export-row .btn{justify-self:start}.export-actions{width:100%}.export-actions .btn{flex:1}.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
   </style>
 </head>
 <body>
@@ -100,7 +105,10 @@
           <div class="extra-field"><label>Артикул (SKU)</label><input id="extraSku" maxlength="100" placeholder="Например: LM-204" /></div>
           <div class="extra-field"><label>Размеры</label><input id="extraSize" maxlength="120" placeholder="Например: 25×12×12 см" /></div>
           <div class="extra-field"><label>Материал</label><input id="extraMaterial" maxlength="160" placeholder="Например: металл, пластик" /></div>
-          <div class="extra-field"><label>Цена</label><input id="extraPrice" maxlength="80" placeholder="Например: 2 490 ₽" /></div>
+          <div class="extra-field"><label>Цена за 1 шт., ₽</label><input id="extraPrice1" maxlength="80" inputmode="decimal" placeholder="Например: 2490" /></div>
+          <div class="extra-field"><label>Цена от 2 шт., ₽</label><input id="extraPrice2" maxlength="80" inputmode="decimal" placeholder="Например: 2290" /></div>
+          <div class="extra-field"><label>Цена от 3 шт. и более, ₽</label><input id="extraPrice3" maxlength="80" inputmode="decimal" placeholder="Например: 2090" /></div>
+          <div class="extra-field"><label>Старая цена, ₽</label><input id="extraOldPrice" maxlength="80" inputmode="decimal" placeholder="Необязательно" /></div>
         </div>
         <div class="confirmed-badge">Заполненные значения имеют приоритет над распознаванием по фото</div>
       </div>
@@ -162,6 +170,25 @@
         <button class="btn btn-ghost" id="copyText">Скопировать весь текст</button>
         <button class="btn btn-primary" id="generateAll">Создать 4 карточки</button>
       </div>
+    </section>
+
+    <section class="yuvion-export" id="yuvionExport">
+      <div class="export-head">
+        <div>
+          <h2>Данные для личного кабинета Yuvion</h2>
+          <p>Поля расположены в логике формы admin.yuvion.ru. Slug не выводим — он создаётся в кабинете автоматически из названия.</p>
+        </div>
+        <div class="export-actions">
+          <button class="btn btn-ghost" id="copyYuvionAll">Скопировать всё</button>
+          <a class="btn btn-primary" href="https://admin.yuvion.ru/" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Открыть кабинет</a>
+        </div>
+      </div>
+      <div class="export-grid" id="yuvionExportGrid"></div>
+      <div class="export-media">
+        <div><b>Изображения</b><span class="muted" id="exportImagesState">После генерации здесь будут 4 готовые карточки.</span></div>
+        <button class="btn btn-ghost" id="exportImagesZip" disabled>Скачать 4 PNG</button>
+      </div>
+      <div class="export-tip">Порядок переноса: название → категория → бренд → артикул (SKU) → описание → характеристики → цены → изображения → «Отправить на модерацию».</div>
     </section>
 
     <section class="creative" id="creative">
@@ -236,6 +263,10 @@ const cardsPreview=document.getElementById('cardsPreview');
 const generateAll=document.getElementById('generateAll');
 const zipImages=document.getElementById('zipImages');
 const zipFull=document.getElementById('zipFull');
+const yuvionExportGrid=document.getElementById('yuvionExportGrid');
+const copyYuvionAll=document.getElementById('copyYuvionAll');
+const exportImagesZip=document.getElementById('exportImagesZip');
+const exportImagesState=document.getElementById('exportImagesState');
 const batchFilesInput=document.getElementById('batchFiles');
 const batchMode=document.getElementById('batchMode');
 const batchStyle=document.getElementById('batchStyle');
@@ -262,7 +293,10 @@ const extraFields={
   sku:document.getElementById('extraSku'),
   size:document.getElementById('extraSize'),
   material:document.getElementById('extraMaterial'),
-  price:document.getElementById('extraPrice')
+  price1:document.getElementById('extraPrice1'),
+  price2:document.getElementById('extraPrice2'),
+  price3:document.getElementById('extraPrice3'),
+  oldPrice:document.getElementById('extraOldPrice')
 };
 const extraDataBox=document.getElementById('extraDataBox');
 
@@ -296,8 +330,9 @@ function collectExtraData(){
   return out;
 }
 function fillExtraData(data={}){
-  for(const [key,el] of Object.entries(extraFields))el.value=String(data?.[key]||'');
-  extraDataBox.open=Object.values(data||{}).some(Boolean);
+  const normalized={...data,price1:data?.price1||data?.price||''};
+  for(const [key,el] of Object.entries(extraFields))el.value=String(normalized?.[key]||'');
+  extraDataBox.open=Object.values(normalized||{}).some(Boolean);
 }
 function clearExtraData(){
   for(const el of Object.values(extraFields))el.value='';
