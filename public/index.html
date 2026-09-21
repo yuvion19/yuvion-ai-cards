@@ -3723,25 +3723,59 @@ async function compressFileToDataUrl(file,max=1600,quality=.84){
   });
 }
 
+function batchRetailPrices(price1){
+  const p=moneyNumber(price1);
+  const d=loadSellerDefaults();
+  if(p<=0)return {price1:String(price1||''),price2:'',price3:''};
+  return {
+    price1:String(price1||''),
+    price2:String(Math.max(0,Math.round(p*(1-Number(d.discount2??5)/100)))),
+    price3:String(Math.max(0,Math.round(p*(1-Number(d.discount3??10)/100))))
+  };
+}
+
 function batchRender(){
   batchList.innerHTML='';
   batchFiles.forEach((item,index)=>{
     const el=document.createElement('div');
     el.className='batch-item';
-    el.innerHTML='<img src="'+esc(item.preview)+'" alt=""><div><b>'+(index+1)+'. '+esc(item.file.name)+'</b><small>'+((item.file.size/1024/1024).toFixed(2))+' МБ</small></div><div class="batch-status '+esc(item.state||'wait')+'">'+esc(item.label||'Ожидает')+'</div>';
+    el.innerHTML='<div class="batch-wizard">'+
+      '<img src="'+esc(item.preview)+'" alt="">'+
+      '<input data-batch-field="brand" placeholder="Бренд" value="'+esc(item.extraData?.brand||'')+'">'+
+      '<input data-batch-field="sku" placeholder="SKU / артикул" value="'+esc(item.extraData?.sku||'')+'">'+
+      '<input data-batch-field="price1" inputmode="decimal" placeholder="Цена, ₽" value="'+esc(item.extraData?.price1||'')+'">'+
+      '<input data-batch-field="category" placeholder="Категория Yuvion" value="'+esc(item.category||'')+'">'+
+      '<div class="batch-status '+esc(item.state||'wait')+'">'+esc(item.label||'Ожидает')+'</div>'+
+      '</div><small style="display:block;margin-top:5px;color:var(--muted)">'+esc(item.file.name)+' · '+((item.file.size/1024/1024).toFixed(2))+' МБ</small>';
+    el.querySelectorAll('[data-batch-field]').forEach(input=>input.addEventListener('input',()=>{
+      const field=input.dataset.batchField;
+      if(field==='category')item.category=input.value.trim();
+      else if(field==='price1')item.extraData={...(item.extraData||{}),...batchRetailPrices(input.value)};
+      else item.extraData={...(item.extraData||{}),[field]:input.value.trim()};
+    }));
     batchList.appendChild(el);
   });
 }
 
-batchFilesInput.addEventListener('change',()=>{
+batchFilesInput.addEventListener('change',async()=>{
   const allowed=['image/jpeg','image/png','image/webp'];
   const chosen=[...batchFilesInput.files].slice(0,10);
-  batchFiles=chosen.filter(file=>allowed.includes(file.type)&&file.size<=10*1024*1024).map(file=>({
-    file,
-    preview:URL.createObjectURL(file),
-    state:'wait',
-    label:'Ожидает'
-  }));
+  const defaults=loadSellerDefaults();
+  batchFiles=[];
+  for(const file of chosen.filter(file=>allowed.includes(file.type)&&file.size<=10*1024*1024)){
+    let sku='';
+    if(defaults.autoSku==='on'){
+      try{sku=await nextGeneratedSku(defaults.category||'')}catch{}
+    }
+    batchFiles.push({
+      file,
+      preview:URL.createObjectURL(file),
+      state:'wait',
+      label:'Ожидает',
+      category:defaults.category||'',
+      extraData:{brand:defaults.brand||'',sku,barcode:'',size:'',material:'',price1:'',price2:'',price3:'',oldPrice:''}
+    });
+  }
   startBatch.disabled=!batchFiles.length||batchBusy;
   batchRender();
   if(chosen.length>10)alert('За один запуск можно обработать максимум 10 товаров.');
