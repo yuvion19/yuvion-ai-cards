@@ -1794,8 +1794,72 @@ async function setFile(file){
   analyzeBtn.disabled=false;
   workspace.classList.toggle('show',Boolean(attachExisting&&currentData));
   updateWorkflow();
+  currentPhotoHash=await imageHashFromFile(file);
+  await checkPhotoDuplicate(currentPhotoHash);
   await inspectImage(file);
   await savePhotoDraft(file);
+}
+
+
+async function imageHashFromFile(file){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=9;canvas.height=8;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(img,0,0,9,8);
+      const d=ctx.getImageData(0,0,9,8).data;
+      let bits='';
+      for(let y=0;y<8;y++){
+        for(let x=0;x<8;x++){
+          const a=(y*9+x)*4,b=(y*9+x+1)*4;
+          const ga=.299*d[a]+.587*d[a+1]+.114*d[a+2];
+          const gb=.299*d[b]+.587*d[b+1]+.114*d[b+2];
+          bits+=ga>gb?'1':'0';
+        }
+      }
+      let hex='';
+      for(let i=0;i<bits.length;i+=4)hex+=parseInt(bits.slice(i,i+4),2).toString(16);
+      URL.revokeObjectURL(url);resolve(hex.padStart(16,'0'));
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);resolve('')};
+    img.src=url;
+  });
+}
+
+function hammingHex(a,b){
+  if(!a||!b||a.length!==b.length)return 99;
+  let diff=0;
+  for(let i=0;i<a.length;i++){
+    let x=parseInt(a[i],16)^parseInt(b[i],16);
+    while(x){diff+=x&1;x>>=1}
+  }
+  return diff;
+}
+
+async function checkPhotoDuplicate(hash=currentPhotoHash){
+  photoHashWarning.className='photo-hash-warning';
+  photoHashWarning.textContent='';
+  if(!hash)return null;
+  try{
+    const all=await dbAll();
+    let best=null,bestDistance=99;
+    for(const item of all){
+      if(item.id===currentHistoryId||!item.photoHash)continue;
+      const distance=hammingHex(hash,item.photoHash);
+      if(distance<bestDistance){bestDistance=distance;best=item}
+    }
+    if(best&&bestDistance<=5){
+      photoHashWarning.className='photo-hash-warning warn';
+      photoHashWarning.textContent='Похоже, это фото уже использовалось у товара «'+String(best.title||'другой товар')+'»'+(bestDistance===0?' (совпадение изображения).':' (очень похожее изображение).');
+      return best;
+    }
+    photoHashWarning.className='photo-hash-warning ok';
+    photoHashWarning.textContent='Похожих исходных фотографий в локальном каталоге не найдено.';
+  }catch{}
+  return null;
 }
 
 function inspectImage(file){
@@ -2220,8 +2284,8 @@ document.getElementById('copyText').onclick=async()=>{
 document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
-  selectedFile=null;sourceDataUrl=null;currentData=null;currentCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentPrivateData={cost:''};renderVariations();renderExtraPhotos();renderRevisionList();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;fileInput.value='';
-  skuWarning.className='sku-warning';skuWarning.textContent='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentPrivateData={cost:''};renderVariations();renderExtraPhotos();renderRevisionList();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;fileInput.value='';
+  skuWarning.className='sku-warning';skuWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   clearExtraData();renderYuvionExport();renderCategoryMemory();updateWorkflow();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -2305,6 +2369,7 @@ async function savePhotoDraft(file){
       extraData:collectExtraData(),
       privateData:collectPrivateData(),
       sourceDataUrl:src,
+      photoHash:currentPhotoHash||'',
       additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
       variations:variationsForExport(),
@@ -2413,6 +2478,7 @@ async function saveHistory(){
       extraData:collectExtraData(),
       privateData:collectPrivateData(),
       sourceDataUrl:src,
+      photoHash:currentPhotoHash||'',
       additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
       variations:variationsForExport(),
@@ -3100,6 +3166,7 @@ async function renderHistory(){
 async function restoreHistory(item){
   selectedFile=null;
   sourceDataUrl=item.sourceDataUrl||null;
+  currentPhotoHash=String(item.photoHash||'');
   currentHistoryId=item.id;
   currentData=item.data||null;
   currentCards=item.cards||[];
@@ -3113,7 +3180,7 @@ async function restoreHistory(item){
   fillExtraData(item.extraData||item.data?.confirmedData||{});
   fillPrivateData(item.privateData||{});
   duplicateSkuId=null;
-  checkDuplicateSku();
+  checkDuplicateSku();checkBarcodeState('product');checkPhotoDuplicate(currentPhotoHash);
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   preview.src=sourceDataUrl||'';
   preview.classList.toggle('show',!!sourceDataUrl);
