@@ -1,6 +1,6 @@
 {
   "name": "yuvion-ai-cards",
-  "version": "5.4.0",
+  "version": "5.5.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "archiver": "^7.0.1",
     "express": "^5.1.0",
     "jszip": "^3.10.1",
     "openai": "^6.9.0",
