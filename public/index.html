@@ -770,8 +770,8 @@ function fillExtraData(data={}){
 }
 function clearExtraData(){
   for(const el of Object.values(extraFields))el.value='';
-  currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[]};
-  [privateCost,privateStock,privateBoxes,privateMinStock,privateLocation,privateCollections].forEach(el=>el.value='');
+  currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};
+  [privateCost,privateStock,privateBoxes,privateMinStock,privateLocation,privateCollections,privateNotes].forEach(el=>el.value='');
   renderCollectionChips();
   applySellerDefaults();
   extraDataBox.open=Boolean(extraFields.brand.value);
