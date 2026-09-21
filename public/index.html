@@ -1645,7 +1645,7 @@ Object.values(editor).forEach(el=>el.addEventListener('input',()=>{
   if(!currentData)return;
   currentData=collectEdits();updatePlan();renderYuvionExport();markCardsStale();saveHistoryDebounced();
 }));
-editor.category.addEventListener('input',()=>renderCategoryValidation());
+editor.category.addEventListener('input',()=>{renderCategoryValidation();renderSpecTemplateHint()});
 editor.category.addEventListener('blur',()=>{
   if(currentData&&editor.category.value.trim())rememberCategory(editor.category.value.trim(),editor.title.value.trim());
   renderCategoryValidation();
@@ -2320,6 +2320,7 @@ async function restoreHistory(item){
   renderAiQuality(currentData);
   updatePlan();
   renderCategoryMemory();
+  renderSpecTemplateHint();
   renderYuvionExport();
   confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');
   workspace.classList.add('show');
@@ -2511,6 +2512,24 @@ startBatch.onclick=async()=>{
 
 document.getElementById('clearHistory').onclick=async()=>{if(confirm('Очистить локальный каталог товаров на этом устройстве?')){await dbClear();renderHistory()}};
 
+applySpecTemplateBtn.onclick=()=>applySpecTemplate();
+saveSpecTemplateBtn.onclick=()=>saveCurrentSpecTemplate();
+clearEmptySpecsBtn.onclick=()=>clearEmptySpecRows();
+addVariationBtn.onclick=()=>addVariation();
+variantsFromProductBtn.onclick=()=>seedMainProductVariation();
+
+scanBarcodeBtn.onclick=()=>startBarcodeScanner();
+closeScannerBtn.onclick=()=>stopBarcodeScanner();
+scannerModal.addEventListener('click',e=>{if(e.target===scannerModal)stopBarcodeScanner()});
+
+document.querySelectorAll('[data-dash-status]').forEach(card=>card.addEventListener('click',()=>{
+  dashboardFilter=card.dataset.dashStatus||'all';
+  catalogStatus.value='all';
+  catalogSearch.value='';
+  document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+  renderHistory();
+}));
+
 backupCatalogBtn.onclick=()=>createEncryptedBackup();
 restoreCatalogBtn.onclick=()=>restoreCatalogFile.click();
 restoreCatalogFile.addEventListener('change',()=>restoreEncryptedBackup(restoreCatalogFile.files?.[0]));
@@ -2535,8 +2554,8 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 }
 
-catalogSearch.addEventListener('input',()=>renderHistory());
-catalogStatus.addEventListener('change',()=>renderHistory());
+catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
+catalogStatus.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
 
 bulkSelectVisible.onclick=()=>{
   if(!lastVisibleDraftIds.length)return;
@@ -2560,7 +2579,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-renderProfile();applySellerDefaults();renderHistory();renderCategoryMemory();renderCategoryValidation();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+renderProfile();applySellerDefaults();renderVariations();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
