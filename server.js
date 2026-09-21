@@ -26,8 +26,6 @@ const MAX_REGENERATIONS_PER_WINDOW = 12;
 const requestsByIp = new Map();
 const cardRequestsByIp = new Map();
 const regenRequestsByIp = new Map();
-const sessions = new Map();
-
 let imagesEnabled = true;
 
 const stats = {
@@ -78,7 +76,7 @@ function recordError(type, error) {
     type,
     status: error?.status ?? null,
     code: error?.code ?? null,
-    message: String(error?.message || error || "Unknown error").slice(0, 240)
+    message: error?.code ? String(error.code).slice(0, 80) : (error?.status ? "HTTP " + String(error.status) : "Internal error")
   };
   stats.recentErrors.unshift(entry);
   stats.recentErrors = stats.recentErrors.slice(0, 20);
@@ -94,37 +92,6 @@ function recordTextUsage(response) {
   stats.textOutputTokens += output;
   stats.estimatedTextUsd += (input / 1_000_000) * TEXT_INPUT_USD_PER_M;
   stats.estimatedTextUsd += (output / 1_000_000) * TEXT_OUTPUT_USD_PER_M;
-}
-
-function sessionId(req) {
-  const raw = String(req.get("x-yuvion-session") || "").trim();
-  return /^[a-zA-Z0-9_-]{8,80}$/.test(raw) ? raw : null;
-}
-
-function trackSession(req, action) {
-  const id = sessionId(req);
-  if (!id) return;
-  const current = sessions.get(id) || {
-    analyses: 0,
-    batches: 0,
-    regenerations: 0,
-    lastSeen: null
-  };
-  if (action === "analysis") current.analyses += 1;
-  if (action === "batch") current.batches += 1;
-  if (action === "regen") current.regenerations += 1;
-  current.lastSeen = new Date().toISOString();
-  sessions.set(id, current);
-  if (sessions.size > 500) {
-    const oldest = [...sessions.entries()]
-      .sort((a, b) => String(a[1].lastSeen).localeCompare(String(b[1].lastSeen)))
-      .slice(0, 100);
-    for (const [key] of oldest) sessions.delete(key);
-  }
-}
-
-function maskSession(id) {
-  return id.length > 10 ? id.slice(0, 4) + "…" + id.slice(-4) : id;
 }
 
 function decodedImageSize(base64) {
@@ -453,7 +420,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "5.1.0",
+    version: "5.2.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled
   });
@@ -517,7 +484,6 @@ app.post("/api/analyze", async (req, res) => {
     stats.analyses += 1;
     if (mode === "fast") stats.fastMode += 1;
     else stats.fullMode += 1;
-    trackSession(req, "analysis");
 
     return res.json(parsed);
   } catch (error) {
@@ -898,7 +864,6 @@ app.post("/api/generate-cards", async (req, res) => {
     stats.cardBatches += 1;
     stats.imagesGenerated += 4;
     stats.estimatedImageOutputUsd += 4 * IMAGE_OUTPUT_ESTIMATE_USD;
-    trackSession(req, "batch");
 
     return res.json({
       cards,
@@ -942,7 +907,6 @@ app.post("/api/regenerate-card", async (req, res) => {
     stats.singleRegenerations += 1;
     stats.imagesGenerated += 1;
     stats.estimatedImageOutputUsd += IMAGE_OUTPUT_ESTIMATE_USD;
-    trackSession(req, "regen");
 
     return res.json({
       card: {
@@ -1001,24 +965,13 @@ function requireAdmin(req, res, next) {
 }
 
 app.get("/api/admin/stats", requireAdmin, (_req, res) => {
-  const topSessions = [...sessions.entries()]
-    .map(([id, value]) => ({
-      session: maskSession(id),
-      analyses: value.analyses,
-      batches: value.batches,
-      regenerations: value.regenerations,
-      lastSeen: value.lastSeen,
-      total: value.analyses + value.batches + value.regenerations
-    }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 10);
-
   res.json({
     ...stats,
     imagesEnabled,
     estimatedTotalUsd: stats.estimatedTextUsd + stats.estimatedImageOutputUsd,
-    costNote: "Оценка: текст по настроенным токен-тарифам; изображения — только приблизительная стоимость output одного medium 1024x1536, без полного учета входных image/text tokens.",
-    topSessions
+    privacyMode: true,
+    privacyNote: "Статистика агрегированная. Идентификаторы арендаторов, сессии, ФИО, контакты и содержимое товаров в админ-панель не передаются.",
+    estimatedCostNote: "Оценка: текст по настроенным токен-тарифам; изображения — приблизительная стоимость output одного medium 1024x1536, без полного учета входных image/text tokens."
   });
 });
 
@@ -1050,7 +1003,6 @@ app.post("/api/admin/reset-stats", requireAdmin, (_req, res) => {
     batchProducts: 0,
     recentErrors: []
   });
-  sessions.clear();
   res.json({ ok: true });
 });
 
@@ -1064,5 +1016,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v5.1.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v5.2.0 listening on port ${port}`);
 });
