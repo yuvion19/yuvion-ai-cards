@@ -1,8 +1,9 @@
 import express from "express";
 import OpenAI, { toFile } from "openai";
-import archiver from "archiver";
+import JSZip from "jszip";
 import sharp from "sharp";
 import path from "node:path";
+import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -399,17 +400,16 @@ function normalizeCard(raw) {
 app.get("/downloads/yuvion-helper.zip", async (_req, res) => {
   try {
     const helperDir = path.join(__dirname, "public", "yuvion-helper");
+    const zip = new JSZip();
+    await addDirectoryToZip(zip, helperDir, "yuvion-helper");
+    const buffer = await zip.generateAsync({
+      type: "nodebuffer",
+      compression: "DEFLATE",
+      compressionOptions: { level: 9 }
+    });
     res.setHeader("Content-Type", "application/zip");
     res.setHeader("Content-Disposition", 'attachment; filename="yuvion-helper.zip"');
-    const archive = archiver("zip", { zlib: { level: 9 } });
-    archive.on("error", (error) => {
-      console.error("Helper ZIP error:", error);
-      if (!res.headersSent) res.status(500).end();
-      else res.end();
-    });
-    archive.pipe(res);
-    archive.directory(helperDir, "yuvion-helper");
-    await archive.finalize();
+    res.send(buffer);
   } catch (error) {
     console.error("Helper ZIP route error:", error);
     if (!res.headersSent) res.status(500).json({ error: "Не удалось собрать Yuvion Helper." });
@@ -424,7 +424,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "5.4.0",
+    version: "5.5.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled
   });
@@ -783,16 +783,27 @@ function descriptionText(cardRaw) {
   ].join("\n");
 }
 
-function zipBuffers(entries) {
-  return new Promise((resolve, reject) => {
-    const archive = archiver("zip", { zlib: { level: 9 } });
-    const chunks = [];
-    archive.on("data", (chunk) => chunks.push(chunk));
-    archive.on("end", () => resolve(Buffer.concat(chunks)));
-    archive.on("error", reject);
-    for (const entry of entries) archive.append(entry.buffer, { name: entry.name });
-    archive.finalize();
+async function zipBuffers(entries) {
+  const zip = new JSZip();
+  for (const entry of entries) zip.file(entry.name, entry.buffer);
+  return zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 }
   });
+}
+
+async function addDirectoryToZip(zip, directory, prefix = "") {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(directory, entry.name);
+    const name = prefix ? prefix + "/" + entry.name : entry.name;
+    if (entry.isDirectory()) {
+      await addDirectoryToZip(zip, full, name);
+    } else if (entry.isFile()) {
+      zip.file(name, await fs.readFile(full));
+    }
+  }
 }
 
 function imageErrorResponse(req, res, error, map, type) {
@@ -1020,5 +1031,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v5.4.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v5.5.0 listening on port ${port}`);
 });
