@@ -47,6 +47,8 @@ const stats = {
   estimatedImageOutputUsd: 0,
   qualityChecks: 0,
   qualityFailures: 0,
+  preflightChecks: 0,
+  preflightFindings: 0,
   batchProducts: 0,
   recentErrors: []
 };
@@ -436,7 +438,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "5.9.0",
+    version: "6.0.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled
   });
@@ -632,6 +634,90 @@ app.post("/api/quality-check", async (req, res) => {
     if (error?.code === "credit_balance_exhausted") return res.status(402).json({ error: "На балансе OpenAI API закончились кредиты." });
     if (error?.status === 429) return res.status(429).json({ error: "Лимит AI временно исчерпан." });
     return res.status(500).json({ error: "Не удалось выполнить автоматическую проверку качества." });
+  }
+});
+
+
+const preflightSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["overall", "issues", "rewrittenTitle", "rewrittenDescription"],
+  properties: {
+    overall: { type: "string", enum: ["Готово", "Есть замечания", "Есть блокеры"] },
+    issues: {
+      type: "array",
+      maxItems: 20,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["severity", "field", "message"],
+        properties: {
+          severity: { type: "string", enum: ["warning", "blocker"] },
+          field: { type: "string" },
+          message: { type: "string" }
+        }
+      }
+    },
+    rewrittenTitle: { type: "string" },
+    rewrittenDescription: { type: "string" }
+  }
+};
+
+app.post("/api/preflight", async (req, res) => {
+  try {
+    const { card, extraData = {}, image = "", mimeType = "" } = req.body ?? {};
+    if (!card || typeof card !== "object") return res.status(400).json({ error: "Нет данных товара для проверки." });
+    const hasImage = typeof image === "string" && image.length > 0;
+    if (hasImage) {
+      if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Исходное фото имеет неподдерживаемый формат." });
+      if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Исходная фотография должна быть не больше 10 МБ." });
+    }
+    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI-проверка пока не настроена." });
+
+    const publicCard = normalizeCard(card);
+    const confirmed = normalizeExtraData(extraData);
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const content = [{
+      type: "input_text",
+      text:
+        "Выполни финальную проверку публичной карточки товара перед переносом в Yuvion. " +
+        "Не придумывай и не добавляй новые характеристики. Проверяй только данные ниже и, если приложено, исходное фото.\n\n" +
+        "Ищи внутренние противоречия; неподтверждённые точные размеры, материал, мощность, состав, вес, бренд, модель и другие технические факты; " +
+        "противоречия между названием, описанием, подтверждёнными данными продавца и видимым товаром; SEO-спам; очевидно некорректные формулировки. " +
+        "Не считай отсутствующий параметр ошибкой, если он не обязателен. Не переноси сведения из изображения в rewrittenTitle или rewrittenDescription, " +
+        "если они не были уже явно подтверждены в переданных текстовых данных.\n\n" +
+        "Если безопасная корректировка нужна, rewrittenTitle и rewrittenDescription могут только удалить или смягчить неподтверждённые утверждения. " +
+        "Они не должны добавлять новые характеристики. Если правка не нужна — верни исходные значения.\n\n" +
+        "Публичные данные товара:\n" + JSON.stringify(publicCard) +
+        "\n\nПодтверждённые продавцом публичные данные:\n" + JSON.stringify(confirmed)
+    }];
+    if (hasImage) content.push({ type: "input_image", image_url: "data:" + mimeType + ";base64," + image, detail: "high" });
+
+    const response = await client.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
+      input: [{ role: "user", content }],
+      text: { format: { type: "json_schema", name: "yuvion_preflight", strict: true, schema: preflightSchema } },
+      max_output_tokens: 1600
+    });
+
+    recordTextUsage(response);
+    const parsed = JSON.parse(response.output_text || "{}");
+    const issues = Array.isArray(parsed.issues) ? parsed.issues.slice(0, 20) : [];
+    stats.preflightChecks += 1;
+    stats.preflightFindings += issues.length;
+    return res.json({
+      overall: ["Готово", "Есть замечания", "Есть блокеры"].includes(parsed.overall) ? parsed.overall : (issues.length ? "Есть замечания" : "Готово"),
+      issues,
+      rewrittenTitle: compact(parsed.rewrittenTitle || publicCard.seoTitle || "", 180),
+      rewrittenDescription: compact(parsed.rewrittenDescription || publicCard.fullDescription || publicCard.shortDescription || "", 2000)
+    });
+  } catch (error) {
+    recordError("preflight", error);
+    console.error("Preflight error:", { message: error?.message, status: error?.status, code: error?.code });
+    if (error?.code === "credit_balance_exhausted") return res.status(402).json({ error: "На балансе OpenAI API закончились кредиты." });
+    if (error?.status === 401) return res.status(503).json({ error: "AI-ключ недействителен." });
+    if (error?.status === 429) return res.status(429).json({ error: "Лимит AI временно исчерпан." });
+    return res.status(500).json({ error: "Не удалось выполнить финальную AI-проверку." });
   }
 });
 
@@ -1067,10 +1153,28 @@ app.post("/api/admin/reset-stats", requireAdmin, (_req, res) => {
     estimatedImageOutputUsd: 0,
     qualityChecks: 0,
     qualityFailures: 0,
+    preflightChecks: 0,
+    preflightFindings: 0,
     batchProducts: 0,
     recentErrors: []
   });
   res.json({ ok: true });
+});
+
+
+app.get("/api/helper-download", async (_req, res) => {
+  try {
+    const zip = new JSZip();
+    await addDirectoryToZip(zip, path.join(__dirname, "public", "yuvion-helper"), "yuvion-helper");
+    const buffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 6 } });
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", 'attachment; filename="yuvion-helper-v2.zip"');
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(buffer);
+  } catch (error) {
+    recordError("helper-download", error);
+    return res.status(500).json({ error: "Не удалось собрать Yuvion Helper." });
+  }
 });
 
 app.get("/admin", (_req, res) => {
@@ -1083,5 +1187,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v5.9.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v6.0.0 listening on port ${port}`);
 });
