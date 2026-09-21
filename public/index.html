@@ -5,79 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#F03E4A" />
   <link rel="icon" type="image/png" href="data:image/png;base64,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" />
-  <title>Yuvion AI — карточка товара по фото</title>
+  <title>Yuvion AI — карточки товара по фото</title>
   <style>
-    :root{
-      --green:#F03E4A;--green2:#D62F3B;--mint:#FFF0F2;--text:#1D1B1C;
-      --muted:#6E6769;--line:#EEE3E5;--bg:#FBF8F8;--white:#fff;--warn:#8A5A00;
-      --shadow:0 18px 50px rgba(118,28,36,.08)
-    }
-    *{box-sizing:border-box}
+    :root{--brand:#F03E4A;--brand2:#D62F3B;--soft:#FFF0F2;--text:#1D1B1C;--muted:#6E6769;--line:#EEE3E5;--bg:#FBF8F8;--white:#fff;--warn:#8A5A00;--shadow:0 18px 50px rgba(118,28,36,.08)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}
     body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
-    button,input{font:inherit}
-    .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
-    header{background:#fff;border-bottom:1px solid var(--line)}
-    .head{height:74px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-    .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text)}
-    .mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--green),#4BBE77);display:grid;place-items:center;color:#fff;font-weight:800}
-    .brand b{font-size:20px}.brand small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
-    .back{color:var(--green);text-decoration:none;font-weight:700;font-size:14px}
-    main{padding:54px 0 70px}
-    .hero{text-align:center;max-width:760px;margin:0 auto 32px}
-    .eyebrow{display:inline-flex;gap:7px;align-items:center;background:var(--mint);color:var(--green2);padding:7px 11px;border-radius:999px;font-size:13px;font-weight:800}
+    button,input{font:inherit}.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+    header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+    .head{height:76px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .brand{display:flex;align-items:center;gap:13px;text-decoration:none;color:var(--text)}
+    .brand-logo{width:158px;height:auto;display:block}.brand small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+    .back{color:var(--brand);text-decoration:none;font-weight:800;font-size:14px}
+    main{padding:50px 0 72px}.hero{text-align:center;max-width:800px;margin:0 auto 30px}
+    .eyebrow{display:inline-flex;align-items:center;background:var(--soft);color:var(--brand2);padding:8px 12px;border-radius:999px;font-size:13px;font-weight:850}
     h1{font-size:clamp(34px,5vw,58px);line-height:1.03;letter-spacing:-.045em;margin:18px 0 14px}
     .hero p{font-size:18px;line-height:1.6;color:var(--muted);margin:0}
     .card{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:26px}
-    .upload{max-width:760px;margin:0 auto}
-    .drop{border:2px dashed #F2A9AF;background:#FFFDFD;border-radius:20px;min-height:310px;padding:28px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;transition:.2s}
-    .drop.drag{border-color:var(--green);background:var(--mint)}
-    .drop.has{padding:16px;min-height:0}
-    .drop input{display:none}
-    .drop-inner{max-width:460px}
-    .icon{width:62px;height:62px;margin:0 auto 15px;border-radius:18px;background:var(--mint);display:grid;place-items:center;font-size:28px}
+    .upload{max-width:790px;margin:0 auto}.drop{border:2px dashed #F2A9AF;background:#FFFDFD;border-radius:20px;min-height:310px;padding:28px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;transition:.2s}
+    .drop.drag{border-color:var(--brand);background:var(--soft)}.drop.has{padding:16px;min-height:0}.drop input{display:none}.drop-inner{max-width:480px}
+    .icon{width:62px;height:62px;margin:0 auto 15px;border-radius:18px;background:var(--soft);display:grid;place-items:center;font-size:28px}
     .drop h2{margin:0 0 8px;font-size:22px}.drop p{color:var(--muted);margin:0;line-height:1.5}
-    .preview{display:none;width:100%;max-height:520px;object-fit:contain;border-radius:14px;background:#f5f5f5}
-    .preview.show{display:block}
-    .row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap}
-    .filemeta{color:var(--muted);font-size:13px}
-    .btn{border:0;border-radius:13px;padding:14px 20px;font-weight:800;cursor:pointer;transition:.18s}
-    .btn-primary{background:var(--green);color:#fff;min-width:190px}
-    .btn-primary:hover{background:var(--green2);transform:translateY(-1px)}
-    .btn-primary:disabled{background:#B9C4BC;cursor:not-allowed;transform:none}
-    .btn-ghost{background:#F5ECEE;color:#4B3438}
-    .notice{margin-top:14px;padding:12px 14px;border-radius:12px;background:#FFF8E8;color:var(--warn);font-size:13px;line-height:1.45}
-    .loading{display:none;text-align:center;padding:45px 10px}.loading.show{display:block}
-    .spinner{width:42px;height:42px;border-radius:50%;border:4px solid #F1E4E6;border-top-color:var(--green);margin:0 auto 14px;animation:s .85s linear infinite}
-    @keyframes s{to{transform:rotate(360deg)}}
+    .preview{display:none;width:100%;max-height:520px;object-fit:contain;border-radius:14px;background:#f6f3f3}.preview.show{display:block}
+    .row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap}.filemeta{color:var(--muted);font-size:13px}
+    .btn{border:0;border-radius:13px;padding:14px 20px;font-weight:850;cursor:pointer;transition:.18s}.btn-primary{background:var(--brand);color:#fff;min-width:205px}.btn-primary:hover{background:var(--brand2);transform:translateY(-1px)}
+    .btn-primary:disabled{background:#C9B9BC;cursor:not-allowed;transform:none}.btn-ghost{background:#F5ECEE;color:#4B3438}.btn-small{padding:10px 13px;border-radius:10px;font-size:13px;min-width:0}
+    .notice{margin-top:14px;padding:13px 15px;border-radius:12px;background:#FFF8E8;color:var(--warn);font-size:13px;line-height:1.5}
     .error{display:none;margin-top:14px;padding:13px 15px;border-radius:12px;background:#FFF0F0;color:#A62A2A}.error.show{display:block}
-    .results{display:none;max-width:920px;margin:28px auto 0}.results.show{display:block}
-    .results-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px;flex-wrap:wrap}
-    .results-top h2{margin:0 0 5px;font-size:28px}.results-top p{margin:0;color:var(--muted)}
-    .actions{display:flex;gap:10px;flex-wrap:wrap}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .block{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;position:relative}
-    .block.full{grid-column:1/-1}
-    .block h3{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--green)}
-    .block .copy{position:absolute;right:12px;top:12px;border:0;background:#F7ECEE;border-radius:9px;padding:7px 10px;cursor:pointer;color:#5A3C41;font-size:12px;font-weight:700}
-    .content{padding-right:78px;line-height:1.65}
-    .content.long{padding-right:0;margin-top:6px}
-    ul.specs{margin:0;padding:0;list-style:none;display:grid;gap:8px}
-    ul.specs li{padding:10px 12px;background:#FCF7F8;border-radius:10px}
-    .key{display:flex;flex-wrap:wrap;gap:8px}.tag{background:var(--mint);color:var(--green2);padding:7px 10px;border-radius:999px;font-size:13px}
-    .confidence{font-size:13px;color:var(--muted);margin-top:12px}
-    .image-maker{margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:var(--shadow)}
-    .image-maker-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap}
-    .image-maker h3{margin:0 0 7px;font-size:21px}.image-maker p{margin:0;color:var(--muted);line-height:1.55;max-width:620px}
-    .image-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .image-controls label{font-size:13px;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:8px}
-    .image-controls select{border:1px solid var(--line);border-radius:11px;background:#fff;padding:11px 34px 11px 12px;color:var(--text);font-weight:800}
-    .image-status{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;font-size:14px;line-height:1.5}
-    .image-status.show{display:block}.image-status.working{background:#FFF5F6;color:#8D3039}.image-status.done{background:#EEF9F1;color:#226B38}.image-status.fail{background:#FFF0F0;color:#A62A2A}
-    .mini-spinner{display:inline-block;width:15px;height:15px;border:2px solid #F4C9CD;border-top-color:var(--green);border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px;margin-right:8px}
-    footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}
-    footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
-    footer a{color:var(--green);text-decoration:none;font-weight:700}
-    @media(max-width:720px){main{padding-top:34px}.card{padding:16px;border-radius:18px}.drop{min-height:260px}.grid{grid-template-columns:1fr}.block.full{grid-column:auto}.content{padding-right:0;padding-top:28px}.actions{width:100%}.actions .btn{flex:1}.head{height:66px}.brand small{display:none}}
+    .loading{display:none;text-align:center;padding:38px 10px}.loading.show{display:block}.spinner{width:42px;height:42px;border-radius:50%;border:4px solid #F1E4E6;border-top-color:var(--brand);margin:0 auto 14px;animation:s .85s linear infinite}@keyframes s{to{transform:rotate(360deg)}}
+    .results{display:none;max-width:980px;margin:30px auto 0}.results.show{display:block}.results-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+    .results-top h2{margin:0 0 5px;font-size:28px}.results-top p{margin:0;color:var(--muted)}.actions{display:flex;gap:10px;flex-wrap:wrap}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.block{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;position:relative}.block.full{grid-column:1/-1}
+    .block h3{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--brand)}.block .copy{position:absolute;right:12px;top:12px;border:0;background:#F7ECEE;border-radius:9px;padding:7px 10px;cursor:pointer;color:#5A3C41;font-size:12px;font-weight:750}
+    .content{padding-right:80px;line-height:1.65}.content.long{padding-right:0;margin-top:6px}ul.specs{margin:0;padding:0;list-style:none;display:grid;gap:8px}ul.specs li{padding:10px 12px;background:#FCF7F8;border-radius:10px}
+    .key{display:flex;flex-wrap:wrap;gap:8px}.tag{background:var(--soft);color:var(--brand2);padding:7px 10px;border-radius:999px;font-size:13px}
+    .creative{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}
+    .creative-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.creative h2{margin:0 0 6px;font-size:26px}.creative p{margin:0;color:var(--muted);line-height:1.55;max-width:700px}
+    .creative-status{margin-top:15px;padding:13px 15px;border-radius:12px;background:#FFF5F6;color:#8D3039;display:none}.creative-status.show{display:block}.creative-status.done{background:#EEF9F1;color:#226B38}.creative-status.fail{background:#FFF0F0;color:#A62A2A}
+    .cards-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}.preview-card{background:#FCF7F8;border:1px solid var(--line);border-radius:16px;padding:10px}.preview-card img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:11px;background:#fff}.preview-card strong{display:block;font-size:13px;margin:9px 2px 7px}.preview-card .btn{width:100%}
+    .creative-actions{display:flex;gap:10px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}
+    footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}footer a{color:var(--brand);text-decoration:none;font-weight:750}
+    @media(max-width:900px){.cards-preview{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:720px){main{padding-top:32px}.card{padding:16px;border-radius:18px}.drop{min-height:250px}.grid{grid-template-columns:1fr}.block.full{grid-column:auto}.content{padding-right:0;padding-top:28px}.actions{width:100%}.actions .btn{flex:1}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.cards-preview{grid-template-columns:1fr 1fr}.creative-actions{width:100%}.creative-actions .btn{flex:1}}
   </style>
 </head>
 <body>
@@ -85,7 +53,7 @@
   <div class="wrap head">
     <a class="brand" href="/">
       <img class="brand-logo" src="data:image/png;base64,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" alt="Yuvion" />
-      <span><small>AI-карточки товаров по фото</small></span>
+      <span><small>AI-карточки товаров</small></span>
     </a>
     <a class="back" href="https://yuvion.ru/" target="_blank" rel="noopener">На yuvion.ru →</a>
   </div>
@@ -94,62 +62,61 @@
 <main>
   <div class="wrap">
     <section class="hero">
-      <div class="eyebrow">AI для арендаторов Yuvion</div>
-      <h1>Загрузите одно фото — получите готовую карточку товара</h1>
-      <p>ИИ определит тип товара, подготовит заголовок, описание, видимые характеристики и ключевые слова. Неподтверждённые данные не придумываются.</p>
+      <div class="eyebrow">Сервис для арендаторов Yuvion</div>
+      <h1>Одно фото → описание и 4 продающие карточки</h1>
+      <p>Загрузите фотографию товара. ИИ подготовит текстовую карточку и четыре изображения 900×1200 с инфографикой: обложку, преимущества, характеристики и применение.</p>
     </section>
 
-    <section class="card upload" id="uploadCard">
+    <section class="card upload">
       <label class="drop" id="drop">
         <input id="file" type="file" accept="image/jpeg,image/png,image/webp" />
         <div class="drop-inner" id="dropText">
           <div class="icon">📷</div>
-          <h2>Добавьте фотографию товара</h2>
-          <p>Нажмите сюда или перетащите JPG, PNG или WebP. Максимальный размер — 10 МБ.</p>
+          <h2>Добавьте одну фотографию товара</h2>
+          <p>Нажмите сюда или перетащите JPG, PNG или WebP. Максимум 10 МБ.</p>
         </div>
         <img id="preview" class="preview" alt="Предпросмотр товара" />
       </label>
 
       <div class="row">
         <div class="filemeta" id="filemeta">Файл ещё не выбран</div>
-        <div class="image-controls">
-          <label>AI-фото
-            <select id="imageCount" aria-label="Количество AI-фотографий">
-              <option value="4" selected>4 фото</option>
-              <option value="3">3 фото</option>
-            </select>
-          </label>
-          <button class="btn btn-primary" id="create" disabled>Создать карточку + фото</button>
-        </div>
+        <button class="btn btn-primary" id="create" disabled>Создать комплект</button>
       </div>
-      <div class="notice">Если размер, материал, бренд, модель, состав или другая важная характеристика не читается на фото, сервис добавит её в «Нужно уточнить», а не станет выдумывать.</div>
+
+      <div class="notice">Неизвестные размеры, материал, бренд, модель, состав и другие неподтверждённые параметры сервис не придумывает. В ZIP попадают только 4 готовые PNG-карточки.</div>
       <div class="error" id="error"></div>
       <div class="loading" id="loading">
         <div class="spinner"></div>
-        <b>Анализируем фотографию</b>
-        <div style="color:var(--muted);margin-top:6px">Обычно это занимает несколько секунд.</div>
+        <b id="loadingTitle">Анализируем товар</b>
+        <div id="loadingText" style="color:var(--muted);margin-top:6px">Сначала создадим текстовую карточку.</div>
       </div>
     </section>
 
     <section class="results" id="results">
       <div class="results-top">
-        <div><h2>Карточка готова</h2><p id="confidence"></p></div>
+        <div><h2>Текстовая карточка</h2><p id="confidence"></p></div>
         <div class="actions">
           <button class="btn btn-ghost" id="copyAll">Скопировать всё</button>
-          <button class="btn btn-primary" id="newCard">Новая карточка</button>
+          <button class="btn btn-primary" id="newCard">Новый товар</button>
         </div>
       </div>
+
       <div class="grid" id="grid"></div>
-      <div class="image-maker">
-        <div class="image-maker-top">
+
+      <section class="creative">
+        <div class="creative-top">
           <div>
-            <h3>AI-фотографии товара</h3>
-            <p>Сервис создаст отдельные товарные изображения 3:4 на основе исходной фотографии и упакует их в ZIP. В архиве будут только готовые PNG-файлы.</p>
+            <h2>4 продающие карточки 900×1200</h2>
+            <p>Товар сохраняется максимально похожим на исходное фото. Текст инфографики накладывается отдельно, поэтому заголовки и характеристики остаются читаемыми.</p>
           </div>
-          <button class="btn btn-primary" id="generateImages">Сгенерировать ещё раз</button>
+          <div class="creative-actions">
+            <button class="btn btn-ghost" id="regenCards">Сгенерировать заново</button>
+            <button class="btn btn-primary" id="downloadZip" disabled>Скачать ZIP</button>
+          </div>
         </div>
-        <div class="image-status" id="imageStatus"></div>
-      </div>
+        <div class="creative-status" id="creativeStatus"></div>
+        <div class="cards-preview" id="cardsPreview"></div>
+      </section>
     </section>
   </div>
 </main>
@@ -165,49 +132,51 @@
 </footer>
 
 <script>
-  const fileInput = document.getElementById('file');
-  const drop = document.getElementById('drop');
-  const dropText = document.getElementById('dropText');
-  const preview = document.getElementById('preview');
-  const meta = document.getElementById('filemeta');
-  const create = document.getElementById('create');
-  const loading = document.getElementById('loading');
-  const error = document.getElementById('error');
-  const results = document.getElementById('results');
-  const grid = document.getElementById('grid');
-  const confidence = document.getElementById('confidence');
-  const imageCount = document.getElementById('imageCount');
-  const generateImagesBtn = document.getElementById('generateImages');
-  const imageStatus = document.getElementById('imageStatus');
-  let selected = null;
-  let busy = false;
-  let currentData = null;
-  let imageBusy = false;
+  const fileInput=document.getElementById('file');
+  const drop=document.getElementById('drop');
+  const dropText=document.getElementById('dropText');
+  const preview=document.getElementById('preview');
+  const meta=document.getElementById('filemeta');
+  const create=document.getElementById('create');
+  const loading=document.getElementById('loading');
+  const loadingTitle=document.getElementById('loadingTitle');
+  const loadingText=document.getElementById('loadingText');
+  const error=document.getElementById('error');
+  const results=document.getElementById('results');
+  const grid=document.getElementById('grid');
+  const confidence=document.getElementById('confidence');
+  const creativeStatus=document.getElementById('creativeStatus');
+  const cardsPreview=document.getElementById('cardsPreview');
+  const downloadZip=document.getElementById('downloadZip');
+  const regenCards=document.getElementById('regenCards');
 
-  ['dragenter','dragover'].forEach(evt => drop.addEventListener(evt, e => { e.preventDefault(); drop.classList.add('drag'); }));
-  ['dragleave','drop'].forEach(evt => drop.addEventListener(evt, e => { e.preventDefault(); drop.classList.remove('drag'); }));
-  drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
-  fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+  let selected=null;
+  let busy=false;
+  let cardsBusy=false;
+  let currentData=null;
+  let currentZipBase64=null;
+  let currentZipName='yuvion-product-cards.zip';
 
-  function showError(message){
-    error.textContent = message;
-    error.classList.add('show');
-  }
-  function clearError(){ error.classList.remove('show'); error.textContent=''; }
+  ['dragenter','dragover'].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault();drop.classList.add('drag')}));
+  ['dragleave','drop'].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault();drop.classList.remove('drag')}));
+  drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0])});
+  fileInput.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0])});
+
+  function showError(message){error.textContent=message;error.classList.add('show')}
+  function clearError(){error.classList.remove('show');error.textContent=''}
 
   function setFile(file){
     clearError();
-    const okTypes = ['image/jpeg','image/png','image/webp'];
-    if(!okTypes.includes(file.type)) return showError('Поддерживаются только JPG, PNG и WebP.');
-    if(file.size > 10 * 1024 * 1024) return showError('Файл больше 10 МБ. Выберите фотографию меньшего размера.');
-    selected = file;
-    const url = URL.createObjectURL(file);
-    preview.src = url;
+    const ok=['image/jpeg','image/png','image/webp'];
+    if(!ok.includes(file.type))return showError('Поддерживаются только JPG, PNG и WebP.');
+    if(file.size>10*1024*1024)return showError('Файл больше 10 МБ.');
+    selected=file;
+    preview.src=URL.createObjectURL(file);
     preview.classList.add('show');
     drop.classList.add('has');
     dropText.style.display='none';
-    meta.textContent = file.name + ' • ' + (file.size/1024/1024).toFixed(2) + ' МБ';
-    create.disabled = false;
+    meta.textContent=file.name+' • '+(file.size/1024/1024).toFixed(2)+' МБ';
+    create.disabled=false;
   }
 
   function toBase64(file){
@@ -219,53 +188,19 @@
     });
   }
 
-  create.addEventListener('click', async ()=>{
-    if(!selected || busy) return;
-    busy = true;
-    create.disabled = true;
-    create.textContent = 'Создаём…';
-    loading.classList.add('show');
-    results.classList.remove('show');
-    clearError();
+  function esc(s){const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML}
 
-    try{
-      const image = await toBase64(selected);
-      const response = await fetch('/api/analyze',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({image,mimeType:selected.type})
-      });
-      const data = await response.json().catch(()=>({}));
-      if(!response.ok) throw new Error(data.error || 'Не удалось создать карточку.');
-      currentData = data;
-      render(data);
-      loading.classList.remove('show');
-      results.classList.add('show');
-      results.scrollIntoView({behavior:'smooth',block:'start'});
-      await generateImageZip();
-    }catch(e){
-      loading.classList.remove('show');
-      showError(e.message || 'Произошла ошибка. Попробуйте ещё раз.');
-    }finally{
-      busy=false;
-      create.disabled=false;
-      create.textContent='Создать карточку + фото';
-    }
-  });
-
-  function esc(s){
-    const d=document.createElement('div'); d.textContent=String(s ?? ''); return d.innerHTML;
-  }
-  function addBlock(title, html, raw, full=false){
+  function addBlock(title,html,raw,full=false){
     const el=document.createElement('article');
     el.className='block'+(full?' full':'');
     el.innerHTML='<h3>'+esc(title)+'</h3><button class="copy">Копировать</button><div class="content '+(full?'long':'')+'">'+html+'</div>';
     el.querySelector('.copy').onclick=()=>copyText(raw,el.querySelector('.copy'));
     grid.appendChild(el);
   }
-  function render(d){
+
+  function renderText(d){
     grid.innerHTML='';
-    confidence.textContent='Уверенность распознавания: '+(d.confidence || 'не указана');
+    confidence.textContent='Уверенность распознавания: '+(d.confidence||'не указана');
     addBlock('SEO-заголовок','<b>'+esc(d.seoTitle)+'</b>',d.seoTitle);
     addBlock('Категория',esc(d.category),d.category);
     addBlock('Краткое описание',esc(d.shortDescription),d.shortDescription,true);
@@ -282,61 +217,105 @@
     addBlock('Нужно уточнить','<ul class="specs">'+(need||'<li>Дополнительных уточнений не требуется.</li>')+'</ul>',(d.needsClarification||[]).join('\n')||'Дополнительных уточнений не требуется.',true);
   }
 
+  function dataUrlToBlob(base64,type='application/zip'){
+    const binary=atob(base64);
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    return new Blob([bytes],{type});
+  }
 
-  async function generateImageZip(){
-    if(!selected || imageBusy) return;
-    imageBusy = true;
-    generateImagesBtn.disabled = true;
-    imageCount.disabled = true;
-    imageStatus.className = 'image-status show working';
-    imageStatus.innerHTML = '<span class="mini-spinner"></span>Генерируем '+imageCount.value+' AI-фото и собираем ZIP. Это может занять 1–3 минуты.';
+  function triggerZipDownload(){
+    if(!currentZipBase64)return;
+    const blob=dataUrlToBlob(currentZipBase64,'application/zip');
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=currentZipName;a.style.display='none';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }
+
+  function renderCards(cards){
+    cardsPreview.innerHTML='';
+    cards.forEach((card,index)=>{
+      const el=document.createElement('div');
+      el.className='preview-card';
+      el.innerHTML='<img alt="'+esc(card.title)+'" src="data:image/png;base64,'+card.base64+'"><strong>'+(index+1)+'. '+esc(card.title)+'</strong><button class="btn btn-ghost btn-small">Скачать PNG</button>';
+      el.querySelector('button').onclick=()=>{
+        const a=document.createElement('a');
+        a.href='data:image/png;base64,'+card.base64;
+        a.download=card.filename;
+        a.click();
+      };
+      cardsPreview.appendChild(el);
+    });
+  }
+
+  async function generateCards(autoDownload=true){
+    if(!selected||!currentData||cardsBusy)return;
+    cardsBusy=true;
+    regenCards.disabled=true;
+    downloadZip.disabled=true;
+    creativeStatus.className='creative-status show';
+    creativeStatus.textContent='Создаём 4 изображения, накладываем инфографику и собираем ZIP. Это может занять несколько минут.';
+    cardsPreview.innerHTML='';
 
     try{
-      const image = await toBase64(selected);
-      const response = await fetch('/api/generate-images',{
+      const image=await toBase64(selected);
+      const response=await fetch('/api/generate-cards',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          image,
-          mimeType:selected.type,
-          count:Number(imageCount.value)
-        })
+        body:JSON.stringify({image,mimeType:selected.type,card:currentData})
       });
-
-      if(!response.ok){
-        const data = await response.json().catch(()=>({}));
-        throw new Error(data.error || 'Не удалось сгенерировать фотографии.');
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'yuvion-product-images.zip';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 30000);
-
-      imageStatus.className = 'image-status show done';
-      imageStatus.textContent = 'Готово: '+imageCount.value+' изображения созданы. ZIP-архив скачан.';
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.error||'Не удалось создать изображения.');
+      renderCards(data.cards||[]);
+      currentZipBase64=data.zipBase64||null;
+      currentZipName=data.zipName||'yuvion-product-cards.zip';
+      downloadZip.disabled=!currentZipBase64;
+      creativeStatus.className='creative-status show done';
+      creativeStatus.textContent='Готово: 4 карточки 900×1200 созданы. ZIP содержит только готовые PNG.';
+      if(autoDownload&&currentZipBase64)triggerZipDownload();
     }catch(e){
-      imageStatus.className = 'image-status show fail';
-      imageStatus.textContent = e.message || 'Не удалось сгенерировать фотографии.';
+      creativeStatus.className='creative-status show fail';
+      creativeStatus.textContent=e.message||'Не удалось создать изображения.';
     }finally{
-      imageBusy = false;
-      generateImagesBtn.disabled = false;
-      imageCount.disabled = false;
+      cardsBusy=false;
+      regenCards.disabled=false;
     }
   }
 
-  generateImagesBtn.addEventListener('click', generateImageZip);
+  create.addEventListener('click',async()=>{
+    if(!selected||busy)return;
+    busy=true;create.disabled=true;create.textContent='Создаём…';
+    loading.classList.add('show');results.classList.remove('show');clearError();
+    loadingTitle.textContent='Анализируем товар';
+    loadingText.textContent='Готовим заголовок, описание и подтверждённые характеристики.';
 
-  async function copyText(text, button){
     try{
-      await navigator.clipboard.writeText(String(text||''));
-      const old=button.textContent; button.textContent='Скопировано'; setTimeout(()=>button.textContent=old,1200);
-    }catch{ showError('Не удалось скопировать текст.'); }
+      const image=await toBase64(selected);
+      const response=await fetch('/api/analyze',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({image,mimeType:selected.type})
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.error||'Не удалось создать карточку.');
+      currentData=data;renderText(data);
+      results.classList.add('show');
+      results.scrollIntoView({behavior:'smooth',block:'start'});
+      loadingTitle.textContent='Создаём 4 продающие карточки';
+      loadingText.textContent='Генерируем сцены, затем накладываем инфографику и собираем ZIP.';
+      await generateCards(true);
+    }catch(e){
+      showError(e.message||'Произошла ошибка. Попробуйте ещё раз.');
+    }finally{
+      loading.classList.remove('show');
+      busy=false;create.disabled=false;create.textContent='Создать комплект';
+    }
+  });
+
+  async function copyText(text,button){
+    try{await navigator.clipboard.writeText(String(text||''));const old=button.textContent;button.textContent='Скопировано';setTimeout(()=>button.textContent=old,1200)}
+    catch{showError('Не удалось скопировать текст.')}
   }
 
   document.getElementById('copyAll').onclick=async()=>{
@@ -354,10 +333,13 @@
     await copyText(all,document.getElementById('copyAll'));
   };
 
+  downloadZip.onclick=triggerZipDownload;
+  regenCards.onclick=()=>generateCards(false);
+
   document.getElementById('newCard').onclick=()=>{
-    selected=null;currentData=null;busy=false;imageBusy=false;fileInput.value='';
+    selected=null;currentData=null;currentZipBase64=null;busy=false;cardsBusy=false;fileInput.value='';
     preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';
-    meta.textContent='Файл ещё не выбран';create.disabled=true;results.classList.remove('show');imageStatus.className='image-status';imageStatus.textContent='';clearError();
+    meta.textContent='Файл ещё не выбран';create.disabled=true;results.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';downloadZip.disabled=true;clearError();
     window.scrollTo({top:0,behavior:'smooth'});
   };
 </script>
