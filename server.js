@@ -442,7 +442,7 @@ app.post("/api/analyze", async (req, res) => {
       return res.status(429).json({ error: "Слишком много запросов. Попробуйте немного позже." });
     }
 
-    const { image, mimeType, mode = "full", extraData = {} } = req.body ?? {};
+    const { image, mimeType, mode = "full", extraData = {}, additionalImages = [] } = req.body ?? {};
     if (typeof image !== "string" || typeof mimeType !== "string") {
       return res.status(400).json({ error: "Изображение не передано." });
     }
@@ -452,20 +452,43 @@ app.post("/api/analyze", async (req, res) => {
     if (decodedImageSize(image) > MAX_IMAGE_BYTES) {
       return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
     }
+
+    const extraViews = Array.isArray(additionalImages) ? additionalImages.slice(0, 4) : [];
+    for (const view of extraViews) {
+      if (!view || typeof view.image !== "string" || typeof view.mimeType !== "string" || !ALLOWED_TYPES.has(view.mimeType)) {
+        return res.status(400).json({ error: "Одно из дополнительных изображений имеет неподдерживаемый формат." });
+      }
+      if (decodedImageSize(view.image) > MAX_IMAGE_BYTES) {
+        return res.status(413).json({ error: "Дополнительная фотография должна быть не больше 10 МБ." });
+      }
+    }
+
     if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({ error: "AI пока не настроен." });
     }
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const analyzeContent = [
+      {
+        type: "input_text",
+        text:
+          "Проанализируй основной снимок товара и подготовь структурированную карточку для каталога Yuvion. " +
+          "Дополнительные снимки, если они есть, показывают тот же товар с других ракурсов и служат только для подтверждения деталей. " +
+          "Не считай различия освещения, ракурса или упаковки отдельными вариантами товара и не выдумывай характеристики.\n\n" +
+          confirmedDataText(extraData)
+      },
+      { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "high" }
+    ];
+    extraViews.forEach((view) => {
+      analyzeContent.push({ type: "input_image", image_url: `data:${view.mimeType};base64,${view.image}`, detail: "high" });
+    });
+
     const response = await client.responses.create({
       model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
       instructions,
       input: [{
         role: "user",
-        content: [
-          { type: "input_text", text: "Проанализируй фотографию и подготовь структурированную карточку товара для каталога Yuvion.\n\n" + confirmedDataText(extraData) },
-          { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "high" }
-        ]
+        content: analyzeContent
       }],
       text: {
         format: {
