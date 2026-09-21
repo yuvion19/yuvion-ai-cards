@@ -639,6 +639,203 @@ function renderCategoryMemory(){
   });
 }
 
+
+function knownCategoryPaths(){
+  const memory=loadCategoryMemory().map(x=>String(x.category||'').trim()).filter(Boolean);
+  const profile=String(loadSellerDefaults().category||'').trim();
+  return [...new Set([profile,...memory,...BASE_CATEGORIES].filter(Boolean))];
+}
+
+function categoryValidity(value){
+  const category=String(value||'').trim();
+  if(!category)return {valid:false,exact:false,message:'Категория не указана.'};
+  const lower=category.toLocaleLowerCase('ru');
+  const exactPaths=loadCategoryMemory().map(x=>String(x.category||'').trim()).filter(Boolean);
+  const exact=exactPaths.some(x=>x.toLocaleLowerCase('ru')===lower);
+  if(exact)return {valid:true,exact:true,message:'Точный путь уже подтверждён локально.'};
+  const root=BASE_CATEGORIES.find(x=>lower===x.toLocaleLowerCase('ru')||lower.startsWith(x.toLocaleLowerCase('ru')+' /'));
+  if(root)return {valid:true,exact:false,message:'Раздел подтверждён. Вложенный путь нужно подтвердить в выпадающем списке кабинета Yuvion.'};
+  return {valid:false,exact:false,message:'Категория не совпадает с подтверждёнными разделами Yuvion.'};
+}
+
+function renderCategoryDirectory(){
+  const q=String(categoryDirectorySearch?.value||'').trim().toLocaleLowerCase('ru');
+  const paths=knownCategoryPaths()
+    .filter(x=>!q||x.toLocaleLowerCase('ru').includes(q))
+    .slice(0,60);
+  categoryDirectoryList.innerHTML=paths.map(x=>'<button type="button" class="category-path">'+esc(x)+'</button>').join('');
+  categoryDirectoryList.querySelectorAll('.category-path').forEach(btn=>btn.onclick=()=>{
+    editor.category.value=btn.textContent;
+    editor.category.dispatchEvent(new Event('input',{bubbles:true}));
+    editor.category.dispatchEvent(new Event('blur',{bubbles:true}));
+  });
+}
+
+function renderCategoryValidation(){
+  const state=categoryValidity(editor.category.value);
+  categoryValidation.className='category-validation '+(state.valid?(state.exact?'ok':'warn'):'warn');
+  categoryValidation.textContent=state.message;
+  renderCategoryDirectory();
+}
+
+function normalizeSku(value){
+  return String(value||'').trim().toLocaleLowerCase('ru').replace(/\s+/g,'');
+}
+
+async function checkDuplicateSku(){
+  const sku=normalizeSku(extraFields.sku.value);
+  duplicateSkuId=null;
+  if(!sku){
+    skuWarning.className='sku-warning';
+    skuWarning.textContent='';
+    if(currentData)renderReadiness();
+    return;
+  }
+  try{
+    const all=await dbAll();
+    const duplicate=all.find(item=>{
+      if(item.id===currentHistoryId||!item.data)return false;
+      const d=item.data||{};
+      const x=item.extraData||d.confirmedData||{};
+      const other=normalizeSku(x.sku||storedCharValue(d,'Артикул'));
+      return other&&other===sku;
+    });
+    duplicateSkuId=duplicate?.id||null;
+    if(duplicate){
+      skuWarning.className='sku-warning bad';
+      skuWarning.textContent='Этот артикул уже есть в локальном каталоге: '+String(duplicate.title||'другой товар');
+    }else{
+      skuWarning.className='sku-warning ok';
+      skuWarning.textContent='Артикул уникален в локальном каталоге.';
+    }
+    if(currentData)renderReadiness();
+  }catch{
+    skuWarning.className='sku-warning';
+    skuWarning.textContent='';
+  }
+}
+
+function duplicateCharacteristicNames(data){
+  const seen=new Set();
+  const dupes=new Set();
+  for(const item of data?.characteristics||[]){
+    const key=String(item?.name||'').trim().toLocaleLowerCase('ru');
+    if(!key)continue;
+    if(seen.has(key))dupes.add(key);
+    seen.add(key);
+  }
+  return [...dupes];
+}
+
+function bytesToBase64(bytes){
+  let binary='';
+  const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+chunk,bytes.length)));
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(value){
+  const binary=atob(String(value||''));
+  const out=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)out[i]=binary.charCodeAt(i);
+  return out;
+}
+
+async function deriveBackupKey(password,salt,iterations){
+  const material=await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2',salt,iterations,hash:'SHA-256'},
+    material,
+    {name:'AES-GCM',length:256},
+    false,
+    ['encrypt','decrypt']
+  );
+}
+
+async function createEncryptedBackup(){
+  if(!crypto?.subtle){
+    alert('Этот браузер не поддерживает шифрование резервной копии.');
+    return;
+  }
+  const password=prompt('Придумайте пароль для резервной копии (минимум 6 символов). Пароль нигде не сохраняется.');
+  if(password===null)return;
+  if(password.length<6){alert('Пароль должен содержать минимум 6 символов.');return}
+  const repeat=prompt('Повторите пароль.');
+  if(repeat===null)return;
+  if(password!==repeat){alert('Пароли не совпадают.');return}
+
+  try{
+    const items=await dbAll();
+    const payload={
+      type:'yuvion-encrypted-local-backup',
+      version:1,
+      createdAt:new Date().toISOString(),
+      catalog:items,
+      settings:{
+        sellerDefaults:loadSellerDefaults(),
+        categoryMemory:loadCategoryMemory()
+      }
+    };
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const iterations=210000;
+    const key=await deriveBackupKey(password,salt,iterations);
+    const plaintext=new TextEncoder().encode(JSON.stringify(payload));
+    const encrypted=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plaintext));
+    const envelope={
+      format:'yuvion-backup',
+      version:1,
+      cipher:'AES-GCM-256',
+      kdf:'PBKDF2-SHA256',
+      iterations,
+      salt:bytesToBase64(salt),
+      iv:bytesToBase64(iv),
+      data:bytesToBase64(encrypted)
+    };
+    downloadBlob(new Blob([JSON.stringify(envelope)],{type:'application/json'}),'yuvion-catalog-'+new Date().toISOString().slice(0,10)+'.yuvion-backup');
+  }catch(e){
+    alert('Не удалось создать резервную копию: '+(e.message||'ошибка'));
+  }
+}
+
+async function restoreEncryptedBackup(file){
+  if(!file)return;
+  const password=prompt('Введите пароль от резервной копии.');
+  if(password===null)return;
+  try{
+    const envelope=JSON.parse(await file.text());
+    if(envelope?.format!=='yuvion-backup'||!envelope.data)throw new Error('Неверный формат резервной копии.');
+    const salt=base64ToBytes(envelope.salt);
+    const iv=base64ToBytes(envelope.iv);
+    const encrypted=base64ToBytes(envelope.data);
+    const key=await deriveBackupKey(password,salt,Number(envelope.iterations)||210000);
+    const decrypted=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,encrypted);
+    const payload=JSON.parse(new TextDecoder().decode(decrypted));
+    if(payload?.type!=='yuvion-encrypted-local-backup'||!Array.isArray(payload.catalog))throw new Error('Содержимое копии повреждено.');
+
+    const merge=confirm('Нажмите OK, чтобы объединить копию с текущим каталогом. Нажмите «Отмена», чтобы заменить текущий каталог целиком.');
+    if(!merge)await dbClear();
+    for(const item of payload.catalog)if(item?.id)await dbPut(item);
+    if(payload.settings?.sellerDefaults)persistSellerDefaults(payload.settings.sellerDefaults);
+    if(Array.isArray(payload.settings?.categoryMemory))localStorage.setItem(CATEGORY_MEMORY_KEY,JSON.stringify(payload.settings.categoryMemory.slice(0,30)));
+    await trimCatalog();
+    renderProfile();renderCategoryMemory();renderCategoryValidation();await renderHistory();
+    alert('Резервная копия восстановлена локально.');
+  }catch(e){
+    alert('Не удалось восстановить копию. Проверьте файл и пароль.');
+  }finally{
+    restoreCatalogFile.value='';
+  }
+}
+
 function setSaveState(state='saved'){
   if(!saveState)return;
   saveState.className='save-state '+state;
