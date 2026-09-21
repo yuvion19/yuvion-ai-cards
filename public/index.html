@@ -407,6 +407,19 @@ const extraFields={
 };
 const extraDataBox=document.getElementById('extraDataBox');
 const rememberBrandBtn=document.getElementById('rememberBrand');
+const tenantProfile=document.getElementById('tenantProfile');
+const profileSummary=document.getElementById('profileSummary');
+const profileBrand=document.getElementById('profileBrand');
+const profileCategory=document.getElementById('profileCategory');
+const profileMode=document.getElementById('profileMode');
+const profileStyle=document.getElementById('profileStyle');
+const profileDiscount2=document.getElementById('profileDiscount2');
+const profileDiscount3=document.getElementById('profileDiscount3');
+const saveProfileBtn=document.getElementById('saveProfile');
+const resetProfileBtn=document.getElementById('resetProfile');
+const similarProductBtn=document.getElementById('similarProduct');
+const similarBanner=document.getElementById('similarBanner');
+const copyAutofillPackage=document.getElementById('copyAutofillPackage');
 
 let selectedFile=null;
 let sourceDataUrl=null;
@@ -420,6 +433,7 @@ let cardsStale=false;
 let currentQuality=null;
 let batchFiles=[];
 let batchBusy=false;
+let pendingSimilarTemplate=null;
 
 const sessionKey='yuvionSessionId';
 let sessionId=localStorage.getItem(sessionKey);
@@ -455,9 +469,31 @@ const SELLER_DEFAULTS_KEY='yuvionSellerDefaultsV1';
 function loadSellerDefaults(){
   try{return JSON.parse(localStorage.getItem(SELLER_DEFAULTS_KEY)||'{}')||{}}catch{return {}}
 }
+function persistSellerDefaults(next){
+  localStorage.setItem(SELLER_DEFAULTS_KEY,JSON.stringify(next||{}));
+  renderProfile();
+}
+function renderProfile(){
+  const d=loadSellerDefaults();
+  profileBrand.value=d.brand||'';
+  profileCategory.value=d.category||'';
+  profileMode.value=d.mode||'full';
+  profileStyle.value=d.style||'minimal';
+  profileDiscount2.value=String(d.discount2??5);
+  profileDiscount3.value=String(d.discount3??10);
+  const bits=[];
+  if(d.brand)bits.push(d.brand);
+  if(d.category)bits.push(d.category);
+  profileSummary.textContent=bits.length?bits.join(' · '):'настройки по умолчанию';
+}
 function applySellerDefaults(){
   const defaults=loadSellerDefaults();
   if(defaults.brand&&!extraFields.brand.value)extraFields.brand.value=defaults.brand;
+  if(defaults.mode&&['fast','full'].includes(defaults.mode)){
+    currentMode=defaults.mode;
+    document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
+  }
+  if(defaults.style&&styleSelect.querySelector('option[value="'+defaults.style+'"]'))styleSelect.value=defaults.style;
 }
 function moneyNumber(value){
   const normalized=String(value||'').replace(/\s/g,'').replace(',','.');
@@ -521,7 +557,8 @@ function renderCategoryMemory(){
   categoryMemoryList.innerHTML=all.map(x=>'<option value="'+esc(x)+'"></option>').join('');
   const title=currentData?collectEdits().seoTitle:'';
   const ranked=[...memory].sort((a,b)=>categoryScore(b,title)-categoryScore(a,title));
-  const suggestions=[...new Set([...ranked.slice(0,4).map(x=>x.category),...BASE_CATEGORIES.slice(0,4)])].slice(0,5);
+  const profileCategoryValue=loadSellerDefaults().category||'';
+  const suggestions=[...new Set([profileCategoryValue,...ranked.slice(0,4).map(x=>x.category),...BASE_CATEGORIES.slice(0,4)].filter(Boolean))].slice(0,5);
   categorySuggestions.innerHTML=suggestions.map(x=>'<button type="button" class="cat-chip">'+esc(x)+'</button>').join('');
   categorySuggestions.querySelectorAll('.cat-chip').forEach(btn=>btn.onclick=()=>{
     editor.category.value=btn.textContent;
@@ -709,7 +746,7 @@ rememberBrandBtn.onclick=()=>{
     localQuality.innerHTML='<strong>Введите бренд</strong>После этого его можно сохранить как значение по умолчанию.';
     return;
   }
-  localStorage.setItem(SELLER_DEFAULTS_KEY,JSON.stringify({brand}));
+  persistSellerDefaults({...loadSellerDefaults(),brand});
   rememberBrandBtn.textContent='Бренд сохранён';
   setTimeout(()=>rememberBrandBtn.textContent='Запомнить бренд',1300);
 };
@@ -718,6 +755,98 @@ document.querySelectorAll('[data-price-preset]').forEach(btn=>btn.onclick=()=>{
   const parts=btn.dataset.pricePreset.split(',').map(Number);
   setWholesalePreset(parts[0]||0,parts[1]||0);
 });
+
+saveProfileBtn.onclick=()=>{
+  const next={
+    brand:profileBrand.value.trim(),
+    category:profileCategory.value.trim(),
+    mode:profileMode.value,
+    style:profileStyle.value,
+    discount2:Math.max(0,Math.min(90,Number(profileDiscount2.value)||0)),
+    discount3:Math.max(0,Math.min(90,Number(profileDiscount3.value)||0))
+  };
+  persistSellerDefaults(next);
+  applySellerDefaults();
+  if(next.category)rememberCategory(next.category,'профиль арендатора');
+  saveProfileBtn.textContent='Сохранено';
+  setTimeout(()=>saveProfileBtn.textContent='Сохранить профиль',1200);
+};
+
+resetProfileBtn.onclick=()=>{
+  localStorage.removeItem(SELLER_DEFAULTS_KEY);
+  renderProfile();
+  profileMode.value='full';profileStyle.value='minimal';profileDiscount2.value='5';profileDiscount3.value='10';
+};
+
+extraFields.price1.addEventListener('blur',()=>{
+  const d=loadSellerDefaults();
+  if(extraFields.price1.value&&!extraFields.price2.value&&!extraFields.price3.value){
+    setWholesalePreset(Number(d.discount2??5),Number(d.discount3??10));
+  }
+});
+
+function makeAutofillPackage(){
+  if(!currentData)return null;
+  const d=collectEdits();
+  const x=collectExtraData();
+  const brand=x.brand||yuvionSpecValue(d,'Бренд');
+  const sku=x.sku||yuvionSpecValue(d,'Артикул');
+  const characteristics=(d.characteristics||[]).filter(item=>!['бренд','артикул','цена'].includes(String(item.name||'').toLocaleLowerCase('ru')));
+  return {
+    type:'yuvion-product-autofill',
+    version:1,
+    createdAt:new Date().toISOString(),
+    product:{
+      title:d.seoTitle||'',
+      category:d.category||'',
+      brand,
+      sku,
+      description:d.fullDescription||d.shortDescription||'',
+      prices:{one:x.price1||'',two:x.price2||'',three:x.price3||'',old:x.oldPrice||''},
+      characteristics
+    }
+  };
+}
+
+copyAutofillPackage.onclick=async()=>{
+  const payload=makeAutofillPackage();
+  if(!payload)return;
+  try{
+    await navigator.clipboard.writeText(JSON.stringify(payload));
+    const old=copyAutofillPackage.textContent;
+    copyAutofillPackage.textContent='Пакет скопирован';
+    setTimeout(()=>copyAutofillPackage.textContent=old,1300);
+  }catch{showError('Не удалось скопировать пакет автозаполнения.')}
+};
+
+function beginSimilarProduct(){
+  if(!currentData)return;
+  const x=collectExtraData();
+  const d=collectEdits();
+  pendingSimilarTemplate={
+    brand:x.brand||yuvionSpecValue(d,'Бренд')||'',
+    category:d.category||'',
+    price1:x.price1||'',price2:x.price2||'',price3:x.price3||'',oldPrice:x.oldPrice||'',
+    style:styleSelect.value,mode:currentMode
+  };
+  resetProduct(true);
+  fillExtraData({
+    brand:pendingSimilarTemplate.brand,
+    price1:pendingSimilarTemplate.price1,
+    price2:pendingSimilarTemplate.price2,
+    price3:pendingSimilarTemplate.price3,
+    oldPrice:pendingSimilarTemplate.oldPrice
+  });
+  currentMode=pendingSimilarTemplate.mode||'full';
+  styleSelect.value=pendingSimilarTemplate.style||'minimal';
+  document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
+  similarBanner.classList.add('show');
+  extraDataBox.open=true;
+  syncModeUi();
+}
+
+similarProductBtn.onclick=beginSimilarProduct;
+
 
 
 Object.values(extraFields).forEach(el=>el.addEventListener('input',()=>{
