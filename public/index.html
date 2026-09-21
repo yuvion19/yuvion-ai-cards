@@ -591,6 +591,7 @@ function renderYuvionExport(){
     yuvionExportGrid.innerHTML='';
     exportImagesZip.disabled=true;
     exportImagesState.textContent='После генерации здесь будут 4 готовые карточки.';
+    renderReadiness();
     return;
   }
   const items=yuvionExportSnapshot();
@@ -613,6 +614,7 @@ function renderYuvionExport(){
   const ready=currentCards.length===4;
   exportImagesZip.disabled=!ready;
   exportImagesState.textContent=ready?'4 AI-карточки 900×1200 готовы для загрузки в личный кабинет.':'Сначала создайте 4 карточки — после этого их можно скачать одним ZIP.';
+  renderReadiness();
 }
 
 copyYuvionAll.onclick=async()=>{
@@ -666,6 +668,7 @@ async function setFile(file){
   preview.src=URL.createObjectURL(file);preview.classList.add('show');drop.classList.add('has');dropText.style.display='none';
   meta.textContent=file.name+' • '+(file.size/1024/1024).toFixed(2)+' МБ';
   analyzeBtn.disabled=false;workspace.classList.remove('show');
+  updateWorkflow();
   await inspectImage(file);
 }
 
@@ -737,7 +740,7 @@ analyzeBtn.onclick=async()=>{
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
     currentData=data;currentCards=[];cardsStale=false;currentHistoryId=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36);
-    fillEditor(data);renderAiQuality(data);updatePlan();renderYuvionExport();syncModeUi();creative.classList.remove('show');cardsPreview.innerHTML='';
+    fillEditor(data);renderAiQuality(data);updatePlan();renderCategoryMemory();renderYuvionExport();syncModeUi();creative.classList.remove('show');cardsPreview.innerHTML='';
     confidence.textContent='Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
     await saveHistory();
@@ -791,6 +794,9 @@ Object.values(editor).forEach(el=>el.addEventListener('input',()=>{
   if(!currentData)return;
   currentData=collectEdits();updatePlan();renderYuvionExport();markCardsStale();saveHistoryDebounced();
 }));
+editor.category.addEventListener('blur',()=>{
+  if(currentData&&editor.category.value.trim())rememberCategory(editor.category.value.trim(),editor.title.value.trim());
+});
 styleSelect.onchange=()=>{markCardsStale();saveHistoryDebounced()};
 
 function markCardsStale(){
@@ -941,7 +947,7 @@ document.getElementById('newProduct').onclick=resetProduct;
 
 function resetProduct(){
   selectedFile=null;sourceDataUrl=null;currentData=null;currentCards=[];currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;fileInput.value='';
-  clearExtraData();renderYuvionExport();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
+  clearExtraData();renderYuvionExport();renderCategoryMemory();updateWorkflow();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
 }
 
 /* IndexedDB history */
@@ -953,18 +959,25 @@ async function dbDelete(id){const db=await openDb();return new Promise((resolve,
 async function dbClear(){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
 
 let saveTimer;
-function saveHistoryDebounced(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveHistory(),700)}
+function saveHistoryDebounced(){
+  clearTimeout(saveTimer);
+  setSaveState('saving');
+  saveTimer=setTimeout(()=>saveHistory(),700);
+}
 
 async function saveHistory(){
   if(!currentData||!currentHistoryId)return;
   try{
     const src=await compressedSource();
-    const item={id:currentHistoryId,updatedAt:Date.now(),title:collectEdits().seoTitle||'Товар',data:collectEdits(),extraData:collectExtraData(),sourceDataUrl:src,cards:currentCards,mode:currentMode,style:styleSelect.value};
+    const edited=collectEdits();
+    const item={id:currentHistoryId,updatedAt:Date.now(),title:edited.seoTitle||'Товар',data:edited,extraData:collectExtraData(),sourceDataUrl:src,cards:currentCards,mode:currentMode,style:styleSelect.value};
     await dbPut(item);
+    if(edited.category)rememberCategory(edited.category,edited.seoTitle);
     const all=(await dbAll()).sort((a,b)=>b.updatedAt-a.updatedAt);
     for(const extra of all.slice(10))await dbDelete(extra.id);
     renderHistory();
-  }catch(e){console.warn('History save failed',e)}
+    setSaveState('saved');
+  }catch(e){console.warn('History save failed',e);setSaveState('error')}
 }
 
 async function renderHistory(){
@@ -987,7 +1000,7 @@ async function restoreHistory(item){
   fillExtraData(item.extraData||item.data?.confirmedData||{});
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   preview.src=sourceDataUrl||'';preview.classList.toggle('show',!!sourceDataUrl);drop.classList.toggle('has',!!sourceDataUrl);dropText.style.display=sourceDataUrl?'none':'';meta.textContent='Восстановлено из истории';analyzeBtn.disabled=false;
-  fillEditor(currentData);renderAiQuality(currentData);updatePlan();renderYuvionExport();confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');workspace.classList.add('show');syncModeUi();
+  fillEditor(currentData);renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderYuvionExport();confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');workspace.classList.add('show');syncModeUi();
   if(currentCards.length===4){renderCards();creative.classList.toggle('show',currentMode==='full');creativeStatus.className='creative-status show done';creativeStatus.textContent='Комплект восстановлен из истории.';zipImages.disabled=false;zipFull.disabled=false}else{creative.classList.remove('show');zipImages.disabled=true;zipFull.disabled=true}
   workspace.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -1167,7 +1180,18 @@ startBatch.onclick=async()=>{
 };
 
 document.getElementById('clearHistory').onclick=async()=>{if(confirm('Очистить локальную историю товаров?')){await dbClear();renderHistory()}};
-renderHistory();syncModeUi();
+
+document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
+document.getElementById('jumpHistory').onclick=()=>document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+dockData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
+dockCards.onclick=()=>document.getElementById('generateAll')?.scrollIntoView({behavior:'smooth',block:'center'});
+dockYuvion.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepPhoto.onclick=()=>document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
+
+renderHistory();renderCategoryMemory();renderYuvionExport();syncModeUi();updateWorkflow();
 </script>
 </body>
 </html>
