@@ -983,6 +983,62 @@ async function startBarcodeScanner(target='product'){
   }
 }
 
+
+function openIntake(){
+  intakeBarcode.value='';
+  intakeCost.value='';
+  intakeStock.value='';
+  intakeLocation.value='';
+  intakePhoto.value='';
+  intakeBarcodeWarning.className='barcode-warning';
+  intakeBarcodeWarning.textContent='';
+  intakeModal.classList.add('show');
+}
+
+async function closeIntakeModal(){
+  await stopBarcodeScanner();
+  intakeModal.classList.remove('show');
+}
+
+async function createIntakeDraftNow(){
+  const file=intakePhoto.files?.[0];
+  if(!file){
+    alert('Добавьте фотографию товара для приёмки.');
+    return;
+  }
+  const barcode=normalizeBarcode(intakeBarcode.value);
+  if(barcode){
+    const ean=validateEan(barcode);
+    if(!ean.valid){
+      alert('Проверьте штрихкод: нужен корректный EAN-8 или EAN-13.');
+      intakeBarcode.focus();
+      return;
+    }
+    const state=await checkBarcodeState('intake');
+    if(state.duplicate){
+      if(!confirm('Такой штрихкод уже есть в локальном каталоге. Всё равно создать ещё один черновик?'))return;
+    }
+  }
+
+  const cost=String(intakeCost.value||'').trim();
+  const stock=String(intakeStock.value||'').trim();
+  const location=String(intakeLocation.value||'').trim();
+
+  resetProduct(false);
+  await setFile(file);
+  extraFields.barcode.value=barcode;
+  privateCost.value=cost;
+  privateStock.value=stock;
+  privateLocation.value=location;
+  currentPrivateData=collectPrivateData();
+  extraDataBox.open=true;
+  renderMargin();renderCollectionChips();
+  await checkBarcodeState('product');
+  await savePhotoDraft(file);
+  await closeIntakeModal();
+  document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function variationsForExport(){
   return currentVariations.map(v=>({...v})).filter(v=>v.name||v.option||v.sku||v.barcode||v.price);
 }
