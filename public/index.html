@@ -2979,6 +2979,11 @@ function importRecordFromRow(headers,row){
     price3:pickImported(record,['цена от 3','опт 3','цена 3']),
     oldPrice:pickImported(record,['старая цена','old price']),
     cost:pickImported(record,['себестоимость','закупочная цена','закупка','cost']),
+    stock:pickImported(record,['остаток','количество','stock']),
+    boxes:pickImported(record,['коробок','коробки','boxes']),
+    minStock:pickImported(record,['минимальный остаток','мин остаток','min stock']),
+    location:pickImported(record,['место хранения','ячейка','стеллаж','location']),
+    collections:pickImported(record,['коллекции','группы','метки','collections','tags']),
     material:pickImported(record,['материал','material']),
     size:pickImported(record,['размеры','размер','size']),
     description:pickImported(record,['описание','description'])
@@ -2996,7 +3001,9 @@ async function importProductRows(rows,filename='таблица'){
     const record=importRecordFromRow(headers,row);
     if(!Object.values(record).some(Boolean)){skipped++;continue}
 
-    if(!record.sku&&defaults.autoSku==='on')record.sku=await nextGeneratedSku();
+    const importedCategory=record.category||defaults.category||'';
+    const importedRule=categoryRuleFor(importedCategory);
+    if(!record.sku&&defaults.autoSku==='on')record.sku=await nextGeneratedSku(importedCategory);
     if(record.price1&&!record.price2){
       const p=moneyNumber(record.price1);
       record.price2=p?String(Math.max(0,Math.round(p*(1-Number(defaults.discount2??5)/100)))):'';
@@ -3028,7 +3035,7 @@ async function importProductRows(rows,filename='таблица'){
     };
     const data={
       seoTitle:title,
-      category:record.category||defaults.category||'',
+      category:importedCategory,
       shortDescription:record.description||'',
       fullDescription:record.description||'',
       characteristics,
@@ -3046,14 +3053,21 @@ async function importProductRows(rows,filename='таблица'){
       title,
       data,
       extraData,
-      privateData:{cost:record.cost||''},
+      privateData:{
+        cost:record.cost||'',
+        stock:record.stock||'',
+        boxes:record.boxes||'',
+        minStock:record.minStock||'',
+        location:record.location||'',
+        collections:parseCollections(record.collections||'')
+      },
       sourceDataUrl:'',
       additionalPhotos:[],
       cards:[],
       variations:[],
       revisions:[],
       mode:defaults.mode||'full',
-      style:defaults.style||'minimal',
+      style:importedRule?.style||defaults.style||'minimal',
       published:false,
       importedFrom:String(filename||'таблица').slice(0,120)
     });
@@ -3067,26 +3081,87 @@ async function importProductRows(rows,filename='таблица'){
   document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+
+async function rowsFromImportFile(file){
+  if(!file)throw new Error('Файл не выбран.');
+  if(/\.csv$/i.test(file.name)||String(file.type).includes('csv')){
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    let text=new TextDecoder('utf-8').decode(bytes);
+    const bad=(text.match(/�/g)||[]).length;
+    if(bad>Math.max(2,text.length*.002)){
+      try{text=new TextDecoder('windows-1251').decode(bytes)}catch{}
+    }
+    return parseCsvText(text);
+  }
+  if(/\.xlsx$/i.test(file.name))return parseXlsxFile(file);
+  throw new Error('Поддерживаются .xlsx и .csv.');
+}
+
+function normalizeStyleRule(value){
+  const v=String(value||'').trim().toLocaleLowerCase('ru');
+  if(['minimal','минимализм','минимальный'].includes(v))return 'minimal';
+  if(['premium','премиум'].includes(v))return 'premium';
+  if(['bright','яркий','яркая'].includes(v))return 'bright';
+  if(['tech','техника','технологичный'].includes(v))return 'tech';
+  if(['home','дом','интерьер','дом и интерьер'].includes(v))return 'home';
+  return '';
+}
+
+function parseSpecNames(value){
+  return [...new Set(String(value||'').split(/[|;,]/).map(x=>x.trim()).filter(Boolean))].slice(0,20);
+}
+
+async function importRuleRows(rows,filename='правила'){
+  if(!Array.isArray(rows)||rows.length<2)throw new Error('В таблице правил нужны заголовки и хотя бы одна строка.');
+  const headers=rows[0].map(v=>String(v||'').trim());
+  const existing=loadCategoryRules();
+  const byCategory=new Map(existing.map(rule=>[String(rule.category||'').toLocaleLowerCase('ru'),rule]));
+  let imported=0;
+  for(const row of rows.slice(1,101)){
+    const record={};
+    headers.forEach((header,index)=>record[normalizeImportHeader(header)]=String(row[index]??'').trim());
+    const category=pickImported(record,['категория','category','раздел']);
+    if(!category)continue;
+    const specs=parseSpecNames(pickImported(record,['шаблон характеристик','характеристики шаблон','spec template','характеристики']));
+    const skuPrefix=pickImported(record,['префикс sku','sku prefix','префикс артикула']);
+    const style=normalizeStyleRule(pickImported(record,['стиль карточек','стиль','style']));
+    const rule={
+      category:category.slice(0,180),
+      specs,
+      skuPrefix:String(skuPrefix||'').slice(0,32),
+      style,
+      source:String(filename||'правила').slice(0,120),
+      updatedAt:Date.now()
+    };
+    byCategory.set(category.toLocaleLowerCase('ru'),rule);
+    imported++;
+  }
+  saveCategoryRules([...byCategory.values()]);
+  renderSpecTemplateHint();
+  importNote.className='import-note show';
+  importNote.textContent='Импортировано локальных правил категорий: '+imported+'. Правила могут задавать шаблон характеристик, префикс SKU и стиль карточек. Ценовые формулы не импортируются.';
+}
+
+async function importRulesFileNow(file){
+  if(!file)return;
+  importNote.className='import-note show';
+  importNote.textContent='Читаем правила локально в браузере…';
+  try{
+    await importRuleRows(await rowsFromImportFile(file),file.name);
+  }catch(e){
+    importNote.className='import-note show';
+    importNote.textContent='Импорт правил не выполнен: '+(e.message||'ошибка файла');
+  }finally{
+    importRulesFile.value='';
+  }
+}
+
 async function importProductsFileNow(file){
   if(!file)return;
   importNote.className='import-note show';
   importNote.textContent='Читаем таблицу локально в браузере…';
   try{
-    let rows;
-    if(/\.csv$/i.test(file.name)||String(file.type).includes('csv')){
-      const bytes=new Uint8Array(await file.arrayBuffer());
-      let text=new TextDecoder('utf-8').decode(bytes);
-      const bad=(text.match(/�/g)||[]).length;
-      if(bad>Math.max(2,text.length*.002)){
-        try{text=new TextDecoder('windows-1251').decode(bytes)}catch{}
-      }
-      rows=parseCsvText(text);
-    }else if(/\.xlsx$/i.test(file.name)){
-      rows=await parseXlsxFile(file);
-    }else{
-      throw new Error('Поддерживаются .xlsx и .csv.');
-    }
-    await importProductRows(rows,file.name);
+    await importProductRows(await rowsFromImportFile(file),file.name);
   }catch(e){
     importNote.className='import-note show';
     importNote.textContent='Импорт не выполнен: '+(e.message||'ошибка файла');
