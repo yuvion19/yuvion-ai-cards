@@ -1814,6 +1814,7 @@ function renderReadiness(){
     el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate()}};
   });
   updateWorkflow();
+  renderProductCockpit();
 }
 
 function setStep(el,state){
@@ -3931,11 +3932,12 @@ document.querySelectorAll('[data-dash-status]').forEach(card=>card.addEventListe
 }));
 
 saveRevisionBtn.onclick=()=>saveCurrentRevision();
+addModerationEntry.onclick=()=>recordModeration();
 generateSkuBtn.onclick=()=>assignGeneratedSku(true);
 extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosInput.files));
-[privateCost,privateStock,privateBoxes,privateMinStock,privateLocation,privateCollections].forEach(el=>el.addEventListener('input',()=>{
+[privateCost,privateStock,privateBoxes,privateMinStock,privateLocation,privateCollections,privateNotes].forEach(el=>el.addEventListener('input',()=>{
   currentPrivateData=collectPrivateData();
-  renderMargin();renderCollectionChips();
+  renderMargin();renderCollectionChips();renderProductCockpit();
   if(currentData)saveHistoryDebounced();
 }));
 [extraFields.price1,extraFields.price2,extraFields.price3].forEach(el=>el.addEventListener('input',()=>renderMargin()));
@@ -3989,6 +3991,11 @@ bulkDelete.onclick=()=>bulkDeleteSelected();
 
 document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
 document.getElementById('jumpHistory').onclick=()=>document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+document.querySelectorAll('[data-product-jump]').forEach(btn=>btn.onclick=()=>{
+  const id=btn.dataset.productJump;
+  const target=id==='editor'?document.querySelector('.editor'):document.getElementById(id);
+  target?.scrollIntoView({behavior:'smooth',block:'start'});
+});
 dockData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
 dockCards.onclick=()=>document.getElementById('generateAll')?.scrollIntoView({behavior:'smooth',block:'center'});
 dockYuvion.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -3997,7 +4004,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-renderProfile();applySellerDefaults();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+renderProfile();applySellerDefaults();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
