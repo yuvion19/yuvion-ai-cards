@@ -1192,7 +1192,8 @@ function collectPrivateData(){
     boxes:String(privateBoxes.value||'').trim(),
     minStock:String(privateMinStock.value||'').trim(),
     location:String(privateLocation.value||'').trim(),
-    collections:parseCollections(privateCollections.value)
+    collections:parseCollections(privateCollections.value),
+    notes:String(privateNotes.value||'').trim().slice(0,3000)
   };
 }
 
@@ -1208,7 +1209,8 @@ function fillPrivateData(data={}){
     boxes:String(data?.boxes||''),
     minStock:String(data?.minStock||''),
     location:String(data?.location||''),
-    collections:Array.isArray(data?.collections)?data.collections.slice(0,20):parseCollections(data?.collections||'')
+    collections:Array.isArray(data?.collections)?data.collections.slice(0,20):parseCollections(data?.collections||''),
+    notes:String(data?.notes||'').slice(0,3000)
   };
   privateCost.value=currentPrivateData.cost;
   privateStock.value=currentPrivateData.stock;
@@ -1216,6 +1218,7 @@ function fillPrivateData(data={}){
   privateMinStock.value=currentPrivateData.minStock;
   privateLocation.value=currentPrivateData.location;
   privateCollections.value=currentPrivateData.collections.join(', ');
+  privateNotes.value=currentPrivateData.notes;
   renderCollectionChips();
   renderMargin();
 }
@@ -1458,6 +1461,113 @@ function lowStockState(data){
   const min=Number(data?.minStock);
   return Number.isFinite(stock)&&Number.isFinite(min)&&min>0&&stock<min;
 }
+
+function normalizeModeration(value={}){
+  const status=['none','sent','approved','rejected'].includes(value?.status)?value.status:'none';
+  return {
+    status,
+    reason:String(value?.reason||'').slice(0,300),
+    log:Array.isArray(value?.log)?value.log.slice(0,50).map(entry=>({
+      id:String(entry?.id||''),
+      status:['none','sent','approved','rejected'].includes(entry?.status)?entry.status:'none',
+      reason:String(entry?.reason||'').slice(0,300),
+      at:Number(entry?.at)||Date.now()
+    })):[]
+  };
+}
+
+function moderationLabel(status){
+  return status==='sent'?'Отправлен':status==='approved'?'Одобрен':status==='rejected'?'Отклонён':'Не отправлен';
+}
+
+function renderModeration(){
+  currentModeration=normalizeModeration(currentModeration);
+  moderationStatus.value=currentModeration.status;
+  moderationReason.value=currentModeration.reason||'';
+  moderationLog.innerHTML=currentModeration.log.length
+    ? currentModeration.log.map(entry=>
+        '<div class="moderation-entry"><b><span class="moderation-badge '+esc(entry.status)+'">'+esc(moderationLabel(entry.status))+'</span> · '+esc(new Date(entry.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}))+'</b>'+
+        (entry.reason?esc(entry.reason):'<span class="muted">Без комментария</span>')+'</div>'
+      ).join('')
+    : '<div class="muted" style="font-size:10px">Записей модерации пока нет.</div>';
+  renderProductCockpit();
+}
+
+async function recordModeration(){
+  if(!currentData||!currentHistoryId)return;
+  const status=moderationStatus.value;
+  const reason=moderationReason.value.trim();
+  currentModeration=normalizeModeration({
+    status,
+    reason,
+    log:[{
+      id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),
+      status,
+      reason,
+      at:Date.now()
+    },...currentModeration.log]
+  });
+  renderModeration();
+  await saveHistory();
+}
+
+function storedModeration(item){
+  return normalizeModeration(item?.moderation||{});
+}
+
+function nextActionForItem(item,allItems=[]){
+  const moderation=storedModeration(item);
+  if(moderation.status==='rejected')return {key:'rejected',label:'Исправить после отклонения'};
+  if(!item?.sourceDataUrl)return {key:'photo',label:'Добавить фото'};
+  if(!item?.data)return {key:'analysis',label:'Запустить анализ'};
+
+  const d=item.data||{};
+  const x=item.extraData||d.confirmedData||{};
+  const sku=skuOfStoredItem(item);
+  if(!sku||duplicateSkuInCatalog(item,allItems))return {key:'sku',label:'Проверить SKU'};
+  if(!d.category||!categoryValidity(d.category).valid)return {key:'category',label:'Выбрать категорию'};
+  const p1=moneyNumber(x.price1||x.price),p2=moneyNumber(x.price2),p3=moneyNumber(x.price3);
+  if(!(p1>0&&p2>0&&p2<=p1&&p3>0&&p3<=p2))return {key:'price',label:'Заполнить цены'};
+  const barcode=barcodeOfStoredItem(item);
+  if(barcode&&(!validateEan(barcode).valid||duplicateBarcodeInCatalog(item,allItems)))return {key:'sku',label:'Проверить штрихкод'};
+  if(!Array.isArray(item.cards)||item.cards.length!==4)return {key:'cards',label:'Создать карточки'};
+  if(moderation.status==='sent')return {key:'sent',label:'Ждёт модерацию'};
+  if(moderation.status==='approved')return {key:'ready',label:'Одобрен'};
+  if(storedReadiness(item).ready)return {key:'ready',label:'Готов к Yuvion'};
+  return {key:'analysis',label:'Проверить данные'};
+}
+
+function renderProductCockpit(){
+  if(!currentData){
+    cockpitName.textContent='Товар';
+    cockpitNext.textContent='Сначала добавьте и проанализируйте фотографию.';
+    cockpitReady.textContent='0%';
+    cockpitSku.textContent='—';cockpitPrice.textContent='—';cockpitStock.textContent='—';cockpitModeration.textContent='Не отправлен';
+    return;
+  }
+  const d=collectEdits();
+  const x=collectExtraData();
+  const p=collectPrivateData();
+  const readiness=readinessInfo();
+  const pseudo={
+    id:currentHistoryId,
+    data:d,
+    extraData:x,
+    privateData:p,
+    sourceDataUrl:sourceDataUrl||preview.src||'',
+    cards:currentCards,
+    moderation:currentModeration
+  };
+  const action=nextActionForItem(pseudo,[]);
+  cockpitName.textContent=d.seoTitle||'Товар';
+  cockpitNext.textContent='Следующее действие: '+action.label+'.';
+  cockpitReady.textContent=readiness.percent+'%';
+  cockpitSku.textContent=x.sku||yuvionSpecValue(d,'Артикул')||'—';
+  cockpitPrice.textContent=x.price1?x.price1+' ₽':'—';
+  cockpitStock.textContent=p.stock?p.stock+' шт.':'—';
+  cockpitModeration.textContent=moderationLabel(currentModeration.status);
+}
+
 
 
 async function checkDuplicateSku(){
