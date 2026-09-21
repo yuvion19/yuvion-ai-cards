@@ -3866,7 +3866,8 @@ startBatch.onclick=async()=>{
   batchBar.style.width='0%';
   const mode=batchMode.value;
   const style=batchStyle.value;
-  let done=0;
+  const masterZip=typeof JSZip!=='undefined'?new JSZip():null;
+  let done=0,success=0;
 
   try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:batchFiles.length})})}catch{}
 
@@ -3900,16 +3901,35 @@ startBatch.onclick=async()=>{
           const updatedData=await updated.json().catch(()=>({}));
           if(updated.ok&&updatedData.card)cards[badIndex]=updatedData.card;
         }
-
-        item.label='ZIP…';batchRender();
-        const packed=await packageCardsForBatch(cards,analyzed.data,true,item.extraData||{});
-        const base=safeFileBase(analyzed.data.seoTitle||('product_'+(index+1)));
-        downloadBase64Zip(packed.zipBase64,base+'_yuvion.zip');
       }
 
+      item.label='Сохраняем…';batchRender();
       const storedSource=await compressFileToDataUrl(item.file);
       await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,mode,style,extraData:item.extraData||{}});
-      item.state='ok';item.label=mode==='full'?'Готово + ZIP':'Текст готов';
+
+      if(masterZip){
+        const base=(String(index+1).padStart(2,'0')+'_'+safeFileBase(analyzed.data.seoTitle||('product_'+(index+1))));
+        const folder=masterZip.folder(base);
+        const parsed=dataUrlParts(storedSource);
+        if(parsed)folder.file('source.'+extensionFromMime(parsed.mime),parsed.base64,{base64:true});
+        cards.forEach((card,cardIndex)=>{
+          if(card?.base64)folder.file(card.filename||String(cardIndex+1).padStart(2,'0')+'_card.png',card.base64,{base64:true});
+        });
+        const tempItem={
+          title:analyzed.data.seoTitle||'Товар',
+          data:analyzed.data,
+          extraData:item.extraData||{},
+          privateData:{},
+          cards,
+          variations:[]
+        };
+        folder.file('description.txt',itemDescriptionText(tempItem));
+        folder.file('yuvion-autofill.json',JSON.stringify(itemAutofillPayload(tempItem),null,2));
+      }
+
+      success++;
+      item.state='ok';
+      item.label=mode==='full'?'Готово':'Текст готов';
     }catch(e){
       item.state='fail';item.label=e.message||'Ошибка';
     }
@@ -3920,7 +3940,18 @@ startBatch.onclick=async()=>{
     await renderHistory();
   }
 
-  batchProgressText.textContent='Очередь завершена: '+done+' из '+batchFiles.length+'.';
+  if(masterZip&&success){
+    batchProgressText.textContent='Собираем один общий ZIP для '+success+' товаров…';
+    try{
+      masterZip.file('README.txt','Пакет Yuvion AI Cards. Товаров: '+success+'. Каждый товар находится в отдельной папке.');
+      const blob=await masterZip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+      downloadBlob(blob,'yuvion-batch-'+new Date().toISOString().slice(0,10)+'.zip');
+    }catch(e){
+      console.warn('Batch master ZIP failed',e);
+    }
+  }
+
+  batchProgressText.textContent='Очередь завершена: '+success+' успешно из '+batchFiles.length+'.'+(success?' Общий ZIP подготовлен.':'');
   batchBusy=false;batchFilesInput.disabled=false;batchMode.disabled=false;batchStyle.disabled=false;startBatch.disabled=false;
 };
 
