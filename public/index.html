@@ -959,7 +959,14 @@ analyzeBtn.onclick=async()=>{
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
     currentData=data;currentCards=[];cardsStale=false;currentHistoryId=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36);
-    fillEditor(data);renderAiQuality(data);updatePlan();renderCategoryMemory();renderYuvionExport();syncModeUi();creative.classList.remove('show');cardsPreview.innerHTML='';
+    fillEditor(data);
+    if(pendingSimilarTemplate?.category){
+      editor.category.value=pendingSimilarTemplate.category;
+      currentData=collectEdits();
+      rememberCategory(pendingSimilarTemplate.category,editor.title.value);
+    }
+    renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderYuvionExport();syncModeUi();creative.classList.remove('show');cardsPreview.innerHTML='';
+    if(pendingSimilarTemplate){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
     confidence.textContent='Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
     await saveHistory();
@@ -1162,10 +1169,11 @@ document.getElementById('copyText').onclick=async()=>{
   try{await navigator.clipboard.writeText(text)}catch{showError('Не удалось скопировать текст.')}
 };
 
-document.getElementById('newProduct').onclick=resetProduct;
+document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
-function resetProduct(){
+function resetProduct(keepSimilar=false){
   selectedFile=null;sourceDataUrl=null;currentData=null;currentCards=[];currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;fileInput.value='';
+  if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   clearExtraData();renderYuvionExport();renderCategoryMemory();updateWorkflow();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1410,7 +1418,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-applySellerDefaults();renderHistory();renderCategoryMemory();renderYuvionExport();syncModeUi();updateWorkflow();
+renderProfile();applySellerDefaults();renderHistory();renderCategoryMemory();renderYuvionExport();syncModeUi();updateWorkflow();
 </script>
 </body>
 </html>
