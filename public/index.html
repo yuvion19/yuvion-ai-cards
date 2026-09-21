@@ -939,7 +939,8 @@ async function stopBarcodeScanner(){
   scannerModal.classList.remove('show');
 }
 
-async function startBarcodeScanner(){
+async function startBarcodeScanner(target='product'){
+  scannerTarget=target==='intake'?'intake':'product';
   if(!('BarcodeDetector' in window)){
     alert('В этом браузере встроенный сканер штрихкодов не поддерживается. Введите код вручную или откройте сайт в Chrome/Edge на совместимом устройстве.');
     return;
@@ -962,8 +963,10 @@ async function startBarcodeScanner(){
         const codes=await detector.detect(scannerVideo);
         const raw=String(codes?.[0]?.rawValue||'').trim();
         if(raw){
-          extraFields.barcode.value=raw;
-          extraFields.barcode.dispatchEvent(new Event('input',{bubbles:true}));
+          const targetInput=scannerTarget==='intake'?intakeBarcode:extraFields.barcode;
+          targetInput.value=raw;
+          targetInput.dispatchEvent(new Event('input',{bubbles:true}));
+          checkBarcodeState(scannerTarget);
           scannerStatus.textContent='Код распознан: '+raw;
           setTimeout(()=>stopBarcodeScanner(),500);
           return;
