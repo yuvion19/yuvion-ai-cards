@@ -7,341 +7,493 @@
   <link rel="icon" type="image/png" href="data:image/png;base64,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" />
   <title>Yuvion AI — карточки товара по фото</title>
   <style>
-    :root{--brand:#F03E4A;--brand2:#D62F3B;--soft:#FFF0F2;--text:#1D1B1C;--muted:#6E6769;--line:#EEE3E5;--bg:#FBF8F8;--white:#fff;--warn:#8A5A00;--shadow:0 18px 50px rgba(118,28,36,.08)}
-    *{box-sizing:border-box}html{scroll-behavior:smooth}
-    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
-    button,input{font:inherit}.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
-    header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
-    .head{height:76px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-    .brand{display:flex;align-items:center;gap:13px;text-decoration:none;color:var(--text)}
-    .brand-logo{width:158px;height:auto;display:block}.brand small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
-    .back{color:var(--brand);text-decoration:none;font-weight:800;font-size:14px}
-    main{padding:50px 0 72px}.hero{text-align:center;max-width:800px;margin:0 auto 30px}
-    .eyebrow{display:inline-flex;align-items:center;background:var(--soft);color:var(--brand2);padding:8px 12px;border-radius:999px;font-size:13px;font-weight:850}
-    h1{font-size:clamp(34px,5vw,58px);line-height:1.03;letter-spacing:-.045em;margin:18px 0 14px}
-    .hero p{font-size:18px;line-height:1.6;color:var(--muted);margin:0}
-    .card{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:26px}
-    .upload{max-width:790px;margin:0 auto}.drop{border:2px dashed #F2A9AF;background:#FFFDFD;border-radius:20px;min-height:310px;padding:28px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;transition:.2s}
-    .drop.drag{border-color:var(--brand);background:var(--soft)}.drop.has{padding:16px;min-height:0}.drop input{display:none}.drop-inner{max-width:480px}
-    .icon{width:62px;height:62px;margin:0 auto 15px;border-radius:18px;background:var(--soft);display:grid;place-items:center;font-size:28px}
-    .drop h2{margin:0 0 8px;font-size:22px}.drop p{color:var(--muted);margin:0;line-height:1.5}
-    .preview{display:none;width:100%;max-height:520px;object-fit:contain;border-radius:14px;background:#f6f3f3}.preview.show{display:block}
-    .row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap}.filemeta{color:var(--muted);font-size:13px}
-    .btn{border:0;border-radius:13px;padding:14px 20px;font-weight:850;cursor:pointer;transition:.18s}.btn-primary{background:var(--brand);color:#fff;min-width:205px}.btn-primary:hover{background:var(--brand2);transform:translateY(-1px)}
-    .btn-primary:disabled{background:#C9B9BC;cursor:not-allowed;transform:none}.btn-ghost{background:#F5ECEE;color:#4B3438}.btn-small{padding:10px 13px;border-radius:10px;font-size:13px;min-width:0}
-    .notice{margin-top:14px;padding:13px 15px;border-radius:12px;background:#FFF8E8;color:var(--warn);font-size:13px;line-height:1.5}
-    .error{display:none;margin-top:14px;padding:13px 15px;border-radius:12px;background:#FFF0F0;color:#A62A2A}.error.show{display:block}
-    .loading{display:none;text-align:center;padding:38px 10px}.loading.show{display:block}.spinner{width:42px;height:42px;border-radius:50%;border:4px solid #F1E4E6;border-top-color:var(--brand);margin:0 auto 14px;animation:s .85s linear infinite}@keyframes s{to{transform:rotate(360deg)}}
-    .results{display:none;max-width:980px;margin:30px auto 0}.results.show{display:block}.results-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px;flex-wrap:wrap}
-    .results-top h2{margin:0 0 5px;font-size:28px}.results-top p{margin:0;color:var(--muted)}.actions{display:flex;gap:10px;flex-wrap:wrap}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.block{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;position:relative}.block.full{grid-column:1/-1}
-    .block h3{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--brand)}.block .copy{position:absolute;right:12px;top:12px;border:0;background:#F7ECEE;border-radius:9px;padding:7px 10px;cursor:pointer;color:#5A3C41;font-size:12px;font-weight:750}
-    .content{padding-right:80px;line-height:1.65}.content.long{padding-right:0;margin-top:6px}ul.specs{margin:0;padding:0;list-style:none;display:grid;gap:8px}ul.specs li{padding:10px 12px;background:#FCF7F8;border-radius:10px}
-    .key{display:flex;flex-wrap:wrap;gap:8px}.tag{background:var(--soft);color:var(--brand2);padding:7px 10px;border-radius:999px;font-size:13px}
-    .creative{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}
-    .creative-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.creative h2{margin:0 0 6px;font-size:26px}.creative p{margin:0;color:var(--muted);line-height:1.55;max-width:700px}
-    .creative-status{margin-top:15px;padding:13px 15px;border-radius:12px;background:#FFF5F6;color:#8D3039;display:none}.creative-status.show{display:block}.creative-status.done{background:#EEF9F1;color:#226B38}.creative-status.fail{background:#FFF0F0;color:#A62A2A}
-    .cards-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}.preview-card{background:#FCF7F8;border:1px solid var(--line);border-radius:16px;padding:10px}.preview-card img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:11px;background:#fff}.preview-card strong{display:block;font-size:13px;margin:9px 2px 7px}.preview-card .btn{width:100%}
-    .creative-actions{display:flex;gap:10px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}
-    footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}footer a{color:var(--brand);text-decoration:none;font-weight:750}
-    @media(max-width:900px){.cards-preview{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:720px){main{padding-top:32px}.card{padding:16px;border-radius:18px}.drop{min-height:250px}.grid{grid-template-columns:1fr}.block.full{grid-column:auto}.content{padding-right:0;padding-top:28px}.actions{width:100%}.actions .btn{flex:1}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.cards-preview{grid-template-columns:1fr 1fr}.creative-actions{width:100%}.creative-actions .btn{flex:1}}
+    :root{--brand:#F03E4A;--brand2:#D62F3B;--soft:#FFF0F2;--text:#1D1B1C;--muted:#6E6769;--line:#EEE3E5;--bg:#FBF8F8;--white:#fff;--warn:#8A5A00;--ok:#226B38;--shadow:0 18px 50px rgba(118,28,36,.08)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+    button,input,textarea,select{font:inherit}.wrap{max-width:1140px;margin:0 auto;padding:0 20px}
+    header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}.head{height:76px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .brand{display:flex;align-items:center;gap:13px;text-decoration:none;color:var(--text)}.brand-logo{width:158px;height:auto;display:block}.brand small{display:block;color:var(--muted);font-size:12px;margin-top:3px}.back{color:var(--brand);text-decoration:none;font-weight:800;font-size:14px}
+    main{padding:48px 0 72px}.hero{text-align:center;max-width:820px;margin:0 auto 28px}.eyebrow{display:inline-flex;align-items:center;background:var(--soft);color:var(--brand2);padding:8px 12px;border-radius:999px;font-size:13px;font-weight:850}
+    h1{font-size:clamp(34px,5vw,58px);line-height:1.03;letter-spacing:-.045em;margin:18px 0 14px}.hero p{font-size:18px;line-height:1.6;color:var(--muted);margin:0}
+    .card{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:24px}.upload{max-width:820px;margin:0 auto}
+    .mode-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}.mode{border:1px solid var(--line);background:#fff;border-radius:15px;padding:14px 15px;cursor:pointer;text-align:left}.mode.active{border-color:#F4A3AA;background:var(--soft)}.mode b{display:block;margin-bottom:4px}.mode span{font-size:13px;color:var(--muted)}
+    .drop{border:2px dashed #F2A9AF;background:#FFFDFD;border-radius:20px;min-height:300px;padding:28px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;transition:.2s}.drop.drag{border-color:var(--brand);background:var(--soft)}.drop.has{padding:16px;min-height:0}.drop input{display:none}.drop-inner{max-width:480px}
+    .icon{width:62px;height:62px;margin:0 auto 15px;border-radius:18px;background:var(--soft);display:grid;place-items:center;font-size:28px}.drop h2{margin:0 0 8px;font-size:22px}.drop p{color:var(--muted);margin:0;line-height:1.5}
+    .preview{display:none;width:100%;max-height:520px;object-fit:contain;border-radius:14px;background:#f6f3f3}.preview.show{display:block}.row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap}.filemeta{color:var(--muted);font-size:13px}
+    .btn{border:0;border-radius:13px;padding:13px 18px;font-weight:850;cursor:pointer;transition:.18s}.btn-primary{background:var(--brand);color:#fff;min-width:190px}.btn-primary:hover{background:var(--brand2);transform:translateY(-1px)}.btn-primary:disabled{background:#C9B9BC;cursor:not-allowed;transform:none}.btn-ghost{background:#F5ECEE;color:#4B3438}.btn-danger{background:#FFF0F0;color:#A62A2A}.btn-small{padding:9px 11px;border-radius:10px;font-size:12px;min-width:0}
+    .notice,.quality-box{margin-top:14px;padding:13px 15px;border-radius:12px;font-size:13px;line-height:1.5}.notice{background:#FFF8E8;color:var(--warn)}.quality-box{display:none;background:#F7F7F8;color:#514B4D}.quality-box.show{display:block}.quality-box.good{background:#EEF9F1;color:var(--ok)}.quality-box.warn{background:#FFF8E8;color:var(--warn)}.quality-box strong{display:block;margin-bottom:5px}
+    .error{display:none;margin-top:14px;padding:13px 15px;border-radius:12px;background:#FFF0F0;color:#A62A2A}.error.show{display:block}.loading{display:none;text-align:center;padding:36px 10px}.loading.show{display:block}.spinner{width:42px;height:42px;border-radius:50%;border:4px solid #F1E4E6;border-top-color:var(--brand);margin:0 auto 14px;animation:s .85s linear infinite}@keyframes s{to{transform:rotate(360deg)}}
+    .workspace{display:none;max-width:1050px;margin:28px auto 0}.workspace.show{display:block}.workspace-head{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;flex-wrap:wrap}.workspace-head h2{margin:0 0 5px;font-size:29px}.muted{color:var(--muted)}
+    .editor{margin-top:15px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}.editor h3{margin:0 0 5px;font-size:22px}.editor-sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:7px}.field.full{grid-column:1/-1}.field label{font-size:13px;font-weight:800;color:#544A4C}.field input,.field textarea,.field select{width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px 13px;color:var(--text);outline:none}.field textarea{min-height:105px;resize:vertical;line-height:1.5}.field input:focus,.field textarea:focus,.field select:focus{border-color:#F09AA2;box-shadow:0 0 0 3px #FFF1F2}
+    .ai-quality{margin-top:16px;border:1px solid var(--line);border-radius:14px;padding:14px;background:#FCFAFA}.ai-quality h4{margin:0 0 8px}.issues{margin:0;padding-left:20px;color:var(--muted)}
+    .plan{margin-top:16px}.plan-head{display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap}.plan h3{margin:0 0 5px}.style-select{display:flex;align-items:center;gap:9px}.style-select select{border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;font-weight:750}
+    .plan-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}.plan-card{border:1px solid var(--line);background:#FCF9F9;border-radius:15px;padding:14px}.plan-card b{display:block;color:var(--brand);margin-bottom:7px}.plan-card p{font-size:13px;line-height:1.45;margin:0;color:#564D4F}
+    .full-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-wrap:wrap}.fast-note{display:none;margin-top:16px;padding:14px;border-radius:14px;background:#F7F7F8;color:var(--muted)}.fast-note.show{display:block}
+    .creative{display:none;margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}.creative.show{display:block}.creative-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.creative h2{margin:0 0 6px;font-size:26px}.creative p{margin:0;color:var(--muted);line-height:1.55;max-width:700px}.creative-actions{display:flex;gap:9px;flex-wrap:wrap}
+    .creative-status{margin-top:15px;padding:13px 15px;border-radius:12px;background:#FFF5F6;color:#8D3039;display:none}.creative-status.show{display:block}.creative-status.done{background:#EEF9F1;color:#226B38}.creative-status.fail{background:#FFF0F0;color:#A62A2A}.creative-status.stale{background:#FFF8E8;color:#8A5A00}
+    .cards-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}.preview-card{background:#FCF7F8;border:1px solid var(--line);border-radius:16px;padding:10px}.preview-card img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:11px;background:#fff}.preview-card strong{display:block;font-size:13px;margin:9px 2px 7px}.card-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .history{max-width:1050px;margin:28px auto 0}.history-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.history h2{font-size:23px;margin:0}.history-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-top:13px}.history-item{background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px;box-shadow:0 8px 24px rgba(100,40,47,.04)}.history-item img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;background:#f5f2f2}.history-item b{display:block;font-size:13px;margin:8px 0 3px}.history-item small{display:block;color:var(--muted);margin-bottom:8px}.history-actions{display:flex;gap:5px}.empty-history{margin-top:12px;color:var(--muted);font-size:14px}
+    footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}footer a{color:var(--brand);text-decoration:none;font-weight:750}
+    @media(max-width:960px){.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:720px){main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr 1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
   </style>
 </head>
 <body>
 <header>
   <div class="wrap head">
-    <a class="brand" href="/">
-      <img class="brand-logo" src="data:image/png;base64,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" alt="Yuvion" />
-      <span><small>AI-карточки товаров</small></span>
-    </a>
+    <a class="brand" href="/"><img class="brand-logo" src="data:image/png;base64,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" alt="Yuvion" /><span><small>AI-карточки товаров</small></span></a>
     <a class="back" href="https://yuvion.ru/" target="_blank" rel="noopener">На yuvion.ru →</a>
   </div>
 </header>
 
 <main>
-  <div class="wrap">
-    <section class="hero">
-      <div class="eyebrow">Сервис для арендаторов Yuvion</div>
-      <h1>Одно фото → описание и 4 продающие карточки</h1>
-      <p>Загрузите фотографию товара. ИИ подготовит текстовую карточку и четыре изображения 900×1200 с инфографикой: обложку, преимущества, характеристики и применение.</p>
-    </section>
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Сервис для арендаторов Yuvion</div>
+    <h1>Одно фото → готовая карточка товара</h1>
+    <p>Сначала ИИ анализирует товар. Вы проверяете и редактируете результат, а затем при необходимости создаёте четыре продающих изображения 900×1200.</p>
+  </section>
 
-    <section class="card upload">
-      <label class="drop" id="drop">
-        <input id="file" type="file" accept="image/jpeg,image/png,image/webp" />
-        <div class="drop-inner" id="dropText">
-          <div class="icon">📷</div>
-          <h2>Добавьте одну фотографию товара</h2>
-          <p>Нажмите сюда или перетащите JPG, PNG или WebP. Максимум 10 МБ.</p>
-        </div>
-        <img id="preview" class="preview" alt="Предпросмотр товара" />
-      </label>
+  <section class="card upload">
+    <div class="mode-row">
+      <button class="mode" data-mode="fast"><b>Быстро</b><span>Только название, описание и характеристики. Без дорогой генерации изображений.</span></button>
+      <button class="mode active" data-mode="full"><b>Полный комплект</b><span>Текст + план + 4 карточки 900×1200 + ZIP.</span></button>
+    </div>
 
-      <div class="row">
-        <div class="filemeta" id="filemeta">Файл ещё не выбран</div>
-        <button class="btn btn-primary" id="create" disabled>Создать комплект</button>
+    <label class="drop" id="drop">
+      <input id="file" type="file" accept="image/jpeg,image/png,image/webp" />
+      <div class="drop-inner" id="dropText">
+        <div class="icon">📷</div><h2>Добавьте одну фотографию товара</h2>
+        <p>JPG, PNG или WebP до 10 МБ. Сайт предварительно проверит качество фотографии.</p>
+      </div>
+      <img id="preview" class="preview" alt="Предпросмотр товара" />
+    </label>
+
+    <div id="localQuality" class="quality-box"></div>
+
+    <div class="row">
+      <div class="filemeta" id="filemeta">Файл ещё не выбран</div>
+      <button class="btn btn-primary" id="analyze" disabled>Проанализировать фото</button>
+    </div>
+
+    <div class="notice">Размеры, материал, бренд, модель и другие неподтверждённые параметры не добавляются автоматически. После анализа вы сможете исправить результат до генерации изображений.</div>
+    <div class="error" id="error"></div>
+    <div class="loading" id="loading"><div class="spinner"></div><b id="loadingTitle">Анализируем товар</b><div id="loadingText" class="muted" style="margin-top:6px">Определяем только то, что можно подтвердить по фото.</div></div>
+  </section>
+
+  <section class="workspace" id="workspace">
+    <div class="workspace-head">
+      <div><h2>Проверьте данные</h2><div class="muted" id="confidence"></div></div>
+      <button class="btn btn-ghost" id="newProduct">Новый товар</button>
+    </div>
+
+    <section class="editor">
+      <h3>Редактирование перед генерацией</h3>
+      <div class="editor-sub">Все поля ниже можно исправить. Именно эти данные попадут в текст и инфографику.</div>
+
+      <div class="form-grid">
+        <div class="field full"><label>SEO-заголовок</label><input id="edTitle" /></div>
+        <div class="field"><label>Категория</label><input id="edCategory" /></div>
+        <div class="field"><label>Ключевые слова через запятую</label><input id="edKeywords" /></div>
+        <div class="field full"><label>Краткое описание</label><textarea id="edShort"></textarea></div>
+        <div class="field full"><label>Полное описание</label><textarea id="edFull"></textarea></div>
+        <div class="field"><label>Характеристики — одна строка «Название: значение»</label><textarea id="edSpecs"></textarea></div>
+        <div class="field"><label>Преимущества — по одному на строку</label><textarea id="edBenefits"></textarea></div>
+        <div class="field full"><label>Сценарии применения — по одному на строку</label><textarea id="edUsage"></textarea></div>
       </div>
 
-      <div class="notice">Неизвестные размеры, материал, бренд, модель, состав и другие неподтверждённые параметры сервис не придумывает. В ZIP попадают только 4 готовые PNG-карточки.</div>
-      <div class="error" id="error"></div>
-      <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <b id="loadingTitle">Анализируем товар</b>
-        <div id="loadingText" style="color:var(--muted);margin-top:6px">Сначала создадим текстовую карточку.</div>
-      </div>
-    </section>
+      <div class="ai-quality" id="aiQuality"></div>
 
-    <section class="results" id="results">
-      <div class="results-top">
-        <div><h2>Текстовая карточка</h2><p id="confidence"></p></div>
-        <div class="actions">
-          <button class="btn btn-ghost" id="copyAll">Скопировать всё</button>
-          <button class="btn btn-primary" id="newCard">Новый товар</button>
-        </div>
-      </div>
-
-      <div class="grid" id="grid"></div>
-
-      <section class="creative">
-        <div class="creative-top">
-          <div>
-            <h2>4 продающие карточки 900×1200</h2>
-            <p>Товар сохраняется максимально похожим на исходное фото. Текст инфографики накладывается отдельно, поэтому заголовки и характеристики остаются читаемыми.</p>
+      <div class="plan">
+        <div class="plan-head">
+          <div><h3>План 4 карточек</h3><div class="muted">Проверьте содержание до запуска генерации.</div></div>
+          <div class="style-select"><b>Стиль:</b>
+            <select id="style">
+              <option value="minimal">Минимализм</option>
+              <option value="premium">Премиум</option>
+              <option value="bright">Яркий</option>
+              <option value="tech">Техника</option>
+              <option value="home">Дом и интерьер</option>
+            </select>
           </div>
-          <div class="creative-actions">
-            <button class="btn btn-ghost" id="regenCards">Сгенерировать заново</button>
-            <button class="btn btn-primary" id="downloadZip" disabled>Скачать ZIP</button>
-          </div>
         </div>
-        <div class="creative-status" id="creativeStatus"></div>
-        <div class="cards-preview" id="cardsPreview"></div>
-      </section>
+        <div class="plan-grid" id="planGrid"></div>
+      </div>
+
+      <div class="fast-note" id="fastNote">Выбран режим «Быстро». Текст готов и сохранён в истории. Переключите режим на «Полный комплект», если понадобятся изображения.</div>
+      <div class="full-actions" id="fullActions">
+        <button class="btn btn-ghost" id="copyText">Скопировать весь текст</button>
+        <button class="btn btn-primary" id="generateAll">Создать 4 карточки</button>
+      </div>
     </section>
-  </div>
+
+    <section class="creative" id="creative">
+      <div class="creative-top">
+        <div><h2>Готовые карточки</h2><p>Если не нравится только одна из четырёх — переделайте именно её, не оплачивая повторную генерацию остальных.</p></div>
+        <div class="creative-actions">
+          <button class="btn btn-ghost" id="zipImages" disabled>ZIP: 4 PNG</button>
+          <button class="btn btn-primary" id="zipFull" disabled>Полный ZIP + TXT</button>
+        </div>
+      </div>
+      <div class="creative-status" id="creativeStatus"></div>
+      <div class="cards-preview" id="cardsPreview"></div>
+    </section>
+  </section>
+
+  <section class="history" id="history">
+    <div class="history-head"><h2>Последние товары</h2><button class="btn btn-ghost btn-small" id="clearHistory">Очистить историю</button></div>
+    <div id="historyGrid" class="history-grid"></div>
+    <div id="emptyHistory" class="empty-history">История пока пустая. Она хранится только в этом браузере.</div>
+  </section>
+</div>
 </main>
 
-<footer>
-  <div class="wrap">
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <img class="footer-logo" src="data:image/png;base64,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" alt="Yuvion" />
-      <span>Сервис для арендаторов ТК «Южные ворота»</span>
-    </div>
-    <a href="https://yuvion.ru/" target="_blank" rel="noopener">Вернуться на yuvion.ru</a>
-  </div>
-</footer>
+<footer><div class="wrap"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><img class="footer-logo" src="data:image/png;base64,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" alt="Yuvion" /><span>Сервис для арендаторов ТК «Южные ворота»</span></div><a href="https://yuvion.ru/" target="_blank" rel="noopener">Вернуться на yuvion.ru</a></div></footer>
 
 <script>
-  const fileInput=document.getElementById('file');
-  const drop=document.getElementById('drop');
-  const dropText=document.getElementById('dropText');
-  const preview=document.getElementById('preview');
-  const meta=document.getElementById('filemeta');
-  const create=document.getElementById('create');
-  const loading=document.getElementById('loading');
-  const loadingTitle=document.getElementById('loadingTitle');
-  const loadingText=document.getElementById('loadingText');
-  const error=document.getElementById('error');
-  const results=document.getElementById('results');
-  const grid=document.getElementById('grid');
-  const confidence=document.getElementById('confidence');
-  const creativeStatus=document.getElementById('creativeStatus');
-  const cardsPreview=document.getElementById('cardsPreview');
-  const downloadZip=document.getElementById('downloadZip');
-  const regenCards=document.getElementById('regenCards');
+const fileInput=document.getElementById('file');
+const drop=document.getElementById('drop');
+const dropText=document.getElementById('dropText');
+const preview=document.getElementById('preview');
+const meta=document.getElementById('filemeta');
+const analyzeBtn=document.getElementById('analyze');
+const localQuality=document.getElementById('localQuality');
+const loading=document.getElementById('loading');
+const loadingTitle=document.getElementById('loadingTitle');
+const loadingText=document.getElementById('loadingText');
+const error=document.getElementById('error');
+const workspace=document.getElementById('workspace');
+const confidence=document.getElementById('confidence');
+const aiQuality=document.getElementById('aiQuality');
+const planGrid=document.getElementById('planGrid');
+const styleSelect=document.getElementById('style');
+const fastNote=document.getElementById('fastNote');
+const fullActions=document.getElementById('fullActions');
+const creative=document.getElementById('creative');
+const creativeStatus=document.getElementById('creativeStatus');
+const cardsPreview=document.getElementById('cardsPreview');
+const generateAll=document.getElementById('generateAll');
+const zipImages=document.getElementById('zipImages');
+const zipFull=document.getElementById('zipFull');
 
-  let selected=null;
-  let busy=false;
-  let cardsBusy=false;
-  let currentData=null;
-  let currentZipBase64=null;
-  let currentZipName='yuvion-product-cards.zip';
+const editor={
+  title:document.getElementById('edTitle'),
+  category:document.getElementById('edCategory'),
+  keywords:document.getElementById('edKeywords'),
+  short:document.getElementById('edShort'),
+  full:document.getElementById('edFull'),
+  specs:document.getElementById('edSpecs'),
+  benefits:document.getElementById('edBenefits'),
+  usage:document.getElementById('edUsage')
+};
 
-  ['dragenter','dragover'].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault();drop.classList.add('drag')}));
-  ['dragleave','drop'].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault();drop.classList.remove('drag')}));
-  drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0])});
-  fileInput.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0])});
+let selectedFile=null;
+let sourceDataUrl=null;
+let currentData=null;
+let currentCards=[];
+let currentMode='full';
+let currentHistoryId=null;
+let busy=false;
+let cardsBusy=false;
+let cardsStale=false;
 
-  function showError(message){error.textContent=message;error.classList.add('show')}
-  function clearError(){error.classList.remove('show');error.textContent=''}
+const sessionKey='yuvionSessionId';
+let sessionId=localStorage.getItem(sessionKey);
+if(!sessionId){
+  sessionId=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36)).replace(/[^a-zA-Z0-9_-]/g,'');
+  localStorage.setItem(sessionKey,sessionId);
+}
 
-  function setFile(file){
-    clearError();
-    const ok=['image/jpeg','image/png','image/webp'];
-    if(!ok.includes(file.type))return showError('Поддерживаются только JPG, PNG и WebP.');
-    if(file.size>10*1024*1024)return showError('Файл больше 10 МБ.');
-    selected=file;
-    preview.src=URL.createObjectURL(file);
-    preview.classList.add('show');
-    drop.classList.add('has');
-    dropText.style.display='none';
-    meta.textContent=file.name+' • '+(file.size/1024/1024).toFixed(2)+' МБ';
-    create.disabled=false;
-  }
+function apiHeaders(){return {'Content-Type':'application/json','X-Yuvion-Session':sessionId}}
+function showError(message){error.textContent=message;error.classList.add('show')}
+function clearError(){error.classList.remove('show');error.textContent=''}
+function esc(s){const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML}
 
-  function toBase64(file){
-    return new Promise((resolve,reject)=>{
-      const reader=new FileReader();
-      reader.onload=()=>resolve(String(reader.result).split(',')[1]);
-      reader.onerror=reject;
-      reader.readAsDataURL(file);
-    });
-  }
+document.querySelectorAll('.mode').forEach(btn=>btn.onclick=()=>{
+  currentMode=btn.dataset.mode;
+  document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x===btn));
+  syncModeUi();
+  if(currentData) saveHistory();
+});
 
-  function esc(s){const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML}
+function syncModeUi(){
+  const full=currentMode==='full';
+  fullActions.style.display=full?'flex':'none';
+  fastNote.classList.toggle('show',!full);
+  if(!full) creative.classList.remove('show');
+  else if(currentCards.length) creative.classList.add('show');
+}
 
-  function addBlock(title,html,raw,full=false){
-    const el=document.createElement('article');
-    el.className='block'+(full?' full':'');
-    el.innerHTML='<h3>'+esc(title)+'</h3><button class="copy">Копировать</button><div class="content '+(full?'long':'')+'">'+html+'</div>';
-    el.querySelector('.copy').onclick=()=>copyText(raw,el.querySelector('.copy'));
-    grid.appendChild(el);
-  }
+['dragenter','dragover'].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault();drop.classList.add('drag')}));
+['dragleave','drop'].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault();drop.classList.remove('drag')}));
+drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0])});
+fileInput.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0])});
 
-  function renderText(d){
-    grid.innerHTML='';
-    confidence.textContent='Уверенность распознавания: '+(d.confidence||'не указана');
-    addBlock('SEO-заголовок','<b>'+esc(d.seoTitle)+'</b>',d.seoTitle);
-    addBlock('Категория',esc(d.category),d.category);
-    addBlock('Краткое описание',esc(d.shortDescription),d.shortDescription,true);
-    addBlock('Полное описание',esc(d.fullDescription),d.fullDescription,true);
+async function setFile(file){
+  clearError();
+  const ok=['image/jpeg','image/png','image/webp'];
+  if(!ok.includes(file.type))return showError('Поддерживаются только JPG, PNG и WebP.');
+  if(file.size>10*1024*1024)return showError('Файл больше 10 МБ.');
+  selectedFile=file;sourceDataUrl=null;currentHistoryId=null;currentData=null;currentCards=[];cardsStale=false;
+  preview.src=URL.createObjectURL(file);preview.classList.add('show');drop.classList.add('has');dropText.style.display='none';
+  meta.textContent=file.name+' • '+(file.size/1024/1024).toFixed(2)+' МБ';
+  analyzeBtn.disabled=false;workspace.classList.remove('show');
+  await inspectImage(file);
+}
 
-    const specs=(d.characteristics||[]).map(x=>'<li><b>'+esc(x.name)+':</b> '+esc(x.value)+'</li>').join('');
-    const specsRaw=(d.characteristics||[]).map(x=>x.name+': '+x.value).join('\n');
-    addBlock('Характеристики','<ul class="specs">'+(specs||'<li>Не удалось уверенно определить по фото.</li>')+'</ul>',specsRaw||'Не удалось уверенно определить по фото.',true);
-
-    const keys=(d.keywords||[]).map(x=>'<span class="tag">'+esc(x)+'</span>').join('');
-    addBlock('Ключевые слова','<div class="key">'+keys+'</div>',(d.keywords||[]).join(', '));
-
-    const need=(d.needsClarification||[]).map(x=>'<li>'+esc(x)+'</li>').join('');
-    addBlock('Нужно уточнить','<ul class="specs">'+(need||'<li>Дополнительных уточнений не требуется.</li>')+'</ul>',(d.needsClarification||[]).join('\n')||'Дополнительных уточнений не требуется.',true);
-  }
-
-  function dataUrlToBlob(base64,type='application/zip'){
-    const binary=atob(base64);
-    const bytes=new Uint8Array(binary.length);
-    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-    return new Blob([bytes],{type});
-  }
-
-  function triggerZipDownload(){
-    if(!currentZipBase64)return;
-    const blob=dataUrlToBlob(currentZipBase64,'application/zip');
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;a.download=currentZipName;a.style.display='none';
-    document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),30000);
-  }
-
-  function renderCards(cards){
-    cardsPreview.innerHTML='';
-    cards.forEach((card,index)=>{
-      const el=document.createElement('div');
-      el.className='preview-card';
-      el.innerHTML='<img alt="'+esc(card.title)+'" src="data:image/png;base64,'+card.base64+'"><strong>'+(index+1)+'. '+esc(card.title)+'</strong><button class="btn btn-ghost btn-small">Скачать PNG</button>';
-      el.querySelector('button').onclick=()=>{
-        const a=document.createElement('a');
-        a.href='data:image/png;base64,'+card.base64;
-        a.download=card.filename;
-        a.click();
-      };
-      cardsPreview.appendChild(el);
-    });
-  }
-
-  async function generateCards(autoDownload=true){
-    if(!selected||!currentData||cardsBusy)return;
-    cardsBusy=true;
-    regenCards.disabled=true;
-    downloadZip.disabled=true;
-    creativeStatus.className='creative-status show';
-    creativeStatus.textContent='Создаём 4 изображения, накладываем инфографику и собираем ZIP. Это может занять несколько минут.';
-    cardsPreview.innerHTML='';
-
-    try{
-      const image=await toBase64(selected);
-      const response=await fetch('/api/generate-cards',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({image,mimeType:selected.type,card:currentData})
-      });
-      const data=await response.json().catch(()=>({}));
-      if(!response.ok)throw new Error(data.error||'Не удалось создать изображения.');
-      renderCards(data.cards||[]);
-      currentZipBase64=data.zipBase64||null;
-      currentZipName=data.zipName||'yuvion-product-cards.zip';
-      downloadZip.disabled=!currentZipBase64;
-      creativeStatus.className='creative-status show done';
-      creativeStatus.textContent='Готово: 4 карточки 900×1200 созданы. ZIP содержит только готовые PNG.';
-      if(autoDownload&&currentZipBase64)triggerZipDownload();
-    }catch(e){
-      creativeStatus.className='creative-status show fail';
-      creativeStatus.textContent=e.message||'Не удалось создать изображения.';
-    }finally{
-      cardsBusy=false;
-      regenCards.disabled=false;
-    }
-  }
-
-  create.addEventListener('click',async()=>{
-    if(!selected||busy)return;
-    busy=true;create.disabled=true;create.textContent='Создаём…';
-    loading.classList.add('show');results.classList.remove('show');clearError();
-    loadingTitle.textContent='Анализируем товар';
-    loadingText.textContent='Готовим заголовок, описание и подтверждённые характеристики.';
-
-    try{
-      const image=await toBase64(selected);
-      const response=await fetch('/api/analyze',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({image,mimeType:selected.type})
-      });
-      const data=await response.json().catch(()=>({}));
-      if(!response.ok)throw new Error(data.error||'Не удалось создать карточку.');
-      currentData=data;renderText(data);
-      results.classList.add('show');
-      results.scrollIntoView({behavior:'smooth',block:'start'});
-      loadingTitle.textContent='Создаём 4 продающие карточки';
-      loadingText.textContent='Генерируем сцены, затем накладываем инфографику и собираем ZIP.';
-      await generateCards(true);
-    }catch(e){
-      showError(e.message||'Произошла ошибка. Попробуйте ещё раз.');
-    }finally{
-      loading.classList.remove('show');
-      busy=false;create.disabled=false;create.textContent='Создать комплект';
-    }
+function inspectImage(file){
+  return new Promise(resolve=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const warnings=[];
+      if(img.width<800||img.height<800)warnings.push('Низкое разрешение — желательно минимум 800 px по каждой стороне.');
+      const ratio=img.width/img.height;
+      if(ratio>2.2||ratio<0.45)warnings.push('Сильно вытянутое кадрирование может ухудшить результат.');
+      const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,64,64);
+      const data=ctx.getImageData(0,0,64,64).data;
+      let sum=0,sumSq=0,edge=0,count=0;
+      const gray=[];
+      for(let i=0;i<data.length;i+=4){const g=.299*data[i]+.587*data[i+1]+.114*data[i+2];gray.push(g);sum+=g;sumSq+=g*g;count++}
+      const avg=sum/count;const st=Math.sqrt(Math.max(0,sumSq/count-avg*avg));
+      for(let y=0;y<64;y++)for(let x=1;x<64;x++)edge+=Math.abs(gray[y*64+x]-gray[y*64+x-1]);
+      edge/=64*63;
+      if(avg<48)warnings.push('Фото выглядит слишком тёмным.');
+      if(avg>226)warnings.push('Фото выглядит пересвеченным.');
+      if(st<22||edge<7)warnings.push('Фото может быть размытым или малоконтрастным.');
+      localQuality.className='quality-box show '+(warnings.length?'warn':'good');
+      localQuality.innerHTML='<strong>'+(warnings.length?'Есть замечания к фото':'Фото подходит для анализа')+'</strong>'+(warnings.length?warnings.map(x=>'• '+esc(x)).join('<br>'):'Разрешение, яркость и резкость выглядят приемлемо.');
+      URL.revokeObjectURL(url);resolve();
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);resolve()};
+    img.src=url;
   });
+}
 
-  async function copyText(text,button){
-    try{await navigator.clipboard.writeText(String(text||''));const old=button.textContent;button.textContent='Скопировано';setTimeout(()=>button.textContent=old,1200)}
-    catch{showError('Не удалось скопировать текст.')}
+function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=reject;r.readAsDataURL(file)})}
+async function getSource(){
+  if(sourceDataUrl){
+    const m=sourceDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if(!m)throw new Error('Не удалось прочитать сохранённое фото.');
+    return {mimeType:m[1],image:m[2]};
   }
+  if(!selectedFile)throw new Error('Сначала выберите фотографию.');
+  const dataUrl=await fileToDataUrl(selectedFile);
+  return {mimeType:selectedFile.type,image:dataUrl.split(',')[1]};
+}
 
-  document.getElementById('copyAll').onclick=async()=>{
-    if(!currentData)return;
-    const d=currentData;
-    const all=[
-      'SEO-заголовок:\n'+d.seoTitle,
-      'Категория:\n'+d.category,
-      'Краткое описание:\n'+d.shortDescription,
-      'Полное описание:\n'+d.fullDescription,
-      'Характеристики:\n'+(d.characteristics||[]).map(x=>x.name+': '+x.value).join('\n'),
-      'Ключевые слова:\n'+(d.keywords||[]).join(', '),
-      'Нужно уточнить:\n'+(d.needsClarification||[]).join('\n')
-    ].join('\n\n');
-    await copyText(all,document.getElementById('copyAll'));
+async function compressedSource(){
+  if(sourceDataUrl)return sourceDataUrl;
+  if(!selectedFile)return null;
+  const original=await fileToDataUrl(selectedFile);
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=1600;const scale=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      resolve(c.toDataURL('image/jpeg',.86));
+    };
+    img.onerror=()=>resolve(original);img.src=original;
+  });
+}
+
+analyzeBtn.onclick=async()=>{
+  if(busy)return;
+  busy=true;analyzeBtn.disabled=true;clearError();loading.classList.add('show');
+  loadingTitle.textContent='Анализируем товар';loadingText.textContent='Определяем подтверждённые данные и проверяем качество исходного фото.';
+  try{
+    const src=await getSource();
+    const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
+    currentData=data;currentCards=[];cardsStale=false;currentHistoryId=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36);
+    fillEditor(data);renderAiQuality(data);updatePlan();syncModeUi();creative.classList.remove('show');cardsPreview.innerHTML='';
+    confidence.textContent='Уверенность распознавания: '+(data.confidence||'не указана');
+    workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
+    await saveHistory();
+  }catch(e){showError(e.message||'Произошла ошибка.')}
+  finally{loading.classList.remove('show');busy=false;analyzeBtn.disabled=false}
+};
+
+function fillEditor(d){
+  editor.title.value=d.seoTitle||'';editor.category.value=d.category||'';editor.keywords.value=(d.keywords||[]).join(', ');
+  editor.short.value=d.shortDescription||'';editor.full.value=d.fullDescription||'';
+  editor.specs.value=(d.characteristics||[]).map(x=>x.name+': '+x.value).join('\n');
+  editor.benefits.value=(d.benefits||[]).join('\n');editor.usage.value=(d.usage||[]).join('\n');
+}
+
+function parseLines(v){return String(v||'').split('\n').map(x=>x.trim()).filter(Boolean)}
+function collectEdits(){
+  const specs=parseLines(editor.specs.value).map(line=>{
+    const i=line.indexOf(':');
+    return i>0?{name:line.slice(0,i).trim(),value:line.slice(i+1).trim()}:{name:'Характеристика',value:line};
+  }).filter(x=>x.value);
+  return {
+    ...(currentData||{}),
+    seoTitle:editor.title.value.trim(),category:editor.category.value.trim(),
+    shortDescription:editor.short.value.trim(),fullDescription:editor.full.value.trim(),
+    characteristics:specs,keywords:editor.keywords.value.split(',').map(x=>x.trim()).filter(Boolean),
+    benefits:parseLines(editor.benefits.value).slice(0,5),usage:parseLines(editor.usage.value).slice(0,4)
   };
+}
 
-  downloadZip.onclick=triggerZipDownload;
-  regenCards.onclick=()=>generateCards(false);
+function renderAiQuality(d){
+  const q=d.photoQuality||{score:0,issues:[]};
+  const issues=(q.issues||[]);
+  aiQuality.innerHTML='<h4>Оценка фото ИИ: '+esc(q.score)+'/100</h4>'+(issues.length?'<ul class="issues">'+issues.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'<div class="muted">Существенных проблем по фото не обнаружено.</div>')+
+    ((d.needsClarification||[]).length?'<h4 style="margin-top:14px">Нужно уточнить</h4><ul class="issues">'+d.needsClarification.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'');
+}
 
-  document.getElementById('newCard').onclick=()=>{
-    selected=null;currentData=null;currentZipBase64=null;busy=false;cardsBusy=false;fileInput.value='';
-    preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';
-    meta.textContent='Файл ещё не выбран';create.disabled=true;results.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';downloadZip.disabled=true;clearError();
-    window.scrollTo({top:0,behavior:'smooth'});
-  };
+function updatePlan(){
+  if(!currentData)return;
+  const d=collectEdits();
+  const specs=d.characteristics.slice(0,5).map(x=>x.name+': '+x.value);
+  const plans=[
+    ['1. Обложка',d.seoTitle+(specs.length?' • '+specs.slice(0,2).join(' • '):'')],
+    ['2. Преимущества',(d.benefits||[]).join(' • ')||'Добавьте преимущества выше'],
+    ['3. Характеристики',specs.join(' • ')||'Подтверждённые характеристики не указаны'],
+    ['4. Применение',(d.usage||[]).join(' • ')||d.shortDescription]
+  ];
+  planGrid.innerHTML=plans.map(x=>'<div class="plan-card"><b>'+esc(x[0])+'</b><p>'+esc(x[1])+'</p></div>').join('');
+}
+
+Object.values(editor).forEach(el=>el.addEventListener('input',()=>{
+  if(!currentData)return;
+  currentData=collectEdits();updatePlan();markCardsStale();saveHistoryDebounced();
+}));
+styleSelect.onchange=()=>{markCardsStale();saveHistoryDebounced()};
+
+function markCardsStale(){
+  if(currentCards.length){
+    cardsStale=true;creativeStatus.className='creative-status show stale';creativeStatus.textContent='Данные или стиль изменены. Существующие изображения остались прежними — нажмите «Создать 4 карточки», чтобы обновить весь комплект.';
+  }
+}
+
+generateAll.onclick=async()=>{
+  if(cardsBusy||!currentData)return;
+  currentData=collectEdits();cardsBusy=true;generateAll.disabled=true;creative.classList.add('show');
+  creativeStatus.className='creative-status show';creativeStatus.textContent='Создаём 4 изображения и накладываем инфографику. Это может занять несколько минут.';
+  cardsPreview.innerHTML='';
+  try{
+    const src=await getSource();
+    const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
+    currentCards=data.cards||[];cardsStale=false;renderCards();
+    creativeStatus.className='creative-status show done';creativeStatus.textContent='Готово: 4 карточки 900×1200 созданы. Можно переделать любую отдельно.';
+    zipImages.disabled=false;zipFull.disabled=false;
+    await saveHistory();
+    await downloadPackage(false,true);
+  }catch(e){creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось создать карточки.'}
+  finally{cardsBusy=false;generateAll.disabled=false}
+};
+
+function renderCards(){
+  cardsPreview.innerHTML='';
+  currentCards.forEach((card,index)=>{
+    const el=document.createElement('div');el.className='preview-card';
+    el.innerHTML='<img alt="'+esc(card.title)+'" src="data:image/png;base64,'+card.base64+'"><strong>'+(index+1)+'. '+esc(card.title)+'</strong><div class="card-actions"><button class="btn btn-ghost btn-small download-one">PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>';
+    el.querySelector('.download-one').onclick=()=>{const a=document.createElement('a');a.href='data:image/png;base64,'+card.base64;a.download=card.filename;a.click()};
+    el.querySelector('.regen-one').onclick=()=>regenerateOne(index,el);
+    cardsPreview.appendChild(el);
+  });
+}
+
+async function regenerateOne(index,el){
+  if(cardsBusy||!currentData)return;
+  currentData=collectEdits();cardsBusy=true;
+  const btn=el.querySelector('.regen-one');btn.disabled=true;btn.textContent='Генерация…';
+  try{
+    const src=await getSource();
+    const response=await fetch('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,index})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку.');
+    currentCards[index]=data.card;cardsStale=false;renderCards();
+    creativeStatus.className='creative-status show done';creativeStatus.textContent='Карточка №'+(index+1)+' обновлена. ZIP будет собран с новой версией.';
+    await saveHistory();
+  }catch(e){creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось переделать карточку.'}
+  finally{cardsBusy=false}
+}
+
+async function downloadPackage(includeDescription,auto=false){
+  if(currentCards.length!==4)return;
+  try{
+    const response=await fetch('/api/package',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards:currentCards,card:collectEdits(),includeDescription})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось собрать ZIP.');
+    const binary=atob(data.zipBase64);const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    const blob=new Blob([bytes],{type:'application/zip'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.zipName||'yuvion.zip';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    if(!auto){creativeStatus.className='creative-status show done';creativeStatus.textContent=includeDescription?'Скачан полный ZIP: 4 PNG + description.txt.':'Скачан ZIP с четырьмя PNG.'}
+  }catch(e){creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось собрать ZIP.'}
+}
+
+zipImages.onclick=()=>downloadPackage(false,false);
+zipFull.onclick=()=>downloadPackage(true,false);
+
+document.getElementById('copyText').onclick=async()=>{
+  const d=collectEdits();
+  const text=['SEO-заголовок:\n'+d.seoTitle,'Категория:\n'+d.category,'Краткое описание:\n'+d.shortDescription,'Полное описание:\n'+d.fullDescription,'Характеристики:\n'+d.characteristics.map(x=>x.name+': '+x.value).join('\n'),'Преимущества:\n'+d.benefits.join('\n'),'Применение:\n'+d.usage.join('\n'),'Ключевые слова:\n'+d.keywords.join(', '),'Нужно уточнить:\n'+(d.needsClarification||[]).join('\n')].join('\n\n');
+  try{await navigator.clipboard.writeText(text)}catch{showError('Не удалось скопировать текст.')}
+};
+
+document.getElementById('newProduct').onclick=resetProduct;
+
+function resetProduct(){
+  selectedFile=null;sourceDataUrl=null;currentData=null;currentCards=[];currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;fileInput.value='';
+  preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* IndexedDB history */
+const DB_NAME='YuvionCardsHistoryV1',STORE='items';
+function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function dbPut(item){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(item);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function dbAll(){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
+async function dbDelete(id){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function dbClear(){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+
+let saveTimer;
+function saveHistoryDebounced(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveHistory(),700)}
+
+async function saveHistory(){
+  if(!currentData||!currentHistoryId)return;
+  try{
+    const src=await compressedSource();
+    const item={id:currentHistoryId,updatedAt:Date.now(),title:collectEdits().seoTitle||'Товар',data:collectEdits(),sourceDataUrl:src,cards:currentCards,mode:currentMode,style:styleSelect.value};
+    await dbPut(item);
+    const all=(await dbAll()).sort((a,b)=>b.updatedAt-a.updatedAt);
+    for(const extra of all.slice(10))await dbDelete(extra.id);
+    renderHistory();
+  }catch(e){console.warn('History save failed',e)}
+}
+
+async function renderHistory(){
+  const grid=document.getElementById('historyGrid'),empty=document.getElementById('emptyHistory');
+  try{
+    const all=(await dbAll()).sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,10);
+    grid.innerHTML='';empty.style.display=all.length?'none':'block';
+    all.forEach(item=>{
+      const el=document.createElement('div');el.className='history-item';
+      el.innerHTML='<img src="'+esc(item.sourceDataUrl||'')+'" alt=""><b>'+esc(item.title||'Товар')+'</b><small>'+(item.cards&&item.cards.length===4?'4 карточки готовы':'Только текст')+'</small><div class="history-actions"><button class="btn btn-ghost btn-small restore">Открыть</button><button class="btn btn-danger btn-small del">×</button></div>';
+      el.querySelector('.restore').onclick=()=>restoreHistory(item);
+      el.querySelector('.del').onclick=async()=>{await dbDelete(item.id);renderHistory()};
+      grid.appendChild(el);
+    });
+  }catch{empty.textContent='Не удалось открыть локальную историю.'}
+}
+
+async function restoreHistory(item){
+  selectedFile=null;sourceDataUrl=item.sourceDataUrl||null;currentHistoryId=item.id;currentData=item.data;currentCards=item.cards||[];currentMode=item.mode||'full';styleSelect.value=item.style||'minimal';cardsStale=false;
+  document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
+  preview.src=sourceDataUrl||'';preview.classList.toggle('show',!!sourceDataUrl);drop.classList.toggle('has',!!sourceDataUrl);dropText.style.display=sourceDataUrl?'none':'';meta.textContent='Восстановлено из истории';analyzeBtn.disabled=false;
+  fillEditor(currentData);renderAiQuality(currentData);updatePlan();confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');workspace.classList.add('show');syncModeUi();
+  if(currentCards.length===4){renderCards();creative.classList.toggle('show',currentMode==='full');creativeStatus.className='creative-status show done';creativeStatus.textContent='Комплект восстановлен из истории.';zipImages.disabled=false;zipFull.disabled=false}else{creative.classList.remove('show');zipImages.disabled=true;zipFull.disabled=true}
+  workspace.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+document.getElementById('clearHistory').onclick=async()=>{if(confirm('Очистить локальную историю товаров?')){await dbClear();renderHistory()}};
+renderHistory();syncModeUi();
 </script>
 </body>
 </html>
