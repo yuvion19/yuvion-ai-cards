@@ -64,6 +64,10 @@
     .extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.extra-field{display:flex;flex-direction:column;gap:6px}.extra-field label{font-size:13px;font-weight:800;color:#544A4C}
     .extra-field input{width:100%;border:1px solid var(--line);background:#fff;border-radius:11px;padding:11px 12px;color:var(--text);outline:none}.extra-field input:focus{border-color:#F09AA2;box-shadow:0 0 0 3px #FFF1F2}
     .confirmed-badge{display:inline-flex;margin-top:12px;padding:7px 10px;border-radius:999px;background:#EEF9F1;color:#226B38;font-size:12px;font-weight:800}
+    .work-dashboard{max-width:900px;margin:0 auto 16px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}.dash-card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px;box-shadow:0 8px 22px rgba(72,31,37,.04);cursor:pointer;transition:.18s}.dash-card:hover{transform:translateY(-1px);border-color:#E8B8BE}.dash-card b{display:block;font-size:22px;line-height:1;margin-bottom:6px}.dash-card span{font-size:11px;color:var(--muted);line-height:1.3}.dash-card.warn b{color:#9A5E12}.dash-card.bad b{color:#B72F3B}.dash-card.good b{color:#2B7440}
+    .template-tools{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.template-chip{border:1px solid #E7DADD;background:#fff;border-radius:999px;padding:6px 9px;font-size:10px;font-weight:850;color:#684F54;cursor:pointer}.template-chip.primary{background:#FFF0F2;border-color:#F1B3BA;color:var(--brand2)}
+    .variations{margin-top:16px;border:1px solid var(--line);border-radius:17px;background:#FCFAFA;overflow:hidden}.variations summary{cursor:pointer;list-style:none;padding:13px 15px;font-weight:850;display:flex;justify-content:space-between;gap:12px}.variations summary::-webkit-details-marker{display:none}.variations summary:after{content:"+";color:var(--brand);font-size:20px}.variations[open] summary:after{content:"−"}.variations-body{padding:0 15px 15px}.variation-list{display:grid;gap:8px}.variation-row{display:grid;grid-template-columns:1.1fr .9fr .9fr .8fr .8fr auto;gap:7px;align-items:center}.variation-row input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 9px;background:#fff;font-size:11px}.variation-remove{border:0;background:#FFF0F2;color:#A62A2A;border-radius:9px;width:34px;height:34px;cursor:pointer;font-weight:900}.variation-head{display:grid;grid-template-columns:1.1fr .9fr .9fr .8fr .8fr 34px;gap:7px;font-size:10px;color:var(--muted);font-weight:800;margin-bottom:6px}.variation-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.variation-note{font-size:11px;color:var(--muted);line-height:1.4;margin-top:8px}
+    .barcode-tools{display:flex;gap:6px;align-items:center}.barcode-tools input{flex:1}.scan-btn{border:1px solid #E5D8DB;background:#fff;border-radius:9px;padding:8px 9px;font-size:10px;font-weight:850;cursor:pointer;white-space:nowrap}.scanner-modal{position:fixed;inset:0;background:rgba(7,14,20,.78);z-index:80;display:none;align-items:center;justify-content:center;padding:18px}.scanner-modal.show{display:flex}.scanner-card{width:min(520px,100%);background:#fff;border-radius:20px;padding:16px;box-shadow:0 30px 80px rgba(0,0,0,.35)}.scanner-card video{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:13px;background:#111}.scanner-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.scanner-status{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4}
     .tenant-profile{max-width:900px;margin:0 auto 16px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.82);box-shadow:0 10px 30px rgba(72,31,37,.04);overflow:hidden}
     .tenant-profile summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:850;display:flex;justify-content:space-between;align-items:center;gap:12px}.tenant-profile summary::-webkit-details-marker{display:none}.tenant-profile summary:after{content:"Настроить";font-size:11px;color:var(--brand);background:var(--soft);padding:6px 8px;border-radius:999px}.tenant-profile[open] summary:after{content:"Скрыть"}
     .profile-body{padding:0 16px 16px}.profile-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.profile-field{display:flex;flex-direction:column;gap:6px}.profile-field label{font-size:12px;font-weight:800;color:#5D5255}.profile-field input,.profile-field select{border:1px solid var(--line);border-radius:11px;padding:10px 11px;background:#fff;outline:none}.profile-field input:focus,.profile-field select:focus{border-color:#F09AA2;box-shadow:0 0 0 3px #FFF1F2}.profile-actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:12px;flex-wrap:wrap}.profile-hint{font-size:12px;color:var(--muted);margin-right:auto}
@@ -88,8 +92,8 @@
     .history-item{position:relative}.history-item.selected{border-color:#F09AA2;box-shadow:0 0 0 2px #FFF0F2,0 10px 28px rgba(100,40,47,.08)}.draft-select{position:absolute;top:17px;left:17px;z-index:2;width:22px;height:22px;accent-color:var(--brand);cursor:pointer;filter:drop-shadow(0 1px 2px rgba(0,0,0,.18))}
     .history-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}.history-item{background:#fff;border:1px solid var(--line);border-radius:17px;padding:10px;box-shadow:0 8px 24px rgba(100,40,47,.04);display:flex;flex-direction:column;min-width:0}.history-item img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;background:#f5f2f2}.history-item b{display:block;font-size:13px;line-height:1.35;margin:8px 0 4px;min-height:35px}.history-item small{display:block;color:var(--muted);margin-bottom:7px;font-size:11px;line-height:1.35}.history-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:7px}.draft-status{display:inline-flex;align-items:center;padding:5px 7px;border-radius:999px;font-size:10px;font-weight:900}.draft-status.photo{background:#EEF1F4;color:#53616C}.draft-status.text{background:#FFF6DF;color:#8A5A00}.draft-status.cards{background:#EFF3FF;color:#425C9C}.draft-status.ready{background:#EAF8EE;color:#226B38}.draft-status.published{background:#E9F8F5;color:#166C60}.history-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:auto}.history-actions .wide{grid-column:1/-1}.empty-history{margin-top:14px;color:var(--muted);font-size:14px;padding:24px;border:1px dashed var(--line);border-radius:14px;text-align:center;background:#FCFAFA}.privacy-inline{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#F3F7F5;color:#35604A;font-size:11px;font-weight:800}.privacy-inline:before{content:"";width:7px;height:7px;border-radius:50%;background:#48A66A}
     footer{border-top:1px solid var(--line);background:#fff;padding:26px 0;color:var(--muted);font-size:14px}footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.footer-logo{width:122px;height:auto;display:block}footer a{color:var(--brand);text-decoration:none;font-weight:750}
-    @media(max-width:960px){.profile-grid{grid-template-columns:1fr 1fr}.workflow{grid-template-columns:repeat(2,1fr)}.readiness-list{grid-template-columns:1fr}.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(2,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
-    @media(max-width:720px){.bulk-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}.bulk-btn{width:100%}.catalog-toolbar{grid-template-columns:1fr}.catalog-count{white-space:normal}.profile-grid{grid-template-columns:1fr}.profile-actions .btn{flex:1}.hero-shell{padding:28px 18px;border-radius:22px}.workflow{grid-template-columns:1fr 1fr}.workflow-step{padding:8px;font-size:11px}.smart-strip{align-items:flex-start;flex-direction:column}.sticky-dock{bottom:8px}.dock-status{display:none}.dock-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}.dock-btn{padding:10px 8px}.readiness-top{grid-template-columns:70px 1fr}.readiness-ring{width:66px;height:66px}.export-row{grid-template-columns:1fr}.export-row .btn{justify-self:start}.export-actions{width:100%}.export-actions .btn{flex:1}.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
+    @media(max-width:960px){.work-dashboard{grid-template-columns:repeat(3,1fr)}.variation-row{grid-template-columns:1fr 1fr}.variation-head{display:none}.variation-remove{width:100%}.profile-grid{grid-template-columns:1fr 1fr}.workflow{grid-template-columns:repeat(2,1fr)}.readiness-list{grid-template-columns:1fr}.plan-grid,.cards-preview{grid-template-columns:repeat(2,1fr)}.history-grid{grid-template-columns:repeat(2,1fr)}.batch-controls{grid-template-columns:1fr 1fr}.batch-controls .btn{width:100%}}
+    @media(max-width:720px){.work-dashboard{grid-template-columns:1fr 1fr}.variation-row{grid-template-columns:1fr}.bulk-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}.bulk-btn{width:100%}.catalog-toolbar{grid-template-columns:1fr}.catalog-count{white-space:normal}.profile-grid{grid-template-columns:1fr}.profile-actions .btn{flex:1}.hero-shell{padding:28px 18px;border-radius:22px}.workflow{grid-template-columns:1fr 1fr}.workflow-step{padding:8px;font-size:11px}.smart-strip{align-items:flex-start;flex-direction:column}.sticky-dock{bottom:8px}.dock-status{display:none}.dock-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}.dock-btn{padding:10px 8px}.readiness-top{grid-template-columns:70px 1fr}.readiness-ring{width:66px;height:66px}.export-row{grid-template-columns:1fr}.export-row .btn{justify-self:start}.export-actions{width:100%}.export-actions .btn{flex:1}.batch-controls{grid-template-columns:1fr}.batch-item{grid-template-columns:42px minmax(0,1fr)}.batch-status{grid-column:2;text-align:left}.extra-grid{grid-template-columns:1fr}main{padding-top:30px}.card,.editor,.creative{padding:16px;border-radius:18px}.mode-row,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drop{min-height:245px}.head{height:68px}.brand small{display:none}.brand-logo{width:135px}.workspace-head .btn{flex:1}.plan-grid,.cards-preview{grid-template-columns:1fr 1fr}.history-grid{grid-template-columns:1fr}.creative-actions,.full-actions{width:100%}.creative-actions .btn,.full-actions .btn{flex:1}}
   </style>
 </head>
 <body>
@@ -151,6 +155,14 @@
     </div>
   </details>
 
+  <section class="work-dashboard" id="workDashboard">
+    <div class="dash-card" data-dash-status="all"><b id="dashAll">0</b><span>Всего локальных товаров</span></div>
+    <div class="dash-card warn" data-dash-status="photo"><b id="dashPhoto">0</b><span>Только фото / нужен анализ</span></div>
+    <div class="dash-card warn" data-dash-status="needs"><b id="dashNeeds">0</b><span>Требуют данных или цены</span></div>
+    <div class="dash-card bad" data-dash-status="duplicate"><b id="dashDuplicates">0</b><span>Дубли SKU</span></div>
+    <div class="dash-card good" data-dash-status="ready"><b id="dashReady">0</b><span>Готовы к Yuvion</span></div>
+  </section>
+
   <div class="similar-banner" id="similarBanner">Режим похожего товара: бренд, категория и цены сохранены. Загрузите новое фото — название, артикул и описания будут созданы заново.</div>
 
   <section class="card upload">
@@ -176,6 +188,7 @@
           <div class="extra-field"><label>Название товара</label><input id="extraName" maxlength="140" placeholder="Например: Настольная лампа" /></div>
           <div class="extra-field"><label>Бренд</label><input id="extraBrand" maxlength="100" placeholder="Например: Yuvion" /></div>
           <div class="extra-field"><label>Артикул (SKU)</label><input id="extraSku" maxlength="100" placeholder="Например: LM-204" /><div class="sku-warning" id="skuWarning"></div></div>
+          <div class="extra-field"><label>Штрихкод / EAN</label><div class="barcode-tools"><input id="extraBarcode" maxlength="64" inputmode="numeric" placeholder="Например: 4601234567890" /><button type="button" class="scan-btn" id="scanBarcode">Сканировать</button></div><div class="muted" style="font-size:10px;margin-top:4px">Сохраняется локально и не отправляется в админ-панель.</div></div>
           <div class="extra-field"><label>Размеры</label><input id="extraSize" maxlength="120" placeholder="Например: 25×12×12 см" /></div>
           <div class="extra-field"><label>Материал</label><input id="extraMaterial" maxlength="160" placeholder="Например: металл, пластик" /></div>
           <div class="extra-field"><label>Цена за 1 шт., ₽</label><input id="extraPrice1" maxlength="80" inputmode="decimal" placeholder="Например: 2490" /></div>
@@ -221,10 +234,20 @@
         <div class="field"><label>Ключевые слова через запятую</label><input id="edKeywords" /></div>
         <div class="field full"><label>Краткое описание</label><textarea id="edShort"></textarea></div>
         <div class="field full"><label>Полное описание</label><textarea id="edFull"></textarea></div>
-        <div class="field"><label>Характеристики — одна строка «Название: значение»</label><textarea id="edSpecs"></textarea></div>
+        <div class="field"><label>Характеристики — одна строка «Название: значение»</label><textarea id="edSpecs"></textarea><div class="template-tools"><button type="button" class="template-chip primary" id="applySpecTemplate">Шаблон категории</button><button type="button" class="template-chip" id="saveSpecTemplate">Запомнить этот шаблон</button><button type="button" class="template-chip" id="clearEmptySpecs">Убрать пустые строки</button></div><div class="muted" id="specTemplateHint" style="font-size:10px;margin-top:5px">Шаблон добавляет только названия полей — значения не выдумываются.</div></div>
         <div class="field"><label>Преимущества — по одному на строку</label><textarea id="edBenefits"></textarea></div>
         <div class="field full"><label>Сценарии применения — по одному на строку</label><textarea id="edUsage"></textarea></div>
       </div>
+
+      <details class="variations" id="variationsBox">
+        <summary>Вариации товара <span class="muted" id="variationCount" style="font-size:11px;font-weight:650">0 вариантов</span></summary>
+        <div class="variations-body">
+          <div class="variation-head"><span>Вариант</span><span>Цвет / размер</span><span>Артикул</span><span>Штрихкод</span><span>Цена</span><span></span></div>
+          <div class="variation-list" id="variationList"></div>
+          <div class="variation-actions"><button type="button" class="btn btn-ghost btn-small" id="addVariation">Добавить вариант</button><button type="button" class="btn btn-ghost btn-small" id="variantsFromProduct">Добавить основной товар как вариант</button></div>
+          <div class="variation-note">Вариации хранятся локально. Они попадут в резервную копию и экспортный JSON. Поскольку в показанной форме admin.yuvion.ru отдельный механизм вариаций не подтверждён, сервис не будет автоматически отправлять их как связанные позиции.</div>
+        </div>
+      </details>
 
       <div class="ai-quality" id="aiQuality"></div>
 
@@ -373,6 +396,14 @@
     <button class="dock-btn" id="dockData">Данные</button>
     <button class="dock-btn" id="dockCards">Карточки</button>
     <button class="dock-btn primary" id="dockYuvion">Yuvion</button>
+  </div>
+</div>
+
+<div class="scanner-modal" id="scannerModal">
+  <div class="scanner-card">
+    <div class="scanner-top"><div><b>Сканер штрихкода</b><div class="muted" style="font-size:11px">Камера работает только после разрешения пользователя.</div></div><button class="btn btn-ghost btn-small" id="closeScanner">Закрыть</button></div>
+    <video id="scannerVideo" playsinline muted></video>
+    <div class="scanner-status" id="scannerStatus">Наведите камеру на штрихкод.</div>
   </div>
 </div>
 
