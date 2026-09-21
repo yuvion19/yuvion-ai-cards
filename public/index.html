@@ -3781,15 +3781,16 @@ batchFilesInput.addEventListener('change',async()=>{
   if(chosen.length>10)alert('За один запуск можно обработать максимум 10 товаров.');
 });
 
-async function batchAnalyze(file,mode){
+async function batchAnalyze(file,mode,extraData={},category=''){
   const dataUrl=await fileToDataUrl(file);
   const src={mimeType:file.type,image:dataUrl.split(',')[1]};
   const response=await fetch('/api/analyze',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({...src,mode,extraData:{}})
+    body:JSON.stringify({...src,mode,extraData})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось проанализировать товар.');
+  if(String(category||'').trim())data.category=String(category).trim();
   return {data,src,dataUrl};
 }
 
@@ -3803,10 +3804,10 @@ async function batchQuality(cards,card){
   return data;
 }
 
-async function packageCardsForBatch(cards,card,includeDescription=true){
+async function packageCardsForBatch(cards,card,includeDescription=true,extraData={}){
   const response=await fetch('/api/package',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({cards,card,includeDescription})
+    body:JSON.stringify({cards,card,extraData,includeDescription})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось собрать ZIP.');
@@ -3825,11 +3826,11 @@ function downloadBase64Zip(data,name){
   setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 
-async function saveBatchHistory({data,dataUrl,cards,mode,style}){
+async function saveBatchHistory({data,dataUrl,cards,mode,style,extraData={}}){
   const id=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
   const item={
     id,updatedAt:Date.now(),title:data.seoTitle||'Товар',
-    data,extraData:{},privateData:{cost:'',notes:''},sourceDataUrl:dataUrl,additionalPhotos:[],cards:cards||[],variations:[],revisions:[],moderation:{status:'none',reason:'',log:[]},
+    data,extraData:{...extraData},privateData:{cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''},sourceDataUrl:dataUrl,additionalPhotos:[],cards:cards||[],variations:[],revisions:[],moderation:{status:'none',reason:'',log:[]},
     mode,style,published:false
   };
   await dbPut(item);
@@ -3854,7 +3855,7 @@ startBatch.onclick=async()=>{
     batchProgressText.textContent='Обрабатываем '+(index+1)+' из '+batchFiles.length+': '+item.file.name;
 
     try{
-      const analyzed=await batchAnalyze(item.file,mode);
+      const analyzed=await batchAnalyze(item.file,mode,item.extraData||{},item.category||'');
       let cards=[];
       if(mode==='full'){
         item.label='4 карточки…';batchRender();
@@ -3880,13 +3881,13 @@ startBatch.onclick=async()=>{
         }
 
         item.label='ZIP…';batchRender();
-        const packed=await packageCardsForBatch(cards,analyzed.data,true);
+        const packed=await packageCardsForBatch(cards,analyzed.data,true,item.extraData||{});
         const base=safeFileBase(analyzed.data.seoTitle||('product_'+(index+1)));
         downloadBase64Zip(packed.zipBase64,base+'_yuvion.zip');
       }
 
       const storedSource=await compressFileToDataUrl(item.file);
-      await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,mode,style});
+      await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,mode,style,extraData:item.extraData||{}});
       item.state='ok';item.label=mode==='full'?'Готово + ZIP':'Текст готов';
     }catch(e){
       item.state='fail';item.label=e.message||'Ошибка';
