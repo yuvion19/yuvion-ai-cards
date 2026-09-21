@@ -43,6 +43,9 @@
       <div class="card metric"><span>Полный режим</span><b id="full">0</b></div>
       <div class="card metric"><span>Перегенераций одной карточки</span><b id="regens">0</b></div>
       <div class="card metric"><span>Ошибок генерации</span><b id="imgErrors">0</b></div>
+      <div class="card metric"><span>AI-проверок качества</span><b id="qualityChecks">0</b></div>
+      <div class="card metric"><span>Карточек на автоисправление</span><b id="qualityFailures">0</b></div>
+      <div class="card metric"><span>Товаров в пакетной очереди</span><b id="batchProducts">0</b></div>
     </div>
 
     <div class="two">
@@ -80,7 +83,7 @@ async function load(){
   document.getElementById('started').textContent='Статистика с '+new Date(d.startedAt).toLocaleString('ru-RU');
   document.getElementById('analyses').textContent=d.analyses||0;document.getElementById('batches').textContent=d.cardBatches||0;document.getElementById('images').textContent=d.imagesGenerated||0;
   document.getElementById('cost').textContent='$'+Number(d.estimatedTotalUsd||0).toFixed(3);document.getElementById('fast').textContent=d.fastMode||0;document.getElementById('full').textContent=d.fullMode||0;
-  document.getElementById('regens').textContent=d.singleRegenerations||0;document.getElementById('imgErrors').textContent=d.imageErrors||0;document.getElementById('credits').textContent=d.creditsExhausted||0;document.getElementById('rates').textContent=d.rateLimitErrors||0;document.getElementById('analysisErrors').textContent=d.analysisErrors||0;
+  document.getElementById('regens').textContent=d.singleRegenerations||0;document.getElementById('imgErrors').textContent=d.imageErrors||0;document.getElementById('qualityChecks').textContent=d.qualityChecks||0;document.getElementById('qualityFailures').textContent=d.qualityFailures||0;document.getElementById('batchProducts').textContent=d.batchProducts||0;document.getElementById('credits').textContent=d.creditsExhausted||0;document.getElementById('rates').textContent=d.rateLimitErrors||0;document.getElementById('analysisErrors').textContent=d.analysisErrors||0;
   document.getElementById('costNote').textContent=d.costNote||'';
   const state=document.getElementById('imageState');state.textContent=d.imagesEnabled?'ВКЛ':'ВЫКЛ';state.className='status '+(d.imagesEnabled?'on':'off');
   const toggle=document.getElementById('toggleImages');toggle.textContent=d.imagesEnabled?'Отключить генерацию':'Включить генерацию';toggle.dataset.enabled=String(d.imagesEnabled);
