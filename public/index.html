@@ -501,6 +501,7 @@ const extraFields={
   name:document.getElementById('extraName'),
   brand:document.getElementById('extraBrand'),
   sku:document.getElementById('extraSku'),
+  barcode:document.getElementById('extraBarcode'),
   size:document.getElementById('extraSize'),
   material:document.getElementById('extraMaterial'),
   price1:document.getElementById('extraPrice1'),
@@ -523,6 +524,25 @@ const resetProfileBtn=document.getElementById('resetProfile');
 const similarProductBtn=document.getElementById('similarProduct');
 const similarBanner=document.getElementById('similarBanner');
 const copyAutofillPackage=document.getElementById('copyAutofillPackage');
+const scanBarcodeBtn=document.getElementById('scanBarcode');
+const scannerModal=document.getElementById('scannerModal');
+const scannerVideo=document.getElementById('scannerVideo');
+const scannerStatus=document.getElementById('scannerStatus');
+const closeScannerBtn=document.getElementById('closeScanner');
+const variationsBox=document.getElementById('variationsBox');
+const variationList=document.getElementById('variationList');
+const variationCount=document.getElementById('variationCount');
+const addVariationBtn=document.getElementById('addVariation');
+const variantsFromProductBtn=document.getElementById('variantsFromProduct');
+const applySpecTemplateBtn=document.getElementById('applySpecTemplate');
+const saveSpecTemplateBtn=document.getElementById('saveSpecTemplate');
+const clearEmptySpecsBtn=document.getElementById('clearEmptySpecs');
+const specTemplateHint=document.getElementById('specTemplateHint');
+const dashAll=document.getElementById('dashAll');
+const dashPhoto=document.getElementById('dashPhoto');
+const dashNeeds=document.getElementById('dashNeeds');
+const dashDuplicates=document.getElementById('dashDuplicates');
+const dashReady=document.getElementById('dashReady');
 
 let selectedFile=null;
 let sourceDataUrl=null;
@@ -541,6 +561,9 @@ let lastVisibleDraftIds=[];
 let pendingSimilarTemplate=null;
 let duplicateSkuId=null;
 let deferredInstallPrompt=null;
+let currentVariations=[];
+let scannerStream=null;
+let scannerFrame=0;
 
 localStorage.removeItem('yuvionSessionId');
 function apiHeaders(){return {'Content-Type':'application/json'}}
