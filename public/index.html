@@ -1617,10 +1617,22 @@ async function setFile(file){
   const ok=['image/jpeg','image/png','image/webp'];
   if(!ok.includes(file.type))return showError('Поддерживаются только JPG, PNG и WebP.');
   if(file.size>10*1024*1024)return showError('Файл больше 10 МБ.');
-  selectedFile=file;sourceDataUrl=null;currentHistoryId=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));currentData=null;currentCards=[];cardsStale=false;duplicateSkuId=null;skuWarning.className='sku-warning';skuWarning.textContent='';
+
+  const attachExisting=Boolean(currentHistoryId&&currentData&&!sourceDataUrl&&!selectedFile);
+  selectedFile=file;sourceDataUrl=null;cardsStale=false;duplicateSkuId=null;skuWarning.className='sku-warning';skuWarning.textContent='';
+
+  if(!attachExisting){
+    currentHistoryId=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36);
+    currentData=null;currentCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentPrivateData={cost:''};
+    renderVariations();renderExtraPhotos();renderRevisionList();
+    clearExtraData();
+    await maybeAutoAssignSku();
+  }
+
   preview.src=URL.createObjectURL(file);preview.classList.add('show');drop.classList.add('has');dropText.style.display='none';
   meta.textContent=file.name+' • '+(file.size/1024/1024).toFixed(2)+' МБ';
-  analyzeBtn.disabled=false;workspace.classList.remove('show');
+  analyzeBtn.disabled=false;
+  workspace.classList.toggle('show',Boolean(attachExisting&&currentData));
   updateWorkflow();
   await inspectImage(file);
   await savePhotoDraft(file);
@@ -2119,14 +2131,14 @@ async function savePhotoDraft(file){
     await dbPut({
       id:currentHistoryId,
       updatedAt:Date.now(),
-      title:plainName||'Новый товар',
-      data:null,
+      title:currentData?.seoTitle||plainName||'Новый товар',
+      data:currentData?collectEdits():null,
       extraData:collectExtraData(),
       privateData:collectPrivateData(),
       sourceDataUrl:src,
       additionalPhotos:currentAdditionalPhotos,
-      cards:[],
-      variations:[],
+      cards:currentCards,
+      variations:variationsForExport(),
       revisions:currentRevisions,
       mode:currentMode,
       style:styleSelect.value,
