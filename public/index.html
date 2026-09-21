@@ -86,11 +86,31 @@
 
 <main>
 <div class="wrap">
-  <section class="hero">
+  <section class="hero hero-shell">
     <div class="eyebrow">Сервис для арендаторов Yuvion</div>
     <h1>Одно фото → готовая карточка товара</h1>
     <p>Сначала ИИ анализирует товар. Вы проверяете и редактируете результат, а затем при необходимости создаёте четыре продающих изображения 900×1200.</p>
+    <div class="hero-badges">
+      <span class="hero-badge"><span class="hero-dot"></span>Без выдуманных характеристик</span>
+      <span class="hero-badge"><span class="hero-dot"></span>4 карточки 900×1200</span>
+      <span class="hero-badge"><span class="hero-dot"></span>Экспорт под Yuvion</span>
+    </div>
   </section>
+
+  <nav class="workflow" id="workflow" aria-label="Этапы подготовки товара">
+    <div class="workflow-step active" id="stepPhoto"><span class="n"><span>1</span></span><span>Фото</span></div>
+    <div class="workflow-step" id="stepData"><span class="n"><span>2</span></span><span>Данные</span></div>
+    <div class="workflow-step" id="stepCards"><span class="n"><span>3</span></span><span>Карточки</span></div>
+    <div class="workflow-step" id="stepExport"><span class="n"><span>4</span></span><span>Yuvion</span></div>
+  </nav>
+
+  <div class="smart-strip">
+    <div><strong>Рабочий процесс без лишних действий</strong><br><span>Фото → проверка данных → изображения → перенос в личный кабинет.</span></div>
+    <div class="smart-strip-actions">
+      <button class="smart-pill" id="jumpBatch">Пакет до 10 товаров</button>
+      <button class="smart-pill" id="jumpHistory">Последние товары</button>
+    </div>
+  </div>
 
   <section class="card upload">
     <div class="mode-row">
@@ -101,7 +121,7 @@
     <label class="drop" id="drop">
       <input id="file" type="file" accept="image/jpeg,image/png,image/webp" />
       <div class="drop-inner" id="dropText">
-        <div class="icon">📷</div><h2>Добавьте одну фотографию товара</h2>
+        <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h3l1.4-2h7.2l1.4 2h3a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9.5a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="4"/></svg></div><h2>Добавьте одну фотографию товара</h2>
         <p>JPG, PNG или WebP до 10 МБ. Сайт предварительно проверит качество фотографии.</p>
       </div>
       <img id="preview" class="preview" alt="Предпросмотр товара" />
@@ -140,17 +160,17 @@
 
   <section class="workspace" id="workspace">
     <div class="workspace-head">
-      <div><h2>Проверьте данные</h2><div class="muted" id="confidence"></div></div>
+      <div><div class="section-kicker">Этап 2 · Данные товара</div><h2>Проверьте данные</h2><div class="muted" id="confidence"></div><div class="save-state saved" id="saveState" style="margin-top:7px">Изменения сохраняются автоматически</div></div>
       <button class="btn btn-ghost" id="newProduct">Новый товар</button>
     </div>
 
     <section class="editor">
-      <h3>Редактирование перед генерацией</h3>
+      <div class="section-kicker">Редактор</div><h3>Редактирование перед генерацией</h3>
       <div class="editor-sub">Все поля ниже можно исправить. Именно эти данные попадут в текст и инфографику.</div><div class="notice" style="margin-top:0;margin-bottom:16px">Slug здесь не нужен — личный кабинет Yuvion формирует его автоматически из названия. SKU в кабинете = артикул товара.</div>
 
       <div class="form-grid">
         <div class="field full"><label>SEO-заголовок</label><input id="edTitle" /></div>
-        <div class="field"><label>Категория для поиска в admin.yuvion.ru</label><input id="edCategory" placeholder="Например: Дом и сад / Освещение / Настольные светильники" /></div>
+        <div class="field"><label>Категория для поиска в admin.yuvion.ru</label><input id="edCategory" list="categoryMemoryList" placeholder="Например: Дом и сад / Освещение / Настольные светильники" /><datalist id="categoryMemoryList"></datalist><div class="category-suggestions" id="categorySuggestions"></div></div>
         <div class="field"><label>Ключевые слова через запятую</label><input id="edKeywords" /></div>
         <div class="field full"><label>Краткое описание</label><textarea id="edShort"></textarea></div>
         <div class="field full"><label>Полное описание</label><textarea id="edFull"></textarea></div>
@@ -185,7 +205,7 @@
     </section>
 
     <section class="yuvion-export" id="yuvionExport">
-      <div class="export-head">
+      <div class="section-kicker">Этап 4 · Публикация</div><div class="export-head">
         <div>
           <h2>Данные для личного кабинета Yuvion</h2>
           <p>Поля расположены в логике формы admin.yuvion.ru. Slug не выводим — он создаётся в кабинете автоматически из названия.</p>
@@ -194,6 +214,13 @@
           <button class="btn btn-ghost" id="copyYuvionAll">Скопировать всё</button>
           <a class="btn btn-primary" href="https://admin.yuvion.ru/" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Открыть кабинет</a>
         </div>
+      </div>
+      <div class="readiness" id="readiness">
+        <div class="readiness-top">
+          <div class="readiness-ring" id="readinessRing"><b id="readinessPercent">0%</b></div>
+          <div class="readiness-title"><b id="readinessTitle">Проверка готовности к модерации</b><span class="muted" id="readinessText">Заполните данные товара — сервис покажет, что ещё требуется.</span></div>
+        </div>
+        <div class="readiness-list" id="readinessList"></div>
       </div>
       <div class="export-grid" id="yuvionExportGrid"></div>
       <div class="export-media">
@@ -204,7 +231,7 @@
     </section>
 
     <section class="creative" id="creative">
-      <div class="creative-top">
+      <div class="section-kicker">Этап 3 · Визуалы</div><div class="creative-top">
         <div><h2>Готовые карточки</h2><p>Если не нравится только одна из четырёх — переделайте именно её, не оплачивая повторную генерацию остальных.</p></div>
         <div class="creative-actions">
           <a class="btn btn-ghost" href="https://admin.yuvion.ru/" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Открыть личный кабинет</a>
@@ -220,7 +247,7 @@
 
   
   <section class="batch" id="batch">
-    <div class="batch-head">
+    <div class="section-kicker">Для большого ассортимента</div><div class="batch-head">
       <div>
         <h2>Пакетная обработка товаров</h2>
         <p>Выберите до 10 фотографий — по одной фотографии на каждый товар. Сервис обработает их по очереди. В полном режиме для каждого товара создаются 4 карточки и отдельный ZIP.</p>
@@ -246,6 +273,15 @@
   </section>
 </div>
 </main>
+
+<div class="sticky-dock" id="stickyDock">
+  <div class="dock-status"><b id="dockTitle">Товар готовится</b><span id="dockSubtitle">Начните с фотографии</span></div>
+  <div class="dock-actions">
+    <button class="dock-btn" id="dockData">Данные</button>
+    <button class="dock-btn" id="dockCards">Карточки</button>
+    <button class="dock-btn primary" id="dockYuvion">Yuvion</button>
+  </div>
+</div>
 
 <footer><div class="wrap"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><img class="footer-logo" src="data:image/png;base64,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" alt="Yuvion" /><span>Сервис для арендаторов ТК «Южные ворота»</span></div><a href="https://yuvion.ru/" target="_blank" rel="noopener">Вернуться на yuvion.ru</a></div></footer>
 
