@@ -623,12 +623,58 @@ function fillExtraData(data={}){
   const normalized={...data,price1:data?.price1||data?.price||''};
   for(const [key,el] of Object.entries(extraFields))el.value=String(normalized?.[key]||'');
   extraDataBox.open=Object.values(normalized||{}).some(Boolean);
+  renderMargin();
 }
 function clearExtraData(){
   for(const el of Object.values(extraFields))el.value='';
+  currentPrivateData={cost:''};
+  privateCost.value='';
   applySellerDefaults();
   extraDataBox.open=Boolean(extraFields.brand.value);
+  renderMargin();
 }
+
+function renderExtraPhotos(){
+  extraPhotoGrid.innerHTML='';
+  currentAdditionalPhotos.forEach((photo,index)=>{
+    const el=document.createElement('div');
+    el.className='extra-photo';
+    el.innerHTML='<img src="'+esc(photo.dataUrl)+'" alt="Дополнительное фото '+(index+1)+'"><button type="button" aria-label="Удалить фото">×</button>';
+    el.querySelector('button').onclick=()=>{
+      currentAdditionalPhotos.splice(index,1);
+      renderExtraPhotos();
+      if(currentData)saveHistoryDebounced();
+    };
+    extraPhotoGrid.appendChild(el);
+  });
+}
+
+async function addAdditionalPhotos(files){
+  const list=[...(files||[])].slice(0,Math.max(0,4-currentAdditionalPhotos.length));
+  for(const file of list){
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type))continue;
+    if(file.size>10*1024*1024)continue;
+    const dataUrl=await compressFileToDataUrl(file);
+    currentAdditionalPhotos.push({
+      id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
+      name:String(file.name||'photo').slice(0,120),
+      mimeType:(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',
+      dataUrl
+    });
+  }
+  currentAdditionalPhotos=currentAdditionalPhotos.slice(0,4);
+  renderExtraPhotos();
+  extraPhotosInput.value='';
+  if(currentData)saveHistoryDebounced();
+}
+
+function additionalPhotosForAnalyze(){
+  return currentAdditionalPhotos.slice(0,4).map(photo=>{
+    const m=String(photo.dataUrl||'').match(/^data:([^;]+);base64,(.+)$/);
+    return m?{mimeType:m[1],image:m[2]}:null;
+  }).filter(Boolean);
+}
+
 
 
 
