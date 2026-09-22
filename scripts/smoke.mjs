@@ -289,12 +289,12 @@ if(!html.includes('currentStaleCards.length<4'))fail('full-set stale cards must 
 if(!server.includes('browserVisionFallback: true'))fail('browser vision fallback metadata missing');else ok('browser vision fallback metadata present');
 if(!server.includes('uniqueMultiAngleRouting: true'))fail('unique multi-angle routing metadata missing');else ok('unique multi-angle routing metadata present');
 if(!server.includes('/api/local-vision-normalize'))fail('local vision normalize endpoint missing');else ok('local vision normalize endpoint present');
-if(!html.includes("new Worker('/local-vision-worker.js?v=10.8.0'"))fail('local vision worker hook missing');else ok('local vision worker hook present');
+if(!html.includes("new Worker('/local-vision-worker.js?v=10.9.0'"))fail('local vision worker hook missing');else ok('local vision worker hook present');
 if(!html.includes('upgradeFallbackWithBrowserVision'))fail('browser vision fallback integration missing');else ok('browser vision fallback integration present');
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=22',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=23',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=3'))fail('Studio Director v10.3 old-card invalidation missing');else ok('Studio Director v10.3 old-card invalidation present');
 
@@ -302,7 +302,7 @@ if(!server.includes('smolVlmWasmFallback: true'))fail('SmolVLM WASM fallback met
 if(!server.includes('perCardSceneVariants: true'))fail('per-card scene variants metadata missing');else ok('per-card scene variants metadata present');
 if(!server.includes('transformProductForScene'))fail('safe product scene transform missing');else ok('safe product scene transform present');
 if(!server.includes('sceneVariant=Number.isInteger'))fail('scene-specific background variant missing');else ok('scene-specific background variant present');
-if(!html.includes("local-vision-worker.js?v=10.8.0"))fail('vision worker cache bust missing');else ok('vision worker cache bust present');
+if(!html.includes("local-vision-worker.js?v=10.9.0"))fail('vision worker cache bust missing');else ok('vision worker cache bust present');
 if(!worker.includes('/+esm'))fail('worker ESM CDN endpoint missing');else ok('worker ESM CDN endpoint present');
 if(!worker.includes('dtype:"q8"'))fail('worker WASM q8 fallback missing');else ok('worker WASM q8 fallback present');
 if(!worker.includes('sequences[0].slice(inputLength)'))fail('generated-only vision decode missing');else ok('generated-only vision decode present');
@@ -312,11 +312,19 @@ if(!server.includes('Преобладающий цвет на фото'))fail('g
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(!html.includes('improveProductWithLocalVisionInBackground'))fail('legacy recovery helper missing');else ok('legacy recovery helper retained');
 if(!html.includes("const improved=await upgradeFallbackWithBrowserVision(provisional,src)"))fail('final local vision before first render missing');else ok('final local vision before first render present');
-if(!html.includes("register('/sw.js?v=22'"))fail('service worker v22 registration missing');else ok('service worker v22 registration present');
-if(!sw.includes("yuvion-ai-shell-v22"))fail('service worker v22 cache missing');else ok('service worker v22 cache present');
+if(!html.includes("register('/sw.js?v=23'"))fail('service worker v23 registration missing');else ok('service worker v23 registration present');
+if(!sw.includes("yuvion-ai-shell-v23"))fail('service worker v23 cache missing');else ok('service worker v23 cache present');
 if(!server.includes('freeTextLocalFirst: true'))fail('local-first text analysis metadata missing');else ok('local-first text analysis metadata present');
 if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
 if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first metadata missing');else ok('final-data-first metadata present');
+if(!server.includes('minimalUiFlow: true'))fail('minimal UI metadata missing');else ok('minimal UI metadata present');
+if(!html.includes('id="minimalMenu"'))fail('minimal top menu missing');else ok('minimal top menu present');
+if(!html.includes('id="simpleResult"'))fail('compact result card missing');else ok('compact result card present');
+if(!html.includes('id="simpleStyle"'))fail('simple style selector missing');else ok('simple style selector present');
+if(!html.includes('minimal-card-menu'))fail('minimal per-card menu missing');else ok('minimal per-card menu present');
+if(!html.includes("applyUiMode('simple',{save:false})"))fail('simple UI is not default');else ok('simple UI default enforced');
+if(!html.includes('.simple-ui .workflow,.simple-ui .focus-panel,.simple-ui .smart-strip{display:none!important}'))fail('legacy navigation not hidden in simple mode');else ok('legacy navigation hidden in simple mode');
+
 if(!server.includes('singlePhotoTruthfulVariation: true'))fail('single-photo truthful variation metadata missing');else ok('single-photo truthful variation metadata present');
 if(!html.includes("const complete=await createImmediateFreeCards(file)"))fail('duplicate analysis suppression missing');else ok('duplicate analysis suppression present');
 if(!html.includes("if(provisional.analysisMode==='local-fallback')"))fail('pre-render local vision finalization missing');else ok('pre-render local vision finalization present');
