@@ -244,12 +244,9 @@ app.post("/api/events", async (req, res) => {
     }
   }
 
-  const event = {
-    id: id(),
+  const baseEvent = {
     full_name: fullName,
     death_date: validDate(deathDate) ? deathDate : null,
-    event_type: eventType,
-    event_date: validDate(eventDate) ? eventDate : null,
     event_time: clean(body.event_time, 20) || null,
     city: clean(body.city, 120) || null,
     place: clean(body.place, 180) || null,
@@ -262,23 +259,43 @@ app.post("/api/events", async (req, res) => {
     publish_day40: body.publish_day40 !== false,
     publish_year1: body.publish_year1 !== false,
     publish_annual: body.publish_annual !== false,
-    derived: derivedDates(deathDate),
     submitter_name: clean(body.submitter_name, 120) || null,
     submitter_contact: clean(body.submitter_contact, 180) || null,
     created_at: nowIso()
   };
 
-  if (pool) {
-    await dbQuery(
-      `INSERT INTO memorial_events
-      (id,full_name,death_date,event_type,event_date,event_time,city,place,cemetery_link,note,visibility,status,relation_confirmed,publish_day7,publish_day40,publish_year1,publish_annual,derived,submitter_name,submitter_contact)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',TRUE,$12,$13,$14,$15,$16,$17,$18)`,
-      [event.id,event.full_name,event.death_date,event.event_type,event.event_date,event.event_time,event.city,event.place,event.cemetery_link,event.note,event.visibility,event.publish_day7,event.publish_day40,event.publish_year1,event.publish_annual,event.derived,event.submitter_name,event.submitter_contact]
-    );
-  } else {
-    memory.events.push(event);
+  const planned = [];
+  if (validDate(deathDate)) {
+    if (baseEvent.publish_day7) planned.push(["7 дней", addDays(deathDate, 7)]);
+    if (baseEvent.publish_day40) planned.push(["40 дней", addDays(deathDate, 40)]);
+    if (baseEvent.publish_year1) planned.push(["1 год", addYear(deathDate)]);
+    if (baseEvent.publish_annual) planned.push(["Годовщина", addYear(deathDate)]);
   }
-  res.status(201).json({ ok: true, id: event.id, status: "pending", derived: event.derived });
+  if (eventType && validDate(eventDate)) planned.push([eventType, eventDate]);
+  if (!planned.length) return res.status(400).json({ error: "no_dates" });
+
+  const created = [];
+  for (const [typeName, dateValue] of planned) {
+    const event = {
+      id: id(),
+      ...baseEvent,
+      event_type: typeName,
+      event_date: dateValue,
+      derived: derivedDates(deathDate)
+    };
+    if (pool) {
+      await dbQuery(
+        `INSERT INTO memorial_events
+        (id,full_name,death_date,event_type,event_date,event_time,city,place,cemetery_link,note,visibility,status,relation_confirmed,publish_day7,publish_day40,publish_year1,publish_annual,derived,submitter_name,submitter_contact)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',TRUE,$12,$13,$14,$15,$16,$17,$18)`,
+        [event.id,event.full_name,event.death_date,event.event_type,event.event_date,event.event_time,event.city,event.place,event.cemetery_link,event.note,event.visibility,event.publish_day7,event.publish_day40,event.publish_year1,event.publish_annual,event.derived,event.submitter_name,event.submitter_contact]
+      );
+    } else {
+      memory.events.push(event);
+    }
+    created.push(event.id);
+  }
+  res.status(201).json({ ok: true, created: created.length, ids: created, status: "pending", derived: derivedDates(deathDate) });
 });
 
 app.post("/api/events/:eventId/candle", async (req, res) => {
