@@ -632,6 +632,12 @@
               <option value="home">Дом и интерьер</option>
             </select>
           </div>
+          <div class="style-select"><b>Изображения:</b>
+            <select id="renderMode">
+              <option value="free">Бесплатно · шаблоны (0 ₽ за фото)</option>
+              <option value="ai">AI-фото · платно</option>
+            </select>
+          </div>
         </div>
         <div class="plan-grid" id="planGrid"></div>
       </div>
@@ -885,6 +891,7 @@ const confidence=document.getElementById('confidence');
 const aiQuality=document.getElementById('aiQuality');
 const planGrid=document.getElementById('planGrid');
 const styleSelect=document.getElementById('style');
+const renderModeSelect=document.getElementById('renderMode');
 const fastNote=document.getElementById('fastNote');
 const fullActions=document.getElementById('fullActions');
 const creative=document.getElementById('creative');
@@ -2893,7 +2900,7 @@ function beginSimilarProduct(){
     brand:x.brand||yuvionSpecValue(d,'Бренд')||'',
     category:d.category||'',
     price1:x.price1||'',price2:x.price2||'',price3:x.price3||'',oldPrice:x.oldPrice||'',
-    style:styleSelect.value,mode:currentMode
+    style:styleSelect.value,renderMode:renderModeSelect.value,mode:currentMode
   };
   resetProduct(true);
   fillExtraData({
@@ -2905,6 +2912,7 @@ function beginSimilarProduct(){
   });
   currentMode=pendingSimilarTemplate.mode||'full';
   styleSelect.value=pendingSimilarTemplate.style||'minimal';
+  renderModeSelect.value=pendingSimilarTemplate.renderMode||'free';
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   similarBanner.classList.add('show');
   extraDataBox.open=true;
@@ -3317,6 +3325,7 @@ editor.category.addEventListener('blur',()=>{
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
 styleSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
+renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
 
 function markCardsStale(indexes=[0,1,2,3]){
   if(currentCards.length){
@@ -3334,14 +3343,14 @@ function markCardsStale(indexes=[0,1,2,3]){
 async function checkQualityAndAutofix(autoFix=true){
   if(currentCards.length!==4||!currentData)return null;
   qaSummary.style.display='block';
-  qaSummary.innerHTML='<b>AI-проверка качества:</b> анализируем готовые карточки…';
+  qaSummary.innerHTML=renderModeSelect.value==='free'?'<b>Локальная проверка качества:</b> проверяем формат и целостность карточек…':'<b>AI-проверка качества:</b> анализируем готовые карточки…';
   try{
     let qaSource={};
     try{qaSource=await getSource()}catch{}
     const response=await fetch('/api/quality-check',{
       method:'POST',
       headers:apiHeaders(),
-      body:JSON.stringify({cards:currentCards,card:collectEdits(),sourceImage:qaSource.image||'',sourceMimeType:qaSource.mimeType||''})
+      body:JSON.stringify({cards:currentCards,card:collectEdits(),sourceImage:qaSource.image||'',sourceMimeType:qaSource.mimeType||'',renderMode:renderModeSelect.value})
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проверить качество.');
@@ -3351,7 +3360,7 @@ async function checkQualityAndAutofix(autoFix=true){
 
     const bad=(data.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(x=>Number.isInteger(x));
     const notes=(data.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(x.index+1)+': '+issue));
-    qaSummary.innerHTML='<b>AI-проверка: '+esc(data.overall||'готово')+'</b>'+(notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
+    qaSummary.innerHTML='<b>'+(data.local?'Локальная проверка: ':'AI-проверка: ')+esc(data.overall||'готово')+'</b>'+(notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
 
     if(autoFix&&bad.length){
       const fixing=bad.slice(0,2);
@@ -3367,14 +3376,14 @@ async function checkQualityAndAutofix(autoFix=true){
 
       const second=await fetch('/api/quality-check',{
         method:'POST',headers:apiHeaders(),
-        body:JSON.stringify({cards:currentCards,card:collectEdits(),sourceImage:qaSource.image||'',sourceMimeType:qaSource.mimeType||''})
+        body:JSON.stringify({cards:currentCards,card:collectEdits(),sourceImage:qaSource.image||'',sourceMimeType:qaSource.mimeType||'',renderMode:renderModeSelect.value})
       });
       const secondData=await second.json().catch(()=>({}));
       if(second.ok){
         currentQuality=secondData;
         renderCards();
         const secondNotes=(secondData.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(x.index+1)+': '+issue));
-        qaSummary.innerHTML='<b>Повторная AI-проверка: '+esc(secondData.overall||'готово')+'</b>'+(secondNotes.length?'<br>'+secondNotes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
+        qaSummary.innerHTML='<b>'+(secondData.local?'Повторная локальная проверка: ':'Повторная AI-проверка: ')+esc(secondData.overall||'готово')+'</b>'+(secondNotes.length?'<br>'+secondNotes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
       }
     }
     await saveHistory();
@@ -3389,7 +3398,7 @@ async function checkQualityAndAutofix(autoFix=true){
 async function regenerateCardApi(index,src,cardData,styleValue){
   const response=await fetch('/api/regenerate-card',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({...src,card:cardData,style:styleValue,index})
+    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку №'+(index+1)+'.');
@@ -3425,7 +3434,7 @@ generateAll.onclick=async()=>{
     ?'Пересобираем инфографику без нового AI-изображения: карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.'
     :selectiveAi
       ?'Обновляем только карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.'
-      :'Создаём 4 изображения и накладываем инфографику.';
+      :(renderModeSelect.value==='free'?'Создаём 4 карточки локально — без платной генерации изображений.':'Создаём 4 AI-изображения и накладываем инфографику.');
   if(!canLocalOverlay&&!selectiveAi)cardsPreview.innerHTML='';
   try{
     if(canLocalOverlay){
@@ -3437,19 +3446,19 @@ generateAll.onclick=async()=>{
       addCurrentActivity('Точечная AI-перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
     }else{
       const src=await getSource();
-      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value})});
+      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
       currentCards=data.cards||[];
       currentScenes=data.scenes||[];
-      addCurrentActivity('Создан комплект изображений','4 карточки + чистые сцены');
+      addCurrentActivity(renderModeSelect.value==='free'?'Создан бесплатный комплект':'Создан AI-комплект','4 карточки + чистые сцены');
     }
     cardsStale=false;currentStaleCards=[];renderCards();renderProductCockpit();
     zipImages.disabled=false;zipFull.disabled=false;
     creativeStatus.className='creative-status show';creativeStatus.textContent='Изображения готовы. Выполняем автоматическую проверку качества.';
     await saveHistory();
     await checkQualityAndAutofix(!canLocalOverlay);
-    creativeStatus.className='creative-status show done';creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена без image-generation. QA завершён.':'Комплект готов. QA завершён; при необходимости исправлены только проблемные карточки.';
+    creativeStatus.className='creative-status show done';creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена без image-generation. Проверка завершена.':(renderModeSelect.value==='free'?'Комплект готов бесплатно: image-generation API не использовался.':'AI-комплект готов. QA завершён; при необходимости исправлены только проблемные карточки.');
     await downloadPackage(false,true);
   }catch(e){
     creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось создать карточки.';
@@ -3779,6 +3788,7 @@ async function savePhotoDraft(file){
       moderation:currentModeration,
       mode:currentMode,
       style:styleSelect.value,
+      renderMode:renderModeSelect.value,
       published:false
     });
     await trimCatalog();
@@ -3804,7 +3814,8 @@ function revisionSnapshot(label=''){
     privateData:collectPrivateData(),
     variations:variationsForExport(),
     mode:currentMode,
-    style:styleSelect.value
+    style:styleSelect.value,
+    renderMode:renderModeSelect.value
   };
 }
 
@@ -3905,6 +3916,7 @@ async function restoreRevision(id){
   renderVariations();
   currentMode=revision.mode||currentMode;
   styleSelect.value=revision.style||styleSelect.value;
+  renderModeSelect.value=revision.renderMode||renderModeSelect.value||'free';
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   renderAiQuality(currentData);
   updatePlan();
@@ -3950,6 +3962,7 @@ async function saveHistory(){
       moderation:currentModeration,
       mode:currentMode,
       style:styleSelect.value,
+      renderMode:renderModeSelect.value,
       published:false,
       publishedAt:null
     };
@@ -5355,20 +5368,20 @@ async function processExcelAutopilotItem(item,style){
     return item;
   }
 
-  const {response:gen,data:generated}=await fetchJsonRetry('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style})},1);
+  const {response:gen,data:generated}=await fetchJsonRetry('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,renderMode:'free'})},1);
   if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
   let cards=generated.cards||[];
   let scenes=generated.scenes||[];
   if(cards.length!==4)throw new Error('Генерация вернула неполный комплект изображений.');
   const qaCall=async()=> {
-    const {response:q,data}=await fetchJsonRetry('/api/quality-check',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards,card:analyzed,sourceImage:src.base64,sourceMimeType:src.mime})},2);
+    const {response:q,data}=await fetchJsonRetry('/api/quality-check',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards,card:analyzed,sourceImage:src.base64,sourceMimeType:src.mime,renderMode:'free'})},2);
     if(!q.ok)return null;return data;
   };
   let quality=await qaCall();
   const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,2);
   let regenerated=0;
   for(const index of bad){
-    const {response:regen,data:payload}=await fetchJsonRetry('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index})},1);
+    const {response:regen,data:payload}=await fetchJsonRetry('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index,renderMode:'free'})},1);
     if(regen.ok&&payload.card){cards[index]=payload.card;if(payload.scene)scenes[index]=payload.scene;regenerated++}
   }
   if(bad.length)quality=await qaCall();
@@ -5390,6 +5403,7 @@ async function processExcelAutopilotItem(item,style){
   };
   item.mode='full';
   item.style=style;
+  item.renderMode='free';
   item.updatedAt=Date.now();
   item.activity=[{at:Date.now(),type:'Автопилот завершён',detail:(analysisFromCache?'Анализ из кэша · ':'')+'4 карточки · QA · перегенераций '+regenerated},...(item.activity||[])].slice(0,80);
   item.excelAutopilot={state:'done',error:'',completedAt:Date.now()};
@@ -5800,6 +5814,7 @@ async function restoreHistory(item){
   renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderModeration();renderActivity();renderSourceReference();
   currentMode=item.mode||'full';
   styleSelect.value=item.style||'minimal';
+  renderModeSelect.value=item.renderMode||'free';
   fillExtraData(item.extraData||item.data?.confirmedData||{});
   fillPrivateData(item.privateData||{});
   duplicateSkuId=null;
@@ -5949,7 +5964,7 @@ async function batchAnalyze(file,mode,extraData={},category=''){
 async function batchQuality(cards,card){
   const response=await fetch('/api/quality-check',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({cards,card})
+    body:JSON.stringify({cards,card,renderMode:'free'})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)return null;
@@ -6014,7 +6029,7 @@ startBatch.onclick=async()=>{
         item.label='4 карточки…';batchRender();
         const gen=await fetch('/api/generate-cards',{
           method:'POST',headers:apiHeaders(),
-          body:JSON.stringify({...analyzed.src,card:analyzed.data,style})
+          body:JSON.stringify({...analyzed.src,card:analyzed.data,style,renderMode:'free'})
         });
         const genData=await gen.json().catch(()=>({}));
         if(!gen.ok)throw new Error(genData.error||'Не удалось создать карточки.');
@@ -6027,7 +6042,7 @@ startBatch.onclick=async()=>{
           item.label='Исправляем №'+(badIndex+1);batchRender();
           const updated=await fetch('/api/regenerate-card',{
             method:'POST',headers:apiHeaders(),
-            body:JSON.stringify({...analyzed.src,card:analyzed.data,style,index:badIndex})
+            body:JSON.stringify({...analyzed.src,card:analyzed.data,style,index:badIndex,renderMode:'free'})
           });
           const updatedData=await updated.json().catch(()=>({}));
           if(updated.ok&&updatedData.card)cards[badIndex]=updatedData.card;
@@ -6368,7 +6383,7 @@ async function exportSecureCurrentProduct(){
   if(!crypto?.subtle){alert('Шифрование недоступно в этом браузере.');return}
   const password=prompt('Пароль для файла .yuvion (минимум 6 символов).');if(password===null)return;
   if(password.length<6){alert('Пароль должен содержать минимум 6 символов.');return}
-  const item={id:currentHistoryId||crypto.randomUUID(),updatedAt:Date.now(),title:collectEdits().seoTitle||'Товар',data:collectEdits(),extraData:collectExtraData(),privateData:collectPrivateData(),sourceDataUrl:sourceDataUrl||'',photoHash:currentPhotoHash||'',additionalPhotos:currentAdditionalPhotos,cards:currentCards,variations:variationsForExport(),revisions:currentRevisions,moderation:currentModeration,mode:currentMode,style:styleSelect.value,published:false};
+  const item={id:currentHistoryId||crypto.randomUUID(),updatedAt:Date.now(),title:collectEdits().seoTitle||'Товар',data:collectEdits(),extraData:collectExtraData(),privateData:collectPrivateData(),sourceDataUrl:sourceDataUrl||'',photoHash:currentPhotoHash||'',additionalPhotos:currentAdditionalPhotos,cards:currentCards,variations:variationsForExport(),revisions:currentRevisions,moderation:currentModeration,mode:currentMode,style:styleSelect.value,renderMode:renderModeSelect.value,published:false};
   const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),iterations=210000;
   const key=await deriveBackupKey(password,salt,iterations);
   const plaintext=new TextEncoder().encode(JSON.stringify({type:'yuvion-secure-product',version:1,createdAt:new Date().toISOString(),product:item}));
@@ -6587,7 +6602,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-renderNetworkState();initUiMode();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+renderModeSelect.value='free';renderNetworkState();initUiMode();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
