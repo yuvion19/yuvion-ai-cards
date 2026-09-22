@@ -1367,6 +1367,39 @@ app.get("/m/admin", (_req,res) => {
         <div id="adminImportResult" class="muted" style="margin-top:8px"></div>
       </div>
 
+      <div class="card">
+        <h3 style="margin-top:0">Состояние системы</h3>
+        <div id="adminSystemStatus" class="muted">Загрузка…</div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn secondary" id="refreshSystemStatus">Обновить диагностику</button>
+          <button class="btn secondary" id="retryFailedNotifications">Повторить только ошибки доставки</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Черновик / отложенная публикация</h3>
+        <p class="muted">Без даты публикации создаётся черновик. Если указать дату и время — запись опубликуется автоматически.</p>
+        <label>ФИО *</label><input id="draftFullName" class="field">
+        <label>Дата смерти</label><input id="draftDeathDate" class="field" type="date">
+        <label>Тип события</label><input id="draftEventType" class="field" value="Памятная дата">
+        <label>Дата события</label><input id="draftEventDate" class="field" type="date">
+        <label>Время</label><input id="draftEventTime" class="field" type="time">
+        <label>Опубликовать автоматически</label><input id="draftPublishAt" class="field" type="datetime-local">
+        <label>Приватность</label><select id="draftVisibility" class="field"><option value="public">Публично</option><option value="link">Только по ссылке</option><option value="invited">Только приглашённым</option></select>
+        <label>Город</label><input id="draftCity" class="field">
+        <label>Место</label><input id="draftPlace" class="field">
+        <label>Комментарий</label><textarea id="draftNote" class="field" rows="3"></textarea>
+        <button class="btn" id="createDraft" style="width:100%;margin-top:10px">Сохранить</button>
+        <div id="draftStatus" class="muted" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card" id="snapshotCard" style="display:none">
+        <h3 style="margin-top:0">Снимки и восстановление</h3>
+        <p class="muted">Восстановление возвращает поля существующих записей к выбранной дате и скрывает записи, созданные позже. Перед восстановлением создайте свежий снимок.</p>
+        <button class="btn secondary" id="createSnapshot">Создать снимок сейчас</button>
+        <div id="snapshotList" style="margin-top:10px"></div>
+      </div>
+
       <div class="card" id="ownerUsersCard" style="display:none">
         <h3 style="margin-top:0">Администраторы и роли</h3>
         <p class="muted">Владелец управляет ролями и паролями. Модератор работает только с очередью контента.</p>
@@ -1391,6 +1424,8 @@ app.get("/m/admin", (_req,res) => {
           <span class="tag" id="cntPending">На проверке: —</span>
           <span class="tag" id="cntApproved">Одобрено: —</span>
           <span class="tag" id="cntRejected">Отклонено: —</span>
+          <span class="tag" id="cntDraft">Черновики: —</span>
+          <span class="tag" id="cntScheduled">Запланировано: —</span>
         </div>
         <label>Поиск</label>
         <input id="mAdminSearch" class="field" placeholder="ФИО, город, место, тип события">
@@ -1401,6 +1436,8 @@ app.get("/m/admin", (_req,res) => {
           <option value="approved">Одобрено</option>
           <option value="rejected">Отклонено</option>
           <option value="hidden">Скрыто</option>
+          <option value="draft">Черновики</option>
+          <option value="scheduled">Запланировано</option>
         </select>
         <button class="btn secondary" id="mAdminReload" style="width:100%;margin-top:10px">Обновить</button>
       </div>
@@ -1435,7 +1472,7 @@ app.get("/m/admin", (_req,res) => {
     const qs=s=>document.querySelector(s);
     const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","'":"&#39;"}[m]));
     const fmt=v=>v?new Date(v).toLocaleString("ru-RU"):"—";
-    const statusText={pending:"На проверке",approved:"Одобрено",rejected:"Отклонено",hidden:"Скрыто"};
+    const statusText={pending:"На проверке",approved:"Одобрено",rejected:"Отклонено",hidden:"Скрыто",draft:"Черновик",scheduled:"Запланировано"};
     const tokenKey="pamyat_admin_session_token";
     let timer=null,lastRows=[],me=null,importRows=[],notificationGroups=[];
 
@@ -1498,6 +1535,8 @@ app.get("/m/admin", (_req,res) => {
       qs("#cntPending").textContent="На проверке: "+(counts.pending??0);
       qs("#cntApproved").textContent="Одобрено: "+(counts.approved??0);
       qs("#cntRejected").textContent="Отклонено: "+(counts.rejected??0);
+      qs("#cntDraft").textContent="Черновики: "+(counts.draft??0);
+      qs("#cntScheduled").textContent="Запланировано: "+(counts.scheduled??0);
       qs("#mAdminList").innerHTML=rows.length?rows.map(card).join(""):'<div class="card muted">Ничего не найдено.</div>';
       bind(qs("#mAdminList"));renderGroups(rows);
     }
@@ -1723,6 +1762,8 @@ app.get("/m/admin", (_req,res) => {
         '<label>Город</label><input id="editCity" class="field" value="'+esc(e.city||"")+'">'+
         '<label>Место</label><input id="editPlace" class="field" value="'+esc(e.place||"")+'">'+
         '<label>Комментарий</label><textarea id="editNote" class="field" rows="4">'+esc(e.note||"")+'</textarea>'+
+        '<label>Контакт семьи для публичной страницы</label><input id="editPublicContact" class="field" value="'+esc(e.public_contact||"")+'" placeholder="+79991234567">'+
+        '<div class="check"><input id="editPublicContactAllowed" type="checkbox" '+(e.public_contact_allowed?"checked":"")+'><span>Семья разрешила показывать этот контакт публично</span></div>'+
         '<label>Еврейская дата</label><input id="editHebrewDate" class="field" value="'+esc(e.hebrew_death_label||"")+'">'+
         '<label>Ближайший йорцайт</label><input id="editYahrzeit" class="field" type="date" value="'+esc(e.yahrzeit_date||"")+'">'+
         '<div class="check"><input id="editFamilyVerified" type="checkbox" '+(e.family_verified?"checked":"")+'><span>Подтверждено семьёй</span></div>'+
@@ -1733,12 +1774,13 @@ app.get("/m/admin", (_req,res) => {
         '<div class="card"><b>Подтверждения присутствия</b><div class="row" style="margin-top:8px"><span class="tag">Будут: '+Number(rsvp.yes||0)+'</span><span class="tag">Не смогут: '+Number(rsvp.no||0)+'</span><span class="tag">Ждут изменений: '+Number(rsvp.follow||0)+'</span></div></div>'+
         '<button class="btn" id="saveEventEdit" style="width:100%;margin-top:10px">Сохранить изменения</button>'+
         '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">Рассылка</h3><p class="muted">Сначала просмотрите сообщение и количество адресатов. Для изменения времени/места по умолчанию выбираются только те, кто уже получал это событие.</p>'+
-          '<div class="row"><button class="btn secondary" id="previewUpdateBroadcast">Превью изменений</button><button class="btn secondary" id="previewReminderBroadcast">Превью напоминания</button></div>'+
+          '<div class="row"><button class="btn secondary" id="previewUpdateBroadcast">Превью изменений</button><button class="btn secondary" id="previewReminderBroadcast">Превью напоминания</button><button class="btn secondary" id="testAdminBroadcast">Тест себе на email</button></div>'+
           '<div id="broadcastPreview" class="muted" style="margin-top:10px">Превью ещё не построено.</div>'+
           '<div class="row" style="margin-top:8px"><button class="btn" id="sendUpdateBroadcast">Отправить изменения</button><button class="btn secondary" id="sendReminderBroadcast">Отправить напоминание</button></div></div>'+
         buttons(e)+
         '<h3>Дубликаты</h3><p class="muted">Укажите ID дублирующего события. Свечи, комментарии и подтверждения будут перенесены в эту запись.</p>'+
         '<input id="mergeDuplicateId" class="field" placeholder="UUID дубликата"><button class="btn secondary" id="mergeDuplicate" style="width:100%;margin-top:8px">Объединить дубликат</button>'+
+        '<button class="btn secondary" id="redactPersonalData" style="width:100%;margin-top:8px">Удалить контактные персональные данные</button>'+
         (hidden?
           '<button class="btn" id="restorePerson" style="width:100%;margin-top:12px">Восстановить из корзины</button>'+
           (me?.role==="owner"?'<button class="btn secondary" id="purgePerson" style="width:100%;margin-top:8px;background:#f5e2e2">Удалить окончательно</button>':"")
@@ -1755,7 +1797,8 @@ app.get("/m/admin", (_req,res) => {
           full_name:qs("#editFullName").value,death_date:qs("#editDeathDate").value,event_type:qs("#editEventType").value,
           event_date:qs("#editEventDate").value,event_time:qs("#editEventTime").value,event_timezone:qs("#editEventTimezone").value,
           visibility:qs("#editVisibility").value,audience_groups:groups.length?groups:["all"],city:qs("#editCity").value,place:qs("#editPlace").value,
-          note:qs("#editNote").value,hebrew_death_label:qs("#editHebrewDate").value,yahrzeit_date:qs("#editYahrzeit").value,
+          note:qs("#editNote").value,public_contact:qs("#editPublicContact").value,public_contact_allowed:qs("#editPublicContactAllowed").checked,
+          hebrew_death_label:qs("#editHebrewDate").value,yahrzeit_date:qs("#editYahrzeit").value,
           yahrzeit_rule:e.yahrzeit_rule||"standard",family_verified:qs("#editFamilyVerified").checked,
           source_verified:qs("#editSourceVerified").checked,urgent:qs("#editUrgent").checked
         };
@@ -1788,6 +1831,12 @@ app.get("/m/admin", (_req,res) => {
       }
       qs("#sendUpdateBroadcast").onclick=()=>sendBroadcast("update").catch(x=>alert(x.message));
       qs("#sendReminderBroadcast").onclick=()=>sendBroadcast("announcement").catch(x=>alert(x.message));
+      qs("#testAdminBroadcast").onclick=async()=>{
+        try{
+          const r=await api("/api/admin/events/"+encodeURIComponent(id)+"/test-broadcast",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mode:"announcement"})});
+          alert("Тест отправлен на "+(r.to||"email администратора")+".");
+        }catch(e){alert("Тест не отправлен: "+e.message)}
+      };
 
       qs("#uploadDetailPhoto").onclick=async()=>{
         const file=qs("#detailPhoto").files[0];if(!file)return alert("Выберите фото.");
@@ -1799,6 +1848,11 @@ app.get("/m/admin", (_req,res) => {
         if(!confirm("Удалить фото?"))return;
         await api("/api/admin/events/"+encodeURIComponent(id)+"/photo",{method:"DELETE"});
         qs("#detailPhotoPreview").style.display="none";
+      };
+      qs("#redactPersonalData").onclick=async()=>{
+        if(!confirm("Удалить контактные персональные данные подателя и заявителей, сохранив историческую запись?"))return;
+        await api("/api/admin/events/"+encodeURIComponent(id)+"/redact-personal",{method:"POST"});
+        alert("Контактные персональные данные удалены.");await detail(id);
       };
       qs("#mergeDuplicate").onclick=async()=>{
         const duplicate_id=qs("#mergeDuplicateId").value.trim();
