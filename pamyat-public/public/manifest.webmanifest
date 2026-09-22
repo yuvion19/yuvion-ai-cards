@@ -3,7 +3,7 @@
   "name": "Память Джуури",
   "short_name": "Память",
   "lang": "ru",
-  "start_url": "/?source=pwa",
+  "start_url": "/m",
   "scope": "/",
   "display": "standalone",
   "display_override": [
