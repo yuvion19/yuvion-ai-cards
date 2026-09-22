@@ -297,6 +297,9 @@ function mobileShell(title, body, opts = {}) {
       const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
       for(const n of nodes){const raw=n.nodeValue,trim=raw.trim();if(trim&&d[trim])n.nodeValue=raw.replace(trim,d[trim])}
       document.querySelectorAll("[placeholder]").forEach(el=>{const p=el.getAttribute("placeholder");if(d[p])el.setAttribute("placeholder",d[p])});
+      document.querySelectorAll("[aria-label]").forEach(el=>{const a=el.getAttribute("aria-label");if(d[a])el.setAttribute("aria-label",d[a])});
+      const pageTitle=${JSON.stringify(title)};
+      document.title=(d[pageTitle]||pageTitle)+" — "+(d["Память Джуури"]||"Память Джуури");
     };
     applyLanguage(lang);
     if(select)select.onchange=()=>{const u=new URL(location.href);u.searchParams.set("lang",select.value);localStorage.setItem("pamyatLang",select.value);location.href=u.toString()};
