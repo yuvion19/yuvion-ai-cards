@@ -5017,18 +5017,24 @@ function csvCell(value){
 }
 async function exportCatalogReportNow(){
   const all=await dbAll();
-  const rows=[['SKU','Название','Статус','Готовность','Категория','Цена','Фото','Карточки','QA блокеры','Последнее изменение']];
+  const rows=[[
+    'Название','Артикул','Бренд','Штрихкод','Категория','Цена за 1','Цена от 2','Цена от 3','Старая цена',
+    'Материал','Размеры','Описание','Себестоимость','Остаток','Коробки','Минимальный остаток','Место хранения','Коллекции',
+    'Статус Yuvion','Готовность','Фото','Карточки','QA блокеры','OCR ожидает','Последнее изменение'
+  ]];
   for(const item of all){
-    const d=item.data||{},x=item.extraData||d.confirmedData||{},r=item.data?storedReadiness(item):{done:0,total:0};
+    const d=item.data||{},x=item.extraData||d.confirmedData||{},p=item.privateData||{},r=item.data?storedReadiness(item):{done:0,total:0};
     rows.push([
-      skuOfStoredItem(item),item.title||d.seoTitle||'',draftStatus(item).label,
-      item.data?(r.done+'/'+r.total):'0/0',d.category||'',x.price1||'',
-      item.sourceDataUrl?'Да':'Нет',Array.isArray(item.cards)?item.cards.length:0,
-      storedQaBlockers(item).length,item.updatedAt?new Date(item.updatedAt).toISOString():''
+      item.title||d.seoTitle||'',skuOfStoredItem(item),x.brand||storedCharValue(d,'Бренд')||'',barcodeOfStoredItem(item),d.category||'',
+      x.price1||x.price||'',x.price2||'',x.price3||'',x.oldPrice||'',x.material||storedCharValue(d,'Материал')||'',x.size||storedCharValue(d,'Размеры')||'',
+      d.fullDescription||d.shortDescription||'',p.cost||'',p.stock||'',p.boxes||'',p.minStock||'',p.location||'',
+      Array.isArray(p.collections)?p.collections.join(', '):'',
+      draftStatus(item).label,item.data?(r.done+'/'+r.total):'0/0',item.sourceDataUrl?'Да':'Нет',Array.isArray(item.cards)?item.cards.length:0,
+      storedQaBlockers(item).length,Array.isArray(item.labelSuggestions)?item.labelSuggestions.length:0,item.updatedAt?new Date(item.updatedAt).toISOString():''
     ]);
   }
   const csv='\uFEFF'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');
-  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'yuvion-report-'+new Date().toISOString().slice(0,10)+'.csv');
+  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'yuvion-roundtrip-'+new Date().toISOString().slice(0,10)+'.csv');
 }
 function approximateBase64Bytes(value){
   const s=String(value||'');const comma=s.indexOf(',');const b64=comma>=0?s.slice(comma+1):s;
