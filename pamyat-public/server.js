@@ -87,7 +87,7 @@ function mobileShell(title, body, opts = {}) {
   const scripts = opts.scripts || "";
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#4c3e2d"><title>${htmlEsc(title)} — Память Джуури</title>${extraHead}<style>
   :root{--bg:#f5f1e8;--paper:#fffdf8;--ink:#27231e;--muted:#746d63;--line:#ded6c8;--accent:#5b4934;--soft:#eee6d9}
-  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}
   </style></head><body><header><div class="top"><div class="brand">Память Джуури</div><a class="btn secondary" href="/m">Меню</a></div></header><main class="wrap">${body}</main>${scripts}</body></html>`;
 }
 
@@ -99,6 +99,7 @@ app.get("/m", (_req,res) => {
     <div class="nav">
       <a class="btn" href="/m/add">+ Добавить событие</a>
       <a class="btn" href="/m/calendar">Календарь</a>
+      <a class="btn" href="/m/today">Сегодня вспоминаем</a>
       <a class="btn" href="/m/reminders">Напоминания</a>
       <a class="btn" href="/api/selftest">Проверка системы</a>
       <a class="btn secondary" href="/m/admin">Модерация</a>
@@ -164,7 +165,7 @@ app.get("/m/map", (_req,res) => {
 app.get("/m/calendar", async (_req,res) => {
   try {
     const rows=await sb("rpc/memorial_public_upcoming",{method:"POST",body:{p_days:60,p_limit:200}});
-    const cards=(rows||[]).map(e=>`<div class="card"><span class="tag">${htmlEsc(e.event_type)}</span><h3>${htmlEsc(e.full_name)}</h3><div>${htmlEsc(e.event_date||"")}</div><div class="muted">${htmlEsc([e.city,e.place].filter(Boolean).join(" · "))}</div></div>`).join("");
+    const cards=(rows||[]).map(e=>`<div class="card">${e.urgent?'<span class="tag" style="background:#f5e2e2">Срочно</span>':""}<span class="tag">${htmlEsc(e.event_type)}</span><h3>${htmlEsc(e.full_name)}</h3><div>${htmlEsc(e.event_date||"")}</div><div class="muted">${htmlEsc([e.city,e.place].filter(Boolean).join(" · "))}</div><p><a class="btn secondary" href="/m/memorial/${encodeURIComponent(e.id)}">Открыть</a></p></div>`).join("");
     res.send(mobileShell("Календарь",`<h1>Ближайшие памятные даты</h1>${cards||'<div class="card">Ближайших событий нет.</div>'}`));
   } catch(e) {
     res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить календарь.</div>'));
@@ -172,6 +173,99 @@ app.get("/m/calendar", async (_req,res) => {
 });
 
 
+
+
+app.get("/m/today", async (_req,res) => {
+  try{
+    const rows=await sb("rpc/memorial_public_upcoming",{method:"POST",body:{p_days:0,p_limit:200}});
+    const cards=(rows||[]).map(e=>`<div class="card">${e.urgent?'<span class="tag" style="background:#f5e2e2">Срочно</span>':""}<span class="tag">${htmlEsc(e.event_type)}</span><h3>${htmlEsc(e.full_name)}</h3><div class="muted">${htmlEsc([e.city,e.place].filter(Boolean).join(" · "))}</div><p><a class="btn" href="/m/memorial/${encodeURIComponent(e.id)}">Почтить память</a></p></div>`).join("");
+    res.send(mobileShell("Сегодня вспоминаем",`<h1>Сегодня вспоминаем</h1><p class="muted">Публичные подтверждённые памятные даты на сегодня.</p>${cards||'<div class="card">На сегодня публичных памятных дат нет.</div>'}`));
+  }catch(e){res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить даты.</div>'))}
+});
+
+app.get("/m/memorial/:id", async (req,res) => {
+  try{
+    const e=await sb("rpc/memorial_public_event_detail",{method:"POST",body:{p_event_id:req.params.id}});
+    if(!e)return res.status(404).send(mobileShell("Не найдено",'<div class="err">Публичная памятная запись не найдена.</div>'));
+    const next=addDays(e.event_date,1), gStart=String(e.event_date||"").replaceAll("-",""), gEnd=String(next||"").replaceAll("-","");
+    const google="https://calendar.google.com/calendar/render?"+new URLSearchParams({action:"TEMPLATE",text:(e.event_type||"Памятная дата")+" — "+e.full_name,dates:gStart+"/"+gEnd,details:e.note||"",location:e.place||e.city||""}).toString();
+    const outlook="https://outlook.live.com/calendar/0/deeplink/compose?"+new URLSearchParams({path:"/calendar/action/compose",rru:"addevent",subject:(e.event_type||"Памятная дата")+" — "+e.full_name,startdt:e.event_date,enddt:next,allday:"true",body:e.note||"",location:e.place||e.city||""}).toString();
+    const comments=(e.comments||[]).map(x=>'<div class="card"><b>'+htmlEsc(x.author||"Гость")+'</b><div>'+htmlEsc(x.body||"")+'</div><div class="muted">'+htmlEsc(String(x.created_at||"").slice(0,10))+'</div></div>').join("");
+    res.send(mobileShell(e.full_name,`
+      ${e.urgent?'<div class="err"><b>Срочное объявление</b></div>':""}
+      <div class="row"><span class="tag">${htmlEsc(e.event_type||"Памятная дата")}</span>${e.family_verified?'<span class="tag">Подтверждено семьёй ✓</span>':""}</div>
+      <h1>${htmlEsc(e.full_name)}</h1>
+      <div class="card">
+        <div><b>Дата:</b> ${htmlEsc(e.event_date||"—")}${e.event_time?" · "+htmlEsc(e.event_time):""}</div>
+        <div><b>Место:</b> ${htmlEsc([e.city,e.place].filter(Boolean).join(" · ")||"—")}</div>
+        ${e.hebrew_death_label?'<div><b>Еврейская дата:</b> '+htmlEsc(e.hebrew_death_label)+(e.hebrew_after_sunset?' · после захода солнца':'')+'</div>':""}
+        ${e.yahrzeit_date?'<div><b>Йорцайт:</b> '+htmlEsc(e.yahrzeit_date)+'</div>':""}
+        ${e.note?'<p>'+htmlEsc(e.note)+'</p>':""}
+      </div>
+
+      <div class="card ner-wrap">
+        <div class="ner"><div id="nerFlame" class="flame"></div></div>
+        <div dir="rtl" style="font-size:20px;font-weight:800">נר נשמה</div>
+        <div><b>Нер нешама — свеча памяти</b></div>
+        <p class="muted">Зажгите виртуальную еврейскую свечу памяти. Без рейтингов и соревнования.</p>
+        <button class="btn" id="lightNer" style="width:100%">Зажечь свечу</button>
+        <div class="muted" style="margin-top:8px">Зажжено свечей: <span id="nerCount">${Number(e.candles||0)}</span></div>
+      </div>
+
+      <div class="card">
+        <b>Добавить в календарь</b>
+        <div class="nav">
+          <a class="btn secondary" href="/api/events/${encodeURIComponent(e.id)}.ics">Apple / ICS</a>
+          <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(google)}">Google Calendar</a>
+          <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(outlook)}">Outlook</a>
+          <button class="btn secondary" id="shareMemorial">Поделиться</button>
+        </div>
+      </div>
+
+      <div class="card" style="text-align:center">
+        <b>QR-код памятной страницы</b><br>
+        <img src="/qr/event/${encodeURIComponent(e.id)}.svg" alt="QR" style="width:210px;max-width:100%;margin-top:10px">
+      </div>
+
+      <div class="card">
+        <h3>Я родственник</h3>
+        <p class="muted">После проверки модератором запись может получить отметку «Подтверждено семьёй».</p>
+        <input id="claimName" class="field" placeholder="Ваше имя">
+        <input id="claimRelation" class="field" placeholder="Кем приходитесь" style="margin-top:8px">
+        <input id="claimContact" class="field" placeholder="Контакт модератору" style="margin-top:8px">
+        <textarea id="claimEvidence" class="field" rows="3" placeholder="Подтверждение / комментарий" style="margin-top:8px"></textarea>
+        <button class="btn secondary" id="sendClaim" style="width:100%;margin-top:8px">Отправить подтверждение</button>
+      </div>
+
+      <h3>Добрые слова</h3>
+      ${comments||'<div class="card muted">Пока нет опубликованных сообщений.</div>'}
+      <div class="card">
+        <input id="commentAuthor" class="field" placeholder="Ваше имя">
+        <textarea id="commentBody" class="field" rows="3" placeholder="Доброе слово" style="margin-top:8px"></textarea>
+        <button class="btn secondary" id="sendComment" style="width:100%;margin-top:8px">Отправить на модерацию</button>
+      </div>
+      <div id="memorialStatus"></div>
+    `,{scripts:`<script>
+      const status=document.getElementById("memorialStatus");
+      const say=(m,ok=true)=>status.innerHTML='<div class="'+(ok?"ok":"err")+'">'+m+'</div>';
+      document.getElementById("lightNer").onclick=async()=>{
+        const r=await fetch("/api/events/${req.params.id}/candle",{method:"POST"}),d=await r.json();
+        if(r.ok){document.getElementById("nerCount").textContent=d.count;document.getElementById("nerFlame").classList.remove("off");say("Свеча памяти зажжена.")}else say("Не удалось зажечь свечу.",false)
+      };
+      document.getElementById("shareMemorial").onclick=async()=>{try{if(navigator.share)await navigator.share({title:${JSON.stringify(e.full_name)},url:location.href});else{await navigator.clipboard.writeText(location.href);say("Ссылка скопирована.")}}catch{}};
+      document.getElementById("sendClaim").onclick=async()=>{
+        const body={claimant_name:document.getElementById("claimName").value,relation_type:document.getElementById("claimRelation").value,contact:document.getElementById("claimContact").value,evidence_note:document.getElementById("claimEvidence").value};
+        const r=await fetch("/api/events/${req.params.id}/relative-claim",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        say(r.ok?"Отправлено на проверку.":"Не удалось отправить.",r.ok)
+      };
+      document.getElementById("sendComment").onclick=async()=>{
+        const body={author:document.getElementById("commentAuthor").value,body:document.getElementById("commentBody").value};
+        const r=await fetch("/api/events/${req.params.id}/comments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        say(r.ok?"Сообщение отправлено на модерацию.":"Не удалось отправить.",r.ok)
+      };
+    </script>`}));
+  }catch(e){console.error("memorial page",e.data||e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось открыть памятную страницу.</div>'))}
+});
 
 app.get("/m/reminders", (_req,res) => {
   res.setHeader("Cache-Control","no-store, no-cache, must-revalidate");
@@ -716,7 +810,7 @@ app.get("/api/selftest", async (_req,res)=>{
   try{
     const db=await sb("rpc/memorial_selftest",{method:"POST",body:{}});
     const ok=Boolean(db?.ok);
-    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/add","/m/calendar","/m/reminders","/m/admin"],release:"memory-calendar"});
+    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/today","/m/add","/m/calendar","/m/reminders","/m/admin"],release:"memory-calendar"});
   }catch(e){res.status(503).json({ok:false,error:"selftest_failed",detail:e.data||e.message})}
 });
 
@@ -751,7 +845,7 @@ app.get("/qr/event/:id.svg", async (req,res)=>{
     const e=await sb("rpc/memorial_public_event_detail",{method:"POST",body:{p_event_id:req.params.id}});
     if(!e)return res.status(404).send("Not found");
     const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
-    const svg=await QRCode.toString(base+"/pamyat-juhuro#event="+encodeURIComponent(req.params.id),{type:"svg",margin:1,width:360});
+    const svg=await QRCode.toString(base+"/m/memorial/"+encodeURIComponent(req.params.id),{type:"svg",margin:1,width:360});
     res.type("image/svg+xml").setHeader("Cache-Control","public,max-age=86400").send(svg);
   }catch(e){res.status(500).send("QR failed")}
 });
