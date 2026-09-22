@@ -198,6 +198,42 @@ function bulletGroups(items, { x, y, maxChars = 25, maxItems = 5, size = 30, lin
   return out;
 }
 
+function benefitIconKind(value) {
+  const text = String(value || "").toLocaleLowerCase("ru");
+  if (/прочн|защит|безопас|надеж/.test(text)) return "shield";
+  if (/быстр|мощн|заряд|электр|энерг/.test(text)) return "bolt";
+  if (/влаг|вод|моющ|жидк/.test(text)) return "drop";
+  if (/дом|кухн|интерьер|хранен/.test(text)) return "home";
+  if (/подар|комплект|набор/.test(text)) return "gift";
+  if (/легк|удоб|компакт|перенос/.test(text)) return "check";
+  return "star";
+}
+
+function benefitIconSvg(value, cx, cy, accent) {
+  const kind = benefitIconKind(value);
+  const base = `<circle cx="${cx}" cy="${cy}" r="27" fill="${accent}" fill-opacity="0.13"/><circle cx="${cx}" cy="${cy}" r="19" fill="${accent}"/>`;
+  if (kind === "shield") return `<g>${base}<path d="M${cx} ${cy-12} l10 4 v8 c0 8-5 13-10 16-5-3-10-8-10-16v-8z" fill="none" stroke="#fff" stroke-width="3"/></g>`;
+  if (kind === "bolt") return `<g>${base}<path d="M${cx+2} ${cy-13} l-10 15 h8 l-3 13 11-17 h-8z" fill="#fff"/></g>`;
+  if (kind === "drop") return `<g>${base}<path d="M${cx} ${cy-13} c7 9 11 14 11 20a11 11 0 1 1-22 0c0-6 4-11 11-20z" fill="none" stroke="#fff" stroke-width="3"/></g>`;
+  if (kind === "home") return `<g>${base}<path d="M${cx-11} ${cy+2} l11-10 11 10 v11 h-8 v-7 h-6 v7 h-8z" fill="#fff"/></g>`;
+  if (kind === "gift") return `<g>${base}<rect x="${cx-11}" y="${cy-5}" width="22" height="16" rx="2" fill="none" stroke="#fff" stroke-width="3"/><path d="M${cx} ${cy-5}v16M${cx-13} ${cy-5}h26M${cx} ${cy-5}c-8-2-9-9-4-9 4 0 6 5 6 9M${cx} ${cy-5}c8-2 9-9 4-9-4 0-6 5-6 9" fill="none" stroke="#fff" stroke-width="2.5"/></g>`;
+  if (kind === "check") return `<g>${base}<path d="M${cx-9} ${cy} l6 7 13-15" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+  return `<g>${base}<path d="M${cx} ${cy-12} l4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z" fill="#fff"/></g>`;
+}
+
+function iconBenefitGroups(items, { x, y, width = 390, maxItems = 5, accent = "#F03E4A", text = "#33282A" }) {
+  let cursorY = y;
+  let out = "";
+  for (const item of items.filter(Boolean).slice(0, maxItems)) {
+    const lines = wrapWords(item, 23, 2);
+    out += `<rect x="${x}" y="${cursorY-38}" width="${width}" height="${Math.max(82, lines.length*34+42)}" rx="22" fill="#FFFFFF" fill-opacity="0.72"/>`;
+    out += benefitIconSvg(item, x + 44, cursorY + 4, accent);
+    out += textLines(lines, { x: x + 84, y: cursorY, size: 25, lineHeight: 32, weight: 720, fill: text });
+    cursorY += Math.max(104, lines.length * 34 + 62);
+  }
+  return out;
+}
+
 const productCardSchema = {
   type: "object",
   additionalProperties: false,
@@ -427,6 +463,7 @@ function normalizeVisualOptions(raw = {}) {
   const input = raw && typeof raw === "object" ? raw : {};
   return {
     showBrand: input.showBrand !== false,
+    showTitle: input.showTitle !== false,
     showCategory: input.showCategory !== false,
     showBenefits: input.showBenefits !== false,
     showSpecs: input.showSpecs !== false,
@@ -1220,6 +1257,8 @@ app.get("/api/health", (_req, res) => {
       confirmedPriceOverlay: true,
       localSeriesPresets: true,
       referenceDesignBalance: true,
+      benefitIconLibrary: true,
+      textlessCoverMode: true,
       darkWorkbench: true,
       wideWorkbench: true,
       manualComposition: true
@@ -1922,7 +1961,7 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
         ${visual.showPrice && price ? `<rect x="650" y="46" rx="24" width="204" height="68" fill="#FFFFFF" fill-opacity="0.94"/><text x="752" y="82" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="29" font-weight="900" fill="${style.text}">${escapeXml(price)} ₽</text>${oldPrice ? `<text x="752" y="103" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" font-weight="650" fill="#8B7F82" text-decoration="line-through">${escapeXml(oldPrice)} ₽</text>` : ""}` : ""}
         <rect x="38" y="790" rx="38" width="824" height="372" fill="${style.panel}" fill-opacity="0.97"/>
         ${visual.showCategory ? `<rect x="72" y="824" rx="18" width="250" height="42" fill="${style.accent}" fill-opacity="0.12"/><text x="92" y="853" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="800" fill="${style.accent2}">${escapeXml(category.toUpperCase())}</text>` : ""}
-        ${textLines(titleLines, { x: 72, y: 918, size: titleSize, lineHeight: titleSize + 8, weight: 850, fill: style.text })}
+        ${visual.showTitle ? textLines(titleLines, { x: 72, y: 918, size: titleSize, lineHeight: titleSize + 8, weight: 850, fill: style.text }) : ""}
         ${visual.showBenefits && quick.length ? bulletGroups(quick, { x: 84, y: 1080, maxChars: 35, maxItems: 3, size: 22, lineHeight: 27, gap: 7, accent: style.accent, text: style.text }) : ""}
       </svg>`;
   }
@@ -1934,7 +1973,7 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
         <rect x="28" y="66" rx="40" width="498" height="1066" fill="${style.panel}" fill-opacity="0.97"/>
         <text x="70" y="135" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="${style.accent}">ГЛАВНОЕ О ТОВАРЕ</text>
         <text x="70" y="210" font-family="DejaVu Sans, Arial, sans-serif" font-size="50" font-weight="850" fill="${style.text}">Преимущества</text>
-        ${visual.showBenefits ? bulletGroups(benefits, { x: 84, y: 315, maxChars: 24, maxItems: 5, size: 30, lineHeight: 40, gap: 30, accent: style.accent, text: style.text }) : textLines(["Минимальная подача", "без лишнего текста"], { x: 84, y: 345, size: 28, lineHeight: 38, weight: 650, fill: style.text })}
+        ${visual.showBenefits ? iconBenefitGroups(benefits, { x: 58, y: 315, width: 430, maxItems: 5, accent: style.accent, text: style.text }) : textLines(["Минимальная подача", "без лишнего текста"], { x: 84, y: 345, size: 28, lineHeight: 38, weight: 650, fill: style.text })}
       </svg>`;
   }
 
