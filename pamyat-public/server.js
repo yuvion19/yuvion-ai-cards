@@ -436,6 +436,30 @@ app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
 });
 
 
+
+app.get("/m/admin/auth/callback", (_req,res) => {
+  res.setHeader("Cache-Control","no-store");
+  res.send(mobileShell("Вход администратора", `
+    <h1>Вход администратора</h1>
+    <div class="card"><div id="authState" class="muted">Проверяем ссылку входа…</div></div>
+  `, {scripts:`<script>
+  (async()=>{
+    const box=document.getElementById("authState");
+    try{
+      const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+      const access=hash.get("access_token");
+      if(!access)throw new Error("В ссылке нет действующей сессии.");
+      const r=await fetch("/api/admin/auth/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({access_token:access})});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||"Не удалось войти");
+      box.innerHTML='<div class="ok">Вход выполнен. Перенаправление…</div>';
+      history.replaceState(null,"",location.pathname);
+      setTimeout(()=>location.replace("/m/admin"),500);
+    }catch(e){box.innerHTML='<div class="err">'+String(e.message||e)+'</div><p><a class="btn" href="/m/admin">Вернуться</a></p>'}
+  })();
+  </script>`}));
+});
+
 app.get("/m/admin", (_req,res) => {
   res.setHeader("Cache-Control","no-store, no-cache, must-revalidate");
   res.send(mobileShell("Модерация", `
@@ -1778,6 +1802,62 @@ app.post("/api/telegram/webhook/:secret", async (req,res) => {
   } catch (e) { console.error("telegram webhook", e); }
 });
 
+
+
+app.get("/api/admin/auth/status", (req,res) => {
+  const ok=isAdmin(req);
+  res.setHeader("Cache-Control","no-store");
+  res.status(ok?200:401).json(ok?{ok:true,email:req.adminIdentity?.email||null,role:req.adminIdentity?.role||"admin"}:{ok:false});
+});
+
+app.post("/api/admin/setup-email", requireAdmin, rateLimit("admin-setup-email",8,60*60*1000), async (req,res) => {
+  try{
+    const email=clean(req.body?.email,180).toLowerCase();
+    const role=clean(req.body?.role,20)==="moderator"?"moderator":"admin";
+    if(!validReminderEmail(email))return res.status(400).json({error:"valid_email_required"});
+    await sb("rpc/memorial_admin_add_user",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email,p_role:role}});
+    res.json({ok:true,email,role});
+  }catch(e){console.error("admin setup email",e.data||e);res.status(500).json({error:"setup_failed"})}
+});
+
+app.post("/api/admin/auth/request", rateLimit("admin-auth-request",6,15*60*1000), async (req,res) => {
+  const generic={ok:true,message:"Если адрес разрешён для админ-панели, ссылка входа отправлена."};
+  try{
+    const email=clean(req.body?.email,180).toLowerCase();
+    if(!validReminderEmail(email))return res.json(generic);
+    const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
+    if(!allowed?.allowed)return res.json(generic);
+    const redirect=(PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/admin/auth/callback";
+    const rr=await fetch(SUPABASE_URL+"/auth/v1/otp",{
+      method:"POST",
+      headers:{apikey:SUPABASE_ANON_KEY,"content-type":"application/json"},
+      body:JSON.stringify({email,options:{emailRedirectTo:redirect,shouldCreateUser:true}})
+    });
+    if(!rr.ok){const t=await rr.text();console.error("admin otp",rr.status,t);return res.status(502).json({error:"email_login_unavailable"})}
+    res.json(generic);
+  }catch(e){console.error("admin auth request",e.data||e);res.status(500).json({error:"auth_request_failed"})}
+});
+
+app.post("/api/admin/auth/session", rateLimit("admin-auth-session",12,15*60*1000), async (req,res) => {
+  try{
+    const access=clean(req.body?.access_token,5000);
+    if(!access)return res.status(400).json({error:"access_token_required"});
+    const ur=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:{apikey:SUPABASE_ANON_KEY,authorization:"Bearer "+access}});
+    if(!ur.ok)return res.status(401).json({error:"invalid_login"});
+    const user=await ur.json();
+    const email=String(user.email||"").toLowerCase();
+    const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
+    if(!allowed?.allowed)return res.status(403).json({error:"admin_not_allowed"});
+    const cookie=adminSessionSign(email,allowed.role||"admin");
+    res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
+    res.json({ok:true,email,role:allowed.role||"admin"});
+  }catch(e){console.error("admin session",e.data||e);res.status(500).json({error:"session_failed"})}
+});
+
+app.post("/api/admin/auth/logout", (_req,res) => {
+  res.setHeader("Set-Cookie","pamyat_admin_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+  res.json({ok:true});
+});
 
 app.get("/api/admin/events/list", requireAdmin, async (req,res) => {
   try {
