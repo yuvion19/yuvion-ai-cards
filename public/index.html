@@ -124,9 +124,41 @@
     .secure-package{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
     @media(max-width:820px){.ops-panels{grid-template-columns:1fr}.analytics-grid-v6{grid-template-columns:repeat(2,1fr)}.matrix-grid{grid-template-columns:1fr}}
 
+  
+    /* YUVION_V61_UI */
+    .focus-panel{max-width:900px;margin:0 auto 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;padding:18px 20px;border:1px solid #ECDDE0;border-radius:20px;background:linear-gradient(135deg,#fff 0,#FFF8F9 100%);box-shadow:0 12px 32px rgba(84,30,39,.05)}
+    .focus-copy span{display:block;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}.focus-copy b{display:block;font-size:19px;letter-spacing:-.015em}.focus-copy small{display:block;color:var(--muted);font-size:12px;line-height:1.45;margin-top:4px}.focus-panel .btn{min-width:210px}
+    .ui-mode-pill{border-color:#506575;background:#20384A}.simple-only{display:none}
+    .simple-ui .simple-only{display:inline-flex}.simple-ui .advanced-tool{display:none!important}
+    .simple-ui main{padding-top:28px}.simple-ui .hero-shell{padding:26px 30px;margin-bottom:15px}.simple-ui h1{font-size:clamp(34px,5vw,50px);margin:13px 0 10px}.simple-ui .hero p{font-size:16px;max-width:700px;margin:0 auto}.simple-ui .hero-badges{margin-top:13px}
+    .simple-ui .workflow{grid-template-columns:repeat(3,1fr);max-width:760px}.simple-ui #stepCards{display:none}
+    .simple-ui .smart-strip{max-width:900px;background:#132637;padding:10px 12px}.simple-ui .smart-strip>div:first-child{max-width:460px}.simple-ui .smart-strip-actions{justify-content:flex-end}
+    .simple-ui #tenantProfile,.simple-ui #workDashboard,.simple-ui #operationsPanels,.simple-ui #batch{display:none!important}
+    .simple-ui #history{display:none}.simple-ui.show-catalog #history{display:block}
+    .simple-ui .workspace.show{display:flex;flex-direction:column}.simple-ui .workspace-head{order:1}.simple-ui .revision-box{display:none!important}.simple-ui .product-cockpit{order:2;margin-top:12px}.simple-ui .editor{order:3}.simple-ui #creative{order:4}.simple-ui #yuvionExport{order:5}
+    .simple-ui .cockpit-tabs,.simple-ui .private-work,.simple-ui .plan,.simple-ui .variations,.simple-ui .mode-row{display:none!important}
+    .simple-ui .cockpit-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.simple-ui .cockpit-grid .cockpit-stat:nth-child(n+4){display:none}
+    .simple-ui #moderationFix,.simple-ui #exportSecureProduct,.simple-ui #saveRevision{display:none!important}
+    .simple-ui .advanced-only-block,.simple-ui .advanced-only-inline{display:none!important}
+    .simple-ui .editor{padding:20px}.simple-ui .editor-sub{margin-bottom:12px}.simple-ui .form-grid{grid-template-columns:1fr 1fr}
+    .simple-ui #yuvionExportGrid,.simple-ui .export-tip{display:none}.simple-ui.export-details-open #yuvionExportGrid{display:grid}.simple-ui.export-details-open .export-tip{display:block}
+    .simple-ui .helper-box{background:#F8FBFC}.simple-ui .export-head h2{font-size:23px}.simple-ui .yuvion-export{margin-top:14px;padding:20px}
+    .simple-ui .creative{margin-top:14px;padding:20px}.simple-ui .creative h2{font-size:23px}
+    .simple-ui .drop{min-height:270px}.simple-ui .card.upload{padding:22px}.simple-ui .extra-data{margin-top:13px}
+    .simple-ui .sticky-dock{width:min(690px,calc(100% - 20px))}.simple-ui .dock-actions #dockData,.simple-ui .dock-actions #dockCards{display:none}
+    .simple-ui .sticky-dock .dock-btn.primary{min-width:145px}.simple-ui #dockYuvion{display:none}.simple-ui.export-details-open #dockYuvion{display:block}
+    .simple-ui .section-kicker{letter-spacing:.06em}.simple-ui .readiness-list{grid-template-columns:1fr 1fr}
+    @media(max-width:760px){
+      .focus-panel{grid-template-columns:1fr;padding:15px}.focus-panel .btn{width:100%;min-width:0}
+      .simple-ui .workflow{grid-template-columns:repeat(3,1fr)}.simple-ui .workflow-step{justify-content:center}.simple-ui .workflow-step>span:last-child{display:none}
+      .simple-ui .smart-strip{align-items:flex-start}.simple-ui .smart-strip>div:first-child{display:none}.simple-ui .smart-strip-actions{width:100%;justify-content:center}
+      .simple-ui .cockpit-grid{grid-template-columns:1fr 1fr}.simple-ui .cockpit-grid .cockpit-stat:nth-child(3){grid-column:1/-1}
+      .simple-ui .form-grid{grid-template-columns:1fr}.simple-ui .readiness-list{grid-template-columns:1fr}
+    }
+
   </style>
 </head>
-<body>
+<body class="simple-ui">
 <header>
   <div class="wrap head">
     <a class="brand" href="/"><img class="brand-logo" src="data:image/png;base64,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" alt="Yuvion" /><span><small>AI-карточки товаров</small></span></a>
@@ -140,34 +172,40 @@
 <main>
 <div class="wrap">
   <section class="hero hero-shell">
-    <div class="eyebrow">Сервис для арендаторов Yuvion</div>
-    <h1>Одно фото → готовая карточка товара</h1>
-    <p>Сначала ИИ анализирует товар. Вы проверяете и редактируете результат, а затем при необходимости создаёте четыре продающих изображения 900×1200.</p>
+    <div class="eyebrow">Yuvion AI · быстрый рабочий режим</div>
+    <h1>Фото → проверить → Yuvion</h1>
+    <p>Добавьте фотографию. Сервис подготовит данные и изображения, покажет, что требуется проверить, и соберёт пакет для личного кабинета.</p>
     <div class="hero-badges">
-      <span class="hero-badge"><span class="hero-dot"></span>Без выдуманных характеристик</span>
-      <span class="hero-badge"><span class="hero-dot"></span>4 карточки 900×1200</span>
-      <span class="hero-badge"><span class="hero-dot"></span>Экспорт под Yuvion</span>
+      <span class="hero-badge"><span class="hero-dot"></span>Характеристики не выдумываются</span>
+      <span class="hero-badge"><span class="hero-dot"></span>Черновики сохраняются локально</span>
+      <span class="hero-badge"><span class="hero-dot"></span>Yuvion Helper 2.0</span>
     </div>
   </section>
 
   <nav class="workflow" id="workflow" aria-label="Этапы подготовки товара">
     <div class="workflow-step active" id="stepPhoto"><span class="n"><span>1</span></span><span>Фото</span></div>
-    <div class="workflow-step" id="stepData"><span class="n"><span>2</span></span><span>Данные</span></div>
+    <div class="workflow-step" id="stepData"><span class="n"><span>2</span></span><span>Проверить</span></div>
     <div class="workflow-step" id="stepCards"><span class="n"><span>3</span></span><span>Карточки</span></div>
-    <div class="workflow-step" id="stepExport"><span class="n"><span>4</span></span><span>Yuvion</span></div>
+    <div class="workflow-step" id="stepExport"><span class="n"><span>3</span></span><span>Yuvion</span></div>
   </nav>
 
+  <section class="focus-panel" id="focusPanel">
+    <div class="focus-copy"><span>Следующее действие</span><b id="focusTitle">Добавьте фото товара</b><small id="focusText">Одной фотографии достаточно, чтобы начать подготовку.</small></div>
+    <button class="btn btn-primary" id="focusAction">Выбрать фото</button>
+  </section>
+
   <div class="smart-strip">
-    <div><strong>Рабочий процесс без лишних действий</strong><br><span>Фото → проверка данных → изображения → перенос в личный кабинет.</span></div>
+    <div><strong>Простой режим</strong><br><span>Показываем только действия, необходимые для текущего товара.</span></div>
     <div class="smart-strip-actions">
-      <button class="smart-pill" id="jumpBatch">Пакет до 10 товаров</button>
-      <button class="smart-pill" id="jumpHistory">Каталог черновиков</button>
-      <button class="smart-pill" id="openIntake">Приёмка товара</button>
-      <button class="smart-pill" id="jumpProblems">Центр проблем</button>
-      <button class="smart-pill" id="jumpAnalytics">Аналитика</button>
-      <button class="smart-pill" id="importSecureProduct">Импорт .yuvion</button>
+      <button class="smart-pill" id="jumpHistory">Каталог</button>
+      <button class="smart-pill advanced-tool" id="jumpBatch">Пакет до 10 товаров</button>
+      <button class="smart-pill advanced-tool" id="openIntake">Приёмка</button>
+      <button class="smart-pill advanced-tool" id="jumpProblems">Проблемы</button>
+      <button class="smart-pill advanced-tool" id="jumpAnalytics">Аналитика</button>
+      <button class="smart-pill advanced-tool" id="importSecureProduct">Импорт .yuvion</button>
       <input id="importSecureProductFile" type="file" accept=".yuvion,application/json" hidden />
-      <button class="smart-pill" id="installApp" style="display:none">Установить приложение</button>
+      <button class="smart-pill" id="installApp" style="display:none">Установить</button>
+      <button class="smart-pill ui-mode-pill" id="uiModeToggle">Расширенный режим</button>
     </div>
   </div>
 
@@ -299,7 +337,7 @@
 
   <section class="workspace" id="workspace">
     <div class="workspace-head">
-      <div><div class="section-kicker">Этап 2 · Данные товара</div><h2>Проверьте данные</h2><div class="muted" id="confidence"></div><div class="save-state saved" id="saveState" style="margin-top:7px">Изменения сохраняются автоматически</div></div>
+      <div><div class="section-kicker">Проверка товара</div><h2>Проверьте данные</h2><div class="muted" id="confidence"></div><div class="save-state saved" id="saveState" style="margin-top:7px">Изменения сохраняются автоматически</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" id="saveRevision">Сохранить версию</button><button class="btn btn-ghost" id="similarProduct">Создать похожий</button><button class="btn btn-ghost" id="newProduct">Новый товар</button></div>
     </div>
     <details class="revision-box" id="revisionBox"><summary>Версии товара <span class="muted" id="revisionCount" style="font-size:10px">0 сохранённых</span></summary><div class="revision-body"><div class="revision-list" id="revisionList"></div></div></details>
@@ -350,8 +388,8 @@
     </section>
 
     <section class="editor">
-      <div class="section-kicker">Редактор</div><h3>Редактирование перед генерацией</h3>
-      <div class="editor-sub">Все поля ниже можно исправить. Именно эти данные попадут в текст и инфографику.</div><div class="notice" style="margin-top:0;margin-bottom:16px">Slug здесь не нужен — личный кабинет Yuvion формирует его автоматически из названия. SKU в кабинете = артикул товара.</div>
+      <div class="section-kicker">Основные данные</div><h3>Проверьте ключевые поля</h3>
+      <div class="editor-sub">Исправьте только то, что требуется. В расширенном режиме доступны SEO-поля, версии, вариации и дополнительные инструменты.</div><div class="notice" style="margin-top:0;margin-bottom:16px">Slug здесь не нужен — личный кабинет Yuvion формирует его автоматически из названия. SKU в кабинете = артикул товара.</div>
 
       <div class="form-grid">
         <div class="field full"><label>SEO-заголовок</label><input id="edTitle" /></div>
@@ -409,12 +447,13 @@
     </section>
 
     <section class="yuvion-export" id="yuvionExport">
-      <div class="section-kicker">Этап 4 · Публикация</div><div class="export-head">
+      <div class="section-kicker">Финал · Yuvion</div><div class="export-head">
         <div>
           <h2>Данные для личного кабинета Yuvion</h2>
           <p>Поля расположены в логике формы admin.yuvion.ru. Slug не выводим — он создаётся в кабинете автоматически из названия.</p>
         </div>
         <div class="export-actions">
+          <button class="btn btn-ghost simple-only" id="toggleExportDetails">Показать все поля</button>
           <button class="btn btn-ghost" id="copyYuvionAll">Скопировать всё</button>
           <a class="btn btn-primary" href="https://admin.yuvion.ru/" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Открыть кабинет</a>
         </div>
@@ -443,7 +482,7 @@
     </section>
 
     <section class="creative" id="creative">
-      <div class="section-kicker">Этап 3 · Визуалы</div><div class="creative-top">
+      <div class="section-kicker">Изображения</div><div class="creative-top">
         <div><h2>Готовые карточки</h2><p>Если не нравится только одна из четырёх — переделайте именно её, не оплачивая повторную генерацию остальных.</p></div>
         <div class="creative-actions">
           <a class="btn btn-ghost" href="https://admin.yuvion.ru/" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Открыть личный кабинет</a>
@@ -487,6 +526,7 @@
         <div class="history-sub">Фото, тексты, карточки и статусы хранятся только в этом браузере. Сервер и админ-панель не получают каталог арендатора или его персональные данные.</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-small simple-only" id="hideCatalogSimple">Скрыть каталог</button>
         <span class="privacy-inline">Приватно на устройстве</span>
         <button class="btn btn-primary btn-small" id="openNextTask">Открыть следующий</button>
         <div class="backup-actions">
@@ -550,6 +590,7 @@
   <div class="dock-actions">
     <button class="dock-btn" id="dockData">Данные</button>
     <button class="dock-btn" id="dockCards">Карточки</button>
+    <button class="dock-btn primary simple-only" id="dockNext">Продолжить</button>
     <button class="dock-btn primary" id="dockYuvion">Yuvion</button>
   </div>
 </div>
@@ -665,6 +706,14 @@ const bulkPublish=document.getElementById('bulkPublish');
 const bulkDraft=document.getElementById('bulkDraft');
 const bulkDelete=document.getElementById('bulkDelete');
 const bulkClear=document.getElementById('bulkClear');
+const uiModeToggle=document.getElementById('uiModeToggle');
+const focusPanel=document.getElementById('focusPanel');
+const focusTitle=document.getElementById('focusTitle');
+const focusText=document.getElementById('focusText');
+const focusAction=document.getElementById('focusAction');
+const toggleExportDetails=document.getElementById('toggleExportDetails');
+const hideCatalogSimple=document.getElementById('hideCatalogSimple');
+const dockNext=document.getElementById('dockNext');
 
 const editor={
   title:document.getElementById('edTitle'),
@@ -1920,6 +1969,66 @@ function renderReadiness(){
   renderProductCockpit();
 }
 
+const UI_MODE_KEY='yuvionUiModeV1';
+
+function markAdvancedFields(){
+  ['edKeywords','edShort','edBenefits','edUsage'].forEach(id=>document.getElementById(id)?.closest('.field')?.classList.add('advanced-only-block'));
+  ['extraSize','extraMaterial','extraPrice2','extraPrice3','extraOldPrice'].forEach(id=>document.getElementById(id)?.closest('.extra-field')?.classList.add('advanced-only-block'));
+  document.getElementById('copyText')?.classList.add('advanced-only-inline');
+}
+function isSimpleUi(){return document.body.classList.contains('simple-ui')}
+function applyUiMode(mode,{save=true}={}){
+  const simple=mode!=='advanced';
+  document.body.classList.toggle('simple-ui',simple);
+  if(!simple){document.body.classList.remove('show-catalog','export-details-open')}
+  if(uiModeToggle)uiModeToggle.textContent=simple?'Расширенный режим':'Простой режим';
+  const strong=document.querySelector('.smart-strip>div:first-child strong');
+  const note=document.querySelector('.smart-strip>div:first-child span');
+  if(strong)strong.textContent=simple?'Простой режим':'Расширенный режим';
+  if(note)note.textContent=simple?'Показываем только действия, необходимые для текущего товара.':'Все инструменты каталога, склада, batch, правил и версий доступны на экране.';
+  if(save)localStorage.setItem(UI_MODE_KEY,simple?'simple':'advanced');
+  renderFocusPanel();
+  updateWorkflow();
+}
+function initUiMode(){
+  markAdvancedFields();
+  const saved=localStorage.getItem(UI_MODE_KEY);
+  applyUiMode(saved==='advanced'?'advanced':'simple',{save:false});
+}
+function renderFocusPanel(){
+  if(!focusPanel)return;
+  const hasPhoto=Boolean(selectedFile||sourceDataUrl);
+  if(!hasPhoto){
+    focusTitle.textContent='Добавьте фото товара';
+    focusText.textContent='Одной фотографии достаточно, чтобы начать подготовку.';
+    focusAction.textContent='Выбрать фото';
+    focusAction.disabled=false;
+    return;
+  }
+  if(!currentData){
+    focusTitle.textContent='Фото готово — запустите анализ';
+    focusText.textContent='ИИ подготовит название, категорию, описание и характеристики без выдумывания неизвестных параметров.';
+    focusAction.textContent='Проанализировать';
+    focusAction.disabled=Boolean(busy);
+    return;
+  }
+  const info=readinessInfo();
+  const pseudo={id:currentHistoryId,data:collectEdits(),extraData:collectExtraData(),privateData:collectPrivateData(),sourceDataUrl:sourceDataUrl||(selectedFile?'selected-file':''),cards:currentCards,moderation:currentModeration};
+  let action=nextActionForItem(pseudo,[]);
+  if(duplicateSkuId)action={key:'sku',label:'Исправить SKU'};
+  else if(duplicateBarcodeId)action={key:'sku',label:'Исправить штрихкод'};
+  if(info.percent===100){
+    focusTitle.textContent='Товар готов к Yuvion';
+    focusText.textContent='Проверка готовности завершена. Можно открыть кабинет или перенести данные через Helper.';
+    focusAction.textContent='Перейти к Yuvion';
+  }else{
+    focusTitle.textContent=action.label;
+    focusText.textContent='Готовность '+info.percent+'%. Сервис откроет именно тот шаг, который сейчас нужен.';
+    focusAction.textContent='Продолжить';
+  }
+  focusAction.disabled=false;
+}
+
 function setStep(el,state){
   el.classList.remove('active','done');
   if(state)el.classList.add(state);
@@ -1932,13 +2041,21 @@ function updateWorkflow(){
   const cardsDone=currentCards.length===4;
   const ready=readinessInfo().percent===100;
 
-  const states=[
-    hasPhoto?'done':'active',
-    dataDone?'done':hasData?'active':'',
-    cardsDone?'done':dataDone?'active':'',
-    ready?'done':cardsDone?'active':''
-  ];
-  [stepPhoto,stepData,stepCards,stepExport].forEach((el,i)=>setStep(el,states[i]));
+  if(isSimpleUi()){
+    setStep(stepPhoto,hasPhoto?'done':'active');
+    setStep(stepData,ready?'done':hasData?'active':'');
+    setStep(stepCards,'');
+    setStep(stepExport,ready?'done':cardsDone?'active':'');
+  }else{
+    const states=[
+      hasPhoto?'done':'active',
+      dataDone?'done':hasData?'active':'',
+      cardsDone?'done':dataDone?'active':'',
+      ready?'done':cardsDone?'active':''
+    ];
+    [stepPhoto,stepData,stepCards,stepExport].forEach((el,i)=>setStep(el,states[i]));
+  }
+  renderFocusPanel();
 
   stickyDock.classList.toggle('show',hasPhoto||hasData);
   if(!hasData){
@@ -4412,7 +4529,23 @@ bulkDraft.onclick=()=>bulkSetPublished(false);
 bulkDelete.onclick=()=>bulkDeleteSelected();
 
 document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
-document.getElementById('jumpHistory').onclick=()=>document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+document.getElementById('jumpHistory').onclick=()=>{
+  if(isSimpleUi())document.body.classList.add('show-catalog');
+  document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+};
+uiModeToggle.onclick=()=>applyUiMode(isSimpleUi()?'advanced':'simple');
+hideCatalogSimple.onclick=()=>{document.body.classList.remove('show-catalog');document.getElementById('focusPanel')?.scrollIntoView({behavior:'smooth',block:'start'})};
+toggleExportDetails.onclick=()=>{
+  document.body.classList.toggle('export-details-open');
+  toggleExportDetails.textContent=document.body.classList.contains('export-details-open')?'Скрыть поля':'Показать все поля';
+};
+focusAction.onclick=()=>{
+  const hasPhoto=Boolean(selectedFile||sourceDataUrl);
+  if(!hasPhoto){fileInput.click();return}
+  if(!currentData){analyzeBtn.click();return}
+  if(readinessInfo().percent===100){document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});return}
+  autopilotCurrentProduct();
+};
 document.getElementById('jumpProblems').onclick=()=>document.getElementById('problemCenter').scrollIntoView({behavior:'smooth',block:'start'});
 document.getElementById('jumpAnalytics').onclick=()=>{document.getElementById('analyticsPanel').open=true;document.getElementById('analyticsPanel').scrollIntoView({behavior:'smooth',block:'start'})};
 document.getElementById('autopilotAction').onclick=()=>autopilotCurrentProduct();
@@ -4432,13 +4565,14 @@ document.querySelectorAll('[data-product-jump]').forEach(btn=>btn.onclick=()=>{
 });
 dockData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
 dockCards.onclick=()=>document.getElementById('generateAll')?.scrollIntoView({behavior:'smooth',block:'center'});
+dockNext.onclick=()=>focusAction.click();
 dockYuvion.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepPhoto.onclick=()=>document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-renderProfile();applySellerDefaults();renderStoreRules();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+initUiMode();renderProfile();applySellerDefaults();renderStoreRules();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
