@@ -589,8 +589,9 @@ app.get("/m/memorial/:id", async (req,res) => {
           <a class="btn secondary" href="/api/events/${encodeURIComponent(e.id)}.ics${accessSuffix}">Apple / ICS</a>
           <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(google)}">Google Calendar</a>
           <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(outlook)}">Outlook</a>
-          <button class="btn secondary" id="shareMemorial">Поделиться</button>
-          <a class="btn secondary" target="_blank" rel="noopener" href="/api/events/${encodeURIComponent(e.id)}/share-card.svg${accessSuffix}">Карточка для мессенджеров</a>
+          <button class="btn secondary" id="shareMemorial">Поделиться ссылкой</button>
+          <button class="btn secondary" id="shareCardPng">PNG-карточка</button>
+          <a class="btn secondary" target="_blank" rel="noopener" href="/api/events/${encodeURIComponent(e.id)}/share-card.svg${accessSuffix}">Открыть SVG</a>
           <a class="btn secondary" href="/m/memorial/${encodeURIComponent(e.id)}/print${accessSuffix}">Печатная карточка</a>
         </div>
       </div>
@@ -683,6 +684,35 @@ app.get("/m/memorial/:id", async (req,res) => {
       });
       loadRsvp();
       document.getElementById("shareMemorial").onclick=async()=>{try{if(navigator.share)await navigator.share({title:${JSON.stringify(e.full_name)},url:location.href});else{await navigator.clipboard.writeText(location.href);say("Ссылка скопирована.")}}catch{}};
+      document.getElementById("shareCardPng").onclick=async()=>{
+        try{
+          const canvas=document.createElement("canvas");canvas.width=1080;canvas.height=1350;const ctx=canvas.getContext("2d");
+          ctx.fillStyle="#f5f1e8";ctx.fillRect(0,0,1080,1350);ctx.fillStyle="#fffdf8";ctx.strokeStyle="#cfc2ad";ctx.lineWidth=3;
+          ctx.beginPath();ctx.roundRect(54,54,972,1242,38);ctx.fill();ctx.stroke();
+          ctx.textAlign="center";ctx.fillStyle="#4c3e2d";ctx.font="58px serif";ctx.fillText("✡",540,165);
+          ctx.font="42px serif";ctx.fillText("נר נשמה",540,235);
+          ctx.strokeStyle="#cfc2ad";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(270,285);ctx.lineTo(810,285);ctx.stroke();
+          function wrap(text,maxWidth,font){
+            ctx.font=font;const words=String(text||"").split(/\s+/),lines=[];let line="";
+            for(const w of words){const test=(line+" "+w).trim();if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=w}else line=test}
+            if(line)lines.push(line);return lines.slice(0,4);
+          }
+          ctx.fillStyle="#211d18";ctx.font="bold 64px sans-serif";
+          const nameLines=wrap(${JSON.stringify(e.full_name)},850,"bold 64px sans-serif");
+          nameLines.forEach((line,i)=>ctx.fillText(line,540,430+i*76));
+          ctx.fillStyle="#5b4934";ctx.font="38px sans-serif";ctx.fillText(${JSON.stringify(e.event_type||"Памятная дата")},540,770);
+          ctx.fillStyle="#27231e";ctx.font="36px sans-serif";ctx.fillText(${JSON.stringify((e.event_date||"")+(e.event_time?" · "+e.event_time:""))},540,830);
+          ctx.fillStyle="#746d63";ctx.font="28px sans-serif";ctx.fillText(${JSON.stringify([e.place,e.city].filter(Boolean).join(" · "))},540,885);
+          ${e.hebrew_death_label?'ctx.font="27px sans-serif";ctx.fillText('+JSON.stringify(e.hebrew_death_label)+',540,935);':""}
+          const qr=new Image();qr.src="/qr/event/${encodeURIComponent(e.id)}.svg${accessSuffix}";
+          await new Promise((resolve,reject)=>{qr.onload=resolve;qr.onerror=reject});ctx.drawImage(qr,410,1015,260,260);
+          ctx.font="24px sans-serif";ctx.fillStyle="#5b4934";ctx.fillText("Память Джуури",540,1315);
+          const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png",0.95));if(!blob)throw new Error("png_failed");
+          const file=new File([blob],"pamyat-"+${JSON.stringify(e.id)}+".png",{type:"image/png"});
+          if(navigator.canShare?.({files:[file]})&&navigator.share)await navigator.share({title:${JSON.stringify(e.full_name)},files:[file]});
+          else{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+        }catch{say("Не удалось подготовить PNG-карточку.",false)}
+      };
       document.getElementById("sendClaim").onclick=async()=>{
         const body={claimant_name:document.getElementById("claimName").value,relation_type:document.getElementById("claimRelation").value,contact:document.getElementById("claimContact").value,evidence_note:document.getElementById("claimEvidence").value};
         const r=await fetch("/api/events/${req.params.id}/relative-claim",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
