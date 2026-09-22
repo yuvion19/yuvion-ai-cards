@@ -36,6 +36,16 @@ const BACKUP_WEBHOOK_URL = process.env.BACKUP_WEBHOOK_URL || "";
 const BACKUP_WEBHOOK_TOKEN = process.env.BACKUP_WEBHOOK_TOKEN || "";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const identifyUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 900000 }, fileFilter: (_req,file,cb)=>cb(null,/^image\//.test(file.mimetype)) });
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 1500000 },
+  fileFilter: (_req,file,cb)=>cb(null,["image/jpeg","image/png","image/webp"].includes(file.mimetype))
+});
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2500000 },
+  fileFilter: (_req,file,cb)=>cb(null,/csv|text\/plain|application\/vnd.ms-excel/i.test(file.mimetype||"") || /\.csv$/i.test(file.originalname||""))
+});
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -1529,6 +1539,16 @@ app.get("/api/events", async (req, res) => {
   }
 });
 
+app.get("/api/events/:eventId/photo", async (req,res) => {
+  try{
+    const p=await sb("rpc/memorial_public_photo",{method:"POST",body:{p_event_id:req.params.eventId}});
+    if(!p?.base64)return res.status(404).end();
+    const buf=Buffer.from(p.base64,"base64");
+    res.setHeader("Cache-Control","public,max-age=300");
+    res.type(p.mime||"image/jpeg").send(buf);
+  }catch(e){res.status(404).end()}
+});
+
 app.get("/api/events/:eventId", async (req, res) => {
   try {
     const data = await sb("rpc/memorial_public_event_detail", {
@@ -2462,6 +2482,224 @@ app.post("/api/admin/moderation/:kind/:id/:action", requireAdmin, async (req,res
     const data=await sb("rpc/memorial_admin_moderation_action",{method:"POST",body:{p_token:ADMIN_TOKEN,p_kind:clean(req.params.kind,30),p_id:req.params.id,p_action:clean(req.params.action,30)}});
     res.json(data);
   }catch(e){console.error("moderation action",e.data||e);res.status(400).json({error:"moderation_failed"})}
+});
+
+
+app.get("/api/admin/users", requireOwner, async (_req,res) => {
+  try{
+    const data=await sb("rpc/memorial_admin_users_list",{method:"POST",body:{p_token:ADMIN_TOKEN}});
+    res.json(data||[]);
+  }catch(e){console.error("admin users",e.data||e);res.status(500).json({error:"users_failed"})}
+});
+
+app.post("/api/admin/users", requireOwner, async (req,res) => {
+  try{
+    const email=clean(req.body?.email,180).toLowerCase();
+    const role=clean(req.body?.role,20);
+    const displayName=clean(req.body?.display_name,120)||null;
+    if(!validReminderEmail(email))return res.status(400).json({error:"valid_email_required"});
+    if(!["owner","admin","moderator"].includes(role))return res.status(400).json({error:"bad_role"});
+    const data=await sb("rpc/memorial_admin_set_user",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_email:email,p_role:role,p_active:req.body?.active!==false,p_display_name:displayName
+    }});
+    res.json(data);
+  }catch(e){console.error("admin set user",e.data||e);res.status(500).json({error:"user_update_failed"})}
+});
+
+app.post("/api/admin/users/password", requireOwner, rateLimit("admin-user-password",12,60*60*1000), async (req,res) => {
+  try{
+    const email=clean(req.body?.email,180).toLowerCase();
+    const password=String(req.body?.password||"");
+    if(!validReminderEmail(email))return res.status(400).json({error:"valid_email_required"});
+    if(password.length<12||password.length>200)return res.status(400).json({error:"password_min_12"});
+    const salt=crypto.randomBytes(16).toString("hex");
+    const hash=crypto.scryptSync(password,salt,64).toString("hex");
+    const ok=await sb("rpc/memorial_admin_set_password",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email,p_salt:salt,p_hash:hash}});
+    if(!ok)return res.status(404).json({error:"admin_not_found"});
+    res.json({ok:true});
+  }catch(e){console.error("admin set password",e.data||e);res.status(500).json({error:"password_update_failed"})}
+});
+
+app.post("/api/admin/auth/revoke-all", requireAdmin, async (req,res) => {
+  try{
+    const email=req.adminIdentity?.email;
+    if(!email||email==="token-admin")return res.status(400).json({error:"session_not_revocable"});
+    await sb("rpc/memorial_admin_revoke_sessions",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
+    res.setHeader("Set-Cookie","pamyat_admin_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+    res.json({ok:true});
+  }catch(e){console.error("revoke all",e.data||e);res.status(500).json({error:"revoke_failed"})}
+});
+
+app.get("/api/admin/trash", requireAdminRole, async (_req,res) => {
+  try{res.json(await sb("rpc/memorial_admin_trash_list",{method:"POST",body:{p_token:ADMIN_TOKEN}}))}
+  catch(e){console.error("trash list",e.data||e);res.status(500).json({error:"trash_failed"})}
+});
+
+app.post("/api/admin/events/:eventId/edit", requireAdminRole, async (req,res) => {
+  try{
+    const p=req.body||{};
+    const patch={
+      full_name:clean(p.full_name,180),
+      death_date:clean(p.death_date,10),
+      event_type:clean(p.event_type,80),
+      event_date:clean(p.event_date,10),
+      event_time:clean(p.event_time,20),
+      city:clean(p.city,120),
+      place:clean(p.place,180),
+      note:clean(p.note,1500),
+      hebrew_death_label:clean(p.hebrew_death_label,120),
+      yahrzeit_date:clean(p.yahrzeit_date,10),
+      yahrzeit_rule:["standard","adar_i","adar_ii","family_custom","manual"].includes(p.yahrzeit_rule)?p.yahrzeit_rule:"standard",
+      family_verified:Boolean(p.family_verified),
+      source_verified:Boolean(p.source_verified),
+      urgent:Boolean(p.urgent)
+    };
+    if(patch.death_date&&!validDate(patch.death_date))return res.status(400).json({error:"bad_death_date"});
+    if(patch.event_date&&!validDate(patch.event_date))return res.status(400).json({error:"bad_event_date"});
+    if(patch.yahrzeit_date&&!validDate(patch.yahrzeit_date))return res.status(400).json({error:"bad_yahrzeit_date"});
+    const data=await sb("rpc/memorial_admin_update_event",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId,p_patch:patch}});
+    res.json(data);
+  }catch(e){console.error("event edit",e.data||e);res.status(500).json({error:"edit_failed"})}
+});
+
+app.post("/api/admin/events/:eventId/trash", requireAdminRole, async (req,res) => {
+  try{res.json(await sb("rpc/memorial_admin_trash_person",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}}))}
+  catch(e){console.error("trash person",e.data||e);res.status(500).json({error:"trash_failed"})}
+});
+
+app.post("/api/admin/events/:eventId/restore", requireAdminRole, async (req,res) => {
+  try{res.json(await sb("rpc/memorial_admin_restore_person",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}}))}
+  catch(e){console.error("restore person",e.data||e);res.status(500).json({error:"restore_failed"})}
+});
+
+app.post("/api/admin/events/:eventId/purge", requireOwner, async (req,res) => {
+  try{
+    if(String(req.body?.confirm||"")!=="PURGE")return res.status(400).json({error:"confirm_purge_required"});
+    res.json(await sb("rpc/memorial_admin_purge_person",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}}));
+  }catch(e){console.error("purge person",e.data||e);res.status(500).json({error:"purge_failed"})}
+});
+
+app.post("/api/admin/events/:eventId/merge", requireAdminRole, async (req,res) => {
+  try{
+    const duplicateId=clean(req.body?.duplicate_id,50);
+    if(!/^[0-9a-f-]{36}$/i.test(duplicateId))return res.status(400).json({error:"duplicate_id_required"});
+    res.json(await sb("rpc/memorial_admin_merge_events",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_keep_id:req.params.eventId,p_duplicate_id:duplicateId
+    }}));
+  }catch(e){console.error("merge events",e.data||e);res.status(400).json({error:"merge_failed"})}
+});
+
+app.post("/api/admin/events/:eventId/photo", requireAdminRole, photoUpload.single("photo"), async (req,res) => {
+  try{
+    if(!req.file)return res.status(400).json({error:"photo_required"});
+    const b64=req.file.buffer.toString("base64");
+    await sb("rpc/memorial_admin_set_photo",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_event_id:req.params.eventId,p_mime:req.file.mimetype,p_base64:b64
+    }});
+    res.json({ok:true});
+  }catch(e){console.error("photo upload",e.data||e);res.status(500).json({error:"photo_failed"})}
+});
+
+app.delete("/api/admin/events/:eventId/photo", requireAdminRole, async (req,res) => {
+  try{
+    await sb("rpc/memorial_admin_remove_photo",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}});
+    res.json({ok:true});
+  }catch(e){console.error("photo remove",e.data||e);res.status(500).json({error:"photo_remove_failed"})}
+});
+
+app.get("/api/admin/export.json", requireAdminRole, async (_req,res) => {
+  try{
+    const data=await sb("rpc/memorial_admin_export",{method:"POST",body:{p_token:ADMIN_TOKEN}});
+    res.setHeader("Content-Disposition",'attachment; filename="pamyat-export.json"');
+    res.type("application/json; charset=utf-8").send(JSON.stringify(data,null,2));
+  }catch(e){res.status(500).json({error:"export_failed"})}
+});
+
+app.get("/api/admin/export.csv", requireAdminRole, async (_req,res) => {
+  try{
+    const data=await sb("rpc/memorial_admin_export",{method:"POST",body:{p_token:ADMIN_TOKEN}});
+    const cols=["id","full_name","death_date","event_type","event_date","event_time","city","place","status","visibility","family_verified","source_verified","urgent","hebrew_death_label","yahrzeit_date","note"];
+    const safe=v=>{
+      let s=String(v??"");
+      if(/^[=+\-@]/.test(s))s="'"+s;
+      return csvCell(s);
+    };
+    const lines=[cols.join(",")].concat((data.events||[]).map(e=>cols.map(k=>safe(e[k])).join(",")));
+    res.setHeader("Content-Disposition",'attachment; filename="pamyat-events.csv"');
+    res.type("text/csv; charset=utf-8").send("\uFEFF"+lines.join("\n"));
+  }catch(e){res.status(500).json({error:"export_failed"})}
+});
+
+app.get("/api/admin/export.xls", requireAdminRole, async (_req,res) => {
+  try{
+    const data=await sb("rpc/memorial_admin_export",{method:"POST",body:{p_token:ADMIN_TOKEN}});
+    const cols=["full_name","death_date","event_type","event_date","city","place","status","family_verified","hebrew_death_label","yahrzeit_date","note"];
+    const xe=v=>String(v??"").replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));
+    const rows=(data.events||[]).map(e=>"<Row>"+cols.map(k=>"<Cell><Data ss:Type=\"String\">"+xe(e[k])+"</Data></Cell>").join("")+"</Row>").join("");
+    const head="<Row>"+cols.map(k=>"<Cell><Data ss:Type=\"String\">"+xe(k)+"</Data></Cell>").join("")+"</Row>";
+    const xml='<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Events"><Table>'+head+rows+'</Table></Worksheet></Workbook>';
+    res.setHeader("Content-Disposition",'attachment; filename="pamyat-events.xls"');
+    res.type("application/vnd.ms-excel; charset=utf-8").send(xml);
+  }catch(e){res.status(500).json({error:"export_failed"})}
+});
+
+app.post("/api/admin/import/preview", requireAdminRole, csvUpload.single("file"), async (req,res) => {
+  try{
+    if(!req.file)return res.status(400).json({error:"file_required"});
+    const raw=req.file.buffer.toString("utf8").replace(/^\uFEFF/,"");
+    const rows=parse(raw,{columns:true,skip_empty_lines:true,trim:true,bom:true,relax_column_count:true}).slice(0,500);
+    const normalized=rows.map((r,i)=>{
+      const x={
+        row:i+2,
+        full_name:clean(r.full_name||r.name||r["ФИО"],180),
+        death_date:clean(r.death_date||r["Дата смерти"],10),
+        event_type:clean(r.event_type||r["Тип события"],80)||"Памятная дата",
+        event_date:clean(r.event_date||r["Дата события"],10),
+        city:clean(r.city||r["Город"],120),
+        place:clean(r.place||r["Место"],180),
+        note:clean(r.note||r["Комментарий"],1500)
+      };
+      const errors=[];
+      if(!x.full_name)errors.push("full_name");
+      if(x.death_date&&!validDate(x.death_date))errors.push("death_date");
+      if(x.event_date&&!validDate(x.event_date))errors.push("event_date");
+      if(!x.event_date&&validDate(x.death_date))x.event_date=x.death_date;
+      return {...x,errors};
+    });
+    res.json({ok:true,total:normalized.length,valid:normalized.filter(x=>!x.errors.length).length,rows:normalized});
+  }catch(e){console.error("import preview",e);res.status(400).json({error:"csv_invalid"})}
+});
+
+app.post("/api/admin/import/commit", requireAdminRole, async (req,res) => {
+  try{
+    const rows=Array.isArray(req.body?.rows)?req.body.rows.slice(0,500):[];
+    let created=0,skipped=0,invalid=0;
+    const inserts=[];
+    for(const raw of rows){
+      const fullName=clean(raw.full_name,180);
+      const deathDate=clean(raw.death_date,10);
+      const eventDate=clean(raw.event_date,10);
+      if(!fullName||!validDate(eventDate)||(deathDate&&!validDate(deathDate))){invalid++;continue}
+      const dup=await sb("rpc/memorial_duplicate_candidates",{method:"POST",body:{p_full_name:fullName,p_death_date:deathDate||null}});
+      if(Array.isArray(dup)&&dup.length&&!req.body?.allow_duplicates){skipped++;continue}
+      const heb=deathDate?hebrewLabel(deathDate):null;
+      inserts.push({
+        id:id(),full_name:fullName,death_date:deathDate||null,
+        event_type:clean(raw.event_type,80)||"Памятная дата",
+        event_date:eventDate,event_time:null,city:clean(raw.city,120)||null,place:clean(raw.place,180)||null,
+        cemetery_link:null,note:clean(raw.note,1500)||null,visibility:"public",status:"pending",
+        relation_confirmed:true,family_verified:false,publish_day7:false,publish_day40:false,publish_year1:false,publish_annual:false,
+        derived:{imported:true},submitter_name:"Админ-импорт",submitter_contact:null,
+        hebrew_death_label:heb,yahrzeit_date:deathDate?nextYahrzeit(deathDate,new Date(),"standard"):null,
+        cemetery_record_key:null,source_verified:false,quality_status:"needs_review",urgent:false,hebrew_after_sunset:false,yahrzeit_rule:"standard"
+      });
+    }
+    if(inserts.length){
+      await sb("memorial_events",{method:"POST",body:inserts,prefer:"return=minimal"});
+      created=inserts.length;
+    }
+    res.json({ok:true,created,skipped_duplicates:skipped,invalid});
+  }catch(e){console.error("import commit",e.data||e);res.status(500).json({error:"import_failed"})}
 });
 
 app.get("/api/admin/stats", requireAdmin, async (_req,res) => {
