@@ -1254,6 +1254,16 @@ app.get("/m/admin", (_req,res) => {
       <div id="mAdminExtras"></div>
       <h2 style="font-size:20px;margin:22px 0 8px">Доставка уведомлений</h2>
       <div id="mAdminDelivery"></div>
+
+      <h2 style="font-size:20px;margin:22px 0 8px">Группы получателей</h2>
+      <div class="card">
+        <p class="muted">Системные группы уже созданы. Ниже можно добавить свою группу для адресных уведомлений.</p>
+        <label>Код группы</label><input id="notifyGroupSlug" class="field" placeholder="naprimer-family-baku">
+        <label>Название</label><input id="notifyGroupName" class="field" placeholder="Семья в Баку">
+        <label>Описание</label><input id="notifyGroupDescription" class="field" placeholder="Кому предназначена группа">
+        <button id="saveNotifyGroup" class="btn" style="width:100%;margin-top:8px">Добавить / обновить группу</button>
+      </div>
+      <div id="adminNotifyGroups"></div>
     </div>
   `, { scripts: `<script>
   (()=>{
@@ -1262,7 +1272,7 @@ app.get("/m/admin", (_req,res) => {
     const fmt=v=>v?new Date(v).toLocaleString("ru-RU"):"—";
     const statusText={pending:"На проверке",approved:"Одобрено",rejected:"Отклонено",hidden:"Скрыто"};
     const tokenKey="pamyat_admin_session_token";
-    let timer=null,lastRows=[],me=null,importRows=[];
+    let timer=null,lastRows=[],me=null,importRows=[],notificationGroups=[];
 
     function token(){return sessionStorage.getItem(tokenKey)||""}
     async function api(url,opts={}){
@@ -1286,7 +1296,7 @@ app.get("/m/admin", (_req,res) => {
       out+='<button class="btn secondary" style="padding:8px 10px" data-detail="'+esc(e.id)+'">Детали</button>';
       if(e.status!=="approved")out+='<button class="btn" style="padding:8px 10px" data-action="approve" data-id="'+esc(e.id)+'">Одобрить</button>';
       if(e.status!=="rejected")out+='<button class="btn secondary" style="padding:8px 10px;background:#f5e2e2" data-action="reject" data-id="'+esc(e.id)+'">Отклонить</button>';
-      if(e.status==="approved")out+='<a class="btn secondary" style="padding:8px 10px" target="_blank" rel="noopener" href="/m/memorial/'+encodeURIComponent(e.id)+'">Публичная страница</a>';
+      if(e.status==="approved"&&e.visibility==="public")out+='<a class="btn secondary" style="padding:8px 10px" target="_blank" rel="noopener" href="/m/memorial/'+encodeURIComponent(e.id)+'">Публичная страница</a>';
       return out+'</div>';
     }
     function card(e){
@@ -1350,11 +1360,33 @@ app.get("/m/admin", (_req,res) => {
       qs("#mAdminExtras").querySelectorAll("[data-extra-kind]").forEach(b=>b.onclick=()=>extraAction(b.dataset.extraKind,b.dataset.extraId,b.dataset.extraAct).catch(e=>alert(e.message)));
     }
     async function loadDelivery(){
-      const d=await api("/api/admin/notifications?limit=40");
+      const d=await api("/api/admin/notifications?limit=40"),s=d.summary||{},by=s.by_channel||{};
       const rows=(d.attempts||[]).slice(0,40);
-      qs("#mAdminDelivery").innerHTML=rows.length?rows.map(x=>'<div class="card"><b>'+esc(x.channel.toUpperCase())+' · '+esc(x.full_name)+'</b>'+
+      const totals='<div class="card"><b>Итог доставки</b><div class="row" style="margin-top:8px">'+
+        '<span class="tag">Попытки: '+Number(s.attempts||0)+'</span><span class="tag">Успешно: '+Number(s.success||0)+'</span><span class="tag">Ошибки: '+Number(s.failed||0)+'</span><span class="tag">Доставлено: '+Number(s.deliveries||0)+'</span></div>'+
+        '<div class="muted" style="margin-top:8px">'+Object.entries(by).map(([k,v])=>esc(k.toUpperCase())+': '+Number(v.success||0)+' / '+Number(v.attempts||0)).join(' · ')+'</div></div>';
+      qs("#mAdminDelivery").innerHTML=totals+(rows.length?rows.map(x=>'<div class="card"><b>'+esc(x.channel.toUpperCase())+' · '+esc(x.full_name)+'</b>'+
         '<div>'+esc(x.event_type||"")+' · '+esc(x.event_date||"")+'</div><div class="muted">'+esc(fmt(x.attempted_at))+' · '+(x.success?"успешно":"ошибка")+
-        (x.detail?' · '+esc(x.detail):"")+'</div></div>').join(""):'<div class="card muted">Попыток доставки пока нет.</div>';
+        (x.detail?' · '+esc(x.detail):"")+'</div></div>').join(""):'<div class="card muted">Попыток доставки пока нет.</div>');
+    }
+
+    async function loadAdminGroups(){
+      notificationGroups=await api("/api/admin/notification-groups");
+      const wrap=qs("#adminNotifyGroups");
+      wrap.innerHTML=notificationGroups.map(g=>'<div class="card"><b>'+esc(g.name)+'</b> <span class="tag">'+esc(g.slug)+'</span>'+
+        '<div class="muted">'+esc(g.description||"")+' · '+(g.active?"активна":"отключена")+(g.system?" · системная":"")+'</div>'+
+        (!g.system?'<button class="btn secondary" data-group-toggle="'+esc(g.slug)+'" data-group-name="'+esc(g.name)+'" data-group-description="'+esc(g.description||"")+'" data-active="'+(g.active?"1":"0")+'" style="margin-top:8px">'+(g.active?"Отключить":"Включить")+'</button>':"")+
+        '</div>').join("")||'<div class="muted">Групп пока нет.</div>';
+      wrap.querySelectorAll("[data-group-toggle]").forEach(b=>b.onclick=async()=>{
+        await api("/api/admin/notification-groups",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+          slug:b.dataset.groupToggle,name:b.dataset.groupName,description:b.dataset.groupDescription,active:b.dataset.active!=="1"
+        })});await loadAdminGroups();
+      });
+    }
+    async function saveNotifyGroup(){
+      const slug=qs("#notifyGroupSlug").value.trim().toLowerCase(),name=qs("#notifyGroupName").value.trim(),description=qs("#notifyGroupDescription").value.trim();
+      await api("/api/admin/notification-groups",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({slug,name,description,active:true})});
+      qs("#notifyGroupSlug").value="";qs("#notifyGroupName").value="";qs("#notifyGroupDescription").value="";await loadAdminGroups();
     }
     async function downloadAdmin(url,name){
       const headers={};if(token())headers["x-admin-token"]=token();
@@ -1441,7 +1473,7 @@ app.get("/m/admin", (_req,res) => {
     async function load(){
       const q=qs("#mAdminSearch").value.trim(),status=qs("#mAdminStatus").value;
       const data=await api("/api/admin/events/list?"+new URLSearchParams({status,q,limit:"300"}));
-      render(data); await Promise.all([loadStats(),loadDelivery(),loadExtras()]);
+      render(data); await Promise.all([loadStats(),loadDelivery(),loadExtras(),loadAdminGroups()]);
     }
     async function showApp(){
       me=await api("/api/admin/auth/status");
@@ -1497,13 +1529,21 @@ app.get("/m/admin", (_req,res) => {
       await api("/api/admin/events/group/"+act,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ids})});await load();
     }
     async function detail(id){
-      const d=await api("/api/admin/events/"+encodeURIComponent(id)+"/details"),e=d.event||{};
+      if(!notificationGroups.length)await loadAdminGroups();
+      const [d,rsvp]=await Promise.all([
+        api("/api/admin/events/"+encodeURIComponent(id)+"/details"),
+        api("/api/admin/events/"+encodeURIComponent(id)+"/rsvp").catch(()=>({yes:0,no:0,follow:0,responses:[]}))
+      ]),e=d.event||{};
       const history=(d.history||[]).map(h=>'<div class="card"><b>'+esc(h.operation||"изменение")+'</b><div class="muted">'+esc(fmt(h.created_at))+'</div></div>').join("");
       const hidden=Boolean(e.trashed_at);
+      const privateSuffix=e.visibility==="public"?"":(e.share_token?"?key="+encodeURIComponent(e.share_token):"");
+      const viewUrl="/m/memorial/"+encodeURIComponent(id)+privateSuffix;
+      const audience=Array.isArray(e.audience_groups)&&e.audience_groups.length?e.audience_groups:["all"];
+      const groupChecks=notificationGroups.filter(g=>g.active).map(g=>'<label class="check"><input class="editAudienceGroup" type="checkbox" value="'+esc(g.slug)+'" '+(audience.includes(g.slug)?"checked":"")+'><span>'+esc(g.name)+'</span></label>').join("");
       qs("#mAdminDetail").innerHTML=
         '<div class="card" style="border-width:2px">'+badge(e)+
         '<h2>'+esc(e.full_name||"Без имени")+'</h2>'+
-        '<img id="detailPhotoPreview" src="/api/events/'+encodeURIComponent(id)+'/photo?v='+Date.now()+'" alt="Фото" style="width:160px;max-height:200px;object-fit:cover;border-radius:14px;display:block;margin:10px 0" onerror="this.style.display=\'none\'">'+
+        '<img id="detailPhotoPreview" src="/api/events/'+encodeURIComponent(id)+'/photo'+privateSuffix+(privateSuffix?'&':'?')+'v='+Date.now()+'" alt="Фото" style="width:160px;max-height:200px;object-fit:cover;border-radius:14px;display:block;margin:10px 0" onerror="this.style.display=\'none\'">'+
         '<label>Фото человека</label><input id="detailPhoto" class="field" type="file" accept="image/jpeg,image/png,image/webp">'+
         '<div class="row" style="margin-top:8px"><button class="btn secondary" id="uploadDetailPhoto">Загрузить фото</button><button class="btn secondary" id="removeDetailPhoto">Удалить фото</button></div>'+
         '<h3>Редактирование</h3>'+
@@ -1512,6 +1552,9 @@ app.get("/m/admin", (_req,res) => {
         '<label>Тип события</label><input id="editEventType" class="field" value="'+esc(e.event_type||"")+'">'+
         '<label>Дата события</label><input id="editEventDate" class="field" type="date" value="'+esc(e.event_date||"")+'">'+
         '<label>Время</label><input id="editEventTime" class="field" type="time" value="'+esc(e.event_time||"")+'">'+
+        '<label>Часовой пояс события</label><input id="editEventTimezone" class="field" value="'+esc(e.event_timezone||"Europe/Moscow")+'" placeholder="Europe/Moscow">'+
+        '<label>Приватность</label><select id="editVisibility" class="field"><option value="public" '+(e.visibility==="public"?"selected":"")+'>Публично</option><option value="link" '+(e.visibility==="link"?"selected":"")+'>Только по ссылке</option><option value="invited" '+(e.visibility==="invited"?"selected":"")+'>Только приглашённым</option></select>'+
+        '<label>Группы получателей</label><div class="card" style="padding:10px">'+groupChecks+'</div>'+
         '<label>Город</label><input id="editCity" class="field" value="'+esc(e.city||"")+'">'+
         '<label>Место</label><input id="editPlace" class="field" value="'+esc(e.place||"")+'">'+
         '<label>Комментарий</label><textarea id="editNote" class="field" rows="4">'+esc(e.note||"")+'</textarea>'+
@@ -1520,7 +1563,14 @@ app.get("/m/admin", (_req,res) => {
         '<div class="check"><input id="editFamilyVerified" type="checkbox" '+(e.family_verified?"checked":"")+'><span>Подтверждено семьёй</span></div>'+
         '<div class="check"><input id="editSourceVerified" type="checkbox" '+(e.source_verified?"checked":"")+'><span>Подтверждено источником</span></div>'+
         '<div class="check"><input id="editUrgent" type="checkbox" '+(e.urgent?"checked":"")+'><span>Срочное событие</span></div>'+
+        '<div class="card" style="margin-top:10px"><b>Ссылка на страницу</b><div class="muted">'+(e.visibility==="public"?"Публичная страница":e.visibility==="link"?"Доступ только по уникальной ссылке":"Доступ по приглашению / уникальной ссылке")+'</div>'+
+          '<div class="row" style="margin-top:8px"><a class="btn secondary" target="_blank" rel="noopener" href="'+esc(viewUrl)+'">Открыть</a><button class="btn secondary" id="copyPrivateLink">Копировать ссылку</button></div></div>'+
+        '<div class="card"><b>Подтверждения присутствия</b><div class="row" style="margin-top:8px"><span class="tag">Будут: '+Number(rsvp.yes||0)+'</span><span class="tag">Не смогут: '+Number(rsvp.no||0)+'</span><span class="tag">Ждут изменений: '+Number(rsvp.follow||0)+'</span></div></div>'+
         '<button class="btn" id="saveEventEdit" style="width:100%;margin-top:10px">Сохранить изменения</button>'+
+        '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">Рассылка</h3><p class="muted">Сначала просмотрите сообщение и количество адресатов. Для изменения времени/места по умолчанию выбираются только те, кто уже получал это событие.</p>'+
+          '<div class="row"><button class="btn secondary" id="previewUpdateBroadcast">Превью изменений</button><button class="btn secondary" id="previewReminderBroadcast">Превью напоминания</button></div>'+
+          '<div id="broadcastPreview" class="muted" style="margin-top:10px">Превью ещё не построено.</div>'+
+          '<div class="row" style="margin-top:8px"><button class="btn" id="sendUpdateBroadcast">Отправить изменения</button><button class="btn secondary" id="sendReminderBroadcast">Отправить напоминание</button></div></div>'+
         buttons(e)+
         '<h3>Дубликаты</h3><p class="muted">Укажите ID дублирующего события. Свечи, комментарии и подтверждения будут перенесены в эту запись.</p>'+
         '<input id="mergeDuplicateId" class="field" placeholder="UUID дубликата"><button class="btn secondary" id="mergeDuplicate" style="width:100%;margin-top:8px">Объединить дубликат</button>'+
@@ -1535,22 +1585,50 @@ app.get("/m/admin", (_req,res) => {
       bind(qs("#mAdminDetail"));
 
       qs("#saveEventEdit").onclick=async()=>{
+        const groups=[...document.querySelectorAll(".editAudienceGroup:checked")].map(x=>x.value);
         const body={
           full_name:qs("#editFullName").value,death_date:qs("#editDeathDate").value,event_type:qs("#editEventType").value,
-          event_date:qs("#editEventDate").value,event_time:qs("#editEventTime").value,city:qs("#editCity").value,place:qs("#editPlace").value,
+          event_date:qs("#editEventDate").value,event_time:qs("#editEventTime").value,event_timezone:qs("#editEventTimezone").value,
+          visibility:qs("#editVisibility").value,audience_groups:groups.length?groups:["all"],city:qs("#editCity").value,place:qs("#editPlace").value,
           note:qs("#editNote").value,hebrew_death_label:qs("#editHebrewDate").value,yahrzeit_date:qs("#editYahrzeit").value,
           yahrzeit_rule:e.yahrzeit_rule||"standard",family_verified:qs("#editFamilyVerified").checked,
           source_verified:qs("#editSourceVerified").checked,urgent:qs("#editUrgent").checked
         };
-        await api("/api/admin/events/"+encodeURIComponent(id)+"/edit",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        const saved=await api("/api/admin/events/"+encodeURIComponent(id)+"/edit",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        if(saved.important_changed)alert("Время или место события изменилось. Проверьте превью рассылки и при необходимости отправьте обновление тем, кто уже получил объявление.");
         await load();await detail(id);
       };
+
+      qs("#copyPrivateLink").onclick=async()=>{try{await navigator.clipboard.writeText(location.origin+viewUrl);alert("Ссылка скопирована.")}catch{}};
+      const selectedAudience=()=>[...document.querySelectorAll(".editAudienceGroup:checked")].map(x=>x.value);
+      async function previewBroadcast(mode){
+        const groups=selectedAudience(),only=mode==="update"?"1":"0";
+        const d=await api("/api/admin/events/"+encodeURIComponent(id)+"/broadcast-preview?"+new URLSearchParams({mode,groups:groups.join(","),only_previous:only}));
+        const ch=d.channels||{},m=d.message||{};
+        qs("#broadcastPreview").innerHTML='<b>'+esc(m.title||"")+'</b><br>'+esc(m.body||"")+'<br><br><b>Получателей:</b> '+Number(d.total_subscribers||0)+
+          '<br>Push '+Number(ch.push||0)+' · Email '+Number(ch.email||0)+' · Telegram '+Number(ch.telegram||0)+' · WhatsApp '+Number(ch.whatsapp||0)+' · SMS '+Number(ch.sms||0);
+        return d;
+      }
+      qs("#previewUpdateBroadcast").onclick=()=>previewBroadcast("update").catch(x=>alert(x.message));
+      qs("#previewReminderBroadcast").onclick=()=>previewBroadcast("announcement").catch(x=>alert(x.message));
+      async function sendBroadcast(mode){
+        const p=await previewBroadcast(mode);
+        if(!confirm("Отправить это сообщение? Подписчиков: "+Number(p.total_subscribers||0)))return;
+        const groups=selectedAudience();
+        const r=await api("/api/admin/events/"+encodeURIComponent(id)+"/broadcast",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+          mode,groups,only_previous:mode==="update"
+        })});
+        alert("Рассылка завершена. Отправлено по каналам: "+Number(r.sent||0)+", ошибок: "+Number(r.failed||0)+".");
+        await loadDelivery();
+      }
+      qs("#sendUpdateBroadcast").onclick=()=>sendBroadcast("update").catch(x=>alert(x.message));
+      qs("#sendReminderBroadcast").onclick=()=>sendBroadcast("announcement").catch(x=>alert(x.message));
 
       qs("#uploadDetailPhoto").onclick=async()=>{
         const file=qs("#detailPhoto").files[0];if(!file)return alert("Выберите фото.");
         const fd=new FormData();fd.append("photo",file);
         await api("/api/admin/events/"+encodeURIComponent(id)+"/photo",{method:"POST",body:fd});
-        const img=qs("#detailPhotoPreview");img.src="/api/events/"+encodeURIComponent(id)+"/photo?v="+Date.now();img.style.display="block";
+        const img=qs("#detailPhotoPreview");img.src="/api/events/"+encodeURIComponent(id)+"/photo"+privateSuffix+(privateSuffix?"&":"?")+"v="+Date.now();img.style.display="block";
       };
       qs("#removeDetailPhoto").onclick=async()=>{
         if(!confirm("Удалить фото?"))return;
@@ -1593,6 +1671,7 @@ app.get("/m/admin", (_req,res) => {
     qs("#mAdminUser").addEventListener("keydown",e=>{if(e.key==="Enter")passwordLogin()});
     qs("#mAdminMagic").onclick=magic;qs("#mAdminLogin").onclick=tokenLogin;qs("#mAdminBindEmail").onclick=bindEmail;
     qs("#mAdminReload").onclick=()=>load().catch(e=>alert(e.message));
+    qs("#saveNotifyGroup").onclick=()=>saveNotifyGroup().catch(e=>alert(e.message));
     qs("#saveAdminUser").onclick=()=>saveAdminUser().catch(e=>alert(e.message));
     qs("#adminImportPreview").onclick=()=>previewImport().catch(e=>alert(e.message));
     document.querySelectorAll("[data-export]").forEach(b=>b.onclick=()=>downloadAdmin(b.dataset.export,b.dataset.name).catch(e=>alert(e.message)));
