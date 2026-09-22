@@ -50,7 +50,11 @@ const features=[
   ['embeddedPublicJson','modern storefront embedded JSON fallback'],
   ['renderFreeScene','free local image renderer'],
   ['renderMode = "free"','free rendering default'],
-  ['freeSceneRenders','free render telemetry']
+  ['freeSceneRenders','free render telemetry'],
+  ['MAX_FREE_CARD_BATCHES_PER_WINDOW','separate free batch limit'],
+  ['freeCardRequestsByIp','free render limiter separated from AI limiter'],
+  ['freeImageAiCalls: 0','health confirms zero image-AI calls for free mode'],
+  ['Создать 4 карточки бесплатно','free mode is explicit in UI']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
