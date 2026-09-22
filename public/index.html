@@ -2718,6 +2718,26 @@ async function imageHashFromFile(file){
   });
 }
 
+async function imageHashFromDataUrl(dataUrl){
+  return new Promise(resolve=>{
+    if(!dataUrl){resolve('');return}
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');canvas.width=9;canvas.height=8;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,9,8);
+      const d=ctx.getImageData(0,0,9,8).data;let bits='';
+      for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+        const a=(y*9+x)*4,b=(y*9+x+1)*4;
+        const ga=.299*d[a]+.587*d[a+1]+.114*d[a+2],gb=.299*d[b]+.587*d[b+1]+.114*d[b+2];
+        bits+=ga>gb?'1':'0';
+      }
+      let hex='';for(let i=0;i<bits.length;i+=4)hex+=parseInt(bits.slice(i,i+4),2).toString(16);
+      resolve(hex.padStart(16,'0'));
+    };
+    img.onerror=()=>resolve('');img.src=dataUrl;
+  });
+}
+
 function hammingHex(a,b){
   if(!a||!b||a.length!==b.length)return 99;
   let diff=0;
@@ -4436,6 +4456,7 @@ async function attachPhotoFileToItem(file,item,{asMain=false}={}){
     }
     item.sourceDataUrl=dataUrl;
     item.sourceFilename=file.name;
+    item.photoHash=await imageHashFromDataUrl(dataUrl);
   }else{
     const extras=Array.isArray(item.additionalPhotos)?item.additionalPhotos:[];
     if(extras.length>=4)throw new Error('У товара уже 4 дополнительных фото.');
@@ -4501,7 +4522,7 @@ async function matchExcelPhotos(files){
     item.sourceDataUrl=photos[0].dataUrl;
     item.sourceFilename=photos[0].file.name;
     item.additionalPhotos=photos.slice(1).map(x=>({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),dataUrl:x.dataUrl,name:x.file.name,mimeType:(x.dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role:inferPhotoRole(x.file.name)}));
-    item.photoHash='';
+    item.photoHash=await imageHashFromDataUrl(photos[0].dataUrl);
     item.cards=[];
     item.quality=null;
     item.cardsStale=false;
