@@ -1673,10 +1673,11 @@ function renderExtraPhotos(){
     const el=document.createElement('div');
     el.className='extra-photo';
     const role=photo.role||'angle';
-    el.innerHTML='<img src="'+esc(photo.dataUrl)+'" alt="Дополнительное фото '+(index+1)+'"><button type="button" aria-label="Удалить фото">×</button>'+
+    el.innerHTML='<img alt="Дополнительное фото '+(index+1)+'"><button type="button" aria-label="Удалить фото">×</button>'+
       '<div class="photo-role-tools"><select data-photo-role>'+
       ['angle','package','label','barcode','detail'].map(value=>'<option value="'+value+'" '+(value===role?'selected':'')+'>'+photoRoleLabel(value)+'</option>').join('')+
       '</select><button type="button" class="photo-ocr-btn">OCR</button></div>';
+    el.querySelector('img').src=photo.dataUrl;
     el.querySelector('button[aria-label]').onclick=()=>{
       currentAdditionalPhotos.splice(index,1);
       addCurrentActivity('Фото удалено',photo.name||('Ракурс '+(index+1)));
@@ -3396,6 +3397,12 @@ async function setFile(file){
   await inspectImage(file);
   await refreshDesignPalette();
   await savePhotoDraft(file);
+  if(!attachExisting&&currentMode==='full'&&autoCards?.checked){
+    await createImmediateFreeCards(file);
+    if(selectedFile===file&&currentHistoryId&&!busy){
+      window.setTimeout(()=>{if(selectedFile===file&&!busy)analyzeBtn.click()},60);
+    }
+  }
 }
 
 
@@ -3794,9 +3801,11 @@ function renderMarketplacePreview(){
   const names=['Соседний товар','Популярный товар',d.seoTitle||'Ваш товар','Похожий товар','Ещё товар'];
   marketPreview.innerHTML='<div class="market-preview-label">Проверка читаемости и заметности в уменьшенном размере</div><div class="market-row">'+names.map((name,i)=>{
     const current=i===2;
-    const visual=current&&currentImage?'<img src="'+esc(currentImage)+'" alt="">':'<div class="market-placeholder"></div>';
+    const visual=current&&currentImage?'<img data-current-market-image alt="">':'<div class="market-placeholder"></div>';
     return '<div class="market-item '+(current?'current':'')+'"><div class="market-thumb">'+visual+'</div><div class="market-name">'+esc(name)+'</div><div class="market-price">'+(current&&price?esc(price)+' ₽':'—')+'</div></div>';
   }).join('')+'</div>';
+  const currentImg=marketPreview.querySelector('[data-current-market-image]');
+  if(currentImg)currentImg.src=currentImage;
 }
 function designSnapshotFingerprint(state){
   return JSON.stringify([state.style,state.intensity,state.substyle,state.variant,state.composition,state.palette,state.visualOptions]);
@@ -3902,6 +3911,77 @@ function prepareAutomaticCardStyle(){
   renderDesignStudio();
 }
 
+
+function provisionalCardFromFile(file){
+  const raw=String(file?.name||'').replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
+  const generic=/^(img|image|photo|dsc|pxl|screenshot|screen shot)\s*\d*$/i.test(raw);
+  const extra=collectExtraData();
+  const title=extra.name||(!generic&&raw.length>=3&&raw.length<=90?raw:'Товар');
+  return {
+    seoTitle:title,
+    category:'Товар',
+    shortDescription:'',
+    fullDescription:'',
+    characteristics:[],
+    keywords:[],
+    benefits:[],
+    usage:[],
+    needsClarification:['Данные товара ещё анализируются. Точные характеристики не добавлены без подтверждения.'],
+    confidence:'Низкая',
+    photoQuality:{score:0,issues:[]},
+    confirmedData:extra,
+    provisional:true
+  };
+}
+
+async function createImmediateFreeCards(file){
+  if(!file||currentMode!=='full'||!autoCards?.checked||cardsBusy)return false;
+  const productId=currentHistoryId;
+  const provisional=provisionalCardFromFile(file);
+  currentData=provisional;
+  fillEditor(provisional);
+  workspace.classList.add('show');
+  creative.classList.add('show');
+  confidence.textContent='Фото принято · данные товара анализируются отдельно';
+  prepareAutomaticCardStyle();
+  renderModeSelect.value='free';
+  syncRenderModeUi();
+  updatePlan();renderYuvionExport();renderProductCockpit();
+  cardsBusy=true;generateAll.disabled=true;
+  creativeStatus.className='creative-status show';
+  creativeStatus.textContent='Фото загружено. Сразу создаём 4 бесплатные карточки — анализ текста не блокирует изображения.';
+  try{
+    const src=await getSource();
+    const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({
+      ...src,card:provisional,style:styleSelect.value,renderMode:'free',palette:currentPalette,
+      designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,
+      visualOptions:currentVisualOptions,composition:currentComposition
+    })});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось создать быстрый комплект.');
+    if(productId!==currentHistoryId)return false;
+    currentCards=data.cards||[];currentScenes=data.scenes||[];
+    if(Array.isArray(data.palette)&&data.palette.length)currentPalette=data.palette;
+    if(Number.isInteger(data.designVariant))currentDesignVariant=data.designVariant;
+    if(data.designIntensity)currentDesignIntensity=data.designIntensity;
+    if(data.designSubstyle)currentDesignSubstyle=data.designSubstyle;
+    cardsStale=false;currentStaleCards=[];currentQuality=null;
+    renderCards();renderDesignStudio();renderProductCockpit();
+    zipImages.disabled=currentCards.length!==4;zipFull.disabled=currentCards.length!==4;
+    creativeStatus.className='creative-status show done';
+    creativeStatus.textContent='4 изображения уже готовы. Анализируем товар в фоне и затем обновим только текстовую инфографику.';
+    addCurrentActivity('Быстрый бесплатный комплект','4 карточки созданы до завершения AI-анализа');
+    await saveHistory();
+    return currentCards.length===4;
+  }catch(e){
+    creativeStatus.className='creative-status show fail';
+    creativeStatus.textContent=e.message||'Не удалось создать быстрый комплект.';
+    return false;
+  }finally{
+    cardsBusy=false;generateAll.disabled=false;
+  }
+}
+
 async function autoCreateCardsIfEnabled(){
   if(!autoCards?.checked||currentMode!=='full'||cardsBusy||!currentData)return;
   prepareAutomaticCardStyle();
@@ -3915,10 +3995,19 @@ analyzeBtn.onclick=async()=>{
   loadingTitle.textContent='Анализируем товар';loadingText.textContent=currentAdditionalPhotos.length?'Сверяем основной снимок и дополнительные ракурсы, не выдумывая характеристики.':'Определяем подтверждённые данные и проверяем качество исходного фото.';
   try{
     const src=await getSource();
-    const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
+    const controller=new AbortController();
+    const timeoutId=setTimeout(()=>controller.abort(),45000);
+    let response;
+    try{
+      response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
+    }finally{clearTimeout(timeoutId)}
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
-    currentData=data;currentCards=[];currentScenes=[];cardsStale=false;currentStaleCards=[];currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
+    const hadImmediateCards=currentCards.length===4&&currentScenes.length===4;
+    currentData=data;
+    if(hadImmediateCards){cardsStale=true;currentStaleCards=[0,1,2,3];}
+    else{currentCards=[];currentScenes=[];cardsStale=false;currentStaleCards=[];}
+    currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
     addCurrentActivity('AI-анализ завершён','Уверенность: '+(data.confidence||'не указана'));
     fillEditor(data);
     applyCategoryRule({applyTemplate:true});
@@ -3929,13 +4018,24 @@ analyzeBtn.onclick=async()=>{
       currentData=collectEdits();
       rememberCategory(pendingSimilarTemplate.category,editor.title.value);
     }
-    renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderYuvionExport();renderProductCockpit();syncModeUi();creative.classList.remove('show');cardsPreview.innerHTML='';
+    renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderYuvionExport();renderProductCockpit();syncModeUi();
+    if(!hadImmediateCards){creative.classList.remove('show');cardsPreview.innerHTML='';}
+    else{creative.classList.add('show');renderCards();}
     if(pendingSimilarTemplate){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
     confidence.textContent='Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
     await saveHistory();
     autoCreateCardsIfEnabled();
-  }catch(e){showError(e.message||'Произошла ошибка.')}
+  }catch(e){
+    if(currentCards.length===4){
+      creative.classList.add('show');
+      creativeStatus.className='creative-status show done';
+      creativeStatus.textContent=e?.name==='AbortError'
+        ?'4 изображения готовы. Анализ текста занял слишком много времени и остановлен — изображения продолжат работать бесплатно.'
+        :'4 изображения готовы. Анализ текста сейчас недоступен; можно заполнить данные вручную и пересобрать инфографику.';
+      if(e?.name!=='AbortError')showError(e.message||'Не удалось проанализировать товар.');
+    }else showError(e?.name==='AbortError'?'Анализ занял слишком много времени. Попробуйте ещё раз.':(e.message||'Произошла ошибка.'));
+  }
   finally{loading.classList.remove('show');busy=false;analyzeBtn.disabled=false}
 };
 
