@@ -11,6 +11,7 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
+const APP_PUBLIC_URL = process.env.APP_PUBLIC_URL || ((PUBLIC_BASE_URL || "").replace(/\/$/,"") + "/pamyat-juhuro");
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@pamyat.community";
@@ -228,7 +229,7 @@ app.get("/api/events/:eventId.ics", async (req, res) => {
       "SUMMARY:" + escIcs(e.event_type + " — " + e.full_name),
       "LOCATION:" + escIcs(e.place || e.city || ""),
       "DESCRIPTION:" + escIcs(e.note || ""),
-      "URL:" + escIcs((PUBLIC_BASE_URL || "") + "/#event=" + e.id),
+      "URL:" + escIcs((APP_PUBLIC_URL || "") + "/#event=" + e.id),
       "END:VEVENT","END:VCALENDAR"
     ].join("\r\n");
     res.type("text/calendar; charset=utf-8");
@@ -269,7 +270,7 @@ app.get("/api/calendar.ics", async (_req, res) => {
         "DTEND;VALUE=DATE:" + toIcsDate(addDays(e.event_date, 1)),
         "SUMMARY:" + escIcs(e.event_type + " — " + e.full_name),
         "LOCATION:" + escIcs(e.place || e.city || ""),
-        "URL:" + escIcs((PUBLIC_BASE_URL || "") + "/#event=" + e.id),
+        "URL:" + escIcs((APP_PUBLIC_URL || "") + "/#event=" + e.id),
         "END:VEVENT"
       );
     }
@@ -290,7 +291,7 @@ app.get("/api/feed.xml", async (_req, res) => {
       body: { p_days: 60, p_limit: 300 }
     });
     const xmlEsc = v => String(v ?? "").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
-    const base = (PUBLIC_BASE_URL || "").replace(/\/$/,"");
+    const base = (APP_PUBLIC_URL || "").replace(/\/$/,"");
     const items = (rows || []).map(e => {
       const link = base + "/#event=" + e.id;
       return "<item>" +
@@ -731,7 +732,7 @@ async function sendEmail(item, text) {
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { authorization: "Bearer " + RESEND_API_KEY, "content-type": "application/json" },
-    body: JSON.stringify({ from: RESEND_FROM, to: [item.email], subject: text.title, html: "<p>" + text.body.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])) + "</p><p><a href='" + PUBLIC_BASE_URL + "'>Открыть календарь</a></p>" })
+    body: JSON.stringify({ from: RESEND_FROM, to: [item.email], subject: text.title, html: "<p>" + text.body.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])) + "</p><p><a href='" + APP_PUBLIC_URL + "'>Открыть календарь</a></p>" })
   });
   if (!r.ok) throw new Error("email_" + r.status);
   return "sent";
@@ -756,7 +757,7 @@ async function runNotificationCycle() {
       if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
         try {
           await webpush.sendNotification({ endpoint: item.endpoint, keys: { p256dh: item.p256dh, auth: item.auth } },
-            JSON.stringify({ title: text.title, body: text.body, url: PUBLIC_BASE_URL + "/#event=" + item.event_id, event_id: item.event_id }),
+            JSON.stringify({ title: text.title, body: text.body, url: APP_PUBLIC_URL + "/#event=" + item.event_id, event_id: item.event_id }),
             { TTL: 86400 });
           await logDelivery(item, "push", "sent");
         } catch (e) { console.error("push send", e.statusCode || e.message); }
@@ -765,7 +766,7 @@ async function runNotificationCycle() {
         try { const r = await sendEmail(item,text); if (r) await logDelivery(item,"email",r); } catch (e) { console.error(e.message); }
       }
       if (item.telegram_enabled && item.telegram_chat_id) {
-        try { const r = await telegramSend(item.telegram_chat_id, text.title + "\n" + text.body + "\n" + PUBLIC_BASE_URL); if (r) await logDelivery(item,"telegram",r); } catch (e) { console.error(e.message); }
+        try { const r = await telegramSend(item.telegram_chat_id, text.title + "\n" + text.body + "\n" + APP_PUBLIC_URL); if (r) await logDelivery(item,"telegram",r); } catch (e) { console.error(e.message); }
       }
     }
   } catch (e) { console.error("notification cycle", e.data || e); }
