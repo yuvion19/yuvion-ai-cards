@@ -26,7 +26,7 @@ if(openDetails!==closeDetails)fail('details tags unbalanced '+openDetails+'/'+cl
 const required=[
   'excelAutopilot','publishCenter','confirmationCenter','operationsV64',
   'queueBudgetUsd','storageManager','labelOcrBox','networkPill',
-  'productUrlInput','importProductUrl','urlImportStatus','sourceReference'
+  'productUrlInput','importProductUrl','urlImportStatus','sourceReference','renderMode'
 ];
 const missing=required.filter(id=>!ids.includes(id));
 if(missing.length)fail('required v6.5 UI ids missing: '+missing.join(', '));else ok('required v6.5 UI present');
@@ -47,7 +47,10 @@ const features=[
   ["key:'sourceUrl'",'Excel URL column mapping'],
   ['urlImportPending','resumable URL import state'],
   ['safeRasterTypes','remote SVG rejection'],
-  ['embeddedPublicJson','modern storefront embedded JSON fallback']
+  ['embeddedPublicJson','modern storefront embedded JSON fallback'],
+  ['renderFreeScene','free local image renderer'],
+  ['renderMode = "free"','free rendering default'],
+  ['freeSceneRenders','free render telemetry']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
