@@ -1,5 +1,5 @@
-const CACHE="pamyat-v5";
-const STATIC=["/manifest.webmanifest","/icon.svg","/m","/m/today","/m/calendar","/m/reminders"];
+const CACHE="pamyat-v6";
+const STATIC=["/manifest.webmanifest","/icon.svg","/m","/m/today","/m/calendar","/m/archive","/m/search","/m/wall","/m/reminders"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(async c=>{for(const u of STATIC){try{await c.add(u)}catch{}}}).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{
