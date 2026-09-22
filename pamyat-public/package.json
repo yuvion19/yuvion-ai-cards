@@ -10,6 +10,8 @@
     "csv-parse": "^6.1.0",
     "express": "^5.1.0",
     "web-push": "^3.6.7",
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "qrcode": "^1.5.4",
+    "multer": "^2.0.2"
   }
 }
