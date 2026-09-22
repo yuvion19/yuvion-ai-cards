@@ -4419,24 +4419,6 @@ app.post("/api/admin/snapshot", requireAdminRole, async (_req,res) => {
     res.json(data);
   } catch { res.status(500).json({error:"snapshot_failed"}); }
 });
-app.get("/api/admin/export.json", requireAdmin, async (_req,res) => {
-  try {
-    const data = await sb("rpc/memorial_admin_export",{method:"POST",body:{p_token:ADMIN_TOKEN}});
-    res.setHeader("Content-Disposition",'attachment; filename="pamyat-export.json"');
-    res.type("application/json").send(JSON.stringify(data,null,2));
-  } catch { res.status(500).json({error:"export_failed"}); }
-});
-app.get("/api/admin/export.csv", requireAdmin, async (_req,res) => {
-  try {
-    const data = await sb("rpc/memorial_admin_export",{method:"POST",body:{p_token:ADMIN_TOKEN}});
-    const rows = data.events || [];
-    const cols = ["id","full_name","death_date","event_type","event_date","city","place","status","family_verified","hebrew_death_label","yahrzeit_date","cemetery_record_key","created_at"];
-    const csv = [cols.join(","), ...rows.map(r => cols.map(c => csvCell(r[c])).join(","))].join("\n");
-    res.setHeader("Content-Disposition",'attachment; filename="pamyat-events.csv"');
-    res.type("text/csv; charset=utf-8").send("\ufeff" + csv);
-  } catch { res.status(500).send("export_failed"); }
-});
-
 async function sendOffsiteBackup(){
   if(!BACKUP_WEBHOOK_URL||!BACKUP_WEBHOOK_TOKEN||!ADMIN_TOKEN)return {ok:false,configured:false};
   let u;try{u=new URL(BACKUP_WEBHOOK_URL)}catch{return {ok:false,error:"bad_backup_url"}}
