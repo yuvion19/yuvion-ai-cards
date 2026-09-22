@@ -432,6 +432,7 @@ function normalizeVisualOptions(raw = {}) {
     showSpecs: input.showSpecs !== false,
     showUsage: input.showUsage !== false,
     showDescription: input.showDescription !== false,
+    showPrice: input.showPrice === true,
     coverTitle: compact(input.coverTitle || "", 120),
     season: normalizeSeason(input.season)
   };
@@ -658,6 +659,7 @@ function normalizeCard(raw) {
     usage: Array.isArray(card.usage) ? card.usage.filter(Boolean).map((x) => sellerNeutralCopy(x, 100)).filter(Boolean).slice(0, 4) : [],
     needsClarification: Array.isArray(card.needsClarification) ? card.needsClarification.filter(Boolean).slice(0, 20).map((x) => compact(x, 120)) : [],
     confidence: ["Высокая", "Средняя", "Низкая"].includes(card.confidence) ? card.confidence : "Средняя",
+    confirmedData: normalizeExtraData(card.confirmedData || {}),
     photoQuality: card.photoQuality && typeof card.photoQuality === "object"
       ? {
           score: Math.max(0, Math.min(100, Number(card.photoQuality.score) || 0)),
@@ -1214,6 +1216,8 @@ app.get("/api/health", (_req, res) => {
       visualBlockEditor: true,
       seasonalDecor: true,
       safeZoneChecks: true,
+      dynamicTypography: true,
+      confirmedPriceOverlay: true,
       manualComposition: true
     },
     imageRendering: {
@@ -1903,11 +1907,15 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
   if (index === 0) {
     const titleLines = wrapWords(title, level === "bold" ? 22 : level === "calm" ? 28 : 25, 3);
     const quick = benefits.slice(0, level === "calm" ? 2 : 3);
-    const titleSize = level === "bold" ? 52 : level === "calm" ? 43 : 47;
+    const baseTitleSize = level === "bold" ? 52 : level === "calm" ? 43 : 47;
+    const titleSize = Math.max(34, baseTitleSize - (title.length > 75 ? 10 : title.length > 58 ? 6 : title.length > 42 ? 3 : 0));
+    const price = compact(card.confirmedData?.price1 || "", 32);
+    const oldPrice = compact(card.confirmedData?.oldPrice || "", 32);
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
         <rect width="900" height="1200" fill="none"/>
         ${visual.showBrand ? `<rect x="46" y="46" rx="24" width="154" height="54" fill="${style.accent}"/><text x="123" y="82" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="#FFFFFF">YUVION</text>` : ""}
+        ${visual.showPrice && price ? `<rect x="650" y="46" rx="24" width="204" height="68" fill="#FFFFFF" fill-opacity="0.94"/><text x="752" y="82" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="29" font-weight="900" fill="${style.text}">${escapeXml(price)} ₽</text>${oldPrice ? `<text x="752" y="103" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" font-weight="650" fill="#8B7F82" text-decoration="line-through">${escapeXml(oldPrice)} ₽</text>` : ""}` : ""}
         <rect x="38" y="790" rx="38" width="824" height="372" fill="${style.panel}" fill-opacity="0.97"/>
         ${visual.showCategory ? `<rect x="72" y="824" rx="18" width="250" height="42" fill="${style.accent}" fill-opacity="0.12"/><text x="92" y="853" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="800" fill="${style.accent2}">${escapeXml(category.toUpperCase())}</text>` : ""}
         ${textLines(titleLines, { x: 72, y: 918, size: titleSize, lineHeight: titleSize + 8, weight: 850, fill: style.text })}
