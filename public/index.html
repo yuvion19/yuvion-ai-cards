@@ -3059,6 +3059,10 @@ function storedFactBlockers(item){
   return (d.characteristics||[]).filter(spec=>isTechnicalFactName(spec.name)&&!['Продавец','Маркировка'].includes(sourceFor(spec)));
 }
 
+function storedQaBlockers(item){
+  return Array.isArray(item?.quality?.cards)?item.quality.cards.filter(x=>Boolean(x?.needsRegeneration)):[];
+}
+
 function storedReadiness(item){
   const d=item?.data||{};
   const x=item?.extraData||d.confirmedData||{};
@@ -3085,6 +3089,7 @@ function storedReadiness(item){
     barcodeOk,
     duplicateCharacteristicNames(d).length===0,
     storedFactBlockers(item).length===0,
+    storedQaBlockers(item).length===0,
     !item?.cardsStale,
     Array.isArray(item?.cards)&&item.cards.length===4
   ];
@@ -3968,8 +3973,11 @@ async function importProductRows(rows,filename='таблица'){
   await renderHistory();
   const truncated=Math.max(0,rows.length-1-CATALOG_LIMIT);
   importNote.className='import-note show';
-  importNote.textContent='Импортировано: '+imported+'. Пропущено пустых строк: '+skipped+(truncated?' · строк сверх локального лимита: '+truncated:'')+'. Фото можно добавить позже, открыв черновик.';
-  document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+  importNote.textContent='Импортировано: '+imported+'. Пропущено пустых строк: '+skipped+(truncated?' · строк сверх локального лимита: '+truncated:'')+'. Теперь добавьте фотографии с SKU/артикулом в имени файла.';
+  if(isSimpleUi()){
+    document.getElementById('excelAutopilot').open=true;
+    document.getElementById('excelAutopilot').scrollIntoView({behavior:'smooth',block:'start'});
+  }else document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 
@@ -4133,9 +4141,9 @@ async function matchExcelPhotos(files){
 }
 function excelItemState(item){
   if(item?.excelAutopilot?.state==='work')return {label:'Обрабатывается',cls:'work'};
-  if(item?.excelAutopilot?.state==='error')return {label:'Ошибка',cls:'bad'};
   if(item?.published)return {label:'Опубликован',cls:'ready'};
   if(item?.data&&storedReadiness(item).ready)return {label:'Готов',cls:'ready'};
+  if(item?.excelAutopilot?.state==='error')return {label:'Ошибка',cls:'bad'};
   if(!item?.sourceDataUrl)return {label:'Нужно фото',cls:''};
   if(Array.isArray(item.cards)&&item.cards.length===4&&!item.cardsStale)return {label:'Нужна проверка',cls:'bad'};
   return {label:'В очереди',cls:'work'};
@@ -4733,6 +4741,8 @@ function productProblems(item,allItems=[]){
   const factIssues=storedFactBlockers(item);
   if(factIssues.length)out.push({key:'facts',label:'Технические факты без подтверждения',detail:factIssues.slice(0,3).map(x=>x.name).join(', '),bad:true});
   if(item.cardsStale)out.push({key:'cards',label:'Изображения устарели',detail:'Данные товара менялись после генерации карточек.',bad:true});
+  const qaProblems=storedQaBlockers(item);
+  if(qaProblems.length)out.push({key:'cards',label:'QA изображений нашёл блокеры',detail:qaProblems.slice(0,2).flatMap(x=>x.issues||[]).slice(0,2).join(' · ')||'Нужно проверить готовые изображения.',bad:true});
   if(!Array.isArray(item.cards)||item.cards.length!==4)out.push({key:'cards',label:'Нет полного комплекта изображений',detail:'Нужно 4 карточки 900×1200.'});
   if(lowStockState(item.privateData||{}))out.push({key:'stock',label:'Низкий остаток',detail:'Остаток ниже локального минимального значения.'});
   return out;
