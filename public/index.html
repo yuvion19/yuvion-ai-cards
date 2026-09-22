@@ -177,6 +177,7 @@
   
     /* YUVION_V63_EXCEL_AUTOPILOT */
     .excel-autopilot,.publish-center{max-width:1100px;margin:16px auto;border:1px solid var(--line);border-radius:22px;background:#fff;box-shadow:0 14px 38px rgba(39,18,23,.045);overflow:hidden}
+    .v63-panel-summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;background:linear-gradient(135deg,#fff,#FFF9FA);font-size:11px;font-weight:850}.v63-panel-summary::-webkit-details-marker{display:none}.v63-panel-summary span:first-child{display:flex;flex-direction:column;gap:2px}.v63-panel-summary b{font-size:13px}.v63-panel-summary small{font-size:9px;color:var(--muted);font-weight:700}.v63-panel-summary>span:last-child{color:var(--brand);font-size:9px;text-transform:uppercase;letter-spacing:.05em}.excel-autopilot[open]>.v63-panel-summary,.publish-center[open]>.v63-panel-summary{border-bottom:1px solid var(--line)}
     .excel-auto-head,.publish-center-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:20px 22px;border-bottom:1px solid var(--line)}
     .excel-auto-head h2,.publish-center-head h2{margin:2px 0 5px;font-size:24px;letter-spacing:-.02em}.excel-auto-head p,.publish-center-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.5;max-width:690px}
     .excel-auto-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.excel-auto-body{padding:18px 22px}
@@ -230,6 +231,7 @@
     <div><strong>Простой режим</strong><br><span>Показываем только действия, необходимые для текущего товара.</span></div>
     <div class="smart-strip-actions">
       <button class="smart-pill" id="jumpHistory">Каталог</button>
+      <button class="smart-pill" id="jumpExcel">Excel → карточки</button>
       <button class="smart-pill advanced-tool" id="jumpBatch">Пакет до 10 товаров</button>
       <button class="smart-pill advanced-tool" id="openIntake">Приёмка</button>
       <button class="smart-pill advanced-tool" id="jumpProblems">Проблемы</button>
@@ -242,7 +244,8 @@
   </div>
 
 
-  <section class="excel-autopilot" id="excelAutopilot">
+  <details class="excel-autopilot" id="excelAutopilot">
+    <summary class="v63-panel-summary"><span><b>Excel → фото → 4 карточки</b><small>массовый автопилот ассортимента</small></span><span>Открыть</span></summary>
     <div class="excel-auto-head">
       <div><div class="section-kicker">Автопилот ассортимента</div><h2>Excel → фото → 4 карточки</h2><p>Загрузите таблицу товаров и цен, затем пачку фотографий. Фото автоматически привязываются к товару по SKU/артикулу в имени файла. После этого очередь сама выполняет AI-анализ, создаёт 4 изображения, проверяет качество и сохраняет готовые товары локально.</p></div>
       <div class="excel-auto-actions"><button class="btn btn-ghost" id="excelImportStart">1. Excel / CSV</button><label class="btn btn-ghost" for="excelPhotoFiles" style="cursor:pointer">2. Фото по SKU</label><input id="excelPhotoFiles" type="file" multiple accept="image/jpeg,image/png,image/webp" hidden><button class="btn btn-primary" id="runExcelAutopilot" disabled>3. Запустить автопилот</button></div>
@@ -264,9 +267,10 @@
       <div class="excel-auto-note">Для точной автоматической привязки у товара должен быть SKU/артикул. Если одинаковый SKU используется у нескольких товаров, фото к нему автоматически не привязывается. Все таблицы, фото и очередь каталога остаются локальными; на сервер отправляется только текущий товар во время AI-обработки.</div>
       <div class="excel-auto-queue" id="excelAutoQueue"></div>
     </div>
-  </section>
+  </details>
 
-  <section class="publish-center" id="publishCenter">
+  <details class="publish-center" id="publishCenter">
+    <summary class="v63-panel-summary"><span><b>Publish Center</b><small>готовность ассортимента к Yuvion</small></span><span>Открыть</span></summary>
     <div class="publish-center-head">
       <div><div class="section-kicker">Publish Center</div><h2>Готовность ассортимента к Yuvion</h2><p>Один экран показывает готовые товары и то, что ещё мешает публикации. Персональные данные арендатора и локальные складские заметки здесь не раскрываются.</p></div>
       <select class="publish-filter" id="publishCenterFilter"><option value="all">Все товары</option><option value="ready">Готовы к Yuvion</option><option value="problem">Есть блокеры</option><option value="photo">Нет фото</option><option value="published">Опубликованы</option></select>
@@ -275,7 +279,7 @@
       <div class="publish-stats"><div class="publish-stat"><b id="publishReadyCount">0</b><span>ГОТОВЫ</span></div><div class="publish-stat"><b id="publishProblemCount">0</b><span>ТРЕБУЮТ ВНИМАНИЯ</span></div><div class="publish-stat"><b id="publishNoPhotoCount">0</b><span>БЕЗ ФОТО</span></div><div class="publish-stat"><b id="publishDoneCount">0</b><span>ОПУБЛИКОВАНЫ</span></div></div>
       <div class="publish-list" id="publishCenterList"></div>
     </div>
-  </section>
+  </details>
 
   <details class="tenant-profile" id="tenantProfile">
     <summary>Профиль арендатора <span class="muted" id="profileSummary" style="font-size:12px;font-weight:650">настройки по умолчанию</span></summary>
@@ -908,6 +912,7 @@ const importProductsBtn=document.getElementById('importProducts');
 const importProductsFile=document.getElementById('importProductsFile');
 const importNote=document.getElementById('importNote');
 const bulkLabels=document.getElementById('bulkLabels');
+const jumpExcel=document.getElementById('jumpExcel');
 const excelImportStart=document.getElementById('excelImportStart');
 const excelPhotoFiles=document.getElementById('excelPhotoFiles');
 const runExcelAutopilot=document.getElementById('runExcelAutopilot');
@@ -4132,6 +4137,7 @@ function excelItemState(item){
   if(item?.published)return {label:'Опубликован',cls:'ready'};
   if(item?.data&&storedReadiness(item).ready)return {label:'Готов',cls:'ready'};
   if(!item?.sourceDataUrl)return {label:'Нужно фото',cls:''};
+  if(Array.isArray(item.cards)&&item.cards.length===4&&!item.cardsStale)return {label:'Нужна проверка',cls:'bad'};
   return {label:'В очереди',cls:'work'};
 }
 function renderExcelAutopilot(allItems){
@@ -4230,7 +4236,7 @@ async function runExcelAutopilotQueue(){
   if(!queue.length)return;
   excelAutopilotBusy=true;runExcelAutopilot.disabled=true;excelAutoProgress.classList.add('show');
   const style=excelAutopilotStyle.value||loadSellerDefaults().style||'minimal';
-  let done=0,success=0;
+  let done=0,success=0,haltedByLimit=false;
   try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:queue.length})})}catch{}
   for(let i=0;i<queue.length;i++){
     const item=queue[i];
@@ -4239,12 +4245,20 @@ async function runExcelAutopilotQueue(){
     excelAutoBar.style.width=Math.round(i/queue.length*100)+'%';
     await renderHistory();
     try{await processExcelAutopilotItem(item,style);success++}
-    catch(e){item.excelAutopilot={state:'error',error:String(e.message||'Ошибка обработки').slice(0,240)};item.updatedAt=Date.now();await dbPut(item)}
+    catch(e){
+      const message=String(e.message||'Ошибка обработки');
+      item.excelAutopilot={state:'error',error:message.slice(0,240)};item.updatedAt=Date.now();await dbPut(item);
+      if(/лимит|слишком много|429/i.test(message))haltedByLimit=true;
+    }
     done++;excelAutoBar.style.width=Math.round(done/queue.length*100)+'%';
     await renderHistory();
+    if(haltedByLimit)break;
   }
   excelAutopilotBusy=false;
-  excelAutoProgressText.textContent='Завершено: '+success+' из '+queue.length+'.'+((await dbAll()).some(x=>excelQueueItems([x]).length)?' Остальные товары можно продолжить следующей очередью.':' Очередь обработана.');
+  const remaining=excelQueueItems(await dbAll()).length;
+  excelAutoProgressText.textContent=haltedByLimit
+    ?'Очередь остановлена защитным лимитом AI. Готово: '+success+'. Необработанные товары сохранены и не потеряны.'
+    :'Завершено: '+success+' из '+done+'.'+(remaining?' В очереди осталось: '+remaining+'.':' Очередь обработана.');
   await renderHistory();
 }
 
@@ -5087,6 +5101,7 @@ bulkDraft.onclick=()=>bulkSetPublished(false);
 bulkDelete.onclick=()=>bulkDeleteSelected();
 
 document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
+jumpExcel.onclick=()=>{document.getElementById('excelAutopilot').open=true;document.getElementById('excelAutopilot').scrollIntoView({behavior:'smooth',block:'start'})};
 document.getElementById('jumpHistory').onclick=()=>{
   if(isSimpleUi())document.body.classList.add('show-catalog');
   document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
