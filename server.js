@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v8.0.0
+// Production release marker: v8.1.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1282,7 +1282,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "8.0.0",
+    version: "8.1.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1330,6 +1330,10 @@ app.get("/api/health", (_req, res) => {
       autoSeriesRegeneration: true,
       localVisualQaV2: true,
       entropyAndContrastChecks: true,
+      smartPhotoCleanupV2: true,
+      adaptiveToneMapping: true,
+      safeCutoutPadding: true,
+      twoStageEdgeFeathering: true,
       darkWorkbench: true,
       wideWorkbench: true,
       manualComposition: true
@@ -2066,30 +2070,55 @@ async function sourceToneStats(sourceBuffer) {
   try {
     const prepared = await sharp(sourceBuffer)
       .rotate()
-      .resize(96, 96, { fit: "inside", withoutEnlargement: false })
+      .resize(128, 128, { fit: "inside", withoutEnlargement: false, kernel: sharp.kernel.lanczos3 })
       .removeAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
     const { data, info } = prepared;
     let sum = 0;
+    let sumSq = 0;
     let count = 0;
     let edge = 0;
+    let dark = 0;
+    let highlight = 0;
+    let saturationSum = 0;
     for (let y = 0; y < info.height; y += 1) {
       for (let x = 0; x < info.width; x += 1) {
         const p = (y * info.width + x) * info.channels;
-        const g = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
-        sum += g;
+        const r = data[p], g = data[p + 1], b = data[p + 2];
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        const hi = Math.max(r, g, b);
+        const lo = Math.min(r, g, b);
+        sum += gray;
+        sumSq += gray * gray;
         count += 1;
+        if (gray < 32) dark += 1;
+        if (gray > 244) highlight += 1;
+        saturationSum += hi > 0 ? (hi - lo) / hi : 0;
         if (x > 0) {
           const q = p - info.channels;
           const prev = 0.299 * data[q] + 0.587 * data[q + 1] + 0.114 * data[q + 2];
-          edge += Math.abs(g - prev);
+          edge += Math.abs(gray - prev);
+        }
+        if (y > 0) {
+          const q = p - info.width * info.channels;
+          const prev = 0.299 * data[q] + 0.587 * data[q + 1] + 0.114 * data[q + 2];
+          edge += Math.abs(gray - prev);
         }
       }
     }
-    return { mean: count ? sum / count : 150, edge: count ? edge / count : 12 };
+    const mean = count ? sum / count : 150;
+    const variance = count ? Math.max(0, sumSq / count - mean * mean) : 0;
+    return {
+      mean,
+      contrast: Math.sqrt(variance),
+      edge: count ? edge / (count * 2) : 12,
+      darkRatio: count ? dark / count : 0,
+      highlightRatio: count ? highlight / count : 0,
+      saturation: count ? saturationSum / count : 0
+    };
   } catch {
-    return { mean: 150, edge: 12 };
+    return { mean: 150, contrast: 42, edge: 12, darkRatio: 0, highlightRatio: 0, saturation: 0.3 };
   }
 }
 
@@ -2097,25 +2126,41 @@ async function enhanceProductSource(sourceBuffer, intensity = "selling", role = 
   const stats = await sourceToneStats(sourceBuffer);
   const level = normalizeDesignIntensity(intensity);
   const technical = role === "label" || role === "barcode";
-  let gain = 1.025;
-  let offset = 0;
-  if (stats.mean < 72) { gain = 1.16; offset = 8; }
-  else if (stats.mean < 105) { gain = 1.10; offset = 5; }
-  else if (stats.mean < 135) { gain = 1.055; offset = 2; }
-  else if (stats.mean > 226) { gain = 0.965; offset = -2; }
-  if (level === "calm") gain = 1 + (gain - 1) * 0.65;
-  if (level === "bold" && stats.mean < 205) gain += 0.015;
 
-  const saturation = technical ? 1 : level === "bold" ? 1.09 : level === "calm" ? 1.015 : 1.05;
-  const sigma = stats.edge < 6 ? 1.05 : stats.edge < 10 ? 0.82 : 0.58;
+  let gain = 1.02;
+  let offset = 0;
+  if (stats.mean < 56) { gain = 1.20; offset = 11; }
+  else if (stats.mean < 78) { gain = 1.15; offset = 8; }
+  else if (stats.mean < 108) { gain = 1.095; offset = 5; }
+  else if (stats.mean < 138) { gain = 1.05; offset = 2; }
+  else if (stats.mean > 228) { gain = 0.955; offset = -3; }
+
+  if (stats.highlightRatio > 0.24) {
+    gain = Math.min(gain, 0.985);
+    offset = Math.min(offset, -2);
+  }
+  if (stats.darkRatio > 0.34 && stats.mean < 112) {
+    gain += 0.025;
+    offset += 2;
+  }
+  if (level === "calm") gain = 1 + (gain - 1) * 0.68;
+  if (level === "bold" && stats.mean < 205) gain += 0.012;
+
+  let saturation = technical ? 1 : level === "bold" ? 1.085 : level === "calm" ? 1.012 : 1.045;
+  if (stats.saturation > 0.58) saturation = Math.min(saturation, 1.015);
+  if (stats.saturation < 0.10 && !technical) saturation = Math.max(saturation, 1.06);
+
+  let sigma = stats.edge < 4.5 ? 1.10 : stats.edge < 8.5 ? 0.88 : 0.60;
+  if (technical) sigma = Math.max(0.64, Math.min(0.92, sigma));
+  if (stats.contrast < 18) sigma = Math.min(1.14, sigma + 0.10);
 
   return sharp(sourceBuffer)
     .rotate()
-    .resize(1800, 1800, { fit: "inside", withoutEnlargement: false })
+    .resize(1800, 1800, { fit: "inside", withoutEnlargement: false, kernel: sharp.kernel.lanczos3 })
     .linear(gain, offset)
     .modulate({ saturation })
     .sharpen(sigma)
-    .png({ compressionLevel: 9 })
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer();
 }
 
@@ -2216,9 +2261,22 @@ async function smartBackgroundCutout(sourceBuffer, layout) {
   }
   if (remaining < total * 0.035 || maxX < minX || maxY < minY) throw new Error("cutout-too-aggressive");
 
-  // One-pixel soft edge to reduce white halos on light studio photos.
+  let edgeForeground = 0;
+  const perimeter = Math.max(1, width * 2 + height * 2 - 4);
+  for (let x = 0; x < width; x += 1) {
+    if (data[(x) * channels + 3] > 8) edgeForeground += 1;
+    if (data[((height - 1) * width + x) * channels + 3] > 8) edgeForeground += 1;
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    if (data[(y * width) * channels + 3] > 8) edgeForeground += 1;
+    if (data[(y * width + width - 1) * channels + 3] > 8) edgeForeground += 1;
+  }
+  if (edgeForeground / perimeter > 0.34) throw new Error("subject-touches-frame");
+
+  // Two-stage edge feathering reduces light/dark background fringes without erasing the product.
   const alpha = new Uint8Array(total);
   for (let idx = 0; idx < total; idx += 1) alpha[idx] = data[idx * channels + 3];
+  const firstRing = new Uint8Array(total);
   for (let idx = 0; idx < total; idx += 1) {
     if (alpha[idx] === 0) continue;
     const x = idx % width;
@@ -2229,11 +2287,42 @@ async function smartBackgroundCutout(sourceBuffer, layout) {
       if ((n === idx - 1 && x === 0) || (n === idx + 1 && x === width - 1)) continue;
       if (alpha[n] === 0) { touchesTransparent = true; break; }
     }
-    if (touchesTransparent && backgroundLike(idx, 1.55)) data[idx * channels + 3] = Math.min(data[idx * channels + 3], 150);
+    if (touchesTransparent && backgroundLike(idx, 1.62)) {
+      firstRing[idx] = 1;
+      data[idx * channels + 3] = Math.min(data[idx * channels + 3], 138);
+    }
+  }
+  for (let idx = 0; idx < total; idx += 1) {
+    if (alpha[idx] === 0 || firstRing[idx]) continue;
+    const x = idx % width;
+    const neighbors = [idx - 1, idx + 1, idx - width, idx + width];
+    let nearFirstRing = false;
+    for (const n of neighbors) {
+      if (n < 0 || n >= total) continue;
+      if ((n === idx - 1 && x === 0) || (n === idx + 1 && x === width - 1)) continue;
+      if (firstRing[n]) { nearFirstRing = true; break; }
+    }
+    if (nearFirstRing && backgroundLike(idx, 1.28)) {
+      data[idx * channels + 3] = Math.min(data[idx * channels + 3], 208);
+    }
   }
 
+  const subjectWidth = maxX - minX + 1;
+  const subjectHeight = maxY - minY + 1;
+  const padX = Math.max(4, Math.round(subjectWidth * 0.035));
+  const padY = Math.max(4, Math.round(subjectHeight * 0.035));
+  const extractLeft = Math.max(0, minX - padX);
+  const extractTop = Math.max(0, minY - padY);
+  const extractRight = Math.min(width - 1, maxX + padX);
+  const extractBottom = Math.min(height - 1, maxY + padY);
+
   const extracted = await sharp(data, { raw: { width, height, channels } })
-    .extract({ left: minX, top: minY, width: maxX - minX + 1, height: maxY - minY + 1 })
+    .extract({
+      left: extractLeft,
+      top: extractTop,
+      width: extractRight - extractLeft + 1,
+      height: extractBottom - extractTop + 1
+    })
     .resize(layout.width, layout.height, {
       fit: "contain",
       withoutEnlargement: false,
@@ -3107,5 +3196,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v8.0.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v8.1.0 listening on port ${port}`);
 });

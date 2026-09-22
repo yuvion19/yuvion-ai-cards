@@ -153,7 +153,13 @@ const features=[
   ['localCardVisualMetrics','local visual QA metrics'],
   ['visualQaVersion: 2','local QA v2 response'],
   ['localVisualQaV2: true','local visual QA v2 health metadata'],
-  ['entropyAndContrastChecks: true','entropy and contrast QA metadata']
+  ['entropyAndContrastChecks: true','entropy and contrast QA metadata'],
+  ['smartPhotoCleanupV2: true','Smart Photo Cleanup v2 metadata'],
+  ['adaptiveToneMapping: true','adaptive tone mapping metadata'],
+  ['safeCutoutPadding: true','safe cutout padding metadata'],
+  ['twoStageEdgeFeathering: true','two-stage edge feathering metadata'],
+  ['subject-touches-frame','safe fallback when subject touches source edge'],
+  ['firstRing','two-stage alpha feather implementation']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
