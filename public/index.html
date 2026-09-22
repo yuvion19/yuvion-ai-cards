@@ -370,8 +370,8 @@
       </div>
       <div class="queue-resume-note" id="queueResumeNote"></div>
       <div class="ops-budget">
-        <label><span>Лимит image-бюджета на очередь, $</span><input id="queueBudgetUsd" type="number" min="0" step="0.5" value="10"></label>
-        <div id="queueBudgetStatus">Ориентировочный лимит применяется только к генерации изображений. 0 = без лимита.</div>
+        <label><span>Лимит AI-image бюджета, $</span><input id="queueBudgetUsd" type="number" min="0" step="0.5" value="10"></label>
+        <div id="queueBudgetStatus">Excel-автопилот использует бесплатный рендер; этот лимит относится только к ручному платному AI-фоторежиму.</div>
       </div>
       <div class="ops-v64-actions">
         <button class="btn btn-primary btn-small" id="resumeLargeQueue">Продолжить очередь</button>
@@ -5193,9 +5193,7 @@ function renderExcelAutopilot(allItems){
   runExcelAutopilot.textContent=excelAutopilotBusy?'Автопилот работает…':queue.length>EXCEL_AUTOPILOT_LIMIT?'Обработать следующие '+EXCEL_AUTOPILOT_LIMIT:'Запустить автопилот';
   if(queue.length&&!excelAutopilotBusy){
     const n=Math.min(queue.length,EXCEL_AUTOPILOT_LIMIT);
-    const rate=Number(publicHealthCache?.estimates?.imageOutputUsdPerCard||0);
-    const estimate=rate?n*4*rate:0;
-    excelPhotoMatchText.textContent='Следующий запуск: до '+n+' товаров · '+n+' анализов + '+n+' комплектов + '+n+' QA'+(estimate?' · image output ориентир ≈ $'+estimate.toFixed(2):'')+'. Кэшированные этапы будут пропущены.';
+    excelPhotoMatchText.textContent='Следующий запуск: до '+n+' товаров · '+n+' анализов + '+n+' бесплатных комплектов + локальная QA. Image-generation API для карточек не используется. Кэшированные этапы будут пропущены.';
   }
   const visible=imported.slice().sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0)).slice(0,12);
   excelAutoQueue.innerHTML=visible.length?visible.map(item=>{
@@ -5424,9 +5422,9 @@ async function runExcelAutopilotQueue(){
   saveLargeQueueState({pending:true,paused:false,totalRemaining:excelQueueItems(all).length});
   const style=excelAutopilotStyle.value||loadSellerDefaults().style||'minimal';
   if(!publicHealthCache){try{const h=await fetch('/api/health');if(h.ok)publicHealthCache=await h.json()}catch{}}
-  const imageRate=Number(publicHealthCache?.estimates?.imageOutputUsdPerCard||0);
-  const budget=queueBudgetLimit();
-  let spent=Number(loadLargeQueueState().spentImageUsd||0);
+  const imageRate=0;
+  const budget=0;
+  let spent=0;
   let done=0,success=0,haltedByLimit=false,haltedByBudget=false;
   try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:queue.length})})}catch{}
   for(let i=0;i<queue.length;i++){
@@ -5562,10 +5560,13 @@ async function refreshDiagnosticsNow(allItems=null){
   const cached=all.filter(x=>Boolean(x.analysisCache)).length;
   const errors=all.filter(x=>x?.excelAutopilot?.state==='error').length;
   const imageRate=Number(publicHealthCache?.estimates?.imageOutputUsdPerCard||0);
-  const localImageOutputs=all.reduce((sum,item)=>sum+Number(item?.aiLocal?.cardBatches||0)*4+Number(item?.aiLocal?.regenerations||0),0);
-  const localImageEstimate=imageRate?localImageOutputs*imageRate:0;
+  const paidImageOutputs=all.reduce((sum,item)=>{
+    const paid=item?.renderMode==='ai'||!item?.renderMode;
+    return sum+(paid?(Number(item?.aiLocal?.cardBatches||0)*4+Number(item?.aiLocal?.regenerations||0)):0);
+  },0);
+  const localImageEstimate=imageRate?paidImageOutputs*imageRate:0;
   const nextCount=Math.min(queue.length,EXCEL_AUTOPILOT_LIMIT);
-  const nextImageEstimate=imageRate?nextCount*4*imageRate:0;
+  const nextImageEstimate=0;
   const moderationTop=topModerationPattern();
   const styleStats=new Map();
   for(const item of all){
@@ -5608,7 +5609,7 @@ async function refreshDiagnosticsNow(allItems=null){
   if(storageManager.classList.contains('show'))await renderStorageManager(all);
   const state=loadLargeQueueState();
   const budgetLimit=queueBudgetLimit();
-  queueBudgetStatus.textContent='Image-ориентир очереди: $'+Number(state.spentImageUsd||0).toFixed(2)+(budgetLimit?' из $'+budgetLimit.toFixed(2):' · лимит не задан')+'. Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
+  queueBudgetStatus.textContent='Excel-очередь создаёт изображения бесплатно: image-generation расход = $0. Лимит image-бюджета нужен только при ручном выборе «AI-фото · платно». Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
   queueResumeNote.classList.toggle('show',Boolean(state.pending));
   queueResumeNote.textContent=state.pending?'Сохранена незавершённая очередь. Последний запуск: '+new Date(state.updatedAt||Date.now()).toLocaleString('ru-RU')+'. Нажмите «Продолжить очередь».':'';
 }
@@ -6464,8 +6465,8 @@ excelPhotoFiles.addEventListener('change',async()=>{
   }catch(e){excelPhotoMatchText.textContent='Не удалось привязать фото: '+(e.message||'ошибка')}
   finally{excelPhotoFiles.value=''}
 });
-runExcelAutopilot.onclick=()=>{largeQueuePaused=false;const st=loadLargeQueueState();saveLargeQueueState({pending:true,paused:false,spentImageUsd:st.pending?Number(st.spentImageUsd||0):0});runExcelAutopilotQueue();};
-resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false});runExcelAutopilotQueue();};
+runExcelAutopilot.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,spentImageUsd:0});runExcelAutopilotQueue();};
+resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,spentImageUsd:0});runExcelAutopilotQueue();};
 pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueueItems(await dbAll()).length>0;saveLargeQueueState({pending,paused:true});excelAutoProgressText.textContent=excelAutopilotBusy?'Очередь будет поставлена на паузу после текущего товара.':'Очередь на паузе.';await refreshDiagnosticsNow();};
 exportCatalogReport.onclick=()=>exportCatalogReportNow();
 projectArchive.onclick=()=>createEncryptedBackup();
