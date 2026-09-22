@@ -171,7 +171,7 @@
     .import-map-card{width:min(850px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:22px;padding:18px;box-shadow:0 30px 90px rgba(0,0,0,.35)}
     .import-map-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.import-map-head h3{margin:0 0 4px}.import-map-head p{margin:0;color:var(--muted);font-size:11px}
     .import-map-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}.import-map-field{display:grid;grid-template-columns:145px minmax(0,1fr);gap:7px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:10px}.import-map-field label{font-size:10px;font-weight:850}.import-map-field select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px;background:#fff;font-size:10px}
-    .import-preview{margin-top:12px;padding:10px;border-radius:10px;background:#F7F7F8;font-size:10px;color:#635B5D;overflow:auto;white-space:nowrap}.import-map-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+    .import-preview{margin-top:12px;padding:10px;border-radius:10px;background:#F7F7F8;font-size:10px;color:#635B5D;overflow:auto;white-space:normal;line-height:1.45}.import-diff-stats{display:grid;grid-template-columns:repeat(5,minmax(80px,1fr));gap:6px;margin-bottom:9px}.import-diff-stat{padding:8px;border-radius:9px;background:#fff;border:1px solid var(--line)}.import-diff-stat b{display:block;font-size:15px}.import-diff-stat span{font-size:8px;color:var(--muted);font-weight:800}.import-diff-list{display:grid;gap:5px}.import-diff-row{padding:6px 8px;border-radius:8px;background:#fff;border:1px solid var(--line);font-size:9px}.import-map-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
     @media(max-width:700px){.import-map-grid{grid-template-columns:1fr}.import-map-field{grid-template-columns:115px minmax(0,1fr)}}
 
   
@@ -736,7 +736,7 @@
     <div class="import-map-head"><div><h3>Сопоставление колонок</h3><p id="importMapSubtitle">Проверьте, какие колонки таблицы соответствуют полям Yuvion.</p></div><button class="btn btn-ghost btn-small" id="cancelImportMap">Закрыть</button></div>
     <div class="import-map-grid" id="importMapGrid"></div>
     <div class="import-preview" id="importMapPreview"></div>
-    <div class="import-map-actions"><button class="btn btn-ghost" id="resetImportMap">Автораспознавание</button><button class="btn btn-primary" id="confirmImportMap">Импортировать</button></div>
+    <div class="import-map-actions"><button class="btn btn-ghost" id="resetImportMap">Автораспознавание</button><button class="btn btn-primary" id="confirmImportMap">Проверить изменения</button></div>
   </div>
 </div>
 
@@ -4063,32 +4063,95 @@ function renderImportMapper({redetect=false}={}){
   }).join('');
   importMapGrid.querySelectorAll('[data-import-map]').forEach(select=>select.onchange=()=>{
     pendingImportMap.mapping[select.dataset.importMap]=Number(select.value);
+    pendingImportMap.diffReady=false;pendingImportMap.preparedRows=null;confirmImportMap.textContent='Проверить изменения';
     updateImportMapPreview();
   });
   updateImportMapPreview();
 }
 function openImportMapper(rows,filename){
   if(!Array.isArray(rows)||rows.length<2)throw new Error('В таблице нужны заголовки и хотя бы одна строка товара.');
-  pendingImportMap={rows,filename:String(filename||'таблица'),mapping:null};
+  pendingImportMap={rows,filename:String(filename||'таблица'),mapping:null,diffReady:false,preparedRows:null};
   renderImportMapper({redetect:true});
   importMapModal.classList.add('show');
 }
 function closeImportMapper(){
   pendingImportMap=null;
+  confirmImportMap.textContent='Проверить изменения';
   importMapModal.classList.remove('show');
 }
+async function previewMappedImportDiff(rows){
+  const headers=rows[0].map(v=>String(v||'').trim());
+  const existing=await dbAll();
+  const skuIndex=new Map(),barcodeIndex=new Map();
+  for(const item of existing){
+    const sku=skuOfStoredItem(item),barcode=barcodeOfStoredItem(item);
+    if(sku){if(!skuIndex.has(sku))skuIndex.set(sku,[]);skuIndex.get(sku).push(item)}
+    if(barcode){if(!barcodeIndex.has(barcode))barcodeIndex.set(barcode,[]);barcodeIndex.get(barcode).push(item)}
+  }
+  const seen=new Set(),samples=[];
+  let created=0,updated=0,unchanged=0,conflicts=0,skipped=0;
+  for(const row of rows.slice(1,CATALOG_LIMIT+1)){
+    const record=importRecordFromRow(headers,row);
+    if(!Object.values(record).some(Boolean)){skipped++;continue}
+    const sku=normalizeSku(record.sku),barcode=normalizeBarcode(record.barcode);
+    const candidates=[...(sku?(skuIndex.get(sku)||[]):[]),...(barcode?(barcodeIndex.get(barcode)||[]):[])];
+    const unique=[...new Map(candidates.map(x=>[x.id,x])).values()];
+    if(unique.length>1){conflicts++;if(samples.length<8)samples.push('Конфликт: '+(record.sku||record.barcode||record.title||'строка без ключа'));continue}
+    const old=unique[0]||null;
+    if(!old){created++;if(samples.length<8)samples.push('Новый: '+(record.sku||record.title||record.barcode||'товар'));continue}
+    seen.add(old.id);
+    const d=old.data||{},x=old.extraData||d.confirmedData||{},p=old.privateData||{};
+    const before={
+      title:d.seoTitle||old.title||'',category:d.category||'',description:d.fullDescription||d.shortDescription||'',
+      brand:x.brand||'',sku:x.sku||'',barcode:x.barcode||'',size:x.size||'',material:x.material||'',
+      price1:x.price1||x.price||'',price2:x.price2||'',price3:x.price3||'',oldPrice:x.oldPrice||'',
+      cost:p.cost||'',stock:p.stock||'',boxes:p.boxes||'',minStock:p.minStock||'',location:p.location||'',
+      collections:Array.isArray(p.collections)?p.collections.join(', '):''
+    };
+    const changes=[];
+    for(const key of Object.keys(before)){
+      const incoming=String(record[key]??'').trim();
+      if(incoming&&incoming!==String(before[key]??'').trim())changes.push(key+': «'+String(before[key]||'—').slice(0,35)+'» → «'+incoming.slice(0,35)+'»');
+    }
+    if(changes.length){
+      updated++;
+      if(samples.length<8)samples.push((record.sku||record.title||old.title||'Товар')+': '+changes.slice(0,2).join(' · '));
+    }else unchanged++;
+  }
+  const missing=existing.filter(item=>item.importedFrom&&!seen.has(item.id)).length;
+  return {created,updated,unchanged,conflicts,skipped,missing,samples,truncated:Math.max(0,rows.length-1-CATALOG_LIMIT)};
+}
+function renderMappedImportDiff(diff){
+  const stats=[
+    ['Новых',diff.created],['Изменено',diff.updated],['Без изменений',diff.unchanged],['Конфликтов',diff.conflicts],['Исчезли',diff.missing]
+  ];
+  importMapPreview.innerHTML='<div class="import-diff-stats">'+stats.map(x=>'<div class="import-diff-stat"><b>'+x[1]+'</b><span>'+esc(x[0])+'</span></div>').join('')+'</div>'+
+    '<div class="import-diff-list">'+(diff.samples.length?diff.samples.map(x=>'<div class="import-diff-row">'+esc(x)+'</div>').join(''):'<div class="import-diff-row">Изменений в существующих товарах не найдено.</div>')+'</div>'+
+    '<div style="margin-top:8px;color:var(--muted)">Удаление исчезнувших товаров не выполняется. Пустых строк: '+diff.skipped+(diff.truncated?' · сверх лимита: '+diff.truncated:'')+'.</div>';
+}
+
 async function confirmMappedImport(){
   if(!pendingImportMap)return;
   const source=pendingImportMap;
   const headers=IMPORT_MAP_FIELDS.map(field=>field.canonical);
-  const mappedRows=[headers,...source.rows.slice(1).map(row=>IMPORT_MAP_FIELDS.map(field=>{
+  const mappedRows=source.preparedRows||[headers,...source.rows.slice(1).map(row=>IMPORT_MAP_FIELDS.map(field=>{
     const idx=Number(source.mapping[field.key]??-1);
     return idx>=0?String(row[idx]??''):'';
   }))];
+  if(!source.diffReady){
+    source.preparedRows=mappedRows;
+    const diff=await previewMappedImportDiff(mappedRows);
+    source.diffReady=true;source.diff=diff;
+    renderMappedImportDiff(diff);
+    importMapSubtitle.textContent='Предпросмотр изменений · '+source.filename;
+    confirmImportMap.textContent='Применить изменения';
+    return;
+  }
   importMapModal.classList.remove('show');
   pendingImportMap=null;
+  confirmImportMap.textContent='Проверить изменения';
   importNote.className='import-note show';
-  importNote.textContent='Импортируем сопоставленные данные локально…';
+  importNote.textContent='Применяем подтверждённые изменения локально…';
   await importProductRows(mappedRows,source.filename);
 }
 
@@ -5727,7 +5790,7 @@ publishNextProblem.onclick=async()=>{
   if(item)await restoreHistory(item);else alert('Проблемных товаров не найдено.');
 };
 cancelImportMap.onclick=()=>closeImportMapper();
-resetImportMap.onclick=()=>renderImportMapper({redetect:true});
+resetImportMap.onclick=()=>{if(pendingImportMap){pendingImportMap.diffReady=false;pendingImportMap.preparedRows=null}confirmImportMap.textContent='Проверить изменения';renderImportMapper({redetect:true})};
 confirmImportMap.onclick=async()=>{
   confirmImportMap.disabled=true;
   try{await confirmMappedImport()}catch(e){
