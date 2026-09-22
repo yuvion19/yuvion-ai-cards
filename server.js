@@ -478,10 +478,12 @@ function isBlockedIp(address) {
       (a === 172 && b >= 16 && b <= 31) ||
       (a === 192 && b === 0) ||
       (a === 192 && b === 168) ||
-      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 192 && b === 2) ||
+      (a === 198 && (b === 18 || b === 19 || b === 51)) ||
+      (a === 203 && b === 0) ||
       a >= 224;
   }
-  if (ip === "::1" || ip === "::" || ip.startsWith("fe80:") || ip.startsWith("fc") || ip.startsWith("fd")) return true;
+  if (ip === "::1" || ip === "::" || ip.startsWith("fe80:") || ip.startsWith("fc") || ip.startsWith("fd") || ip.startsWith("2001:db8:")) return true;
   if (ip.startsWith("::ffff:")) return isBlockedIp(ip.slice(7));
   return false;
 }
@@ -534,20 +536,23 @@ async function fetchPublicResource(rawUrl, options = {}) {
   const maxBytes = Number(options.maxBytes || MAX_REMOTE_HTML_BYTES);
   const accept = options.accept || "*/*";
   const redirects = Number(options.redirects ?? 3);
+  const referer = String(options.referer || "");
   let current = await validatePublicHttpUrl(rawUrl);
   for (let hop = 0; hop <= redirects; hop += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REMOTE_FETCH_TIMEOUT_MS);
     let response;
     try {
+      const headers = {
+        "User-Agent": "YuvionAI/6.6 (+public-product-import)",
+        "Accept": accept,
+        "Accept-Language": "ru,en;q=0.8"
+      };
+      if (referer) headers["Referer"] = referer;
       response = await fetch(current, {
         redirect: "manual",
         signal: controller.signal,
-        headers: {
-          "User-Agent": "YuvionAI/6.6 (+public-product-import)",
-          "Accept": accept,
-          "Accept-Language": "ru,en;q=0.8"
-        }
+        headers
       });
     } catch (error) {
       if (error?.name === "AbortError") throw new Error("Сайт слишком долго отвечает.");
@@ -558,6 +563,7 @@ async function fetchPublicResource(rawUrl, options = {}) {
     if ([301,302,303,307,308].includes(response.status)) {
       const location = response.headers.get("location");
       if (!location || hop === redirects) throw new Error("Слишком много перенаправлений.");
+      try { await response.body?.cancel(); } catch {}
       current = await validatePublicHttpUrl(new URL(location, current).href);
       continue;
     }
@@ -706,6 +712,21 @@ function productSeedFromHtml(html, finalUrl) {
   };
 }
 
+function embeddedPublicJson(html) {
+  const parts = [];
+  for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    const attrs = htmlAttributes(match[1]);
+    const id = String(attrs.id || "").toLowerCase();
+    const type = String(attrs.type || "").toLowerCase();
+    if (!(id === "__next_data__" || type === "application/json" || type.includes("ld+json"))) continue;
+    const raw = String(match[2] || "").trim();
+    if (!raw || raw.length > 800000 || !/(product|sku|price|offer|brand|gtin|article)/i.test(raw)) continue;
+    parts.push(raw.slice(0, 16000));
+    if (parts.join("\n").length >= 22000) break;
+  }
+  return parts.join("\n").slice(0, 22000);
+}
+
 function visiblePageText(html) {
   return decodeHtmlText(String(html)
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
@@ -744,10 +765,11 @@ async function normalizeRemoteProductWithAi(seed, pageText, sourceUrl) {
   return JSON.parse(response.output_text || "{}");
 }
 
-async function normalizeRemoteImage(imageUrl) {
+async function normalizeRemoteImage(imageUrl, referer = "") {
   const result = await fetchPublicResource(imageUrl, {
     maxBytes: MAX_REMOTE_IMAGE_BYTES,
-    accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8"
+    accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8",
+    referer
   });
   const type = String(result.response.headers.get("content-type") || "").toLowerCase();
   if (!type.startsWith("image/")) throw new Error("Ссылка не является изображением.");
@@ -779,7 +801,8 @@ app.post("/api/import-url", async (req, res) => {
     }
     const html = page.buffer.toString("utf8");
     const seed = productSeedFromHtml(html, page.finalUrl);
-    const pageText = visiblePageText(html);
+    const embeddedJson = embeddedPublicJson(html);
+    const pageText = (visiblePageText(html) + (embeddedJson ? "\n\nEMBEDDED PUBLIC JSON:\n" + embeddedJson : "")).slice(0, 42000);
     if (!seed.title && !seed.description && !seed.characteristics.length && pageText.length < 80) {
       return res.status(422).json({ error: "На странице не удалось найти публичные данные товара. Возможно, сайт загружает их только после JavaScript, авторизации или проверки браузера." });
     }
@@ -849,7 +872,7 @@ app.post("/api/import-url", async (req, res) => {
     const images = [];
     for (const imageUrl of seed.imageUrls.slice(0, 5)) {
       try {
-        const image = await normalizeRemoteImage(imageUrl);
+        const image = await normalizeRemoteImage(imageUrl, seed.canonical || page.finalUrl);
         images.push({ ...image, role: images.length ? "angle" : "main" });
       } catch {}
     }
