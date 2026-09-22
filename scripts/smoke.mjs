@@ -152,7 +152,7 @@ const features=[
   ['markCardsStale([0,1,2,3])','series forces full-card refresh'],
   ['Power Render v5','current renderer UI marker'],
   ['localCardVisualMetrics','local visual QA metrics'],
-  ['visualQaVersion: 2','local QA v2 response'],
+  ['visualQaVersion: 3','local QA v3 response'],
   ['localVisualQaV2: true','local visual QA v2 health metadata'],
   ['localVisualQaV3: true','local visual QA v3 health metadata'],
   ['seriesDiversityQa: true','series perceptual diversity QA metadata'],
