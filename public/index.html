@@ -1909,6 +1909,7 @@ async function recordModeration(){
     },...currentModeration.log]
   });
   renderModeration();
+  addCurrentActivity('Статус модерации',moderationLabel(status)+(reason?' · '+reason:''));
   await saveHistory();
 }
 
@@ -2902,7 +2903,8 @@ analyzeBtn.onclick=async()=>{
     const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
-    currentData=data;currentCards=[];cardsStale=false;currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
+    currentData=data;currentCards=[];cardsStale=false;currentStaleCards=[];currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
+    addCurrentActivity('AI-анализ завершён','Уверенность: '+(data.confidence||'не указана'));
     fillEditor(data);
     applyCategoryRule({applyTemplate:true});
     currentData=collectEdits();
@@ -3017,6 +3019,7 @@ async function checkQualityAndAutofix(autoFix=true){
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проверить качество.');
     currentQuality=data;
+    addCurrentActivity('QA изображений',data.overall||'Проверка завершена');
     renderCards();
 
     const bad=(data.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(x=>Number.isInteger(x));
@@ -3469,6 +3472,7 @@ async function saveCurrentRevision(){
   const snapshot=revisionSnapshot(label);
   if(!snapshot)return;
   currentRevisions=[snapshot,...currentRevisions].slice(0,12);
+  addCurrentActivity('Сохранена версия',label||'Без названия');
   renderRevisionList();
   revisionBox.open=true;
   await saveHistory();
@@ -3492,7 +3496,8 @@ async function restoreRevision(id){
   renderCategoryMemory();
   renderSpecTemplateHint();
   renderYuvionExport();
-  markCardsStale();
+  markCardsStale([0,1,2,3]);
+  addCurrentActivity('Версия восстановлена',revision.label||revision.data?.seoTitle||'Версия');
   syncModeUi();
   await checkDuplicateSku();
   await saveHistory();
@@ -3578,6 +3583,7 @@ async function togglePublished(id){
   item.published=!item.published;
   item.publishedAt=item.published?Date.now():null;
   item.updatedAt=Date.now();
+  item.activity=[{at:Date.now(),type:item.published?'Отмечен опубликованным':'Возвращён в черновики',detail:''},...(item.activity||[])].slice(0,80);
   await dbPut(item);
   await renderHistory();
 }
@@ -5401,6 +5407,8 @@ async function runPreflightCheck(){
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось выполнить проверку.');
     renderPreflightAudit(data,currentRuleHints());
+    addCurrentActivity('AI preflight',data.overall||'Проверка завершена');
+    saveHistoryDebounced();
   }catch(e){
     box.className='audit-box show warn';box.innerHTML='<b>AI-проверка недоступна</b><div style="margin-top:5px">'+esc(e.message||'Ошибка')+'. Базовая проверка готовности продолжает работать локально.</div>';
   }finally{btn.disabled=false}
