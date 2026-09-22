@@ -1001,6 +1001,7 @@ let selectedFile=null;
 let sourceDataUrl=null;
 let currentData=null;
 let currentCards=[];
+let currentScenes=[];
 let currentMode='full';
 let currentHistoryId=null;
 let busy=false;
@@ -2924,7 +2925,7 @@ analyzeBtn.onclick=async()=>{
     const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
-    currentData=data;currentCards=[];cardsStale=false;currentStaleCards=[];currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
+    currentData=data;currentCards=[];currentScenes=[];cardsStale=false;currentStaleCards=[];currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
     addCurrentActivity('AI-анализ завершён','Уверенность: '+(data.confidence||'не указана'));
     fillEditor(data);
     applyCategoryRule({applyTemplate:true});
@@ -3087,35 +3088,63 @@ async function regenerateCardApi(index,src,cardData,styleValue){
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку №'+(index+1)+'.');
+  if(data.scene){
+    currentScenes=Array.isArray(currentScenes)?currentScenes:[];
+    currentScenes[index]=data.scene;
+  }
   return data.card;
+}
+
+async function renderOverlayCardsApi(indexes,cardData,styleValue){
+  if(!Array.isArray(currentScenes)||currentScenes.length!==4)throw new Error('Чистые сцены недоступны.');
+  const response=await fetch('/api/render-card-overlays',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({scenes:currentScenes,card:cardData,style:styleValue,indexes})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось пересобрать инфографику.');
+  for(const rendered of (data.cards||[])){
+    if(Number.isInteger(rendered.index))currentCards[rendered.index]=rendered;
+  }
+  return data;
 }
 
 generateAll.onclick=async()=>{
   if(cardsBusy||!currentData)return;
   currentData=collectEdits();cardsBusy=true;generateAll.disabled=true;creative.classList.add('show');
   currentQuality=null;qaSummary.style.display='none';
-  const selective=currentCards.length===4&&cardsStale&&currentStaleCards.length>0&&currentStaleCards.length<4;
+  const canLocalOverlay=currentCards.length===4&&currentScenes.length===4&&cardsStale&&currentStaleCards.length>0;
+  const selectiveAi=currentCards.length===4&&cardsStale&&currentStaleCards.length>0&&currentStaleCards.length<4&&!canLocalOverlay;
   creativeStatus.className='creative-status show';
-  creativeStatus.textContent=selective?'Обновляем только карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.':'Создаём 4 изображения и накладываем инфографику.';
-  if(!selective)cardsPreview.innerHTML='';
+  creativeStatus.textContent=canLocalOverlay
+    ?'Пересобираем инфографику без нового AI-изображения: карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.'
+    :selectiveAi
+      ?'Обновляем только карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.'
+      :'Создаём 4 изображения и накладываем инфографику.';
+  if(!canLocalOverlay&&!selectiveAi)cardsPreview.innerHTML='';
   try{
-    const src=await getSource();
-    if(selective){
+    if(canLocalOverlay){
+      await renderOverlayCardsApi([...currentStaleCards],currentData,styleSelect.value);
+      addCurrentActivity('Инфографика пересобрана без AI','Карточки №'+currentStaleCards.map(x=>x+1).join(', '));
+    }else if(selectiveAi){
+      const src=await getSource();
       for(const index of [...currentStaleCards])currentCards[index]=await regenerateCardApi(index,src,currentData,styleSelect.value);
-      addCurrentActivity('Точечная перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
+      addCurrentActivity('Точечная AI-перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
     }else{
+      const src=await getSource();
       const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
       currentCards=data.cards||[];
-      addCurrentActivity('Создан комплект изображений','4 карточки');
+      currentScenes=data.scenes||[];
+      addCurrentActivity('Создан комплект изображений','4 карточки + чистые сцены');
     }
     cardsStale=false;currentStaleCards=[];renderCards();renderProductCockpit();
     zipImages.disabled=false;zipFull.disabled=false;
     creativeStatus.className='creative-status show';creativeStatus.textContent='Изображения готовы. Выполняем автоматическую проверку качества.';
     await saveHistory();
-    await checkQualityAndAutofix(true);
-    creativeStatus.className='creative-status show done';creativeStatus.textContent='Комплект готов. QA завершён; при необходимости исправлены только проблемные карточки.';
+    await checkQualityAndAutofix(!canLocalOverlay);
+    creativeStatus.className='creative-status show done';creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена без image-generation. QA завершён.':'Комплект готов. QA завершён; при необходимости исправлены только проблемные карточки.';
     await downloadPackage(false,true);
   }catch(e){
     creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось создать карточки.';
@@ -3137,6 +3166,7 @@ async function moveCard(from,to){
   currentCards.splice(to,0,card);
   normalizeCardFilenames();
   currentQuality=null;
+  currentScenes=[];
   if(cardsStale)currentStaleCards=[0,1,2,3];
   addCurrentActivity('Порядок карточек изменён','Позиция '+(from+1)+' → '+(to+1));
   renderCards();
@@ -3239,7 +3269,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentScenes=[];currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
@@ -3386,6 +3416,7 @@ async function savePhotoDraft(file){
       photoHash:currentPhotoHash||'',
       additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
+      scenes:currentScenes,
       quality:currentQuality,
       cardsStale:Boolean(cardsStale),
       variations:variationsForExport(),
@@ -4292,7 +4323,7 @@ async function importProductRows(rows,filename='таблица'){
       id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
       updatedAt:Date.now()-created,title,data,extraData,
       privateData:{cost:record.cost||'',stock:record.stock||'',boxes:record.boxes||'',minStock:record.minStock||'',location:record.location||'',collections:parseCollections(record.collections||'')},
-      sourceDataUrl:'',additionalPhotos:[],cards:[],quality:null,cardsStale:false,variations:[],revisions:[],
+      sourceDataUrl:'',additionalPhotos:[],cards:[],scenes:[],quality:null,cardsStale:false,variations:[],revisions:[],
       activity:[{at:Date.now(),type:'Импортирован из Excel',detail:String(filename||'таблица').slice(0,120)}],
       labelSuggestions:[],analysisCache:null,mode:defaults.mode||'full',style:importedRule?.style||defaults.style||'minimal',
       published:false,importedFrom:String(filename||'таблица').slice(0,120),importedAt:Date.now(),excelAutopilot:{state:'waiting',error:''}
@@ -4465,7 +4496,7 @@ async function attachPhotoFileToItem(file,item,{asMain=false}={}){
     extras.push({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),name:file.name,dataUrl,mimeType:(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role:inferPhotoRole(file.name)});
     item.additionalPhotos=extras;
   }
-  item.cards=[];item.quality=null;item.cardsStale=false;item.staleCardIndexes=[];item.analysisCache=null;item.generationFingerprint=null;
+  item.cards=[];item.scenes=[];item.quality=null;item.cardsStale=false;item.staleCardIndexes=[];item.analysisCache=null;item.generationFingerprint=null;
   item.excelAutopilot={state:'matched',error:''};item.updatedAt=Date.now();
   item.activity=[{at:Date.now(),type:'Фото назначено вручную',detail:file.name},...(item.activity||[])].slice(0,80);
   await dbPut(item);
@@ -4526,6 +4557,7 @@ async function matchExcelPhotos(files){
     item.additionalPhotos=photos.slice(1).map(x=>({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),dataUrl:x.dataUrl,name:x.file.name,mimeType:(x.dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role:inferPhotoRole(x.file.name)}));
     item.photoHash=await imageHashFromDataUrl(photos[0].dataUrl);
     item.cards=[];
+    item.scenes=[];
     item.quality=null;
     item.cardsStale=false;
     item.staleCardIndexes=[];
@@ -4676,6 +4708,7 @@ async function processExcelAutopilotItem(item,style){
   const generated=await gen.json().catch(()=>({}));
   if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
   let cards=generated.cards||[];
+  let scenes=generated.scenes||[];
   if(cards.length!==4)throw new Error('Генерация вернула неполный комплект изображений.');
   const qaCall=async()=> {
     const q=await fetch('/api/quality-check',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards,card:analyzed,sourceImage:src.base64,sourceMimeType:src.mime})});
@@ -4687,12 +4720,13 @@ async function processExcelAutopilotItem(item,style){
   for(const index of bad){
     const regen=await fetch('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index})});
     const payload=await regen.json().catch(()=>({}));
-    if(regen.ok&&payload.card){cards[index]=payload.card;regenerated++}
+    if(regen.ok&&payload.card){cards[index]=payload.card;if(payload.scene)scenes[index]=payload.scene;regenerated++}
   }
   if(bad.length)quality=await qaCall();
   item.data=analyzed;
   item.title=analyzed.seoTitle||item.title||'Товар';
   item.cards=cards;
+  item.scenes=scenes;
   item.quality=quality;
   item.cardsStale=false;
   item.staleCardIndexes=[];
@@ -4970,6 +5004,7 @@ async function restoreHistory(item){
   currentHistoryId=item.id;
   currentData=item.data||null;
   currentCards=item.cards||[];
+  currentScenes=Array.isArray(item.scenes)?item.scenes.slice(0,4):[];
   currentQuality=item.quality||null;
   currentVariations=Array.isArray(item.variations)?item.variations.map(normalizeVariation):[];
   currentAdditionalPhotos=Array.isArray(item.additionalPhotos)?item.additionalPhotos.slice(0,4):[];
