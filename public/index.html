@@ -196,6 +196,7 @@
     .ops-v64{max-width:1100px;margin:16px auto;border:1px solid var(--line);border-radius:22px;background:#fff;overflow:hidden}.ops-v64-body{padding:16px 18px 18px}.ops-v64-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.ops-v64-card{border:1px solid var(--line);border-radius:12px;padding:11px;background:#FCFAFA}.ops-v64-card b{display:block;font-size:11px}.ops-v64-card span{display:block;margin-top:3px;font-size:9px;color:var(--muted);line-height:1.4}.ops-v64-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.diagnostic-list,.activity-list{display:grid;gap:5px;margin-top:10px}.diagnostic-row,.activity-row{display:flex;justify-content:space-between;gap:12px;padding:7px 8px;border-radius:8px;background:#F7F7F8;font-size:9px}.activity-row{display:block}.activity-row b{font-size:9px}.activity-row small{display:block;color:var(--muted);margin-top:2px}
     .queue-resume-note{margin-top:8px;padding:8px 9px;border-radius:9px;background:#FFF8E8;color:#7D5700;font-size:9px;display:none}.queue-resume-note.show{display:block}
     .unmatched-manager{display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}.unmatched-manager.show{display:block}.unmatched-manager h4{margin:0 0 7px;font-size:11px}.unmatched-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,1fr) auto;gap:7px;align-items:center;padding:7px;border:1px solid var(--line);border-radius:9px;margin-top:6px}.unmatched-row b{font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unmatched-row select{border:1px solid var(--line);border-radius:8px;padding:6px;font-size:9px;background:#fff}
+    .ops-budget{display:grid;grid-template-columns:minmax(220px,320px) minmax(0,1fr);gap:10px;align-items:end;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#FBFAFA}.ops-budget label span{display:block;font-size:9px;font-weight:850;margin-bottom:5px}.ops-budget input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 9px;background:#fff}.ops-budget>div{font-size:9px;color:var(--muted);line-height:1.4;padding-bottom:3px}@media(max-width:680px){.ops-budget{grid-template-columns:1fr}}
     @media(max-width:760px){.ops-v64-grid{grid-template-columns:repeat(2,1fr)}}
 
   </style>
@@ -301,6 +302,10 @@
         <div class="ops-v64-card"><b id="opsStorageValue">—</b><span>занято хранилища браузера</span></div>
       </div>
       <div class="queue-resume-note" id="queueResumeNote"></div>
+      <div class="ops-budget">
+        <label><span>Лимит image-бюджета на очередь, $</span><input id="queueBudgetUsd" type="number" min="0" step="0.5" value="10"></label>
+        <div id="queueBudgetStatus">Ориентировочный лимит применяется только к генерации изображений. 0 = без лимита.</div>
+      </div>
       <div class="ops-v64-actions">
         <button class="btn btn-primary btn-small" id="resumeLargeQueue">Продолжить очередь</button>
         <button class="btn btn-ghost btn-small" id="pauseLargeQueue">Пауза</button>
@@ -989,6 +994,8 @@ const opsCacheValue=document.getElementById('opsCacheValue');
 const opsErrorValue=document.getElementById('opsErrorValue');
 const opsStorageValue=document.getElementById('opsStorageValue');
 const queueResumeNote=document.getElementById('queueResumeNote');
+const queueBudgetUsd=document.getElementById('queueBudgetUsd');
+const queueBudgetStatus=document.getElementById('queueBudgetStatus');
 const resumeLargeQueue=document.getElementById('resumeLargeQueue');
 const pauseLargeQueue=document.getElementById('pauseLargeQueue');
 const exportCatalogReport=document.getElementById('exportCatalogReport');
@@ -1039,9 +1046,33 @@ let publicHealthCache=null;
 let largeQueuePaused=true;
 const EXCEL_AUTOPILOT_LIMIT=10;
 const LARGE_QUEUE_KEY='yuvionLargeQueueV1';
+const QUEUE_BUDGET_KEY='yuvionQueueBudgetUsdV1';
 
 localStorage.removeItem('yuvionSessionId');
+queueBudgetUsd.value=localStorage.getItem(QUEUE_BUDGET_KEY)||'10';
+queueBudgetUsd.addEventListener('change',()=>{saveQueueBudget();refreshDiagnosticsNow()});
 function apiHeaders(){return {'Content-Type':'application/json'}}
+function queueBudgetLimit(){
+  const n=Number(queueBudgetUsd?.value||localStorage.getItem(QUEUE_BUDGET_KEY)||0);
+  return Number.isFinite(n)&&n>0?n:0;
+}
+function saveQueueBudget(){
+  if(queueBudgetUsd)localStorage.setItem(QUEUE_BUDGET_KEY,String(Math.max(0,Number(queueBudgetUsd.value)||0)));
+}
+async function fetchJsonRetry(url,options={},retries=2){
+  let lastError=null;
+  for(let attempt=0;attempt<=retries;attempt++){
+    try{
+      const response=await fetch(url,options);
+      const data=await response.json().catch(()=>({}));
+      if(response.status===429||response.status===402||response.status===401||response.status===400)return {response,data};
+      if(response.ok||response.status<500)return {response,data};
+      lastError=new Error(data.error||('HTTP '+response.status));
+    }catch(e){lastError=e}
+    if(attempt<retries)await new Promise(r=>setTimeout(r,700*(attempt+1)));
+  }
+  throw lastError||new Error('Сетевой запрос не выполнен.');
+}
 function showError(message){error.textContent=message;error.classList.add('show')}
 function clearError(){error.classList.remove('show');error.textContent=''}
 function esc(s){const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML}
@@ -4687,8 +4718,8 @@ async function processExcelAutopilotItem(item,style){
     analyzed=typeof structuredClone==='function'?structuredClone(item.analysisCache.data):JSON.parse(JSON.stringify(item.analysisCache.data));
     analysisFromCache=true;
   }else{
-    const analyze=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,mode:'full',extraData,additionalImages})});
-    analyzed=await analyze.json().catch(()=>({}));
+    const {response:analyze,data:analyzedPayload}=await fetchJsonRetry('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,mode:'full',extraData,additionalImages})},2);
+    analyzed=analyzedPayload;
     if(!analyze.ok)throw new Error(analyzed.error||'Не удалось проанализировать товар.');
   }
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
@@ -4704,22 +4735,20 @@ async function processExcelAutopilotItem(item,style){
     return item;
   }
 
-  const gen=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style})});
-  const generated=await gen.json().catch(()=>({}));
+  const {response:gen,data:generated}=await fetchJsonRetry('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style})},1);
   if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
   let cards=generated.cards||[];
   let scenes=generated.scenes||[];
   if(cards.length!==4)throw new Error('Генерация вернула неполный комплект изображений.');
   const qaCall=async()=> {
-    const q=await fetch('/api/quality-check',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards,card:analyzed,sourceImage:src.base64,sourceMimeType:src.mime})});
-    if(!q.ok)return null;return q.json().catch(()=>null);
+    const {response:q,data}=await fetchJsonRetry('/api/quality-check',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards,card:analyzed,sourceImage:src.base64,sourceMimeType:src.mime})},2);
+    if(!q.ok)return null;return data;
   };
   let quality=await qaCall();
   const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,2);
   let regenerated=0;
   for(const index of bad){
-    const regen=await fetch('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index})});
-    const payload=await regen.json().catch(()=>({}));
+    const {response:regen,data:payload}=await fetchJsonRetry('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index})},1);
     if(regen.ok&&payload.card){cards[index]=payload.card;if(payload.scene)scenes[index]=payload.scene;regenerated++}
   }
   if(bad.length)quality=await qaCall();
@@ -4755,15 +4784,29 @@ async function runExcelAutopilotQueue(){
   excelAutopilotBusy=true;largeQueuePaused=false;runExcelAutopilot.disabled=true;excelAutoProgress.classList.add('show');
   saveLargeQueueState({pending:true,paused:false,totalRemaining:excelQueueItems(all).length});
   const style=excelAutopilotStyle.value||loadSellerDefaults().style||'minimal';
-  let done=0,success=0,haltedByLimit=false;
+  if(!publicHealthCache){try{const h=await fetch('/api/health');if(h.ok)publicHealthCache=await h.json()}catch{}}
+  const imageRate=Number(publicHealthCache?.estimates?.imageOutputUsdPerCard||0);
+  const budget=queueBudgetLimit();
+  let spent=Number(loadLargeQueueState().spentImageUsd||0);
+  let done=0,success=0,haltedByLimit=false,haltedByBudget=false;
   try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:queue.length})})}catch{}
   for(let i=0;i<queue.length;i++){
     const item=queue[i];
+    const conservativeEstimate=imageRate*4;
+    if(budget&&imageRate&&spent+conservativeEstimate>budget){
+      haltedByBudget=true;largeQueuePaused=true;break;
+    }
+    const beforeBatches=Number(item.aiLocal?.cardBatches||0),beforeRegens=Number(item.aiLocal?.regenerations||0);
     item.excelAutopilot={state:'work',error:''};await dbPut(item);
     excelAutoProgressText.textContent='Товар '+(i+1)+' из '+queue.length+': '+(item.title||skuOfStoredItem(item)||'товар');
     excelAutoBar.style.width=Math.round(i/queue.length*100)+'%';
     await renderHistory();
-    try{await processExcelAutopilotItem(item,style);success++}
+    try{
+      const processed=await processExcelAutopilotItem(item,style);success++;
+      const deltaBatches=Math.max(0,Number(processed.aiLocal?.cardBatches||0)-beforeBatches);
+      const deltaRegens=Math.max(0,Number(processed.aiLocal?.regenerations||0)-beforeRegens);
+      spent+=imageRate*(deltaBatches*4+deltaRegens);
+    }
     catch(e){
       const message=String(e.message||'Ошибка обработки');
       item.excelAutopilot={state:'error',error:message.slice(0,240)};item.updatedAt=Date.now();
@@ -4772,19 +4815,21 @@ async function runExcelAutopilotQueue(){
       if(/лимит|слишком много|429/i.test(message))haltedByLimit=true;
     }
     done++;excelAutoBar.style.width=Math.round(done/queue.length*100)+'%';
-    saveLargeQueueState({pending:true,paused:largeQueuePaused,lastProductId:item.id,completedInRun:done});
+    saveLargeQueueState({pending:true,paused:largeQueuePaused,lastProductId:item.id,completedInRun:done,spentImageUsd:spent});
     await renderHistory();
-    if(haltedByLimit||largeQueuePaused)break;
+    if(haltedByLimit||haltedByBudget||largeQueuePaused)break;
   }
   excelAutopilotBusy=false;
   const remaining=excelQueueItems(await dbAll()).length;
-  const paused=Boolean(largeQueuePaused||haltedByLimit||remaining);
-  saveLargeQueueState({pending:remaining>0,paused,totalRemaining:remaining});
+  const paused=Boolean(largeQueuePaused||haltedByLimit||haltedByBudget||remaining);
+  saveLargeQueueState({pending:remaining>0,paused,totalRemaining:remaining,spentImageUsd:spent});
   excelAutoProgressText.textContent=haltedByLimit
     ?'Очередь остановлена защитным лимитом AI. Готово: '+success+'. Необработанные товары сохранены.'
-    :largeQueuePaused&&remaining
-      ?'Очередь на паузе. Готово: '+success+'. Осталось: '+remaining+'.'
-      :'Завершено: '+success+' из '+done+'.'+(remaining?' В очереди осталось: '+remaining+'. Нажмите «Продолжить очередь».':' Очередь обработана.');
+    :haltedByBudget
+      ?'Очередь остановлена по локальному budget-controller. Потраченный image-ориентир: $'+spent.toFixed(2)+' из $'+budget.toFixed(2)+'.'
+      :largeQueuePaused&&remaining
+        ?'Очередь на паузе. Готово: '+success+'. Осталось: '+remaining+'.'
+        :'Завершено: '+success+' из '+done+'.'+(remaining?' В очереди осталось: '+remaining+'. Нажмите «Продолжить очередь».':' Очередь обработана.');
   await renderHistory();
   if(!remaining&&!haltedByLimit){
     document.getElementById('publishCenter').open=true;
@@ -4858,6 +4903,8 @@ async function refreshDiagnosticsNow(allItems=null){
     ['Следующий запуск',nextCount?(nextCount+' товаров'+(nextImageEstimate?' · image ≈ $'+nextImageEstimate.toFixed(2):'')):'очередь пуста']
   ].map(x=>'<div class="diagnostic-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('');
   const state=loadLargeQueueState();
+  const budgetLimit=queueBudgetLimit();
+  queueBudgetStatus.textContent='Image-ориентир очереди: $'+Number(state.spentImageUsd||0).toFixed(2)+(budgetLimit?' из $'+budgetLimit.toFixed(2):' · лимит не задан')+'. Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
   queueResumeNote.classList.toggle('show',Boolean(state.pending));
   queueResumeNote.textContent=state.pending?'Сохранена незавершённая очередь. Последний запуск: '+new Date(state.updatedAt||Date.now()).toLocaleString('ru-RU')+'. Нажмите «Продолжить очередь».':'';
 }
@@ -5667,7 +5714,7 @@ excelPhotoFiles.addEventListener('change',async()=>{
   }catch(e){excelPhotoMatchText.textContent='Не удалось привязать фото: '+(e.message||'ошибка')}
   finally{excelPhotoFiles.value=''}
 });
-runExcelAutopilot.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false});runExcelAutopilotQueue();};
+runExcelAutopilot.onclick=()=>{largeQueuePaused=false;const st=loadLargeQueueState();saveLargeQueueState({pending:true,paused:false,spentImageUsd:st.pending?Number(st.spentImageUsd||0):0});runExcelAutopilotQueue();};
 resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false});runExcelAutopilotQueue();};
 pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueueItems(await dbAll()).length>0;saveLargeQueueState({pending,paused:true});excelAutoProgressText.textContent=excelAutopilotBusy?'Очередь будет поставлена на паузу после текущего товара.':'Очередь на паузе.';await refreshDiagnosticsNow();};
 exportCatalogReport.onclick=()=>exportCatalogReportNow();
