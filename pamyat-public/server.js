@@ -48,6 +48,7 @@ app.use((req,res,next)=>{
     p.startsWith("/api/cemetery/") ||
     p.startsWith("/api/admin/cemetery/") ||
     p.startsWith("/api/admin/identification") ||
+    p.startsWith("/api/family/") ||
     p.startsWith("/qr/cemetery/") ||
     p==="/m/catalog" ||
     p==="/m/map" ||
@@ -55,7 +56,8 @@ app.use((req,res,next)=>{
     p==="/m/route" ||
     p==="/m/identify" ||
     p.startsWith("/m/identify/") ||
-    p==="/m/offline";
+    p==="/m/offline" ||
+    p==="/m/family";
   if(cemeteryPublic) {
     if (p.startsWith("/api/") || p.startsWith("/qr/")) return res.status(404).json({error:"not_found"});
     return res.redirect(302,"/m");
@@ -87,7 +89,6 @@ app.get("/m", (_req,res) => {
     <div class="nav">
       <a class="btn" href="/m/add">+ Добавить событие</a>
       <a class="btn" href="/m/calendar">Календарь</a>
-      <a class="btn" href="/m/family">Родословная</a>
       <a class="btn" href="/api/selftest">Проверка системы</a>
     </div>
     <a class="btn secondary" href="/pamyat-juhuro?desktop=1">Открыть полную версию</a>
@@ -231,7 +232,7 @@ app.get("/api/selftest", async (_req,res)=>{
   try{
     const db=await sb("rpc/memorial_selftest",{method:"POST",body:{}});
     const ok=Boolean(db?.ok);
-    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/add","/m/calendar","/m/family"],release:"memory-hub-no-cemetery"});
+    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/add","/m/calendar"],release:"memory-calendar"});
   }catch(e){res.status(503).json({ok:false,error:"selftest_failed",detail:e.data||e.message})}
 });
 
