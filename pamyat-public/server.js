@@ -505,6 +505,7 @@ app.get("/m/reminders", (_req,res) => {
   </script>`}));
 });
 
+
 app.get("/m/add", async (_req,res) => {
   res.setHeader("Cache-Control","no-store");
   res.send(mobileShell("Добавить событие", `
@@ -512,11 +513,39 @@ app.get("/m/add", async (_req,res) => {
     <form method="post" action="/m/add">
       <label>ФИО *</label><input class="field" name="full_name" required>
       <label>Дата смерти *</label><input class="field" type="date" name="death_date" required>
-      <div class="check"><input type="checkbox" name="publish_day7" value="1" checked><span>7 дней</span></div>
-      <div class="check"><input type="checkbox" name="publish_day40" value="1" checked><span>40 дней</span></div>
-      <div class="check"><input type="checkbox" name="publish_year1" value="1" checked><span>1 год</span></div>
-      <div class="check"><input type="checkbox" name="publish_annual" value="1" checked><span>Годовщина</span></div>
-      <div class="check"><input type="checkbox" name="publish_yahrzeit" value="1" checked><span>Йорцайт</span></div>
+
+      <div class="card">
+        <b>Памятные даты</b>
+        <div class="check"><input type="checkbox" name="publish_day7" value="1" checked><span>7 дней</span></div>
+        <div class="check"><input type="checkbox" name="publish_day40" value="1" checked><span>40 дней</span></div>
+        <div class="check"><input type="checkbox" name="publish_year1" value="1" checked><span>1 год</span></div>
+        <div class="check"><input type="checkbox" name="publish_annual" value="1" checked><span>Годовщина</span></div>
+        <div class="check"><input type="checkbox" name="publish_yahrzeit" value="1" checked><span>Йорцайт</span></div>
+      </div>
+
+      <div class="card">
+        <b>Еврейская дата и йорцайт</b>
+        <div class="check"><input type="checkbox" name="hebrew_after_sunset" value="1"><span>Смерть произошла после захода солнца — считать со следующего еврейского дня</span></div>
+        <label>Правило для Адара / семейной традиции</label>
+        <select class="field" name="yahrzeit_rule">
+          <option value="standard">Стандартное вычисление</option>
+          <option value="adar_i">Адар I</option>
+          <option value="adar_ii">Адар II</option>
+          <option value="family_custom">Семейная традиция</option>
+          <option value="manual">Только ручная дата</option>
+        </select>
+        <label>Ручная дата ближайшего йорцайта</label>
+        <input class="field" type="date" name="manual_yahrzeit_date">
+        <p class="muted">Ручная дата имеет приоритет. Это важно для случаев Адара, Хешвана/Кислева и семейных традиций.</p>
+      </div>
+
+      <div class="card">
+        <b>Срочное похоронное объявление</b>
+        <div class="check"><input type="checkbox" name="urgent_funeral" value="1"><span>Добавить отдельное срочное событие «Похороны»</span></div>
+        <label>Дата похорон</label><input class="field" type="date" name="funeral_date">
+        <label>Время</label><input class="field" type="time" name="event_time">
+      </div>
+
       <label>Город</label><input class="field" name="city">
       <label>Место</label><input class="field" name="place">
       <label>Комментарий</label><textarea class="field" name="note" rows="4"></textarea>
@@ -535,22 +564,33 @@ app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
     if(!fullName||!validDate(deathDate)||!b.relation_confirmed) {
       return res.status(400).send(mobileShell("Ошибка",'<div class="err">Заполните ФИО, дату смерти и согласие семьи.</div><p><a class="btn" href="/m/add">Вернуться</a></p>'));
     }
-    const yahrzeit=nextYahrzeit(deathDate);
+    const afterSunset=Boolean(b.hebrew_after_sunset);
+    const hebrewSourceDate=afterSunset?addDays(deathDate,1):deathDate;
+    const manualYahrzeit=validDate(clean(b.manual_yahrzeit_date,10))?clean(b.manual_yahrzeit_date,10):null;
+    const computedYahrzeit=nextYahrzeit(hebrewSourceDate);
+    const rule=["standard","adar_i","adar_ii","family_custom","manual"].includes(b.yahrzeit_rule)?b.yahrzeit_rule:"standard";
+    const yahrzeit=manualYahrzeit||(rule==="manual"?null:computedYahrzeit);
     const base={
-      full_name:fullName,death_date:deathDate,event_time:null,city:clean(b.city,120)||null,place:clean(b.place,180)||null,
+      full_name:fullName,death_date:deathDate,event_time:clean(b.event_time,20)||null,city:clean(b.city,120)||null,place:clean(b.place,180)||null,
       cemetery_link:null,cemetery_record_key:null,note:clean(b.note,1500)||null,visibility:"public",status:"pending",relation_confirmed:true,
       publish_day7:Boolean(b.publish_day7),publish_day40:Boolean(b.publish_day40),publish_year1:Boolean(b.publish_year1),
-      publish_annual:Boolean(b.publish_annual),hebrew_death_label:hebrewLabel(deathDate),yahrzeit_date:yahrzeit,
-      derived:{...derivedDates(deathDate),yahrzeit},submitter_name:clean(b.submitter_name,120)||null,submitter_contact:clean(b.submitter_contact,180)||null
+      publish_annual:Boolean(b.publish_annual),hebrew_death_label:hebrewLabel(hebrewSourceDate),yahrzeit_date:yahrzeit,
+      hebrew_after_sunset:afterSunset,yahrzeit_rule:manualYahrzeit?"manual":rule,urgent:false,
+      derived:{...derivedDates(deathDate),yahrzeit,hebrew_source_date:hebrewSourceDate},
+      submitter_name:clean(b.submitter_name,120)||null,submitter_contact:clean(b.submitter_contact,180)||null
     };
     const planned=[];
-    if(base.publish_day7)planned.push(["7 дней",addDays(deathDate,7)]);
-    if(base.publish_day40)planned.push(["40 дней",addDays(deathDate,40)]);
-    if(base.publish_year1)planned.push(["1 год",addYear(deathDate)]);
-    if(base.publish_annual)planned.push(["Годовщина",addYear(deathDate)]);
-    if(b.publish_yahrzeit&&yahrzeit)planned.push(["Йорцайт",yahrzeit]);
-    if(!planned.length)planned.push(["Памятная дата",deathDate]);
-    const rows=planned.map(([event_type,event_date])=>({id:id(),...base,event_type,event_date}));
+    if(base.publish_day7)planned.push({event_type:"7 дней",event_date:addDays(deathDate,7),urgent:false});
+    if(base.publish_day40)planned.push({event_type:"40 дней",event_date:addDays(deathDate,40),urgent:false});
+    if(base.publish_year1)planned.push({event_type:"1 год",event_date:addYear(deathDate),urgent:false});
+    if(base.publish_annual)planned.push({event_type:"Годовщина",event_date:addYear(deathDate),urgent:false});
+    if(b.publish_yahrzeit&&yahrzeit)planned.push({event_type:"Йорцайт",event_date:yahrzeit,urgent:false});
+    if(b.urgent_funeral){
+      const fd=validDate(clean(b.funeral_date,10))?clean(b.funeral_date,10):deathDate;
+      planned.unshift({event_type:"Похороны",event_date:fd,urgent:true});
+    }
+    if(!planned.length)planned.push({event_type:"Памятная дата",event_date:deathDate,urgent:false});
+    const rows=planned.map(x=>({id:id(),...base,...x}));
     await sb("memorial_events",{method:"POST",body:rows,prefer:"return=minimal"});
     res.status(201).send(mobileShell("Отправлено",`<div class="ok"><b>Готово.</b><br>На модерацию отправлено событий: ${rows.length}. До одобрения они не видны публично.</div><div class="nav"><a class="btn" href="/m">Главная</a><a class="btn secondary" href="/m/add">Добавить ещё</a></div>`));
   } catch(e) {
@@ -558,8 +598,6 @@ app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
     res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось сохранить событие. Попробуйте ещё раз.</div><p><a class="btn" href="/m/add">Вернуться</a></p>'));
   }
 });
-
-
 
 app.get("/m/admin/auth/callback", (_req,res) => {
   res.setHeader("Cache-Control","no-store");
@@ -1337,6 +1375,7 @@ app.post("/api/events/check-duplicate", async (req, res) => {
   }
 });
 
+
 app.post("/api/events", rateLimit("events", 5, 15 * 60 * 1000), async (req, res) => {
   try {
     const b = req.body || {};
@@ -1350,16 +1389,18 @@ app.post("/api/events", rateLimit("events", 5, 15 * 60 * 1000), async (req, res)
     if (eventDate && !validDate(eventDate)) return res.status(400).json({ error: "invalid_event_date" });
 
     const dup = await sb("rpc/memorial_duplicate_candidates", {
-      method: "POST",
-      body: { p_full_name: fullName, p_death_date: validDate(deathDate) ? deathDate : null }
+      method: "POST", body: { p_full_name: fullName, p_death_date: validDate(deathDate) ? deathDate : null }
     });
     if (Array.isArray(dup) && dup.length && !b.confirm_duplicate) {
       return res.status(409).json({ error: "possible_duplicate", matches: dup.slice(0, 5) });
     }
 
-    const computedYahrzeit = validDate(deathDate) ? nextYahrzeit(deathDate) : null;
+    const afterSunset=Boolean(b.hebrew_after_sunset);
+    const hebrewSourceDate=validDate(deathDate)?(afterSunset?addDays(deathDate,1):deathDate):null;
+    const computedYahrzeit = hebrewSourceDate ? nextYahrzeit(hebrewSourceDate) : null;
     const manualYahrzeit = validDate(clean(b.manual_yahrzeit_date, 10)) ? clean(b.manual_yahrzeit_date, 10) : null;
-    const yahrzeit = manualYahrzeit || computedYahrzeit;
+    const rule=["standard","adar_i","adar_ii","family_custom","manual"].includes(b.yahrzeit_rule)?b.yahrzeit_rule:"standard";
+    const yahrzeit = manualYahrzeit || (rule==="manual"?null:computedYahrzeit);
 
     const base = {
       full_name: fullName,
@@ -1370,34 +1411,41 @@ app.post("/api/events", rateLimit("events", 5, 15 * 60 * 1000), async (req, res)
       cemetery_link: clean(b.cemetery_link, 800) || null,
       cemetery_record_key: clean(b.cemetery_record_key, 100) || null,
       note: clean(b.note, 1500) || null,
-      visibility: ["public","link","invited"].includes(b.visibility) ? b.visibility : "public",
+      visibility: "public",
       status: "pending",
       relation_confirmed: true,
       publish_day7: b.publish_day7 !== false,
       publish_day40: b.publish_day40 !== false,
       publish_year1: b.publish_year1 !== false,
       publish_annual: b.publish_annual !== false,
-      hebrew_death_label: validDate(deathDate) ? hebrewLabel(deathDate) : null,
+      hebrew_death_label: hebrewSourceDate ? hebrewLabel(hebrewSourceDate) : null,
       yahrzeit_date: yahrzeit,
-      derived: { ...derivedDates(deathDate), yahrzeit },
+      hebrew_after_sunset:afterSunset,
+      yahrzeit_rule:manualYahrzeit?"manual":rule,
+      urgent:false,
+      derived: { ...derivedDates(deathDate), yahrzeit, hebrew_source_date:hebrewSourceDate },
       submitter_name: clean(b.submitter_name, 120) || null,
       submitter_contact: clean(b.submitter_contact, 180) || null
     };
 
     const planned = [];
     if (validDate(deathDate)) {
-      if (base.publish_day7) planned.push(["7 дней", addDays(deathDate, 7)]);
-      if (base.publish_day40) planned.push(["40 дней", addDays(deathDate, 40)]);
-      if (base.publish_year1) planned.push(["1 год", addYear(deathDate)]);
-      if (base.publish_annual) planned.push(["Годовщина", addYear(deathDate)]);
-      if (b.publish_yahrzeit !== false && yahrzeit) planned.push(["Йорцайт", yahrzeit]);
+      if (base.publish_day7) planned.push({event_type:"7 дней",event_date:addDays(deathDate, 7),urgent:false});
+      if (base.publish_day40) planned.push({event_type:"40 дней",event_date:addDays(deathDate, 40),urgent:false});
+      if (base.publish_year1) planned.push({event_type:"1 год",event_date:addYear(deathDate),urgent:false});
+      if (base.publish_annual) planned.push({event_type:"Годовщина",event_date:addYear(deathDate),urgent:false});
+      if (b.publish_yahrzeit !== false && yahrzeit) planned.push({event_type:"Йорцайт",event_date:yahrzeit,urgent:false});
     }
-    if (eventType && validDate(eventDate)) planned.push([eventType, eventDate]);
+    if (eventType && validDate(eventDate)) planned.push({event_type:eventType,event_date:eventDate,urgent:Boolean(b.urgent)});
+    if (Boolean(b.urgent_funeral) && validDate(deathDate)) {
+      const fd=validDate(clean(b.funeral_date,10))?clean(b.funeral_date,10):deathDate;
+      planned.unshift({event_type:"Похороны",event_date:fd,urgent:true});
+    }
     if (!planned.length) return res.status(400).json({ error: "no_dates" });
 
     const unique = new Map();
-    for (const [type, date] of planned) unique.set(type + "|" + date, [type, date]);
-    const rows = [...unique.values()].map(([type, date]) => ({ id: id(), ...base, event_type: type, event_date: date }));
+    for (const x of planned) unique.set(x.event_type + "|" + x.event_date, x);
+    const rows = [...unique.values()].map(x => ({ id: id(), ...base, ...x }));
     await sb("memorial_events", { method: "POST", body: rows, prefer: "return=minimal" });
     res.status(201).json({
       ok: true, ids: rows.map(x => x.id), created: rows.length, status: "pending",
