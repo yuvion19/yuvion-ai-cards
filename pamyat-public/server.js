@@ -187,6 +187,9 @@ app.get("/m/reminders", (_req,res) => {
       <div class="check"><input type="checkbox" class="remDay" value="3"><span>За 3 дня</span></div>
       <div class="check"><input type="checkbox" class="remDay" value="1" checked><span>За 1 день</span></div>
       <div class="check"><input type="checkbox" class="remDay" value="0" checked><span>В день события</span></div>
+      <label>Время отправки</label>
+      <input id="remTime" class="field" type="time" value="09:00">
+      <p class="muted">Время применяется в часовом поясе вашего устройства.</p>
     </div>
 
     <div class="card">
@@ -196,15 +199,20 @@ app.get("/m/reminders", (_req,res) => {
 
       <div class="check"><input id="chEmail" type="checkbox"><span><b>Email</b><br><span class="muted" id="stEmail">проверка…</span></span></div>
       <input id="remEmail" class="field" type="email" autocomplete="email" placeholder="name@example.com">
+      <button class="btn secondary testChannel" data-channel="email" style="width:100%;margin-top:6px">Тест Email</button>
 
       <div class="check"><input id="chTelegram" type="checkbox"><span><b>Telegram</b><br><span class="muted" id="stTelegram">проверка…</span></span></div>
       <input id="remTelegram" class="field" inputmode="numeric" placeholder="Telegram chat ID">
+      <button class="btn secondary testChannel" data-channel="telegram" style="width:100%;margin-top:6px">Тест Telegram</button>
 
       <div class="check"><input id="chWhatsapp" type="checkbox"><span><b>WhatsApp</b><br><span class="muted" id="stWhatsapp">проверка…</span></span></div>
       <input id="remWhatsapp" class="field" type="tel" autocomplete="tel" placeholder="+79991234567">
+      <button class="btn secondary testChannel" data-channel="whatsapp" style="width:100%;margin-top:6px">Тест WhatsApp</button>
 
       <div class="check"><input id="chSms" type="checkbox"><span><b>SMS</b><br><span class="muted" id="stSms">проверка…</span></span></div>
       <input id="remSms" class="field" type="tel" autocomplete="tel" placeholder="+79991234567">
+      <button class="btn secondary testChannel" data-channel="sms" style="width:100%;margin-top:6px">Тест SMS</button>
+      <button class="btn secondary testChannel" data-channel="push" style="width:100%;margin-top:10px">Тест Push</button>
 
       <button id="saveReminders" class="btn" style="width:100%;margin-top:14px">Сохранить и включить</button>
       <button id="disableReminders" class="btn secondary" style="width:100%;margin-top:8px">Отключить все каналы на этом устройстве</button>
@@ -307,7 +315,8 @@ app.get("/m/reminders", (_req,res) => {
         email_value:document.getElementById("remEmail").value.trim(),
         telegram_value:document.getElementById("remTelegram").value.trim(),
         whatsapp_value:normPhone(document.getElementById("remWhatsapp").value),
-        sms_value:normPhone(document.getElementById("remSms").value)
+        sms_value:normPhone(document.getElementById("remSms").value),
+        reminder_time:document.getElementById("remTime").value||"09:00"
       };
     }
     function restore(){
@@ -324,6 +333,7 @@ app.get("/m/reminders", (_req,res) => {
         document.getElementById("remTelegram").value=x.telegram_value||"";
         document.getElementById("remWhatsapp").value=x.whatsapp_value||"";
         document.getElementById("remSms").value=x.sms_value||"";
+        document.getElementById("remTime").value=x.reminder_time||"09:00";
       }catch{}
     }
     async function save(){
@@ -340,6 +350,7 @@ app.get("/m/reminders", (_req,res) => {
           timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC",
           locale:navigator.language||"ru",
           reminder_days:x.days,
+          reminder_time:x.reminder_time,
           push_enabled:x.push,
           email:x.email_value||null,email_enabled:x.email,
           telegram_chat_id:x.telegram_value||null,telegram_enabled:x.telegram,
@@ -355,6 +366,24 @@ app.get("/m/reminders", (_req,res) => {
         say("Настройки сохранены."+ (waiting.length?" Ожидают подключения: "+waiting.join(", ")+".":""));
       }catch(e){say(e.message||"Не удалось сохранить",false)}
     }
+    async function testChannel(channel){
+      try{
+        const x=read();
+        let subscription=null;
+        if(channel==="push")subscription=await getPushSubscription();
+        const body={
+          subscription,
+          email:x.email_value||null,
+          telegram_chat_id:x.telegram_value||null,
+          whatsapp_phone:x.whatsapp_value||null,
+          sms_phone:x.sms_value||null
+        };
+        const r=await fetch("/api/reminders/test/"+encodeURIComponent(channel),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        const d=await r.json();
+        if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+        say("Тест "+channel+" отправлен.");
+      }catch(e){say("Тест не отправлен: "+(e.message||e),false)}
+    }
     async function disable(){
       try{
         const t=localStorage.getItem(tokenKey);
@@ -369,6 +398,7 @@ app.get("/m/reminders", (_req,res) => {
       }catch(e){say(e.message||"Не удалось отключить",false)}
     }
     document.getElementById("saveReminders").onclick=save;
+    document.querySelectorAll(".testChannel").forEach(btn=>btn.onclick=()=>testChannel(btn.dataset.channel));
     document.getElementById("disableReminders").onclick=disable;
     (async()=>{
       await loadStatus();
@@ -1650,6 +1680,7 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
         p_timezone:clean(b.timezone,100)||"UTC",
         p_locale:clean(b.locale,20)||"ru",
         p_reminder_days:days,
+        p_reminder_time:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(b.reminder_time||""))?b.reminder_time:"09:00",
         p_push_enabled:pushEnabled,
         p_email:email||null,p_email_enabled:emailEnabled,
         p_telegram_chat_id:telegramChat||null,p_telegram_enabled:telegramEnabled,
