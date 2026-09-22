@@ -189,6 +189,7 @@ app.get("/m", (_req,res) => {
       <a class="btn" href="/m/search">Поиск по памяти</a>
       <a class="btn" href="/m/wall">Стена памяти</a>
       <a class="btn" href="/m/calendar">Календарь</a>
+      <a class="btn" href="/m/archive">Архив</a>
       <a class="btn" href="/m/today">Сегодня вспоминаем</a>
       <a class="btn" href="/m/reminders">Напоминания</a>
       <a class="btn" href="/api/selftest">Проверка системы</a>
@@ -255,20 +256,22 @@ app.get("/m/map", (_req,res) => {
 
 app.get("/m/search", async (req,res) => {
   try{
-    const q=clean(req.query.q,180);
+    const q=clean(req.query.q,180),city=clean(req.query.city,120),type=clean(req.query.type,80);
+    const family=String(req.query.family||"")==="1";
     let rows=[];
-    if(q){
-      rows=await sb("rpc/memorial_event_search",{method:"POST",body:{p_query:q,p_city:"",p_type:"",p_limit:100}});
+    if(q||city||type||family){
+      rows=await sb("rpc/memorial_event_search",{method:"POST",body:{p_query:q,p_city:city,p_type:type,p_limit:300}});
+      if(family)rows=(rows||[]).filter(x=>x.family_verified);
     }
-    const grouped=[];
-    const seen=new Set();
+    const grouped=[],seen=new Set();
     for(const e of rows||[]){
-      const key=(String(e.full_name||"").toLowerCase()+"|"+String(e.death_date||""));
+      const key=String(e.full_name||"").toLowerCase()+"|"+String(e.death_date||"");
       if(seen.has(key))continue;
       seen.add(key);grouped.push(e);
     }
+    const types=["","Похороны","7 дней","40 дней","1 год","Годовщина","Йорцайт","Памятная дата"];
     const cards=grouped.map(e=>`<div class="card">
-      <div class="row"><span class="tag">${htmlEsc(e.event_type||"Памятная дата")}</span>${e.family_verified?'<span class="tag">Семья ✓</span>':""}</div>
+      <div class="row"><span class="tag">${htmlEsc(e.event_type||"Памятная дата")}</span>${e.family_verified?'<span class="tag">Подтверждено семьёй ✓</span>':""}</div>
       <h3>${htmlEsc(e.full_name||"Без имени")}</h3>
       <div>${htmlEsc(e.event_date||"")}</div>
       <div class="muted">${htmlEsc([e.city,e.place].filter(Boolean).join(" · "))}</div>
@@ -278,10 +281,13 @@ app.get("/m/search", async (req,res) => {
       <h1>Поиск по памяти</h1>
       <form method="get" action="/m/search" class="card">
         <label>ФИО или вариант имени</label>
-        <input class="field" name="q" value="${htmlEsc(q)}" placeholder="Например: Юсуф, Йосеф, фамилия">
+        <input class="field" name="q" value="${htmlEsc(q)}" placeholder="Например: Юсуф, Йосеф, Yusuf, Yosef">
+        <label>Город</label><input class="field" name="city" value="${htmlEsc(city)}">
+        <label>Тип события</label><select class="field" name="type">${types.map(x=>'<option value="'+htmlEsc(x)+'" '+(x===type?'selected':'')+'>'+(x||"Все типы")+'</option>').join("")}</select>
+        <label class="check"><input type="checkbox" name="family" value="1" ${family?"checked":""}><span>Только подтверждённые семьёй</span></label>
         <button class="btn" style="width:100%;margin-top:10px">Найти</button>
       </form>
-      ${q?('<p class="muted">Найдено: '+grouped.length+'</p>'+ (cards||'<div class="card">Ничего не найдено.</div>')):'<div class="card muted">Введите имя. Поиск учитывает сохранённые варианты имён и неточные совпадения.</div>'}
+      ${(q||city||type||family)?('<p class="muted">Найдено: '+grouped.length+'</p>'+ (cards||'<div class="card">Ничего не найдено.</div>')):'<div class="card muted">Поиск поддерживает варианты имён, алиасы и неточные совпадения.</div>'}
     `));
   }catch(e){console.error("mobile search",e.data||e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось выполнить поиск.</div>'))}
 });
@@ -319,6 +325,37 @@ app.get("/m/wall", async (_req,res) => {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">${cards||'<div class="card">Публичных записей пока нет.</div>'}</div>
     `));
   }catch(e){console.error("memory wall",e.data||e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить стену памяти.</div>'))}
+});
+
+app.get("/m/archive", async (req,res) => {
+  try{
+    const year=clean(req.query.year,4),month=clean(req.query.month,2),type=clean(req.query.type,80),city=clean(req.query.city,120);
+    const family=String(req.query.family||"")==="1";
+    let rows=await sb("rpc/memorial_event_search",{method:"POST",body:{p_query:"",p_city:city,p_type:type,p_limit:500}});
+    const years=[...new Set((rows||[]).map(x=>String(x.event_date||"").slice(0,4)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+    rows=(rows||[]).filter(e=>{
+      const d=String(e.event_date||"");
+      if(year&&d.slice(0,4)!==year)return false;
+      if(month&&d.slice(5,7)!==month.padStart(2,"0"))return false;
+      if(family&&!e.family_verified)return false;
+      return true;
+    }).sort((a,b)=>String(b.event_date||"").localeCompare(String(a.event_date||"")));
+    const cards=rows.map(e=>`<div class="card"><div class="row"><span class="tag">${htmlEsc(e.event_type||"")}</span>${e.family_verified?'<span class="tag">Подтверждено семьёй ✓</span>':""}</div><h3>${htmlEsc(e.full_name)}</h3><div>${htmlEsc(e.event_date||"")}</div><div class="muted">${htmlEsc([e.city,e.place].filter(Boolean).join(" · "))}</div><p><a class="btn secondary" href="/m/memorial/${encodeURIComponent(e.id)}">Открыть памятную страницу</a></p></div>`).join("");
+    const types=["","Похороны","7 дней","40 дней","1 год","Годовщина","Йорцайт","Памятная дата"];
+    res.send(mobileShell("Архив",`
+      <h1>Архив</h1>
+      <form class="card" method="get" action="/m/archive">
+        <label>Год</label><select class="field" name="year"><option value="">Все годы</option>${years.map(y=>'<option value="'+y+'" '+(y===year?'selected':'')+'>'+y+'</option>').join("")}</select>
+        <label>Месяц</label><select class="field" name="month"><option value="">Все месяцы</option>${Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(m=>'<option value="'+m+'" '+(m===month.padStart(2,"0")?'selected':'')+'>'+m+'</option>').join("")}</select>
+        <label>Тип</label><select class="field" name="type">${types.map(x=>'<option value="'+htmlEsc(x)+'" '+(x===type?'selected':'')+'>'+(x||"Все типы")+'</option>').join("")}</select>
+        <label>Город</label><input class="field" name="city" value="${htmlEsc(city)}">
+        <label class="check"><input type="checkbox" name="family" value="1" ${family?"checked":""}><span>Только подтверждённые семьёй</span></label>
+        <button class="btn" style="width:100%;margin-top:10px">Показать</button>
+      </form>
+      <p class="muted">Записей: ${rows.length}</p>
+      ${cards||'<div class="card">В архиве нет записей по выбранным фильтрам.</div>'}
+    `));
+  }catch(e){console.error("archive",e.data||e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить архив.</div>'))}
 });
 
 app.get("/m/calendar", async (_req,res) => {
