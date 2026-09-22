@@ -1413,7 +1413,11 @@ function applyCategoryRule({applyTemplate=false}={}){
   const rule=categoryRuleFor(editor.category.value);
   const fallbackStyle=DEFAULT_CATEGORY_STYLES[categoryRoot(editor.category.value)]||'';
   const chosenStyle=rule?.style||fallbackStyle;
-  if(chosenStyle&&styleSelect.querySelector('option[value="'+chosenStyle+'"]'))styleSelect.value=chosenStyle;
+  const previousStyle=styleSelect.value;
+  if(chosenStyle&&styleSelect.querySelector('option[value="'+chosenStyle+'"]')){
+    styleSelect.value=chosenStyle;
+    if(previousStyle!==chosenStyle&&currentCards.length)currentScenes=[];
+  }
   if(!rule)return fallbackStyle?{category:categoryRoot(editor.category.value),style:fallbackStyle,specs:[]}:null;
   if(applyTemplate&&Array.isArray(rule.specs)&&rule.specs.length){
     const existing=new Set(currentSpecNames().map(x=>x.toLocaleLowerCase('ru')));
@@ -3176,7 +3180,7 @@ editor.category.addEventListener('blur',()=>{
   renderCategoryValidation();
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
-styleSelect.onchange=()=>{markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
+styleSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
 
 function markCardsStale(indexes=[0,1,2,3]){
   if(currentCards.length){
