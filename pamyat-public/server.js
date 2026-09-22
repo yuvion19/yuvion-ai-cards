@@ -350,6 +350,10 @@ app.get("/m/reminders", (_req,res) => {
       <p class="muted" style="margin-bottom:0">Во встроенном браузере ChatGPT Push может быть недоступен. Остальные каналы можно использовать без Push.</p>
     </div>
 
+    <div class="card" id="deviceDeliveryCard" style="display:none">
+      <b>Последние успешные отправки</b>
+      <div id="deviceDelivery" class="muted" style="margin-top:8px"></div>
+    </div>
     <div class="card">
       <b>Статус каналов</b>
       <p class="muted" style="margin-bottom:0">Если канал отмечен как «нужна настройка», предпочтение можно сохранить заранее, но сообщения начнут отправляться только после подключения провайдера.</p>
@@ -375,6 +379,18 @@ app.get("/m/reminders", (_req,res) => {
     }
     function isStandalone(){
       return window.matchMedia?.("(display-mode: standalone)")?.matches || navigator.standalone===true;
+    }
+    async function loadDeviceStatus(){
+      const t=localStorage.getItem(tokenKey); if(!t)return;
+      try{
+        const r=await fetch("/api/reminders/device-status",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({device_token:t})});
+        if(!r.ok)return;
+        const d=await r.json(); if(!d)return;
+        const last=d.last_delivery||{},names={push:"Push",email:"Email",telegram:"Telegram",whatsapp:"WhatsApp",sms:"SMS"};
+        const rows=Object.keys(names).map(k=>names[k]+": "+(last[k]?new Date(last[k]).toLocaleString("ru-RU"):"ещё не отправлялось"));
+        document.getElementById("deviceDelivery").innerHTML=rows.join("<br>")+"<br>Время отправки: "+(d.reminder_time||"09:00");
+        document.getElementById("deviceDeliveryCard").style.display="block";
+      }catch{}
     }
     async function loadStatus(){
       try{
@@ -483,7 +499,7 @@ app.get("/m/reminders", (_req,res) => {
         if(data.device_token)localStorage.setItem(tokenKey,data.device_token);
         localStorage.setItem(cfgKey,JSON.stringify(x));
         const waiting=(data.waiting_for_provider||[]);
-        say("Настройки сохранены."+ (waiting.length?" Ожидают подключения: "+waiting.join(", ")+".":""));
+        say("Настройки сохранены."+ (waiting.length?" Ожидают подключения: "+waiting.join(", ")+".":""));await loadDeviceStatus();
       }catch(e){say(e.message||"Не удалось сохранить",false)}
     }
     async function testChannel(channel){
@@ -525,7 +541,7 @@ app.get("/m/reminders", (_req,res) => {
       restore();
       const pushBox=document.getElementById("chPush");
       if(pushBox.disabled)pushBox.checked=false;
-      if(localStorage.getItem(tokenKey))say("На этом устройстве уже есть сохранённая подписка.");
+      if(localStorage.getItem(tokenKey)){say("На этом устройстве уже есть сохранённая подписка.");await loadDeviceStatus();}
     })();
   })();
   </script>`}));
@@ -1885,6 +1901,17 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
     console.error("reminder subscribe",e.data||e);
     res.status(500).json({error:"subscribe_failed"});
   }
+});
+
+app.post("/api/reminders/device-status", rateLimit("reminder-status",30,60*60*1000), async (req,res)=>{
+  try{
+    const t=clean(req.body?.device_token,100);
+    if(!/^[0-9a-f-]{36}$/i.test(t))return res.status(400).json({error:"device_token_required"});
+    const data=await sb("rpc/memorial_reminder_device_status",{method:"POST",body:{p_device_token:t}});
+    if(!data)return res.status(404).json({error:"not_found"});
+    res.setHeader("Cache-Control","no-store");
+    res.json(data);
+  }catch(e){res.status(500).json({error:"status_failed"})}
 });
 
 app.post("/api/reminders/test/:channel", rateLimit("reminder-test",10,15*60*1000), async (req,res) => {
