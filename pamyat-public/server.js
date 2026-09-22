@@ -3,6 +3,7 @@ import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import { parse } from "csv-parse/sync";
+import * as XLSX from "xlsx";
 import webpush from "web-push";
 import multer from "multer";
 import QRCode from "qrcode";
@@ -45,8 +46,12 @@ const photoUpload = multer({
 });
 const csvUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 2500000 },
-  fileFilter: (_req,file,cb)=>cb(null,/csv|text\/plain|application\/vnd.ms-excel/i.test(file.mimetype||"") || /\.csv$/i.test(file.originalname||""))
+  limits: { fileSize: 5000000 },
+  fileFilter: (_req,file,cb)=>cb(
+    null,
+    /csv|text\/plain|application\/vnd\.ms-excel|application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/i.test(file.mimetype||"")
+      || /\.(csv|xlsx|xls)$/i.test(file.originalname||"")
+  )
 });
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
@@ -1006,8 +1011,8 @@ app.get("/m/admin", (_req,res) => {
           <button class="btn secondary" data-export="/api/admin/export.csv" data-name="pamyat-events.csv">CSV</button>
           <button class="btn secondary" data-export="/api/admin/export.xls" data-name="pamyat-events.xls">Excel</button>
         </div>
-        <label>Импорт CSV</label>
-        <input id="adminImportFile" class="field" type="file" accept=".csv,text/csv">
+        <label>Импорт CSV / Excel</label>
+        <input id="adminImportFile" class="field" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
         <button class="btn secondary" id="adminImportPreview" style="width:100%;margin-top:8px">Проверить файл</button>
         <div id="adminImportResult" class="muted" style="margin-top:8px"></div>
       </div>
@@ -3095,8 +3100,17 @@ app.get("/api/admin/export.xls", requireAdminRole, async (_req,res) => {
 app.post("/api/admin/import/preview", requireAdminRole, csvUpload.single("file"), async (req,res) => {
   try{
     if(!req.file)return res.status(400).json({error:"file_required"});
-    const raw=req.file.buffer.toString("utf8").replace(/^\uFEFF/,"");
-    const rows=parse(raw,{columns:true,skip_empty_lines:true,trim:true,bom:true,relax_column_count:true}).slice(0,500);
+    const name=String(req.file.originalname||"").toLowerCase();
+    let rows=[];
+    if(/\.(xlsx|xls)$/.test(name) || /spreadsheetml|vnd\.ms-excel/i.test(req.file.mimetype||"")){
+      const wb=XLSX.read(req.file.buffer,{type:"buffer",cellDates:false,raw:false});
+      const first=wb.SheetNames[0];
+      if(!first)return res.status(400).json({error:"workbook_empty"});
+      rows=XLSX.utils.sheet_to_json(wb.Sheets[first],{defval:"",raw:false}).slice(0,500);
+    }else{
+      const raw=req.file.buffer.toString("utf8").replace(/^\uFEFF/,"");
+      rows=parse(raw,{columns:true,skip_empty_lines:true,trim:true,bom:true,relax_column_count:true}).slice(0,500);
+    }
     const normalized=rows.map((r,i)=>{
       const x={
         row:i+2,
