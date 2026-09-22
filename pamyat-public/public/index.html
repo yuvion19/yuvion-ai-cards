@@ -13,8 +13,8 @@
   <link rel="apple-touch-icon" href="/icon.svg">
   <meta name="description" content="Общественный календарь памяти, каталог кладбища Кубы, родословная и уведомления.">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <script src="/vendor/leaflet/leaflet.js"></script>
   <title>Память Джуури</title>
   <style>
     :root{--bg:#f5f1e8;--paper:#fffdf8;--ink:#27231e;--muted:#746d63;--line:#ded6c8;--accent:#5b4934;--accent2:#8c7556;--soft:#eee6d9;--ok:#4f6c52;--warn:#8c6c34;--danger:#8a4b4b;--shadow:0 14px 38px rgba(47,38,27,.09);--radius:18px}
@@ -325,7 +325,34 @@ function nextLocalYahrzeit(date){try{const fmtp=d=>Object.fromEntries(new Intl.D
 function calcDerived(){const v=$("#deathDate").value;if(!v){$("#derivedDates").innerHTML="";$("#hebrewPreview").style.display="none";return}const d=new Date(v+"T12:00:00Z"),add=n=>{const x=new Date(d);x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)},y=new Date(d);y.setUTCFullYear(y.getUTCFullYear()+1);const yah=nextLocalYahrzeit(v),h=localHebrew(v);$("#hebrewPreview").style.display="block";$("#hebrewPreview").textContent="Еврейская дата: "+h+(yah?" · ближайший йорцайт: "+fmt(yah):"");$("#derivedDates").innerHTML=[["7 дней",add(7)],["40 дней",add(40)],["1 год",y.toISOString().slice(0,10)],["Годовщина",y.toISOString().slice(0,10)],["Йорцайт",yah]].map(x=>'<div class="datebox"><b>'+x[0]+'</b><span>'+fmt(x[1])+'</span></div>').join("")}
 $("#deathDate").addEventListener("change",calcDerived);
 
-$("#addForm").addEventListener("submit",async e=>{e.preventDefault();const f=new FormData(e.target),b=Object.fromEntries(f.entries());["publish_day7","publish_day40","publish_year1","publish_annual","publish_yahrzeit","relation_confirmed"].forEach(k=>b[k]=f.has(k));let r=await fetch("/api/events",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)}),j=await r.json();if(r.status===409&&j.error==="possible_duplicate"){if(confirm("Возможно, запись уже есть. Всё равно отправить?")){b.confirm_duplicate=true;r=await fetch("/api/events",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});j=await r.json()}else return}$("#formStatus").innerHTML=r.ok?'<div class="notice ok">Отправлено на модерацию. Создано событий: '+esc(j.created||"")+'</div>':'<div class="notice err">Не удалось отправить: '+esc(j.error||"ошибка")+'</div>';if(r.ok){e.target.reset();calcDerived()}});
+$("#addForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const form=e.target,btn=form.querySelector('button[type="submit"],button.primary:last-of-type');
+  if(btn){btn.disabled=true;btn.textContent="Отправляем…"}
+  $("#formStatus").innerHTML='<div class="notice">Проверяем и отправляем запись…</div>';
+  try{
+    const f=new FormData(form),b=Object.fromEntries(f.entries());
+    ["publish_day7","publish_day40","publish_year1","publish_annual","publish_yahrzeit","relation_confirmed"].forEach(k=>b[k]=f.has(k));
+    let r=await fetch("/api/events",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)}),j=await r.json().catch(()=>({error:"bad_response"}));
+    if(r.status===409&&j.error==="possible_duplicate"){
+      if(confirm("Возможно, запись уже есть. Всё равно отправить?")){
+        b.confirm_duplicate=true;
+        r=await fetch("/api/events",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});
+        j=await r.json().catch(()=>({error:"bad_response"}));
+      }else{
+        $("#formStatus").innerHTML='<div class="notice">Отправка отменена.</div>';
+        return;
+      }
+    }
+    $("#formStatus").innerHTML=r.ok?'<div class="notice ok">Отправлено на модерацию. Создано событий: '+esc(j.created||0)+'. До одобрения они не видны публично.</div>':'<div class="notice err">Не удалось отправить: '+esc(j.error||("HTTP "+r.status))+'</div>';
+    if(r.ok){form.reset();calcDerived()}
+  }catch(err){
+    console.error("event submit",err);
+    $("#formStatus").innerHTML='<div class="notice err">Ошибка соединения. Обновите страницу и повторите отправку.</div>';
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="Отправить на модерацию"}
+  }
+});
 
 async function openDetail(id){const r=await fetch("/api/events/"+id);if(!r.ok)return;const e=await r.json(),url=location.origin+location.pathname+"#event="+e.id;$("#detailModal").innerHTML='<div class="modalhead"><div><div class="meta"><span class="tag">'+esc(e.event_type)+'</span>'+(e.family_verified?'<span class="tag verified">Подтверждено семьёй</span>':'')+'</div><h2 style="margin-top:9px">'+esc(e.full_name)+'</h2></div><button class="secondary" onclick="detailDialog.close()">✕</button></div><p><b>'+fmt(e.event_date)+'</b>'+(e.event_time?" · "+esc(e.event_time):"")+'</p><p class="muted">'+esc(e.city||"")+(e.place?" · "+esc(e.place):"")+'</p>'+(e.hebrew_death_label?'<div class="notice">Еврейская дата смерти: '+esc(e.hebrew_death_label)+(e.yahrzeit_date?' · йорцайт: '+fmt(e.yahrzeit_date):'')+'</div>':'')+(e.note?'<p>'+esc(e.note)+'</p>':'')+(e.cemetery_link?'<p><a target="_blank" rel="noopener" href="'+esc(e.cemetery_link)+'">Исходная карточка кладбища ↗</a></p>':'')+'<div class="card-actions"><button class="primary" onclick="lightCandle(\''+e.id+'\',this)">🕯 '+(e.candles||0)+'</button><button class="secondary" onclick="shareEvent(\''+e.id+'\',\''+esc(e.full_name).replace(/'/g,"&#39;")+'\')">Поделиться</button><button class="secondary" onclick="shareToTelegram(\''+e.id+'\',\''+esc(e.full_name).replace(/'/g,"&#39;")+'\')">Telegram</button><button class="secondary" onclick="shareToWhatsApp(\''+e.id+'\',\''+esc(e.full_name).replace(/'/g,"&#39;")+'\')">WhatsApp</button><button class="secondary" onclick="shareToSms(\''+e.id+'\',\''+esc(e.full_name).replace(/'/g,"&#39;")+'\')">SMS</button><a class="secondary" style="text-decoration:none" href="/api/events/'+e.id+'.ics">.ics</a><button class="secondary" onclick="openCorrection(\''+e.id+'\',\''+esc(e.full_name).replace(/'/g,"&#39;")+'\')">Исправить данные</button></div><div class="split" style="margin-top:16px"><div><img style="width:180px;height:180px;border:1px solid var(--line);border-radius:12px" alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(url)+'"></div><div><button class="secondary" onclick="claimRelative(\''+e.id+'\')">Я родственник</button><h3 style="margin-top:14px">Доброе слово</h3><input id="commentAuthor" class="field" placeholder="Имя"><textarea id="commentBody" class="field" rows="3"></textarea><button class="secondary" onclick="sendComment(\''+e.id+'\')">Отправить</button></div></div><h3 style="margin-top:18px">Опубликованные сообщения</h3>'+((e.comments||[]).map(c=>'<div class="notice" style="margin:7px 0"><b>'+esc(c.author||"Гость")+'</b><br>'+esc(c.body)+'</div>').join("")||'<div class="muted">Пока нет сообщений.</div>');detailDialog.showModal()}
 async function lightCandle(id,btn){const r=await fetch("/api/events/"+id+"/candle",{method:"POST"}),j=await r.json();if(r.ok)btn.textContent="🕯 "+j.count}
@@ -375,8 +402,45 @@ async function submitCemeteryCorrection(key,current){
   if(r.ok){simpleDialog.close();alert("Исправление отправлено на модерацию.");}else alert("Не удалось отправить.");
 }
 async function searchCemetery(){const q=$("#cemeterySearch").value.trim();$("#cemeteryResults").innerHTML='<div class="muted">Поиск…</div>';try{const r=await fetch("/api/cemetery/search?q="+encodeURIComponent(q)+"&limit=80"),rows=await r.json();$("#cemeteryResults").innerHTML=rows.length?rows.map(cemeteryRow).join(""):'<div class="empty">Ничего не найдено.</div>';$("#cemeteryPager").innerHTML=""}catch{$("#cemeteryResults").innerHTML='<div class="notice err">Ошибка поиска.</div>'}}
-function initMap(){if(qubaMap||!window.L)return;qubaMap=L.map("qubaMap").setView([41.3697,48.5063],16);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap"}).addTo(qubaMap);loadMapPoints()}
-async function loadMapPoints(){if(mapLoaded||!qubaMap)return;mapLoaded=true;try{const r=await fetch("/api/cemetery/map?limit=2200"),rows=await r.json();for(const x of rows){const m=L.circleMarker([x.latitude,x.longitude],{radius:4,weight:1,fillOpacity:.75}).addTo(qubaMap);m.bindPopup('<b>'+esc(x.name_ru||x.external_id)+'</b><br>'+esc(x.external_id)+'<br><a target="_blank" rel="noopener" href="'+esc(x.source_url)+'">Мацевалог ↗</a>');mapMarkers.push(m)}}catch{}}
+function initMap(retry=0){
+  if(qubaMap){setTimeout(()=>qubaMap.invalidateSize(),50);return}
+  if(!window.L){
+    if(retry<20)return setTimeout(()=>initMap(retry+1),200);
+    const el=$("#qubaMap");if(el)el.innerHTML='<div class="empty">Модуль карты не загрузился. Обновите страницу.</div>';
+    return;
+  }
+  const el=$("#qubaMap");if(!el)return;
+  qubaMap=L.map("qubaMap").setView([41.3697,48.5063],16);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap"}).addTo(qubaMap);
+  setTimeout(()=>qubaMap.invalidateSize(),100);
+  loadMapPoints();
+}
+async function loadMapPoints(){
+  if(mapLoaded||!qubaMap)return;
+  try{
+    const r=await fetch("/api/cemetery/map?limit=2200",{cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const rows=await r.json();
+    for(const x of rows){
+      if(!Number.isFinite(Number(x.latitude))||!Number.isFinite(Number(x.longitude)))continue;
+      const m=L.circleMarker([Number(x.latitude),Number(x.longitude)],{radius:4,weight:1,fillOpacity:.75}).addTo(qubaMap);
+      m.bindPopup('<b>'+esc(x.name_ru||x.external_id)+'</b><br>'+esc(x.external_id)+'<br><a target="_blank" rel="noopener" href="'+esc(x.source_url)+'">Мацевалог ↗</a>');
+      mapMarkers.push(m);
+    }
+    mapLoaded=true;
+    if(mapMarkers.length){
+      const group=L.featureGroup(mapMarkers);
+      qubaMap.fitBounds(group.getBounds().pad(.08),{maxZoom:19});
+    }
+    const legend=document.querySelector(".maplegend span");
+    if(legend)legend.textContent="На карте: "+mapMarkers.length+" записей с координатами";
+  }catch(e){
+    mapLoaded=false;
+    const legend=document.querySelector(".maplegend span");
+    if(legend)legend.textContent="Не удалось загрузить точки карты. Нажмите раздел ещё раз.";
+    console.error("map points",e);
+  }
+}
 function focusMap(lat,lon,name){showPage("quba");setTimeout(()=>{initMap();qubaMap?.setView([lat,lon],19);L.popup().setLatLng([lat,lon]).setContent('<b>'+esc(name)+'</b>').openOn(qubaMap)},200)}
 function useCemeteryRecord(key,url){$("#cemeteryRecordKey").value=key;document.querySelector('[name=cemetery_link]').value=url;document.querySelector('[name=place]').value="Куба (центральное кладбище)";document.querySelector('[name=city]').value="Куба (Губа), Азербайджан";showPage("add")}
 
