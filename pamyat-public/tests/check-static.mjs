@@ -7,15 +7,9 @@ const requiredServer=[
   'app.get("/m"',
   'app.get("/m/add"',
   'app.post("/m/add"',
-  'app.get("/m/catalog"',
-  'app.get("/m/map"',
-  'app.get("/m/person/:key"',
-  'app.get("/m/route"',
+  'app.get("/m/calendar"',
   'app.get("/m/family"',
-  'app.get("/m/identify"',
-  'app.get("/m/offline"',
-  'app.get("/api/selftest"',
-  'app.get("/api/cemetery/offline"'
+  'app.get("/api/selftest"'
 ];
 for(const s of requiredServer){
   if(!server.includes(s)) throw new Error("Missing server route: "+s);
@@ -28,7 +22,8 @@ for(const [i,src] of inline.entries()){
   catch(e){ throw new Error("Inline script "+i+" syntax error: "+e.message); }
 }
 
+if(/data-page="quba"/.test(html)) throw new Error("Cemetery catalog nav still visible");
+if(/id="quba"/.test(html)) throw new Error("Cemetery catalog section still visible");
 if(/api\.qrserver\.com/.test(html)) throw new Error("External QR provider still present");
-if(!html.includes("/vendor/leaflet/leaflet.js")) throw new Error("Leaflet is not served locally");
 
 console.log("Static checks passed:", {routes:requiredServer.length,inlineScripts:inline.length});
