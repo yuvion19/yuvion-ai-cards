@@ -303,6 +303,17 @@
 
     .design-tune{margin-top:12px;border:1px solid #ECEEF1;border-radius:15px;background:#FAFBFC;overflow:hidden}.design-tune summary{cursor:pointer;list-style:none;padding:11px 13px;font-size:11px;font-weight:850;color:#50565F}.design-tune summary::-webkit-details-marker{display:none}.design-tune-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 13px 13px}.design-tune-field{display:grid;gap:6px}.design-tune-field label{font-size:10px;font-weight:800;color:#6D737B}.design-tune-field input[type="range"]{width:100%;accent-color:var(--brand)}.design-tune-value{font-size:10px;color:#444A52;font-weight:800}.design-tune-reset{border:0;background:#EEF0F3;border-radius:9px;padding:7px 9px;font-size:10px;font-weight:800;cursor:pointer}
     @media(max-width:600px){.design-tune-grid{grid-template-columns:1fr}}
+
+    /* YUVION_V71_DESIGN_LAB */
+    .design-personality{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(180px,.65fr);gap:12px;margin-top:14px}
+    .design-personality-box{border:1px solid #ECEEF1;border-radius:16px;background:#FAFBFC;padding:12px}
+    .design-personality-box>label{display:block;font-size:10px;font-weight:900;color:#676D75;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+    .intensity-segment{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.intensity-btn{border:1px solid #E1E4E8;background:#fff;border-radius:11px;padding:9px 7px;font-size:10px;font-weight:850;color:#4C525A;cursor:pointer;transition:.15s}.intensity-btn.active{background:#171D23;color:#fff;border-color:#171D23;box-shadow:0 8px 20px rgba(23,29,35,.14)}
+    .design-substyle{width:100%;height:37px;border:1px solid #DFE2E6;background:#fff;border-radius:11px;padding:0 9px;font-size:10px;font-weight:750;color:#3A4047}
+    .design-action.magic{background:linear-gradient(135deg,#7A2FD1,#E53F6A);border-color:transparent;color:#fff;box-shadow:0 8px 20px rgba(126,47,184,.18)}
+    .cover-lab{display:none;margin-top:14px;border-top:1px solid #EEF0F2;padding-top:14px}.cover-lab.show{display:block}.cover-lab-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.cover-lab-head b{font-size:12px}.cover-lab-head span{font-size:10px;color:var(--muted)}
+    .cover-variant-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.cover-variant{border:1px solid #E4E6EA;border-radius:15px;padding:7px;background:#fff;cursor:pointer;text-align:left;transition:.16s}.cover-variant:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(20,24,30,.09)}.cover-variant.selected{border-color:var(--brand);box-shadow:0 0 0 2px rgba(240,62,74,.10)}.cover-variant img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;background:#F4F5F7}.cover-variant b{display:block;font-size:10px;margin:7px 3px 2px}.cover-variant small{display:block;font-size:9px;color:var(--muted);margin:0 3px 3px}
+    @media(max-width:700px){.design-personality{grid-template-columns:1fr}.cover-variant-grid{grid-template-columns:1fr 1fr}.cover-variant:last-child{grid-column:1/-1;max-width:50%;justify-self:center}}
 </style>
 </head>
 <body class="simple-ui">
@@ -590,7 +601,7 @@
     </div>
     <section class="design-studio" id="designStudio">
       <div class="design-studio-head">
-        <div><div class="section-kicker">Дизайн 7.0</div><h3>Стиль карточек</h3><p>Yuvion подбирает тему и цвета автоматически. Можно выбрать другой стиль — товар и подтверждённые факты останутся теми же.</p></div>
+        <div><div class="section-kicker">Дизайн 7.1</div><h3>Стиль карточек</h3><p>Yuvion подбирает тему, палитру и подачу автоматически. Можно менять выразительность и сравнивать 3 обложки — факты товара не меняются.</p></div>
         <div class="design-free-badge">Бесплатный рендер</div>
       </div>
       <div class="design-studio-body">
@@ -606,13 +617,38 @@
           <button type="button" class="design-style-card" data-style="food"><b>Еда</b><span>Тепло и аппетитно</span></button>
           <button type="button" class="design-style-card" data-style="minimal"><b>Минимализм</b><span>Чистый каталог без шума</span></button>
         </div>
+        <div class="design-personality">
+          <div class="design-personality-box">
+            <label>Выразительность</label>
+            <div class="intensity-segment" id="designIntensity">
+              <button type="button" class="intensity-btn" data-intensity="calm">Спокойный</button>
+              <button type="button" class="intensity-btn active" data-intensity="selling">Продающий</button>
+              <button type="button" class="intensity-btn" data-intensity="bold">Максимум</button>
+            </div>
+          </div>
+          <div class="design-personality-box">
+            <label for="designSubstyle">Подача</label>
+            <select class="design-substyle" id="designSubstyle">
+              <option value="auto">Авто</option>
+              <option value="clean">Чистая</option>
+              <option value="contrast">Контрастная</option>
+              <option value="soft">Мягкая</option>
+            </select>
+          </div>
+        </div>
         <div class="design-controls">
           <div class="design-palette-wrap"><span>Палитра товара</span><div class="design-palette" id="designPalette"><i class="palette-dot" style="background:#F03E4A"></i><i class="palette-dot" style="background:#FFD8DC"></i><i class="palette-dot" style="background:#FFFFFF"></i></div></div>
           <div class="design-actions">
+            <button type="button" class="design-action magic" id="beautifyDesign">Сделать красивее</button>
+            <button type="button" class="design-action" id="coverVariants">3 обложки</button>
             <button type="button" class="design-action" id="designVariant">Другой вариант</button>
             <button type="button" class="design-action" id="mobilePreview">Мобильный вид</button>
             <button type="button" class="design-action primary" id="applyDesign">Пересобрать 4 карточки</button>
           </div>
+        </div>
+        <div class="cover-lab" id="coverLab">
+          <div class="cover-lab-head"><b>Варианты первой карточки</b><span>Выберите один — остальные карточки сохранят единый стиль.</span></div>
+          <div class="cover-variant-grid" id="coverVariantGrid"></div>
         </div>
         <details class="design-tune">
           <summary>Точная настройка товара на карточке</summary>
@@ -996,6 +1032,12 @@ const designPalette=document.getElementById('designPalette');
 const designVariantBtn=document.getElementById('designVariant');
 const mobilePreviewBtn=document.getElementById('mobilePreview');
 const applyDesignBtn=document.getElementById('applyDesign');
+const designIntensity=document.getElementById('designIntensity');
+const designSubstyle=document.getElementById('designSubstyle');
+const beautifyDesign=document.getElementById('beautifyDesign');
+const coverVariantsBtn=document.getElementById('coverVariants');
+const coverLab=document.getElementById('coverLab');
+const coverVariantGrid=document.getElementById('coverVariantGrid');
 const productScale=document.getElementById('productScale');
 const productShiftX=document.getElementById('productShiftX');
 const productShiftY=document.getElementById('productShiftY');
@@ -1287,6 +1329,10 @@ let currentCards=[];
 let currentScenes=[];
 let currentPalette=[];
 let currentDesignVariant=0;
+let currentDesignIntensity='selling';
+let currentDesignSubstyle='auto';
+let currentCoverVariants=[];
+let beautifyStep=0;
 let currentComposition={scale:1,shiftX:0,shiftY:0};
 let currentMode='full';
 let currentHistoryId=null;
@@ -3095,9 +3141,35 @@ v7PhotoSource.onclick=()=>fileInput.click();
 v7UrlSource.onclick=()=>{productUrlInput.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>productUrlInput.focus(),300)};
 v7ExcelSource.onclick=()=>{const box=document.getElementById('excelAutopilot');if(box){box.open=true;box.scrollIntoView({behavior:'smooth',block:'start'})}};
 designStyleGrid.addEventListener('click',e=>{const btn=e.target.closest('[data-style]');if(btn)chooseDesignStyle(btn.dataset.style)});
+designIntensity.addEventListener('click',e=>{const btn=e.target.closest('[data-intensity]');if(!btn)return;currentDesignIntensity=btn.dataset.intensity;designIntensity.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced()});
+designSubstyle.onchange=()=>{currentDesignSubstyle=designSubstyle.value;designSubstyle.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced()};
 designVariantBtn.onclick=()=>{currentDesignVariant=(currentDesignVariant+1)%4;currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();if(currentCards.length===4)generateAll.click()};
 mobilePreviewBtn.onclick=()=>{cardsPreview.classList.toggle('mobile-preview');renderDesignStudio()};
+beautifyDesign.onclick=()=>{const sequence=[{i:'selling',s:'soft'},{i:'bold',s:'contrast'},{i:'calm',s:'clean'},{i:'selling',s:'auto'}];const next=sequence[beautifyStep%sequence.length];beautifyStep++;currentDesignIntensity=next.i;currentDesignSubstyle=next.s;currentDesignVariant=(currentDesignVariant+1)%4;designIntensity.dataset.userChanged='1';designSubstyle.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();if(currentData&&currentCards.length===4)generateAll.click()};
 applyDesignBtn.onclick=()=>{if(currentData){currentScenes=[];markCardsStale([0,1,2,3]);generateAll.click()}else analyzeBtn.click()};
+
+async function loadCoverVariants(){
+  if(!currentData)return;
+  coverVariantsBtn.disabled=true;coverVariantsBtn.textContent='Готовим…';
+  try{
+    const src=await getSource();
+    const response=await fetch('/api/cover-variants',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:collectEdits(),style:styleSelect.value,palette:currentPalette,composition:currentComposition,designSubstyle:currentDesignSubstyle})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось создать варианты обложки.');
+    currentCoverVariants=Array.isArray(data.variants)?data.variants:[];
+    if(Array.isArray(data.palette)&&data.palette.length)currentPalette=data.palette;
+    renderCoverVariants();
+  }catch(e){creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось создать варианты обложки.'}
+  finally{coverVariantsBtn.disabled=false;coverVariantsBtn.textContent='3 обложки'}
+}
+function renderCoverVariants(){
+  if(!currentCoverVariants.length){coverLab.classList.remove('show');coverVariantGrid.innerHTML='';return}
+  coverLab.classList.add('show');
+  coverVariantGrid.innerHTML=currentCoverVariants.map((item,index)=>'<button type="button" class="cover-variant '+(item.variant===currentDesignVariant&&item.intensity===currentDesignIntensity?'selected':'')+'" data-cover-index="'+index+'"><img alt="'+esc(item.label||'Вариант')+'" src="data:image/png;base64,'+item.card.base64+'"><b>'+esc(item.label||('Вариант '+(index+1)))+'</b><small>'+esc(item.intensity==='bold'?'Максимально заметная':item.intensity==='calm'?'Спокойная':'Сбалансированная')+'</small></button>').join('');
+}
+coverVariantsBtn.onclick=loadCoverVariants;
+coverVariantGrid.addEventListener('click',async e=>{const btn=e.target.closest('[data-cover-index]');if(!btn)return;const item=currentCoverVariants[Number(btn.dataset.coverIndex)];if(!item)return;currentDesignVariant=item.variant;currentDesignIntensity=item.intensity;designIntensity.dataset.userChanged='1';if(currentCards.length===4){currentCards[0]=item.card;currentScenes[0]=item.scene;cardsStale=false;currentStaleCards=[];currentQuality=null;renderCards();await saveHistory()}renderDesignStudio();renderCoverVariants()});
+
 function syncCompositionFromControls(){
   currentComposition={
     scale:Math.max(.78,Math.min(1.22,Number(productScale.value||100)/100)),
@@ -3418,6 +3490,8 @@ async function refreshDesignPalette(){
 function renderDesignStudio(){
   if(!designStyleGrid)return;
   designStyleGrid.querySelectorAll('[data-style]').forEach(btn=>btn.classList.toggle('active',btn.dataset.style===styleSelect.value));
+  designIntensity?.querySelectorAll('[data-intensity]').forEach(btn=>btn.classList.toggle('active',btn.dataset.intensity===currentDesignIntensity));
+  if(designSubstyle)designSubstyle.value=currentDesignSubstyle;
   const colors=currentPalette.length?currentPalette:['#F03E4A','#D62F3B','#FFF0F2'];
   designPalette.innerHTML=colors.slice(0,4).map(color=>'<i class="palette-dot" title="'+esc(color)+'" style="background:'+esc(color)+'"></i>').join('');
   designVariantBtn.textContent='Другой вариант · '+(currentDesignVariant+1)+'/4';
@@ -3429,7 +3503,22 @@ function renderDesignStudio(){
 function chooseDesignStyle(style){
   if(!styleSelect.querySelector('option[value="'+style+'"]'))return;
   styleSelect.value=style;styleSelect.dataset.userChanged='1';
+  applyRecommendedPersonality();
   currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();renderProductCockpit();saveHistoryDebounced();
+}
+
+function recommendedDesignPersonality(style){
+  if(style==='minimal')return {intensity:'calm',substyle:'clean'};
+  if(style==='beauty'||style==='premium'||style==='home')return {intensity:'selling',substyle:'soft'};
+  if(style==='tech'||style==='tools'||style==='sport')return {intensity:'selling',substyle:'contrast'};
+  if(style==='kids')return {intensity:'bold',substyle:'contrast'};
+  return {intensity:'selling',substyle:'auto'};
+}
+function applyRecommendedPersonality(){
+  const rec=recommendedDesignPersonality(styleSelect.value);
+  if(!designIntensity?.dataset.userChanged)currentDesignIntensity=rec.intensity;
+  if(!designSubstyle?.dataset.userChanged)currentDesignSubstyle=rec.substyle;
+  renderDesignStudio();
 }
 function recommendedStyleForProduct(card){
   const text=[card?.category,card?.seoTitle,card?.shortDescription].filter(Boolean).join(' ').toLowerCase();
@@ -3447,6 +3536,7 @@ function recommendedStyleForProduct(card){
 function prepareAutomaticCardStyle(){
   if(!currentData)return;
   if(!styleSelect.dataset.userChanged)styleSelect.value=recommendedStyleForProduct(currentData);
+  applyRecommendedPersonality();
   renderModeSelect.value='free';
   syncRenderModeUi();
   renderDesignStudio();
@@ -3555,7 +3645,7 @@ editor.category.addEventListener('blur',()=>{
   renderCategoryValidation();
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
-styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();renderProductCockpit();saveHistoryDebounced()};
+styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPersonality();currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();renderProductCockpit();saveHistoryDebounced()};
 function syncRenderModeUi(){
   const free=renderModeSelect.value!=='ai';
   generateAll.textContent=free?'Создать 4 карточки бесплатно':'Создать 4 AI-карточки';
@@ -3634,12 +3724,14 @@ async function checkQualityAndAutofix(autoFix=true){
 async function regenerateCardApi(index,src,cardData,styleValue){
   const response=await fetch('/api/regenerate-card',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,composition:currentComposition})
+    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,composition:currentComposition})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку №'+(index+1)+'.');
   if(Array.isArray(data.palette)&&data.palette.length)currentPalette=data.palette;
   if(Number.isInteger(data.designVariant))currentDesignVariant=data.designVariant;
+  if(data.designIntensity)currentDesignIntensity=data.designIntensity;
+  if(data.designSubstyle)currentDesignSubstyle=data.designSubstyle;
   if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
   renderDesignStudio();
   if(data.scene){
@@ -3653,7 +3745,7 @@ async function renderOverlayCardsApi(indexes,cardData,styleValue){
   if(!Array.isArray(currentScenes)||currentScenes.length!==4)throw new Error('Чистые сцены недоступны.');
   const response=await fetch('/api/render-card-overlays',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({scenes:currentScenes,card:cardData,style:styleValue,indexes,palette:currentPalette,designVariant:currentDesignVariant,composition:currentComposition})
+    body:JSON.stringify({scenes:currentScenes,card:cardData,style:styleValue,indexes,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,composition:currentComposition})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось пересобрать инфографику.');
@@ -3686,13 +3778,15 @@ generateAll.onclick=async()=>{
       addCurrentActivity('Точечная AI-перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
     }else{
       const src=await getSource();
-      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,composition:currentComposition})});
+      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,composition:currentComposition})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
       currentCards=data.cards||[];
       currentScenes=data.scenes||[];
       if(Array.isArray(data.palette)&&data.palette.length)currentPalette=data.palette;
       if(Number.isInteger(data.designVariant))currentDesignVariant=data.designVariant;
+      if(data.designIntensity)currentDesignIntensity=data.designIntensity;
+      if(data.designSubstyle)currentDesignSubstyle=data.designSubstyle;
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       addCurrentActivity(renderModeSelect.value==='free'?'Создан бесплатный комплект':'Создан AI-комплект','4 карточки + чистые сцены');
