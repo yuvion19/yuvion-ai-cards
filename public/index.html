@@ -1278,6 +1278,13 @@ async function importFromProductUrl(){
 
     const importedExtra={...(payload.extraData||{})};
     const defaults=loadSellerDefaults();
+    const sourceCurrency=String(importedExtra.currency||'').trim().toUpperCase();
+    let currencyWarning='';
+    if(importedExtra.price1&&sourceCurrency&&!['RUB','RUR','₽','РУБ','РУБ.'].includes(sourceCurrency)){
+      currentData.sourcePrice={price:String(importedExtra.price1||''),oldPrice:String(importedExtra.oldPrice||''),currency:sourceCurrency};
+      currencyWarning='Цена на сайте указана в '+sourceCurrency+' и не перенесена в рублёвое поле Yuvion.';
+      importedExtra.price1='';importedExtra.price2='';importedExtra.price3='';importedExtra.oldPrice='';
+    }
     const p1=moneyNumber(importedExtra.price1);
     if(p1>0){
       if(!importedExtra.price2)importedExtra.price2=String(Math.max(0,Math.round(p1*(1-Number(defaults.discount2??5)/100))));
@@ -1310,6 +1317,7 @@ async function importFromProductUrl(){
     addCurrentActivity('Импорт по ссылке',currentSourceReference?.url||url);
     await checkDuplicateSku();await checkBarcodeState('product');await saveHistory();
     const warnings=Array.isArray(payload.warnings)?payload.warnings.filter(Boolean):[];
+    if(currencyWarning)warnings.unshift(currencyWarning);
     setUrlImportStatus('Товар импортирован: данные'+(sourceDataUrl?' и фотографии':'')+' перенесены в черновик.'+(warnings.length?' '+warnings.join(' '):''),warnings.length?'warn':'ok');
     workspace.scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){
