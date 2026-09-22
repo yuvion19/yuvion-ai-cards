@@ -289,12 +289,12 @@ if(!html.includes('currentStaleCards.length<4'))fail('full-set stale cards must 
 if(!server.includes('browserVisionFallback: true'))fail('browser vision fallback metadata missing');else ok('browser vision fallback metadata present');
 if(!server.includes('uniqueMultiAngleRouting: true'))fail('unique multi-angle routing metadata missing');else ok('unique multi-angle routing metadata present');
 if(!server.includes('/api/local-vision-normalize'))fail('local vision normalize endpoint missing');else ok('local vision normalize endpoint present');
-if(!html.includes("new Worker('/local-vision-worker.js?v=10.6.0'"))fail('local vision worker hook missing');else ok('local vision worker hook present');
+if(!html.includes("new Worker('/local-vision-worker.js?v=10.7.0'"))fail('local vision worker hook missing');else ok('local vision worker hook present');
 if(!html.includes('upgradeFallbackWithBrowserVision'))fail('browser vision fallback integration missing');else ok('browser vision fallback integration present');
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=20',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=21',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=3'))fail('Studio Director v10.3 old-card invalidation missing');else ok('Studio Director v10.3 old-card invalidation present');
 
@@ -302,7 +302,7 @@ if(!server.includes('smolVlmWasmFallback: true'))fail('SmolVLM WASM fallback met
 if(!server.includes('perCardSceneVariants: true'))fail('per-card scene variants metadata missing');else ok('per-card scene variants metadata present');
 if(!server.includes('transformProductForScene'))fail('safe product scene transform missing');else ok('safe product scene transform present');
 if(!server.includes('sceneVariant=Number.isInteger'))fail('scene-specific background variant missing');else ok('scene-specific background variant present');
-if(!html.includes("local-vision-worker.js?v=10.6.0"))fail('vision worker cache bust missing');else ok('vision worker cache bust present');
+if(!html.includes("local-vision-worker.js?v=10.7.0"))fail('vision worker cache bust missing');else ok('vision worker cache bust present');
 if(!worker.includes('/+esm'))fail('worker ESM CDN endpoint missing');else ok('worker ESM CDN endpoint present');
 if(!worker.includes('dtype:"q8"'))fail('worker WASM q8 fallback missing');else ok('worker WASM q8 fallback present');
 if(!worker.includes('sequences[0].slice(inputLength)'))fail('generated-only vision decode missing');else ok('generated-only vision decode present');
@@ -312,9 +312,16 @@ if(!server.includes('Преобладающий цвет на фото'))fail('g
 if(!html.includes('needsVisionUpgrade'))fail('nonblocking local vision flag missing');else ok('nonblocking local vision flag present');
 if(!html.includes('improveProductWithLocalVisionInBackground'))fail('background local vision upgrade missing');else ok('background local vision upgrade present');
 if(html.includes('data=await upgradeFallbackWithBrowserVision(data,src)'))fail('local vision still blocks base analysis');else ok('base analysis is not blocked by local vision');
-if(!html.includes("register('/sw.js?v=20'"))fail('service worker v20 registration missing');else ok('service worker v20 registration present');
-if(!sw.includes("yuvion-ai-shell-v20"))fail('service worker v20 cache missing');else ok('service worker v20 cache present');
+if(!html.includes("register('/sw.js?v=21'"))fail('service worker v21 registration missing');else ok('service worker v21 registration present');
+if(!sw.includes("yuvion-ai-shell-v21"))fail('service worker v21 cache missing');else ok('service worker v21 cache present');
 if(!server.includes('freeTextLocalFirst: true'))fail('local-first text analysis metadata missing');else ok('local-first text analysis metadata present');
+if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
+if(!server.includes('recordError("preflight-local"'))fail('local preflight route missing');else ok('local preflight route present');
+if(!worker.includes('Xenova/mobilevit-xx-small'))fail('mobile classifier fallback missing');else ok('mobile classifier fallback present');
+if(!worker.includes('classifierMode:true'))fail('classifier result marker missing');else ok('classifier result marker present');
+if(!server.includes('localizeVisionLabel'))fail('vision label localization missing');else ok('vision label localization present');
+if(!server.includes('width="772" height="108"'))fail('visible description panel missing');else ok('visible description panel present');
+
 if(!server.includes('preferLocal === true'))fail('local-first analyze branch missing');else ok('local-first analyze branch present');
 if(!html.includes('requestImmediateLocalCard'))fail('immediate local description helper missing');else ok('immediate local description helper present');
 if(!html.includes('preferLocal:true'))fail('frontend local-first analyze request missing');else ok('frontend local-first analyze request present');
