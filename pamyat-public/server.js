@@ -42,6 +42,24 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: false, limit: "256kb" }));
+app.use((req,res,next)=>{
+  const p=req.path;
+  const cemeteryPublic =
+    p.startsWith("/api/cemetery/") ||
+    p.startsWith("/qr/cemetery/") ||
+    p==="/m/catalog" ||
+    p==="/m/map" ||
+    p.startsWith("/m/person/") ||
+    p==="/m/route" ||
+    p==="/m/identify" ||
+    p.startsWith("/m/identify/") ||
+    p==="/m/offline";
+  if(cemeteryPublic) {
+    if (p.startsWith("/api/") || p.startsWith("/qr/")) return res.status(404).json({error:"not_found"});
+    return res.redirect(302,"/m");
+  }
+  next();
+});
 app.use("/vendor/leaflet", express.static(path.join(__dirname, "node_modules", "leaflet", "dist"), { immutable: true, maxAge: "365d" }));
 
 function htmlEsc(v) {
@@ -66,15 +84,10 @@ app.get("/m", (_req,res) => {
     <p class="muted">Простая версия без большого интерфейса. Критические функции работают отдельными страницами.</p>
     <div class="nav">
       <a class="btn" href="/m/add">+ Добавить событие</a>
-      <a class="btn" href="/m/catalog">Каталог кладбища</a>
-      <a class="btn" href="/m/map">Карта кладбища</a>
       <a class="btn" href="/m/calendar">Календарь</a>
       <a class="btn" href="/m/family">Родословная</a>
-      <a class="btn" href="/m/identify">Опознать могилу</a>
-      <a class="btn" href="/m/offline">Офлайн-каталог</a>
       <a class="btn" href="/api/selftest">Проверка системы</a>
     </div>
-    <div class="card"><b>Кладбище Кубы / Губы</b><p class="muted">В базе 1238 индексных записей QBA. Можно открыть каталог, найти человека и перейти к карте.</p></div>
     <a class="btn secondary" href="/pamyat-juhuro?desktop=1">Открыть полную версию</a>
   `));
 });
@@ -145,18 +158,11 @@ app.get("/m/calendar", async (_req,res) => {
 
 app.get("/m/add", async (_req,res) => {
   res.setHeader("Cache-Control","no-store");
-  let pref={};
-  const key=clean(_req.query.record_key,100);
-  if(key){try{const card=await sb("rpc/memorial_person_card",{method:"POST",body:{p_record_key:key}});pref=card?.record||{}}catch{}}
-  const death=(pref.death_date||"");
   res.send(mobileShell("Добавить событие", `
     <h1>Добавить событие</h1>
-    ${key?'<div class="ok">Данные подставлены из записи кладбища '+htmlEsc(pref.external_id||key)+'. Их можно уточнить перед отправкой.</div>':""}
     <form method="post" action="/m/add">
-      <input type="hidden" name="cemetery_record_key" value="${htmlEsc(key)}">
-      <input type="hidden" name="cemetery_link" value="${htmlEsc(pref.source_url||"")}">
-      <label>ФИО *</label><input class="field" name="full_name" value="${htmlEsc(pref.name_ru||"")}" required>
-      <label>Дата смерти *</label><input class="field" type="date" name="death_date" value="${htmlEsc(death)}" required>
+      <label>ФИО *</label><input class="field" name="full_name" required>
+      <label>Дата смерти *</label><input class="field" type="date" name="death_date" required>
       <div class="check"><input type="checkbox" name="publish_day7" value="1" checked><span>7 дней</span></div>
       <div class="check"><input type="checkbox" name="publish_day40" value="1" checked><span>40 дней</span></div>
       <div class="check"><input type="checkbox" name="publish_year1" value="1" checked><span>1 год</span></div>
@@ -183,7 +189,7 @@ app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
     const yahrzeit=nextYahrzeit(deathDate);
     const base={
       full_name:fullName,death_date:deathDate,event_time:null,city:clean(b.city,120)||null,place:clean(b.place,180)||null,
-      cemetery_link:clean(b.cemetery_link,800)||null,cemetery_record_key:clean(b.cemetery_record_key,100)||null,note:clean(b.note,1500)||null,visibility:"public",status:"pending",relation_confirmed:true,
+      cemetery_link:null,cemetery_record_key:null,note:clean(b.note,1500)||null,visibility:"public",status:"pending",relation_confirmed:true,
       publish_day7:Boolean(b.publish_day7),publish_day40:Boolean(b.publish_day40),publish_year1:Boolean(b.publish_year1),
       publish_annual:Boolean(b.publish_annual),hebrew_death_label:hebrewLabel(deathDate),yahrzeit_date:yahrzeit,
       derived:{...derivedDates(deathDate),yahrzeit},submitter_name:clean(b.submitter_name,120)||null,submitter_contact:clean(b.submitter_contact,180)||null
@@ -223,7 +229,7 @@ app.get("/api/selftest", async (_req,res)=>{
   try{
     const db=await sb("rpc/memorial_selftest",{method:"POST",body:{}});
     const ok=Boolean(db?.ok);
-    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/add","/m/catalog","/m/map","/m/family","/m/offline"],release:"memory-hub-v3"});
+    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/add","/m/calendar","/m/family"],release:"memory-hub-no-cemetery"});
   }catch(e){res.status(503).json({ok:false,error:"selftest_failed",detail:e.data||e.message})}
 });
 
@@ -1303,11 +1309,11 @@ app.use((_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log("Pamyat community hub listening on " + PORT);
-  setTimeout(() => syncCemeteryCatalog(true).catch(e => console.error("catalog sync", e.data || e.message)), 3000);
+  // Cemetery catalog module disabled by product decision.
   setTimeout(() => runNotificationCycle(), 10000);
   setTimeout(() => createDailySnapshot(), 15000);
   setTimeout(() => configureTelegramWebhook(), 20000);
   setInterval(() => runNotificationCycle(), 30 * 60 * 1000).unref();
   setInterval(() => createDailySnapshot(), 6 * 60 * 60 * 1000).unref();
-  setInterval(() => syncCemeteryCatalog(true).catch(e => console.error("catalog refresh", e.message)), 24 * 60 * 60 * 1000).unref();
+  // Cemetery catalog refresh disabled.
 });
