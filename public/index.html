@@ -197,6 +197,7 @@
     .queue-resume-note{margin-top:8px;padding:8px 9px;border-radius:9px;background:#FFF8E8;color:#7D5700;font-size:9px;display:none}.queue-resume-note.show{display:block}
     .unmatched-manager{display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}.unmatched-manager.show{display:block}.unmatched-manager h4{margin:0 0 7px;font-size:11px}.unmatched-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,1fr) auto;gap:7px;align-items:center;padding:7px;border:1px solid var(--line);border-radius:9px;margin-top:6px}.unmatched-row b{font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unmatched-row select{border:1px solid var(--line);border-radius:8px;padding:6px;font-size:9px;background:#fff}
     .ops-budget{display:grid;grid-template-columns:minmax(220px,320px) minmax(0,1fr);gap:10px;align-items:end;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#FBFAFA}.ops-budget label span{display:block;font-size:9px;font-weight:850;margin-bottom:5px}.ops-budget input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 9px;background:#fff}.ops-budget>div{font-size:9px;color:var(--muted);line-height:1.4;padding-bottom:3px}@media(max-width:680px){.ops-budget{grid-template-columns:1fr}}
+    .storage-manager{display:none;margin-top:10px;padding:11px;border:1px solid var(--line);border-radius:12px;background:#FCFAFA}.storage-manager.show{display:block}.storage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.storage-cell{padding:9px;border:1px solid var(--line);border-radius:10px;background:#fff}.storage-cell b{display:block;font-size:13px}.storage-cell span{display:block;font-size:8px;color:var(--muted);margin-top:2px}@media(max-width:700px){.storage-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:760px){.ops-v64-grid{grid-template-columns:repeat(2,1fr)}}
 
   </style>
@@ -312,8 +313,18 @@
         <button class="btn btn-ghost btn-small" id="exportCatalogReport">Отчёт CSV</button>
         <button class="btn btn-ghost btn-small" id="projectArchive">Архив проекта</button>
         <button class="btn btn-ghost btn-small" id="refreshDiagnostics">Диагностика</button>
+        <button class="btn btn-ghost btn-small" id="storageManagerToggle">Хранилище</button>
+        <button class="btn btn-ghost btn-small" id="undoLastImport">Откатить Excel</button>
       </div>
       <div class="diagnostic-list" id="diagnosticList"></div>
+      <div class="storage-manager" id="storageManager">
+        <div class="storage-grid" id="storageGrid"></div>
+        <div class="ops-v64-actions">
+          <button class="btn btn-ghost btn-small" id="compactStorage">Безопасная очистка</button>
+          <button class="btn btn-ghost btn-small" id="clearSceneCache">Удалить чистые сцены</button>
+        </div>
+        <div class="muted" id="storageManagerNote" style="font-size:9px;margin-top:7px">Финальные PNG и исходные фото безопасная очистка не удаляет.</div>
+      </div>
       <div style="margin-top:12px"><b style="font-size:11px">Последние действия текущего товара</b><div class="activity-list" id="activityList"></div></div>
     </div>
   </details>
@@ -1001,6 +1012,13 @@ const pauseLargeQueue=document.getElementById('pauseLargeQueue');
 const exportCatalogReport=document.getElementById('exportCatalogReport');
 const projectArchive=document.getElementById('projectArchive');
 const refreshDiagnostics=document.getElementById('refreshDiagnostics');
+const storageManagerToggle=document.getElementById('storageManagerToggle');
+const undoLastImport=document.getElementById('undoLastImport');
+const compactStorage=document.getElementById('compactStorage');
+const clearSceneCache=document.getElementById('clearSceneCache');
+const storageManager=document.getElementById('storageManager');
+const storageGrid=document.getElementById('storageGrid');
+const storageManagerNote=document.getElementById('storageManagerNote');
 const diagnosticList=document.getElementById('diagnosticList');
 const activityList=document.getElementById('activityList');
 
@@ -3308,14 +3326,49 @@ function resetProduct(keepSimilar=false){
 }
 
 /* IndexedDB history */
-const DB_NAME='YuvionCardsHistoryV1',STORE='items';
+const DB_NAME='YuvionCardsHistoryV1',STORE='items',SNAPSHOT_STORE='snapshots';
 const CATALOG_LIMIT=500;
-function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'});if(!db.objectStoreNames.contains(SNAPSHOT_STORE))db.createObjectStore(SNAPSHOT_STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function dbPut(item){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(item);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
 async function dbGet(id){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)})}
 async function dbAll(){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
 async function dbDelete(id){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
 async function dbClear(){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function snapshotPut(item){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(SNAPSHOT_STORE,'readwrite');tx.objectStore(SNAPSHOT_STORE).put(item);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function snapshotAll(){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(SNAPSHOT_STORE).objectStore(SNAPSHOT_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
+async function snapshotDelete(id){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(SNAPSHOT_STORE,'readwrite');tx.objectStore(SNAPSHOT_STORE).delete(id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function createImportSnapshot(filename){
+  const all=await dbAll();
+  const id='import-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
+  const fields=all.map(item=>({
+    id:item.id,title:item.title,data:item.data,extraData:item.extraData,privateData:item.privateData,
+    cardsStale:item.cardsStale,staleCardIndexes:item.staleCardIndexes,analysisCache:item.analysisCache,
+    generationFingerprint:item.generationFingerprint,activity:item.activity,updatedAt:item.updatedAt,
+    excelAutopilot:item.excelAutopilot,importedFrom:item.importedFrom,importedAt:item.importedAt,lastImportBatchId:item.lastImportBatchId
+  }));
+  await snapshotPut({id,at:Date.now(),filename:String(filename||'таблица').slice(0,120),items:fields});
+  const snapshots=(await snapshotAll()).sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  for(const old of snapshots.slice(3))await snapshotDelete(old.id);
+  return id;
+}
+async function restoreLastImportSnapshot(){
+  const snapshots=(await snapshotAll()).sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  const snap=snapshots[0];if(!snap){alert('Снимков Excel-импорта пока нет.');return}
+  if(!confirm('Откатить последнюю Excel-синхронизацию «'+(snap.filename||'таблица')+'»? Фото и готовые PNG не удаляются.'))return;
+  const before=new Map((snap.items||[]).map(x=>[x.id,x]));
+  const current=await dbAll();
+  for(const item of current){
+    if(item.lastImportBatchId===snap.id&&!before.has(item.id))await dbDelete(item.id);
+  }
+  for(const saved of (snap.items||[])){
+    const currentItem=await dbGet(saved.id);
+    if(!currentItem)continue;
+    await dbPut({...currentItem,...saved,lastImportBatchId:saved.lastImportBatchId||null,activity:[{at:Date.now(),type:'Откат Excel',detail:snap.filename||''},...(saved.activity||[])].slice(0,80)});
+  }
+  await snapshotDelete(snap.id);
+  await renderHistory();
+  await refreshDiagnosticsNow();
+}
 
 async function trimCatalog(){
   const all=(await dbAll()).sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
@@ -4151,8 +4204,9 @@ async function confirmMappedImport(){
   pendingImportMap=null;
   confirmImportMap.textContent='Проверить изменения';
   importNote.className='import-note show';
-  importNote.textContent='Применяем подтверждённые изменения локально…';
-  await importProductRows(mappedRows,source.filename);
+  importNote.textContent='Создаём локальную точку отката и применяем изменения…';
+  const importBatchId=await createImportSnapshot(source.filename);
+  await importProductRows(mappedRows,source.filename,importBatchId);
 }
 
 function parseCsvText(text){
@@ -4272,7 +4326,7 @@ function importRecordFromRow(headers,row){
   };
 }
 
-async function importProductRows(rows,filename='таблица'){
+async function importProductRows(rows,filename='таблица',importBatchId=''){
   if(!Array.isArray(rows)||rows.length<2)throw new Error('В таблице нужны заголовки и хотя бы одна строка товара.');
   const headers=rows[0].map(v=>String(v||'').trim());
   if(!headers.some(Boolean))throw new Error('Не удалось определить заголовки таблицы.');
@@ -4391,7 +4445,7 @@ async function importProductRows(rows,filename='таблица'){
         analysisCache:changedPublic?null:(old.analysisCache||null),
         generationFingerprint:changedPublic?null:(old.generationFingerprint||null),
         importedFrom:String(filename||'таблица').slice(0,120),
-        importedAt:Date.now(),updatedAt:Date.now(),
+        importedAt:Date.now(),updatedAt:Date.now(),lastImportBatchId:importBatchId||old.lastImportBatchId||null,
         excelAutopilot:changedPublic&&old.sourceDataUrl?{state:'matched',error:''}:(old.excelAutopilot||{state:'waiting',error:''})
       };
       await dbPut(updatedItem);
@@ -4420,7 +4474,7 @@ async function importProductRows(rows,filename='таблица'){
       sourceDataUrl:'',additionalPhotos:[],cards:[],scenes:[],quality:null,cardsStale:false,variations:[],revisions:[],
       activity:[{at:Date.now(),type:'Импортирован из Excel',detail:String(filename||'таблица').slice(0,120)}],
       labelSuggestions:[],analysisCache:null,mode:defaults.mode||'full',style:importedRule?.style||defaults.style||'minimal',
-      published:false,importedFrom:String(filename||'таблица').slice(0,120),importedAt:Date.now(),excelAutopilot:{state:'waiting',error:''}
+      published:false,importedFrom:String(filename||'таблица').slice(0,120),importedAt:Date.now(),lastImportBatchId:importBatchId||null,excelAutopilot:{state:'waiting',error:''}
     };
     await dbPut(item);
     seenIds.add(item.id);
@@ -4920,6 +4974,54 @@ async function exportCatalogReportNow(){
   const csv='\uFEFF'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');
   downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'yuvion-report-'+new Date().toISOString().slice(0,10)+'.csv');
 }
+function approximateBase64Bytes(value){
+  const s=String(value||'');const comma=s.indexOf(',');const b64=comma>=0?s.slice(comma+1):s;
+  return Math.round(b64.length*.75);
+}
+function formatBytes(bytes){
+  const n=Number(bytes||0);if(n<1024)return n+' Б';if(n<1024*1024)return (n/1024).toFixed(1)+' КБ';return (n/1024/1024).toFixed(1)+' МБ';
+}
+function catalogStorageBreakdown(all){
+  let sources=0,cards=0,scenes=0,extras=0,revisions=0,caches=0;
+  for(const item of all||[]){
+    sources+=approximateBase64Bytes(item.sourceDataUrl);
+    for(const x of item.cards||[])cards+=approximateBase64Bytes(x?.base64);
+    for(const x of item.scenes||[])scenes+=approximateBase64Bytes(x?.base64);
+    for(const x of item.additionalPhotos||[])extras+=approximateBase64Bytes(x?.dataUrl);
+    revisions+=new Blob([JSON.stringify(item.revisions||[])]).size;
+    caches+=new Blob([JSON.stringify(item.analysisCache||{})]).size;
+  }
+  return {sources,cards,scenes,extras,revisions,caches,total:sources+cards+scenes+extras+revisions+caches};
+}
+async function renderStorageManager(allItems=null){
+  const all=Array.isArray(allItems)?allItems:await dbAll();
+  const b=catalogStorageBreakdown(all);
+  const cells=[['Исходные фото',b.sources],['Доп. фото',b.extras],['Финальные PNG',b.cards],['Чистые сцены',b.scenes],['Версии',b.revisions],['AI-кэш',b.caches]];
+  storageGrid.innerHTML=cells.map(x=>'<div class="storage-cell"><b>'+formatBytes(x[1])+'</b><span>'+x[0]+'</span></div>').join('');
+  const snaps=(await snapshotAll()).sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  storageManagerNote.textContent='Оценка данных каталога: '+formatBytes(b.total)+'. Снимков Excel для отката: '+snaps.length+'. Безопасная очистка сохраняет исходные фото и финальные PNG.';
+}
+async function compactStorageNow(){
+  if(!confirm('Выполнить безопасную очистку? У опубликованных товаров удалятся чистые сцены и AI-кэш, а версии сократятся до 3. Финальные PNG и исходные фото сохранятся.'))return;
+  const all=await dbAll();
+  for(const item of all){
+    let changed=false;
+    if(Array.isArray(item.revisions)&&item.revisions.length>3){item.revisions=item.revisions.slice(0,3);changed=true}
+    if(item.published&&Array.isArray(item.scenes)&&item.scenes.length){item.scenes=[];changed=true}
+    if(item.published&&item.analysisCache){item.analysisCache=null;item.generationFingerprint=null;changed=true}
+    if(item.published&&Array.isArray(item.labelSuggestions)&&item.labelSuggestions.length){item.labelSuggestions=[];changed=true}
+    if(changed)await dbPut(item);
+  }
+  await renderHistory();await renderStorageManager();
+}
+async function clearAllSceneCacheNow(){
+  if(!confirm('Удалить чистые сцены у всех товаров? Финальные PNG сохранятся, но следующая правка инфографики может снова потребовать AI-генерацию.'))return;
+  const all=await dbAll();
+  for(const item of all){if(Array.isArray(item.scenes)&&item.scenes.length){item.scenes=[];await dbPut(item)}}
+  if(currentHistoryId){currentScenes=[];await saveHistory()}
+  await renderStorageManager();
+}
+
 async function refreshDiagnosticsNow(allItems=null){
   const all=Array.isArray(allItems)?allItems:await dbAll();
   const queue=excelQueueItems(all);
@@ -4965,6 +5067,7 @@ async function refreshDiagnosticsNow(allItems=null){
     ['AI image outputs локально',String(localImageOutputs)+(localImageEstimate?' · ≈ $'+localImageEstimate.toFixed(2):'')],
     ['Следующий запуск',nextCount?(nextCount+' товаров'+(nextImageEstimate?' · image ≈ $'+nextImageEstimate.toFixed(2):'')):'очередь пуста']
   ].map(x=>'<div class="diagnostic-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('');
+  if(storageManager.classList.contains('show'))await renderStorageManager(all);
   const state=loadLargeQueueState();
   const budgetLimit=queueBudgetLimit();
   queueBudgetStatus.textContent='Image-ориентир очереди: $'+Number(state.spentImageUsd||0).toFixed(2)+(budgetLimit?' из $'+budgetLimit.toFixed(2):' · лимит не задан')+'. Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
@@ -5783,6 +5886,10 @@ pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueue
 exportCatalogReport.onclick=()=>exportCatalogReportNow();
 projectArchive.onclick=()=>createEncryptedBackup();
 refreshDiagnostics.onclick=()=>refreshDiagnosticsNow();
+storageManagerToggle.onclick=async()=>{storageManager.classList.toggle('show');if(storageManager.classList.contains('show'))await renderStorageManager()};
+compactStorage.onclick=()=>compactStorageNow();
+clearSceneCache.onclick=()=>clearAllSceneCacheNow();
+undoLastImport.onclick=()=>restoreLastImportSnapshot();
 publishCenterFilter.addEventListener('change',async()=>renderPublishCenter(await dbAll()));
 publishNextProblem.onclick=async()=>{
   const all=await dbAll();
