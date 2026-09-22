@@ -51,6 +51,8 @@ const stats = {
   preflightChecks: 0,
   preflightFindings: 0,
   batchProducts: 0,
+  labelOcrChecks: 0,
+  labelOcrFindings: 0,
   recentErrors: []
 };
 
@@ -549,6 +551,97 @@ app.post("/api/analyze", async (req, res) => {
   }
 });
 
+
+
+const labelOcrSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["summary", "fields"],
+  properties: {
+    summary: { type: "string" },
+    fields: {
+      type: "array",
+      maxItems: 20,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "value", "evidence", "confidence"],
+        properties: {
+          name: { type: "string" },
+          value: { type: "string" },
+          evidence: { type: "string" },
+          confidence: { type: "string", enum: ["Высокая", "Средняя", "Низкая"] }
+        }
+      }
+    }
+  }
+};
+
+app.post("/api/label-ocr", async (req, res) => {
+  const ip = req.ip || "unknown";
+  try {
+    if (limitMap(requestsByIp, ip, MAX_REQUESTS_PER_WINDOW)) {
+      stats.rateLimitErrors += 1;
+      return res.status(429).json({ error: "Слишком много запросов. Попробуйте немного позже." });
+    }
+    const { image, mimeType } = req.body ?? {};
+    if (typeof image !== "string" || typeof mimeType !== "string") {
+      return res.status(400).json({ error: "Изображение маркировки не передано." });
+    }
+    if (!ALLOWED_TYPES.has(mimeType)) {
+      return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
+    }
+    if (decodedImageSize(image) > MAX_IMAGE_BYTES) {
+      return res.status(413).json({ error: "Фотография маркировки должна быть не больше 10 МБ." });
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ error: "AI для распознавания маркировки не настроен." });
+    }
+
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await client.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
+      input: [{
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text:
+              "Распознай только факты, которые реально читаются на маркировке, этикетке или упаковке товара. " +
+              "Ничего не угадывай по форме товара и не дополняй знаниями извне. " +
+              "Ищи полезные для каталога поля: бренд, модель, артикул, EAN/штрихкод, размеры, вес, объём, материал, состав, мощность, напряжение, частоту, страну производства, комплектность и другие явно напечатанные характеристики. " +
+              "Для каждого найденного поля верни короткое доказательство — небольшой фрагмент видимого текста, подтверждающий значение. " +
+              "Если текст не читается уверенно, поле можно пропустить. Результат является предложением для подтверждения продавцом, а не автоматически подтверждённым фактом."
+          },
+          { type: "input_image", image_url: "data:" + mimeType + ";base64," + image, detail: "high" }
+        ]
+      }],
+      text: { format: { type: "json_schema", name: "yuvion_label_ocr", strict: true, schema: labelOcrSchema } },
+      max_output_tokens: 1500
+    });
+
+    recordTextUsage(response);
+    const parsed = JSON.parse(response.output_text || "{}");
+    const fields = Array.isArray(parsed.fields) ? parsed.fields
+      .filter((x) => x && x.name && x.value)
+      .slice(0, 20)
+      .map((x) => ({
+        name: compact(x.name, 80),
+        value: compact(x.value, 160),
+        evidence: compact(x.evidence || "", 180),
+        confidence: ["Высокая", "Средняя", "Низкая"].includes(x.confidence) ? x.confidence : "Средняя"
+      })) : [];
+    stats.labelOcrChecks += 1;
+    stats.labelOcrFindings += fields.length;
+    return res.json({ summary: compact(parsed.summary || "", 300), fields });
+  } catch (error) {
+    recordError("label-ocr", error);
+    console.error("Label OCR error:", { message: error?.message, status: error?.status, code: error?.code });
+    if (error?.code === "credit_balance_exhausted") return res.status(402).json({ error: "На балансе OpenAI API закончились кредиты." });
+    if (error?.status === 429) return res.status(429).json({ error: "Лимит AI временно исчерпан." });
+    return res.status(500).json({ error: "Не удалось распознать маркировку." });
+  }
+});
 
 const qualityCheckSchema = {
   type: "object",
