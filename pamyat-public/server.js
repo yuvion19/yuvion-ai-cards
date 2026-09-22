@@ -335,8 +335,10 @@ app.get("/m/family", async (req,res)=>{
   }catch(e){res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить родословную.</div>'))}
 });
 
-app.get("/m/identify", (_req,res)=>{
-  res.send(mobileShell("Опознать могилу",`<h1>Нужна помощь с идентификацией</h1><p class="muted">Для плохо читаемой или неизвестной могилы. Заявка видна только модераторам до проверки.</p><form method="post" action="/m/identify" enctype="multipart/form-data"><label>Фото (до 900 КБ)</label><input class="field" type="file" accept="image/*" name="photo"><label>Предполагаемое имя</label><input class="field" name="approximate_name"><label>Примерный год</label><input class="field" name="approximate_year"><label>QBA / участок, если известен</label><input class="field" name="sector_note"><label>Что удалось прочитать / дополнительная информация</label><textarea class="field" name="details" rows="5"></textarea><label>Ваше имя</label><input class="field" name="requester_name"><label>Контакт модератору</label><input class="field" name="requester_contact"><button class="btn" style="width:100%;margin-top:12px">Отправить на проверку</button></form>`));
+app.get("/m/identify", async (_req,res)=>{
+  let cases=[];try{cases=await sb("rpc/memorial_public_identification_cases",{method:"POST",body:{}})}catch{}
+  const open=(cases||[]).map(x=>`<div class="card">${x.image_data?'<img src="'+x.image_data+'" alt="" style="width:100%;max-height:330px;object-fit:contain;border-radius:10px">':""}<h3>${htmlEsc(x.approximate_name||"Имя неизвестно")}</h3><div class="muted">${htmlEsc(x.approximate_year||"")} ${htmlEsc(x.sector_note||"")}</div><p>${htmlEsc(x.details||"")}</p><details><summary>Предложить сведения</summary><form method="post" action="/m/identify/${x.id}/suggest"><label>Предполагаемое имя</label><input class="field" name="suggested_name"><label>Год / дата</label><input class="field" name="suggested_year"><label>Что вы знаете *</label><textarea class="field" name="details" rows="4" required></textarea><label>Ваше имя</label><input class="field" name="contributor_name"><label>Контакт модератору</label><input class="field" name="contributor_contact"><button class="btn" style="width:100%;margin-top:10px">Отправить сведения</button></form></details></div>`).join("");
+  res.send(mobileShell("Опознать могилу",`<h1>Нужна помощь с идентификацией</h1><p class="muted">Для плохо читаемой или неизвестной могилы. Новая заявка сначала проходит модерацию.</p><form method="post" action="/m/identify" enctype="multipart/form-data"><label>Фото (до 900 КБ)</label><input class="field" type="file" accept="image/*" name="photo"><label>Предполагаемое имя</label><input class="field" name="approximate_name"><label>Примерный год</label><input class="field" name="approximate_year"><label>QBA / участок, если известен</label><input class="field" name="sector_note"><label>Что удалось прочитать / дополнительная информация</label><textarea class="field" name="details" rows="5"></textarea><label>Ваше имя</label><input class="field" name="requester_name"><label>Контакт модератору</label><input class="field" name="requester_contact"><button class="btn" style="width:100%;margin-top:12px">Отправить на проверку</button></form>${open?'<h2 style="margin-top:28px">Открытые случаи</h2>'+open:""}`));
 });
 
 app.post("/m/identify", identifyUpload.single("photo"), rateLimit("identify",5,3600000), async (req,res)=>{
@@ -350,6 +352,17 @@ app.post("/m/identify", identifyUpload.single("photo"), rateLimit("identify",5,3
     }});
     res.send(mobileShell("Отправлено",'<div class="ok">Заявка на идентификацию отправлена модератору.</div><p><a class="btn" href="/m">Главная</a></p>'));
   }catch(e){console.error("identify",e.data||e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось отправить заявку.</div>'))}
+});
+
+app.post("/m/identify/:id/suggest", rateLimit("identify-suggest",8,3600000), async (req,res)=>{
+  try{
+    await sb("identification_suggestions",{method:"POST",prefer:"return=minimal",body:{
+      id:id(),request_id:req.params.id,suggested_name:clean(req.body.suggested_name,180)||null,
+      suggested_year:clean(req.body.suggested_year,80)||null,details:clean(req.body.details,1500),
+      contributor_name:clean(req.body.contributor_name,120)||null,contributor_contact:clean(req.body.contributor_contact,180)||null,status:"pending"
+    }});
+    res.send(mobileShell("Отправлено",'<div class="ok">Сведения отправлены на модерацию.</div><p><a class="btn" href="/m/identify">Вернуться</a></p>'));
+  }catch(e){res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось отправить сведения.</div>'))}
 });
 
 app.get("/m/offline", (_req,res)=>{
@@ -366,6 +379,14 @@ app.get("/m/offline", (_req,res)=>{
 });
 
 
+app.get("/api/admin/identification-suggestions", requireAdmin, async (_req,res)=>{
+  try{const data=await sb("rpc/memorial_admin_identification_suggestions",{method:"POST",body:{p_token:ADMIN_TOKEN}});res.json(data||[])}
+  catch(e){res.status(500).json({error:"identification_suggestions_failed"})}
+});
+app.post("/api/admin/identification-suggestions/:id/:action", requireAdmin, async (req,res)=>{
+  try{const ok=await sb("rpc/memorial_admin_identification_suggestion_action",{method:"POST",body:{p_token:ADMIN_TOKEN,p_id:req.params.id,p_action:req.params.action}});res.json({ok:Boolean(ok)})}
+  catch(e){res.status(400).json({error:"identification_suggestion_action_failed"})}
+});
 app.get("/api/admin/identification", requireAdmin, async (_req,res)=>{
   try{const data=await sb("rpc/memorial_admin_identification_queue",{method:"POST",body:{p_token:ADMIN_TOKEN}});res.json(data||[])}
   catch(e){res.status(500).json({error:"identification_queue_failed"})}
