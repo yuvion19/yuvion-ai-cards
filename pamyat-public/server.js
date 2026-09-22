@@ -37,6 +37,8 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: "2mb" }));
+app.get("/", (_req, res) => res.redirect(302, "/pamyat-juhuro"));
+app.get("/pamyat-juhuro", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 app.use(express.static(path.join(__dirname, "public")));
 
 const clean = (v, n = 1000) => String(v ?? "").trim().slice(0, n);
