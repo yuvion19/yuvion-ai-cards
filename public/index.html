@@ -174,6 +174,20 @@
     .import-preview{margin-top:12px;padding:10px;border-radius:10px;background:#F7F7F8;font-size:10px;color:#635B5D;overflow:auto;white-space:nowrap}.import-map-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
     @media(max-width:700px){.import-map-grid{grid-template-columns:1fr}.import-map-field{grid-template-columns:115px minmax(0,1fr)}}
 
+  
+    /* YUVION_V63_EXCEL_AUTOPILOT */
+    .excel-autopilot,.publish-center{max-width:1100px;margin:16px auto;border:1px solid var(--line);border-radius:22px;background:#fff;box-shadow:0 14px 38px rgba(39,18,23,.045);overflow:hidden}
+    .excel-auto-head,.publish-center-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:20px 22px;border-bottom:1px solid var(--line)}
+    .excel-auto-head h2,.publish-center-head h2{margin:2px 0 5px;font-size:24px;letter-spacing:-.02em}.excel-auto-head p,.publish-center-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.5;max-width:690px}
+    .excel-auto-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.excel-auto-body{padding:18px 22px}
+    .excel-auto-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.excel-auto-step{padding:12px;border:1px solid var(--line);border-radius:13px;background:#FCFAFA}.excel-auto-step span{display:block;font-size:9px;font-weight:900;color:var(--brand);text-transform:uppercase;letter-spacing:.06em}.excel-auto-step b{display:block;margin-top:3px;font-size:12px}.excel-auto-step small{display:block;color:var(--muted);font-size:10px;line-height:1.4;margin-top:4px}
+    .excel-auto-stats,.publish-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.excel-stat,.publish-stat{padding:11px 12px;border-radius:12px;background:#F7F7F8}.excel-stat b,.publish-stat b{display:block;font-size:20px}.excel-stat span,.publish-stat span{font-size:9px;color:var(--muted);font-weight:750}
+    .excel-auto-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}.excel-auto-controls select{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff}.excel-auto-note{font-size:10px;color:var(--muted);line-height:1.45;margin-top:9px}
+    .excel-auto-progress{display:none;margin-top:12px}.excel-auto-progress.show{display:block}.excel-auto-progress .progress-track{height:8px}.excel-auto-queue{margin-top:12px;display:grid;gap:7px}.excel-queue-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:11px}.excel-queue-item b{font-size:11px}.excel-queue-item small{display:block;color:var(--muted);font-size:9px;margin-top:2px}.excel-queue-badge{font-size:9px;font-weight:900;padding:5px 7px;border-radius:999px;background:#F1F2F3;color:#52606A}.excel-queue-badge.ready{background:#E9F7ED;color:#226B38}.excel-queue-badge.work{background:#FFF4DF;color:#865C00}.excel-queue-badge.bad{background:#FFF0F0;color:#9A3039}
+    .publish-center-body{padding:16px 22px 20px}.publish-filter{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff}.publish-list{display:grid;gap:7px;margin-top:12px}.publish-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:12px;background:#fff}.publish-row img{width:42px;height:54px;border-radius:8px;object-fit:cover;background:#F2F2F2}.publish-row b{font-size:11px}.publish-row small{display:block;font-size:9px;color:var(--muted);margin-top:2px}.publish-row-actions{display:flex;align-items:center;gap:7px}.publish-status{font-size:9px;font-weight:900;padding:5px 7px;border-radius:999px;background:#F1F2F3}.publish-status.ready{background:#E9F7ED;color:#226B38}.publish-status.problem{background:#FFF0F0;color:#9A3039}.publish-status.photo{background:#FFF4DF;color:#865C00}.publish-status.published{background:#EEF2F7;color:#4A5C70}
+    .simple-ui #excelAutopilot,.simple-ui #publishCenter{display:block}.simple-ui #excelAutopilot{max-width:900px}.simple-ui #publishCenter{max-width:900px}
+    @media(max-width:760px){.excel-auto-head,.publish-center-head{flex-direction:column}.excel-auto-actions{justify-content:flex-start}.excel-auto-steps{grid-template-columns:1fr}.excel-auto-stats,.publish-stats{grid-template-columns:repeat(2,1fr)}.publish-row{grid-template-columns:42px minmax(0,1fr)}.publish-row-actions{grid-column:1/-1;justify-content:flex-end}}
+
   </style>
 </head>
 <body class="simple-ui">
@@ -226,6 +240,42 @@
       <button class="smart-pill ui-mode-pill" id="uiModeToggle">Расширенный режим</button>
     </div>
   </div>
+
+
+  <section class="excel-autopilot" id="excelAutopilot">
+    <div class="excel-auto-head">
+      <div><div class="section-kicker">Автопилот ассортимента</div><h2>Excel → фото → 4 карточки</h2><p>Загрузите таблицу товаров и цен, затем пачку фотографий. Фото автоматически привязываются к товару по SKU/артикулу в имени файла. После этого очередь сама выполняет AI-анализ, создаёт 4 изображения, проверяет качество и сохраняет готовые товары локально.</p></div>
+      <div class="excel-auto-actions"><button class="btn btn-ghost" id="excelImportStart">1. Excel / CSV</button><label class="btn btn-ghost" for="excelPhotoFiles" style="cursor:pointer">2. Фото по SKU</label><input id="excelPhotoFiles" type="file" multiple accept="image/jpeg,image/png,image/webp" hidden><button class="btn btn-primary" id="runExcelAutopilot" disabled>3. Запустить автопилот</button></div>
+    </div>
+    <div class="excel-auto-body">
+      <div class="excel-auto-steps">
+        <div class="excel-auto-step"><span>Шаг 1</span><b>Товары и цены</b><small>Excel/CSV распознаётся локально. Перед импортом можно проверить соответствие колонок.</small></div>
+        <div class="excel-auto-step"><span>Шаг 2</span><b>Фото с SKU в имени</b><small>Пример: <code>AB-124.jpg</code>, <code>AB-124_2.jpg</code>. Первое фото станет главным, остальные — дополнительными.</small></div>
+        <div class="excel-auto-step"><span>Шаг 3</span><b>Автоматическая очередь</b><small>До 10 товаров за запуск: анализ → 4 карточки → QA → готовность к Yuvion.</small></div>
+      </div>
+      <div class="excel-auto-stats">
+        <div class="excel-stat"><b id="excelImportedCount">0</b><span>ИМПОРТИРОВАНО ИЗ ТАБЛИЦ</span></div>
+        <div class="excel-stat"><b id="excelPhotoCount">0</b><span>С ФОТО</span></div>
+        <div class="excel-stat"><b id="excelQueueCount">0</b><span>В ОЧЕРЕДИ</span></div>
+        <div class="excel-stat"><b id="excelReadyCount">0</b><span>ГОТОВО К YUVION</span></div>
+      </div>
+      <div class="excel-auto-controls"><label style="font-size:10px;font-weight:850">Стиль:</label><select id="excelAutopilotStyle"><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select><span class="muted" id="excelPhotoMatchText" style="font-size:10px">Фото ещё не загружены.</span></div>
+      <div class="excel-auto-progress" id="excelAutoProgress"><div class="progress-track"><div class="progress-bar" id="excelAutoBar"></div></div><div class="muted" id="excelAutoProgressText" style="margin-top:7px;font-size:11px"></div></div>
+      <div class="excel-auto-note">Для точной автоматической привязки у товара должен быть SKU/артикул. Если одинаковый SKU используется у нескольких товаров, фото к нему автоматически не привязывается. Все таблицы, фото и очередь каталога остаются локальными; на сервер отправляется только текущий товар во время AI-обработки.</div>
+      <div class="excel-auto-queue" id="excelAutoQueue"></div>
+    </div>
+  </section>
+
+  <section class="publish-center" id="publishCenter">
+    <div class="publish-center-head">
+      <div><div class="section-kicker">Publish Center</div><h2>Готовность ассортимента к Yuvion</h2><p>Один экран показывает готовые товары и то, что ещё мешает публикации. Персональные данные арендатора и локальные складские заметки здесь не раскрываются.</p></div>
+      <select class="publish-filter" id="publishCenterFilter"><option value="all">Все товары</option><option value="ready">Готовы к Yuvion</option><option value="problem">Есть блокеры</option><option value="photo">Нет фото</option><option value="published">Опубликованы</option></select>
+    </div>
+    <div class="publish-center-body">
+      <div class="publish-stats"><div class="publish-stat"><b id="publishReadyCount">0</b><span>ГОТОВЫ</span></div><div class="publish-stat"><b id="publishProblemCount">0</b><span>ТРЕБУЮТ ВНИМАНИЯ</span></div><div class="publish-stat"><b id="publishNoPhotoCount">0</b><span>БЕЗ ФОТО</span></div><div class="publish-stat"><b id="publishDoneCount">0</b><span>ОПУБЛИКОВАНЫ</span></div></div>
+      <div class="publish-list" id="publishCenterList"></div>
+    </div>
+  </section>
 
   <details class="tenant-profile" id="tenantProfile">
     <summary>Профиль арендатора <span class="muted" id="profileSummary" style="font-size:12px;font-weight:650">настройки по умолчанию</span></summary>
@@ -858,6 +908,25 @@ const importProductsBtn=document.getElementById('importProducts');
 const importProductsFile=document.getElementById('importProductsFile');
 const importNote=document.getElementById('importNote');
 const bulkLabels=document.getElementById('bulkLabels');
+const excelImportStart=document.getElementById('excelImportStart');
+const excelPhotoFiles=document.getElementById('excelPhotoFiles');
+const runExcelAutopilot=document.getElementById('runExcelAutopilot');
+const excelAutopilotStyle=document.getElementById('excelAutopilotStyle');
+const excelImportedCount=document.getElementById('excelImportedCount');
+const excelPhotoCount=document.getElementById('excelPhotoCount');
+const excelQueueCount=document.getElementById('excelQueueCount');
+const excelReadyCount=document.getElementById('excelReadyCount');
+const excelPhotoMatchText=document.getElementById('excelPhotoMatchText');
+const excelAutoProgress=document.getElementById('excelAutoProgress');
+const excelAutoBar=document.getElementById('excelAutoBar');
+const excelAutoProgressText=document.getElementById('excelAutoProgressText');
+const excelAutoQueue=document.getElementById('excelAutoQueue');
+const publishCenterFilter=document.getElementById('publishCenterFilter');
+const publishCenterList=document.getElementById('publishCenterList');
+const publishReadyCount=document.getElementById('publishReadyCount');
+const publishProblemCount=document.getElementById('publishProblemCount');
+const publishNoPhotoCount=document.getElementById('publishNoPhotoCount');
+const publishDoneCount=document.getElementById('publishDoneCount');
 const factSourcesPanel=document.getElementById('factSourcesPanel');
 const factSourceList=document.getElementById('factSourceList');
 const factBlockerNote=document.getElementById('factBlockerNote');
@@ -902,6 +971,8 @@ let scannerTarget='product';
 let dashboardCollection='all';
 let currentModeration={status:'none',reason:'',log:[]};
 let pendingImportMap=null;
+let excelAutopilotBusy=false;
+const EXCEL_AUTOPILOT_LIMIT=10;
 
 localStorage.removeItem('yuvionSessionId');
 function apiHeaders(){return {'Content-Type':'application/json'}}
@@ -3828,11 +3899,11 @@ async function importProductRows(rows,filename='таблица'){
 
     const title=record.title||[record.brand,record.sku].filter(Boolean).join(' ')||'Импортированный товар';
     const characteristics=[];
-    if(record.brand)characteristics.push({name:'Бренд',value:record.brand});
-    if(record.sku)characteristics.push({name:'Артикул',value:record.sku});
-    if(record.barcode)characteristics.push({name:'Штрихкод/EAN',value:record.barcode});
-    if(record.size)characteristics.push({name:'Размеры',value:record.size});
-    if(record.material)characteristics.push({name:'Материал',value:record.material});
+    if(record.brand)characteristics.push({name:'Бренд',value:record.brand,source:'Продавец'});
+    if(record.sku)characteristics.push({name:'Артикул',value:record.sku,source:'Продавец'});
+    if(record.barcode)characteristics.push({name:'Штрихкод/EAN',value:record.barcode,source:'Продавец'});
+    if(record.size)characteristics.push({name:'Размеры',value:record.size,source:'Продавец'});
+    if(record.material)characteristics.push({name:'Материал',value:record.material,source:'Продавец'});
 
     const extraData={
       name:record.title||'',
@@ -3882,7 +3953,9 @@ async function importProductRows(rows,filename='таблица'){
       mode:defaults.mode||'full',
       style:importedRule?.style||defaults.style||'minimal',
       published:false,
-      importedFrom:String(filename||'таблица').slice(0,120)
+      importedFrom:String(filename||'таблица').slice(0,120),
+      importedAt:Date.now(),
+      excelAutopilot:{state:'waiting',error:''}
     });
     imported++;
   }
@@ -3985,6 +4058,191 @@ async function importProductsFileNow(file){
   }
 }
 
+function compactMediaKey(value){
+  return String(value||'').toLocaleLowerCase('ru').replace(/\.[^.]+$/,'').replace(/[^a-zа-яё0-9]+/gi,'');
+}
+function excelImportedItems(all){
+  return (all||[]).filter(item=>Boolean(item?.importedFrom));
+}
+function excelQueueItems(all){
+  return excelImportedItems(all).filter(item=>item.sourceDataUrl&&(!Array.isArray(item.cards)||item.cards.length!==4||item.cardsStale||!storedReadiness(item).ready));
+}
+function photoMatchCandidates(item){
+  const sku=skuOfStoredItem(item),barcode=barcodeOfStoredItem(item);
+  return [sku,barcode].map(compactMediaKey).filter(x=>x.length>=3);
+}
+function photoMatchScore(file,item){
+  const stem=compactMediaKey(file?.name||'');
+  let best=0;
+  for(const key of photoMatchCandidates(item)){
+    if(stem===key)best=Math.max(best,100);
+    else if(stem.startsWith(key))best=Math.max(best,90);
+    else if(stem.includes(key))best=Math.max(best,70);
+  }
+  return best;
+}
+async function matchExcelPhotos(files){
+  const chosen=[...(files||[])].filter(file=>['image/jpeg','image/png','image/webp'].includes(file.type)&&file.size<=10*1024*1024);
+  if(!chosen.length)return {matched:0,unmatched:0,products:0};
+  const all=await dbAll();
+  const imported=excelImportedItems(all);
+  const groups=new Map();
+  let unmatched=0;
+  for(const file of chosen){
+    let best=null,bestScore=0,tie=false;
+    for(const item of imported){
+      const score=photoMatchScore(file,item);
+      if(score>bestScore){best=item;bestScore=score;tie=false}
+      else if(score>0&&score===bestScore){tie=true}
+    }
+    if(!best||bestScore<70||tie){unmatched++;continue}
+    if(!groups.has(best.id))groups.set(best.id,[]);
+    groups.get(best.id).push(file);
+  }
+  let matched=0;
+  for(const [id,group] of groups){
+    const item=await dbGet(id);if(!item)continue;
+    const ordered=group.slice().sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+    const photos=[];
+    for(const file of ordered.slice(0,5))photos.push({file,dataUrl:await compressFileToDataUrl(file)});
+    if(!photos.length)continue;
+    item.sourceDataUrl=photos[0].dataUrl;
+    item.sourceFilename=photos[0].file.name;
+    item.additionalPhotos=photos.slice(1).map(x=>({dataUrl:x.dataUrl,name:x.file.name}));
+    item.photoHash='';
+    item.cards=[];
+    item.quality=null;
+    item.cardsStale=false;
+    item.updatedAt=Date.now();
+    item.excelAutopilot={state:'matched',error:''};
+    await dbPut(item);
+    matched+=photos.length;
+  }
+  await renderHistory();
+  return {matched,unmatched,products:groups.size};
+}
+function excelItemState(item){
+  if(item?.excelAutopilot?.state==='work')return {label:'Обрабатывается',cls:'work'};
+  if(item?.excelAutopilot?.state==='error')return {label:'Ошибка',cls:'bad'};
+  if(item?.published)return {label:'Опубликован',cls:'ready'};
+  if(item?.data&&storedReadiness(item).ready)return {label:'Готов',cls:'ready'};
+  if(!item?.sourceDataUrl)return {label:'Нужно фото',cls:''};
+  return {label:'В очереди',cls:'work'};
+}
+function renderExcelAutopilot(allItems){
+  if(!excelAutoQueue)return;
+  const all=Array.isArray(allItems)?allItems:[];
+  const imported=excelImportedItems(all);
+  const withPhoto=imported.filter(x=>Boolean(x.sourceDataUrl));
+  const queue=excelQueueItems(all);
+  const ready=imported.filter(x=>x.data&&storedReadiness(x).ready).length;
+  excelImportedCount.textContent=String(imported.length);
+  excelPhotoCount.textContent=String(withPhoto.length);
+  excelQueueCount.textContent=String(queue.length);
+  excelReadyCount.textContent=String(ready);
+  runExcelAutopilot.disabled=excelAutopilotBusy||!queue.length;
+  runExcelAutopilot.textContent=excelAutopilotBusy?'Автопилот работает…':queue.length>EXCEL_AUTOPILOT_LIMIT?'Обработать следующие '+EXCEL_AUTOPILOT_LIMIT:'Запустить автопилот';
+  const visible=imported.slice().sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0)).slice(0,12);
+  excelAutoQueue.innerHTML=visible.length?visible.map(item=>{
+    const st=excelItemState(item),sku=skuOfStoredItem(item)||'без SKU';
+    const detail=item?.excelAutopilot?.error||((item.sourceDataUrl?'Фото привязано':'Фото не найдено')+' · '+sku);
+    return '<div class="excel-queue-item"><div><b>'+esc(item.title||item.data?.seoTitle||'Товар')+'</b><small>'+esc(detail)+'</small></div><span class="excel-queue-badge '+st.cls+'">'+esc(st.label)+'</span></div>';
+  }).join(''):'<div class="muted" style="font-size:11px">Сначала импортируйте Excel/CSV с товарами.</div>';
+}
+function publishCenterState(item){
+  if(item?.published)return 'published';
+  if(!item?.sourceDataUrl)return 'photo';
+  if(item?.data&&storedReadiness(item).ready)return 'ready';
+  return 'problem';
+}
+function renderPublishCenter(allItems){
+  if(!publishCenterList)return;
+  const all=Array.isArray(allItems)?allItems:[];
+  const states=all.map(item=>({item,state:publishCenterState(item)}));
+  publishReadyCount.textContent=String(states.filter(x=>x.state==='ready').length);
+  publishProblemCount.textContent=String(states.filter(x=>x.state==='problem').length);
+  publishNoPhotoCount.textContent=String(states.filter(x=>x.state==='photo').length);
+  publishDoneCount.textContent=String(states.filter(x=>x.state==='published').length);
+  const filter=publishCenterFilter?.value||'all';
+  const filtered=states.filter(x=>filter==='all'||x.state===filter).sort((a,b)=>{
+    const order={ready:0,problem:1,photo:2,published:3};
+    return (order[a.state]-order[b.state])||Number(b.item.updatedAt||0)-Number(a.item.updatedAt||0);
+  }).slice(0,18);
+  const labels={ready:'Готов',problem:'Есть блокеры',photo:'Нет фото',published:'Опубликован'};
+  publishCenterList.innerHTML=filtered.length?filtered.map(({item,state})=>{
+    const r=item.data?storedReadiness(item):{done:0,total:0};
+    const sku=skuOfStoredItem(item)||'SKU не указан';
+    return '<div class="publish-row"><img src="'+esc(item.sourceDataUrl||'')+'" alt=""><div><b>'+esc(item.title||item.data?.seoTitle||'Черновик')+'</b><small>'+esc(sku)+(item.data?' · готовность '+r.done+'/'+r.total:' · нужен анализ')+'</small></div><div class="publish-row-actions"><span class="publish-status '+state+'">'+labels[state]+'</span><button class="btn btn-ghost btn-small" data-publish-open="'+esc(item.id)+'">Открыть</button></div></div>';
+  }).join(''):'<div class="muted" style="font-size:11px">По выбранному фильтру товаров нет.</div>';
+  publishCenterList.querySelectorAll('[data-publish-open]').forEach(btn=>btn.onclick=async()=>{
+    const item=all.find(x=>x.id===btn.dataset.publishOpen);if(item)await restoreHistory(item);
+  });
+}
+async function processExcelAutopilotItem(item,style){
+  const src=dataUrlParts(item.sourceDataUrl);
+  if(!src)throw new Error('Фото товара повреждено.');
+  const extraData={...(item.extraData||item.data?.confirmedData||{})};
+  const additionalImages=(item.additionalPhotos||[]).slice(0,4).map(photo=>{
+    const p=dataUrlParts(photo.dataUrl);return p?{mimeType:p.mime,image:p.base64}:null;
+  }).filter(Boolean);
+  const analyze=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,mode:'full',extraData,additionalImages})});
+  const analyzed=await analyze.json().catch(()=>({}));
+  if(!analyze.ok)throw new Error(analyzed.error||'Не удалось проанализировать товар.');
+  if(item.data?.category&&categoryValidity(item.data.category).valid)analyzed.category=item.data.category;
+  const gen=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style})});
+  const generated=await gen.json().catch(()=>({}));
+  if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
+  let cards=generated.cards||[];
+  if(cards.length!==4)throw new Error('Генерация вернула неполный комплект изображений.');
+  const qaCall=async()=> {
+    const q=await fetch('/api/quality-check',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards,card:analyzed,sourceImage:src.base64,sourceMimeType:src.mime})});
+    if(!q.ok)return null;return q.json().catch(()=>null);
+  };
+  let quality=await qaCall();
+  const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,2);
+  for(const index of bad){
+    const regen=await fetch('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index})});
+    const payload=await regen.json().catch(()=>({}));
+    if(regen.ok&&payload.card)cards[index]=payload.card;
+  }
+  if(bad.length)quality=await qaCall();
+  item.data=analyzed;
+  item.title=analyzed.seoTitle||item.title||'Товар';
+  item.cards=cards;
+  item.quality=quality;
+  item.cardsStale=false;
+  item.mode='full';
+  item.style=style;
+  item.updatedAt=Date.now();
+  item.excelAutopilot={state:'done',error:'',completedAt:Date.now()};
+  await dbPut(item);
+  return item;
+}
+async function runExcelAutopilotQueue(){
+  if(excelAutopilotBusy)return;
+  const all=await dbAll();
+  const queue=excelQueueItems(all).slice(0,EXCEL_AUTOPILOT_LIMIT);
+  if(!queue.length)return;
+  excelAutopilotBusy=true;runExcelAutopilot.disabled=true;excelAutoProgress.classList.add('show');
+  const style=excelAutopilotStyle.value||loadSellerDefaults().style||'minimal';
+  let done=0,success=0;
+  try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:queue.length})})}catch{}
+  for(let i=0;i<queue.length;i++){
+    const item=queue[i];
+    item.excelAutopilot={state:'work',error:''};await dbPut(item);
+    excelAutoProgressText.textContent='Товар '+(i+1)+' из '+queue.length+': '+(item.title||skuOfStoredItem(item)||'товар');
+    excelAutoBar.style.width=Math.round(i/queue.length*100)+'%';
+    await renderHistory();
+    try{await processExcelAutopilotItem(item,style);success++}
+    catch(e){item.excelAutopilot={state:'error',error:String(e.message||'Ошибка обработки').slice(0,240)};item.updatedAt=Date.now();await dbPut(item)}
+    done++;excelAutoBar.style.width=Math.round(done/queue.length*100)+'%';
+    await renderHistory();
+  }
+  excelAutopilotBusy=false;
+  excelAutoProgressText.textContent='Завершено: '+success+' из '+queue.length+'.'+((await dbAll()).some(x=>excelQueueItems([x]).length)?' Остальные товары можно продолжить следующей очередью.':' Очередь обработана.');
+  await renderHistory();
+}
+
 function renderDashboard(allItems){
   const all=Array.isArray(allItems)?allItems:[];
   const skuCounts=new Map();
@@ -4023,6 +4281,8 @@ async function renderHistory(){
   try{
     const all=(await dbAll()).sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
     renderDashboard(all);
+    renderExcelAutopilot(all);
+    renderPublishCenter(all);
     await renderV6Panels(all);
     const collections=[...new Set(all.flatMap(item=>Array.isArray(item?.privateData?.collections)?item.privateData.collections:[]))].sort((a,b)=>a.localeCompare(b,'ru'));
     const previousCollection=catalogCollection.value||'all';
@@ -4753,7 +5013,18 @@ extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosIn
 [extraFields.price1,extraFields.price2,extraFields.price3].forEach(el=>el.addEventListener('input',()=>renderMargin()));
 
 importProductsBtn.onclick=()=>importProductsFile.click();
+excelImportStart.onclick=()=>importProductsFile.click();
 importProductsFile.addEventListener('change',()=>importProductsFileNow(importProductsFile.files?.[0]));
+excelPhotoFiles.addEventListener('change',async()=>{
+  excelPhotoMatchText.textContent='Привязываем фотографии к SKU…';
+  try{
+    const result=await matchExcelPhotos(excelPhotoFiles.files);
+    excelPhotoMatchText.textContent='Привязано фото: '+result.matched+' к '+result.products+' товарам · без совпадения: '+result.unmatched+'.';
+  }catch(e){excelPhotoMatchText.textContent='Не удалось привязать фото: '+(e.message||'ошибка')}
+  finally{excelPhotoFiles.value=''}
+});
+runExcelAutopilot.onclick=()=>runExcelAutopilotQueue();
+publishCenterFilter.addEventListener('change',async()=>renderPublishCenter(await dbAll()));
 cancelImportMap.onclick=()=>closeImportMapper();
 resetImportMap.onclick=()=>renderImportMapper({redetect:true});
 confirmImportMap.onclick=async()=>{
@@ -4860,7 +5131,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-initUiMode();renderProfile();applySellerDefaults();renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+initUiMode();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
