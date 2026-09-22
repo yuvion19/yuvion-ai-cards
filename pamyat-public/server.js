@@ -272,6 +272,21 @@ Object.assign(MOBILE_I18N.az,{
   "Состояние системы":"Sistem vəziyyəti","Проверка системы":"Sistem yoxlaması","Маршрут к месту":"Məkana marşrut","Контакт семьи":"Ailə əlaqəsi",
   "Последнее обновление":"Son yenilənmə","Карточка для мессенджеров":"Mesajlaşma üçün kart","Отметить всё прочитанным":"Hamısını oxunmuş et","Прочитано":"Oxunub","Непрочитанных":"Oxunmamış"
 });
+Object.assign(MOBILE_I18N.en,{
+  "Ближайшие 7 дней":"Next 7 days","Ближайшие 30 дней":"Next 30 days",
+  "На сегодня публичных памятных дат нет.":"There are no public memorial dates today.",
+  "В ближайшие 7 дней дат нет.":"There are no dates in the next 7 days.","Ближайших дат нет.":"There are no upcoming dates."
+});
+Object.assign(MOBILE_I18N.he,{
+  "Ближайшие 7 дней":"7 הימים הקרובים","Ближайшие 30 дней":"30 הימים הקרובים",
+  "На сегодня публичных памятных дат нет.":"אין תאריכי זיכרון ציבוריים להיום.",
+  "В ближайшие 7 дней дат нет.":"אין תאריכים ב-7 הימים הקרובים.","Ближайших дат нет.":"אין תאריכים קרובים."
+});
+Object.assign(MOBILE_I18N.az,{
+  "Ближайшие 7 дней":"Növbəti 7 gün","Ближайшие 30 дней":"Növbəti 30 gün",
+  "На сегодня публичных памятных дат нет.":"Bu gün üçün açıq xatirə tarixi yoxdur.",
+  "В ближайшие 7 дней дат нет.":"Növbəti 7 gündə tarix yoxdur.","Ближайших дат нет.":"Yaxın tarix yoxdur."
+});
 // Juuri remains beta: untranslated strings deliberately fall back to Russian until reviewed by a fluent speaker.
 
 function mobileShell(title, body, opts = {}) {
@@ -288,20 +303,33 @@ function mobileShell(title, body, opts = {}) {
     const saved=localStorage.getItem("pamyatLang");
     const lang=params.get("lang")||saved||"ru";
     const select=document.getElementById("uiLang");if(select)select.value=["ru","juuri","he","en","az"].includes(lang)?lang:"ru";
+    let activeLang=lang;
+    const translateRoot=(root,l)=>{
+      const d=dictionaries[l]||{};
+      const nodes=[];
+      if(root&&root.nodeType===3)nodes.push(root);
+      const scope=root&&root.nodeType===1?root:document.body;
+      if(scope&&scope.nodeType===1){
+        const walker=document.createTreeWalker(scope,NodeFilter.SHOW_TEXT);
+        while(walker.nextNode())nodes.push(walker.currentNode);
+        if(scope.matches?.("[placeholder]")){const p=scope.getAttribute("placeholder");if(d[p])scope.setAttribute("placeholder",d[p])}
+        if(scope.matches?.("[aria-label]")){const a=scope.getAttribute("aria-label");if(d[a])scope.setAttribute("aria-label",d[a])}
+        scope.querySelectorAll?.("[placeholder]").forEach(el=>{const p=el.getAttribute("placeholder");if(d[p])el.setAttribute("placeholder",d[p])});
+        scope.querySelectorAll?.("[aria-label]").forEach(el=>{const a=el.getAttribute("aria-label");if(d[a])el.setAttribute("aria-label",d[a])});
+      }
+      for(const n of nodes){const raw=n.nodeValue,trim=raw.trim();if(trim&&d[trim])n.nodeValue=raw.replace(trim,d[trim])}
+    };
     const applyLanguage=l=>{
-      localStorage.setItem("pamyatLang",l);
+      activeLang=l;localStorage.setItem("pamyatLang",l);
       document.documentElement.lang=l==="juuri"?"jdt":l;
       document.documentElement.dir=l==="he"?"rtl":"ltr";
-      const d=dictionaries[l]||{};
-      const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
-      const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
-      for(const n of nodes){const raw=n.nodeValue,trim=raw.trim();if(trim&&d[trim])n.nodeValue=raw.replace(trim,d[trim])}
-      document.querySelectorAll("[placeholder]").forEach(el=>{const p=el.getAttribute("placeholder");if(d[p])el.setAttribute("placeholder",d[p])});
-      document.querySelectorAll("[aria-label]").forEach(el=>{const a=el.getAttribute("aria-label");if(d[a])el.setAttribute("aria-label",d[a])});
-      const pageTitle=${JSON.stringify(title)};
+      translateRoot(document.body,l);
+      const d=dictionaries[l]||{},pageTitle=${JSON.stringify(title)};
       document.title=(d[pageTitle]||pageTitle)+" — "+(d["Память Джуури"]||"Память Джуури");
     };
     applyLanguage(lang);
+    const translationObserver=new MutationObserver(ms=>{for(const m of ms)for(const node of m.addedNodes){if(node.nodeType===1||node.nodeType===3)translateRoot(node,activeLang)}});
+    translationObserver.observe(document.body,{childList:true,subtree:true});
     if(select)select.onchange=()=>{const u=new URL(location.href);u.searchParams.set("lang",select.value);localStorage.setItem("pamyatLang",select.value);location.href=u.toString()};
     const levels=["","large","xlarge"];let fi=Number(localStorage.getItem("pamyatFont")||0);document.body.dataset.font=levels[fi]||"";
     document.getElementById("fontUp").onclick=()=>{fi=Math.min(2,fi+1);localStorage.setItem("pamyatFont",fi);document.body.dataset.font=levels[fi]};
@@ -316,7 +344,7 @@ app.get("/m", async (_req,res) => {
   res.setHeader("Cache-Control","no-store");
   let upcoming=[];
   try{upcoming=await sb("rpc/memorial_public_upcoming",{method:"POST",body:{p_days:30,p_limit:120}})||[]}catch{}
-  const todayIso=new Date().toISOString().slice(0,10);
+  const todayIso=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Moscow",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
   const inDays=(date,n)=>{if(!date)return false;const d=new Date(date+"T00:00:00Z"),t=new Date(todayIso+"T00:00:00Z");const diff=Math.round((d-t)/86400000);return diff>=0&&diff<=n};
   const today=upcoming.filter(x=>x.event_date===todayIso);
   const week=upcoming.filter(x=>x.event_date!==todayIso&&inDays(x.event_date,7));
