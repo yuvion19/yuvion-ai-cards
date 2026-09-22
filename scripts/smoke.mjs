@@ -26,7 +26,7 @@ if(openDetails!==closeDetails)fail('details tags unbalanced '+openDetails+'/'+cl
 const required=[
   'excelAutopilot','publishCenter','confirmationCenter','operationsV64',
   'queueBudgetUsd','storageManager','labelOcrBox','networkPill',
-  'productUrlInput','importProductUrl','urlImportStatus','sourceReference','renderMode','autoCards','designStudio','designPalette','productScale','productShiftX','productShiftY','designIntensity','designSubstyle','beautifyDesign','coverVariants','coverLab','coverVariantGrid'
+  'productUrlInput','importProductUrl','urlImportStatus','sourceReference','renderMode','autoCards','designStudio','designPalette','productScale','productShiftX','productShiftY','designIntensity','designSubstyle','beautifyDesign','coverVariants','coverLab','coverVariantGrid','liveCover','marketPreview','saveDesignSnapshot','designHistoryList'
 ];
 const missing=required.filter(id=>!ids.includes(id));
 if(missing.length)fail('required v6.5 UI ids missing: '+missing.join(', '));else ok('required v6.5 UI present');
@@ -79,7 +79,14 @@ const features=[
   ['freeCoverAB: true','free A/B cover health metadata'],
   ['loadCoverVariants','cover variants UI'],
   ['recommendedDesignPersonality','category design personality'],
-  ['beautifyDesign','one-click beautify action']
+  ['beautifyDesign','one-click beautify action'],
+  ['renderLiveDesignPreview','live design preview'],
+  ['renderMarketplacePreview','marketplace-scale preview'],
+  ['captureDesignSnapshot','design history snapshots'],
+  ['designSnapshots:currentDesignSnapshots','persisted design history'],
+  ['livePreview: true','live preview health metadata'],
+  ['marketplacePreview: true','marketplace preview health metadata'],
+  ['designHistory: true','design history health metadata']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
@@ -108,4 +115,4 @@ if(healthVersion!==pkg.version)fail('package/server version mismatch: '+pkg.vers
 if(process.exitCode)process.exit(process.exitCode);
 
 if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
-if(!server.includes('version: "7.1.0"'))fail('server health version is not 7.1.0');else ok('server health version 7.1.0');
+if(!server.includes('version: "7.2.0"'))fail('server health version is not 7.2.0');else ok('server health version 7.2.0');
