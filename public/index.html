@@ -2585,14 +2585,17 @@ similarProductBtn.onclick=beginSimilarProduct;
 
 
 
-Object.values(extraFields).forEach(el=>el.addEventListener('input',()=>{
-  if(currentData){
+Object.entries(extraFields).forEach(([key,el])=>el.addEventListener('input',()=>{
+  if(!currentData)return;
+  const priceOnly=['price1','price2','price3','oldPrice'].includes(key);
+  currentData.confirmedData=collectExtraData();
+  if(!priceOnly){
+    currentAnalysisCache=null;
+    if(['name','brand','size','material'].includes(key))markCardsStale();
     localQuality.className='quality-box show warn';
-    localQuality.innerHTML='<strong>Подтверждённые данные изменены</strong>Нажмите «Проанализировать фото» ещё раз, чтобы AI пересобрал текст с учётом новых значений.';
-    renderYuvionExport();
-    renderProductCockpit();
-    saveHistoryDebounced();
+    localQuality.innerHTML='<strong>Подтверждённые данные изменены</strong>Для текста рекомендуется повторный анализ. Изображения обновляются только если изменилось содержимое, которое могло попасть на карточки.';
   }
+  renderYuvionExport();renderProductCockpit();saveHistoryDebounced();
 }));
 let skuCheckTimer;
 extraFields.sku.addEventListener('input',()=>{
@@ -2955,7 +2958,7 @@ styleSelect.onchange=()=>{markCardsStale();renderProductCockpit();saveHistoryDeb
 
 function markCardsStale(){
   if(currentCards.length){
-    cardsStale=true;creativeStatus.className='creative-status show stale';creativeStatus.textContent='Данные или стиль изменены. Существующие изображения остались прежними — нажмите «Создать 4 карточки», чтобы обновить весь комплект.';
+    cardsStale=true;currentAnalysisCache=null;creativeStatus.className='creative-status show stale';creativeStatus.textContent='Изменились данные, влияющие на изображения. Существующие карточки сохранены, но считаются устаревшими до обновления.';
   }
 }
 
@@ -4143,6 +4146,7 @@ async function importProductRows(rows,filename='таблица'){
         ...old,title,data,extraData,privateData,activity,
         cardsStale:Boolean(old.cardsStale||(changedPublic&&Array.isArray(old.cards)&&old.cards.length)),
         analysisCache:changedPublic?null:(old.analysisCache||null),
+        generationFingerprint:changedPublic?null:(old.generationFingerprint||null),
         importedFrom:String(filename||'таблица').slice(0,120),
         importedAt:Date.now(),updatedAt:Date.now(),
         excelAutopilot:changedPublic&&old.sourceDataUrl?{state:'matched',error:''}:(old.excelAutopilot||{state:'waiting',error:''})
@@ -4350,6 +4354,9 @@ async function matchExcelPhotos(files){
     item.cards=[];
     item.quality=null;
     item.cardsStale=false;
+    item.analysisCache=null;
+    item.generationFingerprint=null;
+    item.activity=[{at:Date.now(),type:'Фото привязаны по SKU/EAN',detail:photos.map(x=>x.file.name).join(', ').slice(0,240)},...(item.activity||[])].slice(0,80);
     item.updatedAt=Date.now();
     item.excelAutopilot={state:'matched',error:''};
     await dbPut(item);
@@ -4380,6 +4387,10 @@ function renderExcelAutopilot(allItems){
   excelReadyCount.textContent=String(ready);
   runExcelAutopilot.disabled=excelAutopilotBusy||!queue.length;
   runExcelAutopilot.textContent=excelAutopilotBusy?'Автопилот работает…':queue.length>EXCEL_AUTOPILOT_LIMIT?'Обработать следующие '+EXCEL_AUTOPILOT_LIMIT:'Запустить автопилот';
+  if(queue.length&&!excelAutopilotBusy){
+    const n=Math.min(queue.length,EXCEL_AUTOPILOT_LIMIT);
+    excelPhotoMatchText.textContent='Следующий запуск: до '+n+' товаров · примерно '+n+' анализов + '+n+' комплектов изображений + '+n+' QA. Кэшированные этапы будут пропущены.';
+  }
   const visible=imported.slice().sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0)).slice(0,12);
   excelAutoQueue.innerHTML=visible.length?visible.map(item=>{
     const st=excelItemState(item),sku=skuOfStoredItem(item)||'без SKU';
@@ -4416,6 +4427,28 @@ function renderPublishCenter(allItems){
     const item=all.find(x=>x.id===btn.dataset.publishOpen);if(item)await restoreHistory(item);
   });
 }
+async function sha256Text(value){
+  if(!crypto?.subtle)return String(value||'').slice(0,200);
+  const bytes=new TextEncoder().encode(String(value||''));
+  const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+  return [...hash].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function analysisFingerprintForItem(item){
+  const payload={
+    source:item.sourceDataUrl||'',
+    extra:item.extraData||item.data?.confirmedData||{},
+    category:item.data?.category||'',
+    additional:(item.additionalPhotos||[]).map(x=>({role:x.role||'angle',dataUrl:x.dataUrl||''}))
+  };
+  return sha256Text(JSON.stringify(payload));
+}
+async function generationFingerprintForItem(item,analyzed,style){
+  return sha256Text(JSON.stringify({
+    source:item.sourceDataUrl||'',additional:(item.additionalPhotos||[]).map(x=>x.dataUrl||''),
+    card:analyzed,style
+  }));
+}
+
 async function processExcelAutopilotItem(item,style){
   const src=dataUrlParts(item.sourceDataUrl);
   if(!src)throw new Error('Фото товара повреждено.');
@@ -4423,10 +4456,30 @@ async function processExcelAutopilotItem(item,style){
   const additionalImages=(item.additionalPhotos||[]).slice(0,4).map(photo=>{
     const p=dataUrlParts(photo.dataUrl);return p?{mimeType:p.mime,image:p.base64}:null;
   }).filter(Boolean);
-  const analyze=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,mode:'full',extraData,additionalImages})});
-  const analyzed=await analyze.json().catch(()=>({}));
-  if(!analyze.ok)throw new Error(analyzed.error||'Не удалось проанализировать товар.');
+
+  const analysisFp=await analysisFingerprintForItem(item);
+  let analyzed=null,analysisFromCache=false;
+  if(item.analysisCache?.fingerprint===analysisFp&&item.analysisCache?.data){
+    analyzed=structuredClone?structuredClone(item.analysisCache.data):JSON.parse(JSON.stringify(item.analysisCache.data));
+    analysisFromCache=true;
+  }else{
+    const analyze=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,mode:'full',extraData,additionalImages})});
+    analyzed=await analyze.json().catch(()=>({}));
+    if(!analyze.ok)throw new Error(analyzed.error||'Не удалось проанализировать товар.');
+  }
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
+
+  const generationFp=await generationFingerprintForItem(item,analyzed,style);
+  if(item.generationFingerprint===generationFp&&Array.isArray(item.cards)&&item.cards.length===4&&item.quality&&!item.cardsStale){
+    item.data=analyzed;
+    item.analysisCache={fingerprint:analysisFp,data:analyzed,at:Date.now()};
+    item.updatedAt=Date.now();
+    item.excelAutopilot={state:'done',error:'',completedAt:Date.now(),cacheHit:true};
+    item.activity=[{at:Date.now(),type:'AI-кэш использован',detail:'Анализ и изображения не запускались повторно'},...(item.activity||[])].slice(0,80);
+    await dbPut(item);
+    return item;
+  }
+
   const gen=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style})});
   const generated=await gen.json().catch(()=>({}));
   if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
@@ -4438,10 +4491,11 @@ async function processExcelAutopilotItem(item,style){
   };
   let quality=await qaCall();
   const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,2);
+  let regenerated=0;
   for(const index of bad){
     const regen=await fetch('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index})});
     const payload=await regen.json().catch(()=>({}));
-    if(regen.ok&&payload.card)cards[index]=payload.card;
+    if(regen.ok&&payload.card){cards[index]=payload.card;regenerated++}
   }
   if(bad.length)quality=await qaCall();
   item.data=analyzed;
@@ -4449,9 +4503,19 @@ async function processExcelAutopilotItem(item,style){
   item.cards=cards;
   item.quality=quality;
   item.cardsStale=false;
+  item.analysisCache={fingerprint:analysisFp,data:analyzed,at:Date.now()};
+  item.generationFingerprint=generationFp;
+  item.aiLocal={
+    ...(item.aiLocal||{}),
+    analyses:Number(item.aiLocal?.analyses||0)+(analysisFromCache?0:1),
+    cardBatches:Number(item.aiLocal?.cardBatches||0)+1,
+    qualityChecks:Number(item.aiLocal?.qualityChecks||0)+(bad.length?2:1),
+    regenerations:Number(item.aiLocal?.regenerations||0)+regenerated
+  };
   item.mode='full';
   item.style=style;
   item.updatedAt=Date.now();
+  item.activity=[{at:Date.now(),type:'Автопилот завершён',detail:(analysisFromCache?'Анализ из кэша · ':'')+'4 карточки · QA · перегенераций '+regenerated},...(item.activity||[])].slice(0,80);
   item.excelAutopilot={state:'done',error:'',completedAt:Date.now()};
   await dbPut(item);
   return item;
@@ -4460,8 +4524,9 @@ async function runExcelAutopilotQueue(){
   if(excelAutopilotBusy)return;
   const all=await dbAll();
   const queue=excelQueueItems(all).slice(0,EXCEL_AUTOPILOT_LIMIT);
-  if(!queue.length)return;
-  excelAutopilotBusy=true;runExcelAutopilot.disabled=true;excelAutoProgress.classList.add('show');
+  if(!queue.length){saveLargeQueueState({pending:false,paused:true});await refreshDiagnosticsNow(all);return}
+  excelAutopilotBusy=true;largeQueuePaused=false;runExcelAutopilot.disabled=true;excelAutoProgress.classList.add('show');
+  saveLargeQueueState({pending:true,paused:false,totalRemaining:excelQueueItems(all).length});
   const style=excelAutopilotStyle.value||loadSellerDefaults().style||'minimal';
   let done=0,success=0,haltedByLimit=false;
   try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:queue.length})})}catch{}
@@ -4474,18 +4539,25 @@ async function runExcelAutopilotQueue(){
     try{await processExcelAutopilotItem(item,style);success++}
     catch(e){
       const message=String(e.message||'Ошибка обработки');
-      item.excelAutopilot={state:'error',error:message.slice(0,240)};item.updatedAt=Date.now();await dbPut(item);
+      item.excelAutopilot={state:'error',error:message.slice(0,240)};item.updatedAt=Date.now();
+      item.activity=[{at:Date.now(),type:'Ошибка автопилота',detail:message.slice(0,240)},...(item.activity||[])].slice(0,80);
+      await dbPut(item);
       if(/лимит|слишком много|429/i.test(message))haltedByLimit=true;
     }
     done++;excelAutoBar.style.width=Math.round(done/queue.length*100)+'%';
+    saveLargeQueueState({pending:true,paused:largeQueuePaused,lastProductId:item.id,completedInRun:done});
     await renderHistory();
-    if(haltedByLimit)break;
+    if(haltedByLimit||largeQueuePaused)break;
   }
   excelAutopilotBusy=false;
   const remaining=excelQueueItems(await dbAll()).length;
+  const paused=Boolean(largeQueuePaused||haltedByLimit||remaining);
+  saveLargeQueueState({pending:remaining>0,paused,totalRemaining:remaining});
   excelAutoProgressText.textContent=haltedByLimit
-    ?'Очередь остановлена защитным лимитом AI. Готово: '+success+'. Необработанные товары сохранены и не потеряны.'
-    :'Завершено: '+success+' из '+done+'.'+(remaining?' В очереди осталось: '+remaining+'.':' Очередь обработана.');
+    ?'Очередь остановлена защитным лимитом AI. Готово: '+success+'. Необработанные товары сохранены.'
+    :largeQueuePaused&&remaining
+      ?'Очередь на паузе. Готово: '+success+'. Осталось: '+remaining+'.'
+      :'Завершено: '+success+' из '+done+'.'+(remaining?' В очереди осталось: '+remaining+'. Нажмите «Продолжить очередь».':' Очередь обработана.');
   await renderHistory();
   if(!remaining&&!haltedByLimit){
     document.getElementById('publishCenter').open=true;
@@ -4494,7 +4566,6 @@ async function runExcelAutopilotQueue(){
     document.getElementById('publishCenter').scrollIntoView({behavior:'smooth',block:'start'});
   }
 }
-
 function csvCell(value){
   const v=String(value??'');
   return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
@@ -5340,9 +5411,9 @@ excelPhotoFiles.addEventListener('change',async()=>{
   }catch(e){excelPhotoMatchText.textContent='Не удалось привязать фото: '+(e.message||'ошибка')}
   finally{excelPhotoFiles.value=''}
 });
-runExcelAutopilot.onclick=()=>runExcelAutopilotQueue();
+runExcelAutopilot.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false});runExcelAutopilotQueue();};
 resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false});runExcelAutopilotQueue();};
-pauseLargeQueue.onclick=()=>{largeQueuePaused=true;saveLargeQueueState({pending:excelAutopilotBusy||excelQueueItems([]).length>0,paused:true});excelAutoProgressText.textContent='Очередь будет поставлена на паузу после текущего товара.';};
+pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueueItems(await dbAll()).length>0;saveLargeQueueState({pending,paused:true});excelAutoProgressText.textContent=excelAutopilotBusy?'Очередь будет поставлена на паузу после текущего товара.':'Очередь на паузе.';await refreshDiagnosticsNow();};
 exportCatalogReport.onclick=()=>exportCatalogReportNow();
 projectArchive.onclick=()=>createEncryptedBackup();
 refreshDiagnostics.onclick=()=>refreshDiagnosticsNow();
