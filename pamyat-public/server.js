@@ -198,14 +198,12 @@ app.get("/api/events", async (req, res) => {
 
 app.get("/api/events/:eventId", async (req, res) => {
   try {
-    const eventId = req.params.eventId;
-    const rows = await sb("memorial_events?select=*&id=eq." + encodeURIComponent(eventId) + "&limit=1");
-    if (!rows[0]) return res.status(404).json({ error: "not_found" });
-    const [comments, candles] = await Promise.all([
-      sb("memorial_comments?select=id,author,body,created_at&event_id=eq." + encodeURIComponent(eventId) + "&order=created_at.desc"),
-      sb("memorial_candles?select=count&event_id=eq." + encodeURIComponent(eventId) + "&limit=1")
-    ]);
-    res.json({ ...rows[0], candles: candles[0]?.count || 0, comments });
+    const data = await sb("rpc/memorial_public_event_detail", {
+      method: "POST",
+      body: { p_event_id: req.params.eventId }
+    });
+    if (!data) return res.status(404).json({ error: "not_found" });
+    res.json(data);
   } catch (e) {
     console.error("detail", e.data || e);
     res.status(500).json({ error: "load_failed" });
@@ -214,23 +212,99 @@ app.get("/api/events/:eventId", async (req, res) => {
 
 app.get("/api/events/:eventId.ics", async (req, res) => {
   try {
-    const rows = await sb("memorial_events?select=*&id=eq." + encodeURIComponent(req.params.eventId) + "&limit=1");
-    const e = rows[0];
+    const e = await sb("rpc/memorial_public_event_detail", {
+      method: "POST",
+      body: { p_event_id: req.params.eventId }
+    });
     if (!e || !e.event_date) return res.status(404).send("Not found");
     const d = toIcsDate(e.event_date);
+    const end = toIcsDate(addDays(e.event_date, 1));
     const ics = [
       "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Pamyat//Memorial Calendar//RU","CALSCALE:GREGORIAN",
       "BEGIN:VEVENT","UID:" + e.id + "@pamyat",
-      "DTSTART;VALUE=DATE:" + d,"DTEND;VALUE=DATE:" + d,
+      "DTSTART;VALUE=DATE:" + d,"DTEND;VALUE=DATE:" + end,
       "SUMMARY:" + escIcs(e.event_type + " — " + e.full_name),
       "LOCATION:" + escIcs(e.place || e.city || ""),
       "DESCRIPTION:" + escIcs(e.note || ""),
+      "URL:" + escIcs((PUBLIC_BASE_URL || "") + "/#event=" + e.id),
       "END:VEVENT","END:VCALENDAR"
     ].join("\r\n");
     res.type("text/calendar; charset=utf-8");
     res.setHeader("Content-Disposition", 'attachment; filename="pamyat-' + e.id + '.ics"');
     res.send(ics);
   } catch {
+    res.status(500).send("Failed");
+  }
+});
+
+app.get("/api/notifications", async (req, res) => {
+  try {
+    const days = Math.max(0, Math.min(Number(req.query.days || 30), 366));
+    const rows = await sb("rpc/memorial_public_upcoming", {
+      method: "POST",
+      body: { p_days: days, p_limit: 300 }
+    });
+    res.json(rows || []);
+  } catch (e) {
+    console.error("notifications", e.data || e);
+    res.status(500).json({ error: "notifications_failed" });
+  }
+});
+
+app.get("/api/calendar.ics", async (_req, res) => {
+  try {
+    const rows = await sb("rpc/memorial_public_upcoming", {
+      method: "POST",
+      body: { p_days: 366, p_limit: 500 }
+    });
+    const out = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Pamyat//Community Calendar//RU","CALSCALE:GREGORIAN","METHOD:PUBLISH"];
+    for (const e of rows || []) {
+      if (!e.event_date) continue;
+      out.push(
+        "BEGIN:VEVENT",
+        "UID:" + e.id + "@pamyat",
+        "DTSTART;VALUE=DATE:" + toIcsDate(e.event_date),
+        "DTEND;VALUE=DATE:" + toIcsDate(addDays(e.event_date, 1)),
+        "SUMMARY:" + escIcs(e.event_type + " — " + e.full_name),
+        "LOCATION:" + escIcs(e.place || e.city || ""),
+        "URL:" + escIcs((PUBLIC_BASE_URL || "") + "/#event=" + e.id),
+        "END:VEVENT"
+      );
+    }
+    out.push("END:VCALENDAR");
+    res.type("text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition",'inline; filename="pamyat-calendar.ics"');
+    res.send(out.join("\r\n"));
+  } catch (e) {
+    console.error("calendar feed", e.data || e);
+    res.status(500).send("Failed");
+  }
+});
+
+app.get("/api/feed.xml", async (_req, res) => {
+  try {
+    const rows = await sb("rpc/memorial_public_upcoming", {
+      method: "POST",
+      body: { p_days: 60, p_limit: 300 }
+    });
+    const xmlEsc = v => String(v ?? "").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+    const base = (PUBLIC_BASE_URL || "").replace(/\/$/,"");
+    const items = (rows || []).map(e => {
+      const link = base + "/#event=" + e.id;
+      return "<item>" +
+        "<title>" + xmlEsc(e.event_date + " · " + e.event_type + " · " + e.full_name) + "</title>" +
+        "<link>" + xmlEsc(link) + "</link>" +
+        "<guid isPermaLink=\"false\">" + xmlEsc(e.id) + "</guid>" +
+        "<description>" + xmlEsc([e.city,e.place].filter(Boolean).join(" · ")) + "</description>" +
+        "</item>";
+    }).join("");
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<rss version="2.0"><channel><title>Память — ближайшие даты</title>' +
+      '<link>' + xmlEsc(base) + '</link><description>Публичные памятные даты общины</description>' +
+      items + '</channel></rss>';
+    res.type("application/rss+xml; charset=utf-8").send(xml);
+  } catch (e) {
+    console.error("rss", e.data || e);
     res.status(500).send("Failed");
   }
 });
