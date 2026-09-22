@@ -163,9 +163,27 @@ const MOBILE_I18N={
     "Город":"Şəhər","Комментарий":"Şərh","Войти":"Daxil ol","Выйти":"Çıx","Показать пароль":"Şifrəni göstər","Поиск":"Axtarış","Архив":"Arxiv","Режим памяти":"Xatirə rejimi","Выйти из режима памяти":"Xatirə rejimindən çıx"
   },
   juuri:{
-    "Память Джуури":"Память Джуури","Меню":"Меню","Главная":"Главная","Мобильная версия":"Мобильная версия",
-    "Календарь":"Луьвэхь","Сегодня вспоминаем":"Имбуруз вспоминаем","Подтверждено семьёй ✓":"Кифлет ✓",
-    "Нер нешама — свеча памяти":"Нер нешама — נר נשמה","Поиск":"Поиск","Архив":"Архив","Режим памяти":"Режим памяти","Выйти из режима памяти":"Выйти из режима памяти"
+    "Память Джуури":"Ёр Джуури",
+    "Меню":"Меню",
+    "Главная":"Главная",
+    "Мобильная версия":"Мобильная версия",
+    "Календарь":"Луьвэхь",
+    "Сегодня":"Имуруз",
+    "Сегодня вспоминаем":"Имуруз — ёр",
+    "Память":"Ёр",
+    "Помнить":"Э ёр гуьрде",
+    "Молитва":"Тефило",
+    "Молитвы и тексты памяти":"Тефило — тексты ёр",
+    "Семья":"Кифлет / мишпохьо",
+    "Подтверждено семьёй ✓":"Кифлет ✓",
+    "Свеча":"ШэгIм / чирогъ",
+    "Нер нешама — свеча памяти":"Нер нешама — шэгIм ёр",
+    "Календарь памяти":"Луьвэхь ёр",
+    "Поиск":"Поиск",
+    "Архив":"Архив",
+    "Режим памяти":"Режим ёр",
+    "Выйти из режима памяти":"Выйти из режима ёр"
+
   }
 };
 
@@ -231,7 +249,7 @@ function mobileShell(title, body, opts = {}) {
   const i18nJson=JSON.stringify(MOBILE_I18N).replace(/</g,"\\u003c");
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#4c3e2d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Память"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icon.svg"><title>${htmlEsc(title)} — Память Джуури</title>${extraHead}<style>
   :root{--bg:#f5f1e8;--paper:#fffdf8;--ink:#27231e;--muted:#746d63;--line:#ded6c8;--accent:#5b4934;--soft:#eee6d9}
-  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}.skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;z-index:999;background:#fff;padding:10px;border-radius:8px}.btn:focus,.field:focus,input:focus,select:focus,textarea:focus{outline:3px solid #8b6d45;outline-offset:2px}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}body[data-font="large"]{font-size:19px}body[data-font="xlarge"]{font-size:22px}body.memory-mode{background:#17130f;color:#f8f2e7}body.memory-mode header{display:none}body.memory-mode .wrap{max-width:900px;padding-top:32px}body.memory-mode .memory-hide{display:none!important}body.memory-mode .memory-hero{background:#211b15;border-color:#4d4033;color:#f8f2e7}body.memory-mode .memory-hero .muted{color:#cbbdac}body.memory-mode .memory-exit{display:block!important;position:fixed;right:16px;top:16px;z-index:30}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}.skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;z-index:999;background:#fff;padding:10px;border-radius:8px}.btn:focus,.field:focus,input:focus,select:focus,textarea:focus{outline:3px solid #8b6d45;outline-offset:2px}.prayer-line{border-top:1px solid var(--line);padding:12px 0}.prayer-line:first-of-type{border-top:0}.he-prayer{font-family:Georgia,"Times New Roman",serif;font-size:21px;line-height:1.9;text-align:right}.prayer-tr{margin-top:5px;font-size:16px;font-weight:650;line-height:1.55}.prayer-card details{padding:6px 0}.prayer-card summary{cursor:pointer;padding:8px 0}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}body[data-font="large"]{font-size:19px}body[data-font="xlarge"]{font-size:22px}body.memory-mode{background:#17130f;color:#f8f2e7}body.memory-mode header{display:none}body.memory-mode .wrap{max-width:900px;padding-top:32px}body.memory-mode .memory-hide{display:none!important}body.memory-mode .memory-hero{background:#211b15;border-color:#4d4033;color:#f8f2e7}body.memory-mode .memory-hero .muted{color:#cbbdac}body.memory-mode .memory-exit{display:block!important;position:fixed;right:16px;top:16px;z-index:30}
   </style></head><body><a class="skip" href="#main">К содержанию</a><header><div class="top"><div class="brand">Память Джуури</div><select id="uiLang" class="field" style="width:auto;padding:8px" aria-label="Язык"><option value="ru">RU</option><option value="juuri">JUURI β</option><option value="he">HE</option><option value="en">EN</option><option value="az">AZ</option></select><button id="fontDown" class="btn secondary" style="padding:8px" aria-label="Уменьшить шрифт">A−</button><button id="fontUp" class="btn secondary" style="padding:8px" aria-label="Увеличить шрифт">A+</button><a class="btn secondary" href="/m">Меню</a></div></header><main id="main" class="wrap">${body}</main><script>
   (()=>{
     const dictionaries=${i18nJson};
@@ -503,23 +521,57 @@ app.get("/m/memorial/:id", async (req,res) => {
         <div class="muted" style="margin-top:8px">Зажжено свечей: <span id="nerCount">${Number(e.candles||0)}</span></div>
       </div>
 
-      <div class="card memory-hide">
+      <div class="card prayer-card">
         <h3 style="margin-top:0">Молитвы и тексты памяти</h3>
-        <p class="muted">Текст и порядок чтения могут отличаться по общинной и семейной традиции. Для религиозной практики ориентируйтесь на свою общину.</p>
-        <details>
+        <p class="muted">Для каждой строки есть ручная кириллическая транскрипция. Произношение и порядок чтения могут немного отличаться по нусаху и традиции общины; транскрипция помогает читать текст, но не заменяет живую общинную традицию.</p>
+
+        <details open>
           <summary><b>Кадиш ятом — קדיש יתום</b></summary>
-          <p dir="rtl" lang="he" style="font-size:18px;line-height:1.8">יִתְגַּדַּל וְיִתְקַדַּשׁ שְׁמֵהּ רַבָּא. בְּעָלְמָא דִּי בְרָא כִרְעוּתֵהּ, וְיַמְלִיךְ מַלְכוּתֵהּ, וְיַצְמַח פֻּרְקָנֵהּ וִיקָרֵב מְשִׁיחֵהּ.</p>
-          <p class="muted">Начало поминального Кадиша. Полный порядок чтения зависит от нусаха и обычно читается в миньяне.</p>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">יִתְגַּדַּל וְיִתְקַדַּשׁ שְׁמֵהּ רַבָּא.</div><div class="prayer-tr">Йитгада́ль ве-йиткада́ш шме́ раба́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">בְּעָלְמָא דִּי בְרָא כִרְעוּתֵהּ.</div><div class="prayer-tr">Бе-альма́ ди вра́ хиръуте́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">וְיַמְלִיךְ מַלְכוּתֵהּ וְיַצְמַח פֻּרְקָנֵהּ וִיקָרֵב מְשִׁיחֵהּ.</div><div class="prayer-tr">Ве-ямли́х мальхуте́, ве-яцма́х пуркане́, ви-каре́в мешихе́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">בְּחַיֵּיכוֹן וּבְיוֹמֵיכוֹן וּבְחַיֵּי דְּכָל בֵּית יִשְׂרָאֵל.</div><div class="prayer-tr">Бе-хайехо́н ув-йомехо́н, ув-хайе́ де-холь бейт Исраэ́ль.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">בַּעֲגָלָא וּבִזְמַן קָרִיב, וְאִמְרוּ אָמֵן.</div><div class="prayer-tr">Ба-агала́ ув-зман кари́в, ве-имру́: аме́н.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">יְהֵא שְׁמֵהּ רַבָּא מְבָרַךְ לְעָלַם וּלְעָלְמֵי עָלְמַיָּא.</div><div class="prayer-tr">Йехе́ шме́ раба́ мевара́х ле-ала́м у-ле-альме́ альмая́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">יִתְבָּרַךְ וְיִשְׁתַּבַּח וְיִתְפָּאַר וְיִתְרוֹמַם וְיִתְנַשֵּׂא.</div><div class="prayer-tr">Йитбара́х ве-йиштабах, ве-йитпаа́р, ве-йитрома́м, ве-йитнасе́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">וְיִתְהַדָּר וְיִתְעַלֶּה וְיִתְהַלָּל שְׁמֵהּ דְּקֻדְשָׁא בְּרִיךְ הוּא.</div><div class="prayer-tr">Ве-йитхада́р, ве-йитале́, ве-йитхала́ль шме́ де-кудша́, брих ху.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">לְעֵלָּא מִן כָּל בִּרְכָתָא וְשִׁירָתָא תֻּשְׁבְּחָתָא וְנֶחֱמָתָא דַּאֲמִירָן בְּעָלְמָא, וְאִמְרוּ אָמֵן.</div><div class="prayer-tr">Ле-эла́ мин коль бирхата́ ве-ширата́, тушбехата́ ве-нехемата́, да-амира́н бе-альма́; ве-имру́: аме́н.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">יְהֵא שְׁלָמָא רַבָּא מִן שְׁמַיָּא, חַיִּים וְשָׂבָע וִישׁוּעָה וְנֶחָמָה.</div><div class="prayer-tr">Йехе́ шлама́ раба́ мин шмая́, хаим ве-сава́, вишуа́ ве-нехама́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">עֹשֶׂה שָׁלוֹם בִּמְרוֹמָיו, הוּא בְרַחֲמָיו יַעֲשֶׂה שָׁלוֹם עָלֵינוּ וְעַל כָּל יִשְׂרָאֵל, וְאִמְרוּ אָמֵן.</div><div class="prayer-tr">Осе́ шало́м бимрома́в, ху ве-рахама́в яасе́ шало́м але́йну ве-аль коль Исраэ́ль; ве-имру́: аме́н.</div></div>
+          <p class="muted">Кадиш традиционно читают в присутствии миньяна; формулировки могут различаться между нусахами.</p>
         </details>
+
+        <details style="margin-top:12px">
+          <summary><b>Хашкава — הַשְׁכָּבָה</b></summary>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">מְנוּחָה נְכוֹנָה בִּישִׁיבָה עֶלְיוֹנָה, תַּחַת כַּנְפֵי הַשְּׁכִינָה.</div><div class="prayer-tr">Менуха́ нехона́ би-йешива́ эльйона́, та́хат канфе́ ха-Шхина́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">בְּמַעֲלַת קְדוֹשִׁים וּטְהוֹרִים כְּזֹהַר הָרָקִיעַ מַזְהִירִים.</div><div class="prayer-tr">Бе-маала́т кдоши́м у-тхори́м, ке-зо́хар ха-раки́а мазхири́м.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">אֶת נִשְׁמַת הַנִּפְטָר / הַנִּפְטֶרֶת.</div><div class="prayer-tr">Эт нишма́т ха-нифта́р / ха-нифте́рет.</div></div>
+          <p class="muted">Здесь обычно называют еврейское имя усопшего и имя родителя. Точный текст хашкавы зависит от общины.</p>
+        </details>
+
         <details style="margin-top:12px">
           <summary><b>Эль мале рахамим — אֵל מָלֵא רַחֲמִים</b></summary>
-          <p dir="rtl" lang="he" style="font-size:18px;line-height:1.8">אֵל מָלֵא רַחֲמִים, שׁוֹכֵן בַּמְּרוֹמִים, הַמְצֵא מְנוּחָה נְכוֹנָה תַּחַת כַּנְפֵי הַשְּׁכִינָה.</p>
-          <p class="muted">Поминальная молитва; имя усопшего и формулировки обычно подставляются по принятому обычаю.</p>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">אֵל מָלֵא רַחֲמִים, שׁוֹכֵן בַּמְּרוֹמִים.</div><div class="prayer-tr">Эль мале́ рахами́м, шохе́н ба-мероми́м.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">הַמְצֵא מְנוּחָה נְכוֹנָה תַּחַת כַּנְפֵי הַשְּׁכִינָה.</div><div class="prayer-tr">Хамце́ менуха́ нехона́ та́хат канфе́ ха-Шхина́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">בְּמַעֲלוֹת קְדוֹשִׁים וּטְהוֹרִים כְּזֹהַר הָרָקִיעַ מַזְהִירִים.</div><div class="prayer-tr">Бе-маало́т кдоши́м у-тхори́м, ке-зо́хар ха-раки́а мазхири́м.</div></div>
+          <p class="muted">Этот текст распространён в ряде общин; в сефардской и восточной традиции используются и другие формы поминальной молитвы.</p>
         </details>
+
         <details style="margin-top:12px">
           <summary><b>Псалом 23 — תהילים כ״ג</b></summary>
-          <p dir="rtl" lang="he" style="font-size:18px">יְהוָה רֹעִי לֹא אֶחְסָר.</p>
-          <p class="muted">Короткий вход в чтение Теилим в память об усопшем.</p>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">יְהוָה רֹעִי לֹא אֶחְסָר.</div><div class="prayer-tr">Адона́й ро-и́, ло эхса́р.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">בִּנְאוֹת דֶּשֶׁא יַרְבִּיצֵנִי, עַל מֵי מְנֻחוֹת יְנַהֲלֵנִי.</div><div class="prayer-tr">Бинъо́т де́ше ярбице́ни, аль ме́й менухо́т йенахале́ни.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">נַפְשִׁי יְשׁוֹבֵב, יַנְחֵנִי בְמַעְגְּלֵי צֶדֶק לְמַעַן שְׁמוֹ.</div><div class="prayer-tr">Нафши́ йешове́в, янхе́ни бе-магле́й це́дек лема́ан шмо́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">גַּם כִּי אֵלֵךְ בְּגֵיא צַלְמָוֶת, לֹא אִירָא רָע כִּי אַתָּה עִמָּדִי.</div><div class="prayer-tr">Гам ки эле́х бе-ге́й цальма́вет, ло ира́ ра, ки ата́ имади́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">שִׁבְטְךָ וּמִשְׁעַנְתֶּךָ הֵמָּה יְנַחֲמֻנִי.</div><div class="prayer-tr">Шивтеха́ у-мишантеха́, хе́ма йенахаму́ни.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">תַּעֲרֹךְ לְפָנַי שֻׁלְחָן נֶגֶד צֹרְרָי; דִּשַּׁנְתָּ בַשֶּׁמֶן רֹאשִׁי, כּוֹסִי רְוָיָה.</div><div class="prayer-tr">Тааро́х лефана́й шульха́н не́гед цорера́й; диша́нта ва-ше́мен роши́, коси́ ревая́.</div></div>
+          <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">אַךְ טוֹב וָחֶסֶד יִרְדְּפוּנִי כָּל יְמֵי חַיָּי, וְשַׁבְתִּי בְּבֵית יְהוָה לְאֹרֶךְ יָמִים.</div><div class="prayer-tr">Ах тов ва-хе́сед йирдефу́ни коль йеме́й хая́й; ве-шавти́ бе-вейт Адона́й ле-о́рех ями́м.</div></div>
+        </details>
+
+        <details style="margin-top:12px">
+          <summary><b>Как читать транскрипцию</b></summary>
+          <p><b>х</b> — как в русском «х»; <b>ц</b> — «ц»; <b>ш</b> — «ш»; <b>й</b> — краткое «й». Ударение отмечено знаком: <b>а́</b>.</p>
+          <p class="muted">Транскрипция внесена вручную, строка к строке: сверху оригинал на иврите/арамейском, ниже — чтение кириллицей.</p>
         </details>
       </div>
 
