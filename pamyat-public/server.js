@@ -698,6 +698,15 @@ app.get("/m/memorial/:id", async (req,res) => {
       </div>
 
       <div class="card memory-hide">
+        <h3>Запрос на удаление персональных данных</h3>
+        <p class="muted">Можно запросить удаление контактных данных подателя или заявителя. Историческая памятная запись при этом сохраняется.</p>
+        <input id="privacyName" class="field" placeholder="Ваше имя">
+        <input id="privacyContact" class="field" placeholder="Контакт для ответа" style="margin-top:8px">
+        <textarea id="privacyDetails" class="field" rows="3" placeholder="Какие контактные данные нужно удалить" style="margin-top:8px"></textarea>
+        <button class="btn secondary" id="sendPrivacyRequest" style="width:100%;margin-top:8px">Отправить запрос</button>
+      </div>
+
+      <div class="card memory-hide">
         <h3>Сообщить об ошибке</h3>
         <select id="corrField" class="field"><option value="full_name">ФИО</option><option value="event_date">Дата</option><option value="place">Место</option><option value="note">Описание</option></select>
         <input id="corrCurrent" class="field" placeholder="Сейчас указано" style="margin-top:8px">
@@ -837,6 +846,12 @@ app.get("/m/memorial/:id", async (req,res) => {
         const body={claimant_name:document.getElementById("claimName").value,relation_type:document.getElementById("claimRelation").value,contact:document.getElementById("claimContact").value,evidence_note:document.getElementById("claimEvidence").value};
         const r=await fetch("/api/events/${req.params.id}/relative-claim",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
         say(r.ok?"Отправлено на проверку.":"Не удалось отправить.",r.ok)
+      };
+      document.getElementById("sendPrivacyRequest").onclick=async()=>{
+        const body={requester_name:document.getElementById("privacyName").value,requester_contact:document.getElementById("privacyContact").value,details:document.getElementById("privacyDetails").value};
+        if(!body.requester_contact)return say("Укажите контакт для ответа.",false);
+        const r=await fetch("/api/events/${req.params.id}/privacy-request",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        say(r.ok?"Запрос на удаление контактных данных отправлен администратору.":"Не удалось отправить запрос.",r.ok)
       };
       document.getElementById("sendCorrection").onclick=async()=>{
         const body={event_id:"${req.params.id}",field_name:document.getElementById("corrField").value,current_value:document.getElementById("corrCurrent").value,proposed_value:document.getElementById("corrProposed").value,requester_name:document.getElementById("corrName").value,requester_contact:document.getElementById("corrContact").value};
@@ -1191,8 +1206,9 @@ app.get("/m/add", async (req,res) => {
     ${funeral?'<div class="err"><b>Срочное похоронное объявление</b><br><span class="muted">После отправки запись всё равно проходит модерацию перед публичной публикацией.</span></div>':""}
     <h1>${funeral?"Похоронное объявление":"Добавить событие"}</h1>
     <form method="post" action="/m/add">
-      <label>ФИО *</label><input class="field" name="full_name" required>
-      <label>Дата смерти *</label><input class="field" type="date" name="death_date" required>
+      <label>ФИО *</label><input id="addFullName" class="field" name="full_name" required>
+      <label>Дата смерти *</label><input id="addDeathDate" class="field" type="date" name="death_date" required>
+      <div id="duplicateWarning"></div>
 
       <div class="card">
         <b>Памятные даты</b>
@@ -1226,7 +1242,7 @@ app.get("/m/add", async (req,res) => {
         <label>Время</label><input class="field" type="time" name="event_time">
       </div>
 
-      <label>Город</label><input class="field" name="city">
+      <label>Город</label><input id="addCity" class="field" name="city">
       <label>Место</label><input class="field" name="place">
       <label>Комментарий</label><textarea class="field" name="note" rows="4"></textarea>
       <label>Ваше имя</label><input class="field" name="submitter_name">
@@ -1236,7 +1252,25 @@ app.get("/m/add", async (req,res) => {
       ${humanWidget}
       <button class="btn" style="width:100%;margin-top:12px">Отправить на модерацию</button>
     </form>
-  `,{extraHead}));
+  `,{extraHead,scripts:`<script>
+  (()=>{
+    const name=document.getElementById("addFullName"),death=document.getElementById("addDeathDate"),city=document.getElementById("addCity"),box=document.getElementById("duplicateWarning");
+    let timer=null,last="";
+    const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","'":"&#39;"}[m]));
+    async function check(){
+      const q=name.value.trim();if(q.length<3){box.innerHTML="";return}
+      const key=[q,death.value,city.value].join("|");if(key===last)return;last=key;
+      try{
+        const r=await fetch("/api/duplicates?"+new URLSearchParams({full_name:q,death_date:death.value||"",city:city.value||""}),{cache:"no-store"}),rows=await r.json();
+        if(!r.ok||!Array.isArray(rows)||!rows.length){box.innerHTML="";return}
+        box.innerHTML='<div class="err" style="margin-top:10px"><b>Возможно, такая запись уже есть.</b><br>'+
+          rows.slice(0,4).map(x=>'<div style="margin-top:6px">'+esc(x.full_name)+' · '+esc(x.death_date||"без даты")+' · '+esc(x.city||"")+' <a href="/m/memorial/'+encodeURIComponent(x.id)+'" target="_blank">открыть</a></div>').join("")+
+          '<div class="muted" style="margin-top:6px">Если это другой человек или новая информация, форму всё равно можно отправить.</div></div>';
+      }catch{}
+    }
+    [name,death,city].forEach(el=>el.addEventListener("input",()=>{clearTimeout(timer);timer=setTimeout(check,450)}));
+  })();
+  </script>`}));
 });
 
 app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
