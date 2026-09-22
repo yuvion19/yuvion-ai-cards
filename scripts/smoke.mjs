@@ -290,3 +290,6 @@ if(!server.includes('/api/local-vision-normalize'))fail('local vision normalize 
 if(!html.includes("new Worker('/local-vision-worker.js'"))fail('local vision worker hook missing');else ok('local vision worker hook present');
 if(!html.includes('upgradeFallbackWithBrowserVision'))fail('browser vision fallback integration missing');else ok('browser vision fallback integration present');
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
+
+if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
+if(!html.includes("register('/sw.js?v=17',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');

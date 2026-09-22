@@ -1,4 +1,4 @@
-const CACHE='yuvion-ai-shell-v16';
+const CACHE='yuvion-ai-shell-v17';
 const SHELL=['/','/manifest.webmanifest','/icons/yuvion-icon.svg','/vendor/jszip.min.js','/vendor/jspdf.umd.min.js','/vendor/jsbarcode.all.min.js'];
 
 self.addEventListener('install',event=>{
@@ -22,7 +22,7 @@ self.addEventListener('fetch',event=>{
 
   if(req.mode==='navigate'){
     event.respondWith(
-      fetch(req).then(res=>{
+      fetch(req,{cache:'no-store'}).then(res=>{
         const copy=res.clone();
         caches.open(CACHE).then(cache=>cache.put('/',copy)).catch(()=>{});
         return res;

@@ -39,12 +39,20 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.3.0
+// Production release marker: v10.3.1
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
   maxAge: "1h",
-  etag: true
+  etag: true,
+  setHeaders(res, filePath) {
+    const name = path.basename(filePath);
+    if (name === "index.html" || name === "sw.js" || name === "local-vision-worker.js" || name === "manifest.webmanifest") {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+  }
 }));
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -1404,7 +1412,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.3.0",
+    version: "10.3.1",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -3848,5 +3856,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.3.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.3.1 listening on port ${port}`);
 });
