@@ -451,7 +451,7 @@
   <section class="card upload">
     <div class="mode-row">
       <button class="mode" data-mode="fast"><b>Быстро</b><span>Только название, описание и характеристики. Без дорогой генерации изображений.</span></button>
-      <button class="mode active" data-mode="full"><b>Полный комплект</b><span>Текст + план + 4 карточки 900×1200 + ZIP.</span></button>
+      <button class="mode active" data-mode="full"><b>Полный комплект</b><span>Автоматически: продающий текст + 4 карточки 900×1200 + ZIP.</span></button>
     </div>
 
     <div class="url-import-card">
@@ -622,7 +622,7 @@
 
       <div class="plan">
         <div class="plan-head">
-          <div><h3>План 4 карточек</h3><div class="muted">Проверьте содержание до запуска генерации.</div></div>
+          <div><h3>План 4 карточек</h3><div class="muted">Сервис сам подберёт бесплатный стиль и сразу подготовит 4 продающие карточки. При необходимости всё можно отредактировать.</div></div>
           <div class="style-select"><b>Стиль:</b>
             <select id="style">
               <option value="minimal">Минимализм</option>
@@ -630,6 +630,7 @@
               <option value="bright">Яркий</option>
               <option value="tech">Техника</option>
               <option value="home">Дом и интерьер</option>
+              <option value="kids">Игрушки и детские товары</option>
             </select>
           </div>
           <div class="style-select"><b>Изображения:</b>
@@ -638,6 +639,10 @@
               <option value="ai">AI-фото · платный image-AI</option>
             </select>
           </div>
+          <label class="style-select" style="cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap">
+            <input id="autoCards" type="checkbox" checked style="width:18px;height:18px;accent-color:#e13545">
+            <span><b>Автопилот</b><br><span class="muted" style="font-size:10px">Сразу сделать 4 карточки</span></span>
+          </label>
         </div>
         <div class="plan-grid" id="planGrid"></div>
       </div>
@@ -892,6 +897,7 @@ const aiQuality=document.getElementById('aiQuality');
 const planGrid=document.getElementById('planGrid');
 const styleSelect=document.getElementById('style');
 const renderModeSelect=document.getElementById('renderMode');
+const autoCards=document.getElementById('autoCards');
 const fastNote=document.getElementById('fastNote');
 const fullActions=document.getElementById('fullActions');
 const creative=document.getElementById('creative');
@@ -1323,6 +1329,7 @@ async function importFromProductUrl(){
     workspace.classList.add('show');
     addCurrentActivity('Импорт по ссылке',currentSourceReference?.url||url);
     await checkDuplicateSku();await checkBarcodeState('product');await saveHistory();
+    autoCreateCardsIfEnabled();
     const warnings=Array.isArray(payload.warnings)?payload.warnings.filter(Boolean):[];
     if(currencyWarning)warnings.unshift(currencyWarning);
     setUrlImportStatus('Товар импортирован: данные'+(sourceDataUrl?' и фотографии':'')+' перенесены в черновик.'+(warnings.length?' '+warnings.join(' '):''),warnings.length?'warn':'ok');
@@ -3229,6 +3236,29 @@ async function compressedSource(){
   });
 }
 
+
+function recommendedStyleForProduct(card){
+  const text=[card?.category,card?.seoTitle,card?.shortDescription].filter(Boolean).join(' ').toLowerCase();
+  if(/игруш|детск|реб[её]н|антистресс|конструктор|кукл|машинк|настольн/.test(text))return 'kids';
+  if(/электрон|техник|кабель|заряд|науш|смартф|ламп|гаджет|инструмент/.test(text))return 'tech';
+  if(/дом|кухн|интерьер|декор|посуда|текстил|хранен|уборк/.test(text))return 'home';
+  if(/космет|уход|парфюм|подар|аксессуар|украшен/.test(text))return 'premium';
+  return 'bright';
+}
+
+function prepareAutomaticCardStyle(){
+  if(!currentData)return;
+  if(!styleSelect.dataset.userChanged)styleSelect.value=recommendedStyleForProduct(currentData);
+  renderModeSelect.value='free';
+  syncRenderModeUi();
+}
+
+function autoCreateCardsIfEnabled(){
+  if(!autoCards?.checked||currentMode!=='full'||cardsBusy||!currentData)return;
+  prepareAutomaticCardStyle();
+  window.setTimeout(()=>{ if(!cardsBusy&&currentData&&currentCards.length!==4)generateAll.click(); },80);
+}
+
 analyzeBtn.onclick=async()=>{
   if(busy)return;
   busy=true;analyzeBtn.disabled=true;clearError();loading.classList.add('show');
@@ -3254,6 +3284,7 @@ analyzeBtn.onclick=async()=>{
     confidence.textContent='Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
     await saveHistory();
+    autoCreateCardsIfEnabled();
   }catch(e){showError(e.message||'Произошла ошибка.')}
   finally{loading.classList.remove('show');busy=false;analyzeBtn.disabled=false}
 };
@@ -3324,7 +3355,7 @@ editor.category.addEventListener('blur',()=>{
   renderCategoryValidation();
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
-styleSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
+styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
 function syncRenderModeUi(){
   const free=renderModeSelect.value!=='ai';
   generateAll.textContent=free?'Создать 4 карточки бесплатно':'Создать 4 AI-карточки';
