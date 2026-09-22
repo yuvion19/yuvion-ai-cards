@@ -902,6 +902,10 @@ app.get("/m/reminders", (_req,res) => {
       <input id="remTime" class="field" type="time" value="09:00">
       <p class="muted">У каждого срока можно задать своё время. Оно применяется в часовом поясе устройства.</p>
       <div class="check"><input id="urgentAlerts" type="checkbox"><span><b>Срочные похоронные объявления</b><br><span class="muted">Получать однократное уведомление сразу после одобрения срочного объявления.</span></span></div>
+      <div class="check"><input id="generalNotifications" type="checkbox" checked><span><b>Общие уведомления</b><br><span class="muted">Если выключить, останутся только подписки на конкретных людей.</span></span></div>
+      <h4 style="margin-bottom:6px">Тихие часы</h4>
+      <div class="row"><input id="quietStart" class="field" type="time" style="flex:1" aria-label="Начало тихих часов"><span>—</span><input id="quietEnd" class="field" type="time" style="flex:1" aria-label="Конец тихих часов"></div>
+      <p class="muted">Оставьте пустым, чтобы не ограничивать время. Интервал применяется в часовом поясе устройства.</p>
     </div>
 
     <div class="card">
@@ -999,8 +1003,8 @@ app.get("/m/reminders", (_req,res) => {
         const last=d.last_delivery||{},names={push:"Push",email:"Email",telegram:"Telegram",whatsapp:"WhatsApp",sms:"SMS"};
         const rows=Object.keys(names).map(k=>names[k]+": "+(last[k]?new Date(last[k]).toLocaleString("ru-RU"):"ещё не отправлялось"));
         const sched=Object.entries(d.reminder_times||{}).sort((a,b)=>Number(b[0])-Number(a[0])).map(([day,time])=>(day==="0"?"в день события":"за "+day+" дн.")+" — "+time).join("<br>");
-        const groups=(d.interest_groups||["all"]).join(", ");
-        document.getElementById("deviceDelivery").innerHTML=rows.join("<br>")+"<br><b>Расписание:</b><br>"+(sched||("по умолчанию — "+(d.reminder_time||"09:00")))+"<br><b>Группы:</b> "+groups+"<br>Срочные похоронные объявления: "+(d.urgent_alerts?"включены":"выключены");
+        const groups=(d.interest_groups||["all"]).join(", "),quiet=(d.quiet_start&&d.quiet_end)?(d.quiet_start+"–"+d.quiet_end):"выключены";
+        document.getElementById("deviceDelivery").innerHTML=rows.join("<br>")+"<br><b>Расписание:</b><br>"+(sched||("по умолчанию — "+(d.reminder_time||"09:00")))+"<br><b>Группы:</b> "+groups+"<br><b>Общие уведомления:</b> "+(d.general_notifications_enabled===false?"выключены":"включены")+"<br><b>Тихие часы:</b> "+quiet+"<br>Срочные похоронные объявления: "+(d.urgent_alerts?"включены":"выключены");
         document.getElementById("deviceDeliveryCard").style.display="block";
       }catch{}
     }
@@ -1067,6 +1071,9 @@ app.get("/m/reminders", (_req,res) => {
         reminder_time:document.getElementById("remTime").value||"09:00",
         reminder_times:Object.fromEntries([...document.querySelectorAll(".remTimeByDay")].map(i=>[i.dataset.day,i.value||"09:00"])),
         urgent_alerts:document.getElementById("urgentAlerts").checked,
+        general_notifications_enabled:document.getElementById("generalNotifications").checked,
+        quiet_start:document.getElementById("quietStart").value||null,
+        quiet_end:document.getElementById("quietEnd").value||null,
         interest_groups:[...document.querySelectorAll(".interestGroup:checked")].map(i=>i.value)
       };
     }
@@ -1087,6 +1094,9 @@ app.get("/m/reminders", (_req,res) => {
         document.getElementById("remTime").value=x.reminder_time||"09:00";
         if(x.reminder_times)document.querySelectorAll(".remTimeByDay").forEach(i=>{if(x.reminder_times[i.dataset.day])i.value=x.reminder_times[i.dataset.day]});
         document.getElementById("urgentAlerts").checked=Boolean(x.urgent_alerts);
+        document.getElementById("generalNotifications").checked=x.general_notifications_enabled!==false;
+        document.getElementById("quietStart").value=x.quiet_start||"";
+        document.getElementById("quietEnd").value=x.quiet_end||"";
         if(Array.isArray(x.interest_groups)&&x.interest_groups.length)document.querySelectorAll(".interestGroup").forEach(i=>i.checked=x.interest_groups.includes(i.value));
       }catch{}
     }
@@ -1107,6 +1117,8 @@ app.get("/m/reminders", (_req,res) => {
           reminder_time:x.reminder_time,
           reminder_times:x.reminder_times,
           urgent_alerts:x.urgent_alerts,
+          general_notifications_enabled:x.general_notifications_enabled,
+          quiet_start:x.quiet_start,quiet_end:x.quiet_end,
           interest_groups:x.interest_groups.length?x.interest_groups:["all"],
           push_enabled:x.push,
           email:x.email_value||null,email_enabled:x.email,
@@ -3104,7 +3116,7 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
 
     const dt=clean(b.device_token,100);
     const groups=(Array.isArray(b.interest_groups)?b.interest_groups:[]).map(x=>clean(x,64).toLowerCase()).filter(x=>/^[a-z0-9][a-z0-9-]{0,63}$/.test(x)).slice(0,30);
-    const token=await sb("rpc/memorial_reminder_subscribe_v2",{
+    const token=await sb("rpc/memorial_reminder_subscribe_v3",{
       method:"POST",
       body:{
         p_device_token:/^[0-9a-f-]{36}$/i.test(dt)?dt:null,
@@ -3121,7 +3133,10 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
         p_telegram_chat_id:telegramChat||null,p_telegram_enabled:telegramEnabled,
         p_whatsapp_phone:whatsappPhone||null,p_whatsapp_enabled:whatsappEnabled,
         p_sms_phone:smsPhone||null,p_sms_enabled:smsEnabled,
-        p_interest_groups:groups.length?groups:["all"]
+        p_interest_groups:groups.length?groups:["all"],
+        p_quiet_start:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(b.quiet_start||""))?b.quiet_start:null,
+        p_quiet_end:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(b.quiet_end||""))?b.quiet_end:null,
+        p_general_notifications_enabled:b.general_notifications_enabled!==false
       }
     });
     await sb("rpc/memorial_reminder_set_urgent",{method:"POST",body:{p_device_token:token,p_enabled:Boolean(b.urgent_alerts)}});
