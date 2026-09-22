@@ -202,6 +202,7 @@
     @media(max-width:760px){.ops-v64-grid{grid-template-columns:repeat(2,1fr)}}
 
 
+    .photographer-modal{position:fixed;inset:0;z-index:116;background:rgba(10,19,27,.82);display:none;align-items:center;justify-content:center;padding:14px}.photographer-modal.show{display:flex}.photographer-card{width:min(560px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:22px;padding:18px;box-shadow:0 30px 90px rgba(0,0,0,.3)}.photographer-card>select{width:100%;margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}.photographer-product{padding:14px;margin-top:10px;border-radius:13px;background:#101D2A;color:#fff}.photographer-product b{display:block;font-size:17px}.photographer-product span{display:block;color:#C6D0D8;font-size:11px;margin-top:4px}.photographer-roles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}.photographer-role{border:1px solid var(--line);border-radius:12px;padding:12px;background:#F8F9FA;text-align:left;cursor:pointer}.photographer-role b{display:block;font-size:11px}.photographer-role span{display:block;font-size:9px;color:var(--muted);margin-top:3px}.photographer-role.done{background:#EDF8F0;border-color:#CDE7D4;color:#226B38}.photographer-status{margin-top:10px;font-size:10px;color:var(--muted);min-height:15px}.photographer-actions{display:flex;justify-content:flex-end;margin-top:10px}@media(max-width:520px){.photographer-card{border-radius:18px}.photographer-roles{grid-template-columns:1fr}}
     .bulk-edit-modal{position:fixed;inset:0;z-index:115;background:rgba(10,19,27,.72);display:none;align-items:center;justify-content:center;padding:16px}.bulk-edit-modal.show{display:flex}.bulk-edit-card{width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;padding:18px;box-shadow:0 28px 80px rgba(0,0,0,.24)}.bulk-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}.bulk-edit-grid label span{display:block;font-size:9px;font-weight:850;margin-bottom:4px}.bulk-edit-grid input,.bulk-edit-grid select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff}.bulk-edit-note{font-size:10px;color:var(--muted);line-height:1.45;margin-top:10px}.bulk-edit-actions{display:flex;justify-content:flex-end;margin-top:12px}@media(max-width:650px){.bulk-edit-grid{grid-template-columns:1fr}}
     .network-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border-radius:999px;background:#ECF7EF;color:#27663A;font-size:9px;font-weight:900;white-space:nowrap}.network-pill:before{content:"";width:6px;height:6px;border-radius:50%;background:#45A35F}.network-pill.offline{background:#FFF4E6;color:#8A5A00}.network-pill.offline:before{background:#E09A20}
     /* YUVION_V65_DESIGN */
@@ -369,6 +370,7 @@
         <button class="btn btn-ghost btn-small" id="refreshDiagnostics">Диагностика</button>
         <button class="btn btn-ghost btn-small" id="storageManagerToggle">Хранилище</button>
         <button class="btn btn-ghost btn-small" id="undoLastImport">Откатить Excel</button>
+        <button class="btn btn-ghost btn-small" id="openPhotographer">Режим фотографа</button>
       </div>
       <div class="diagnostic-list" id="diagnosticList"></div>
       <div class="storage-manager" id="storageManager">
@@ -773,6 +775,18 @@
   </div>
 </div>
 
+<div class="photographer-modal" id="photographerModal">
+  <div class="photographer-card">
+    <div class="scanner-top"><div><b>Режим фотографа</b><div class="muted" style="font-size:10px">Только SKU и фото. Цены, описания и складские данные здесь не показываются.</div></div><button class="btn btn-ghost btn-small" id="closePhotographer">Закрыть</button></div>
+    <select id="photographerProduct"></select>
+    <div class="photographer-product"><b id="photographerTitle">Выберите товар</b><span id="photographerSku">SKU —</span></div>
+    <div class="photographer-roles" id="photographerRoles"></div>
+    <input id="photographerFile" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
+    <div class="photographer-status" id="photographerStatus">Сначала выберите товар.</div>
+    <div class="photographer-actions"><button class="btn btn-primary btn-small" id="photographerNext">Следующий товар</button></div>
+  </div>
+</div>
+
 <div class="bulk-edit-modal" id="bulkEditModal">
   <div class="bulk-edit-card">
     <div class="scanner-top"><div><b>Массовое изменение</b><div class="muted" style="font-size:10px">Применяются только заполненные поля. SKU/EAN и технические характеристики здесь не меняются.</div></div><button class="btn btn-ghost btn-small" id="closeBulkEdit">Закрыть</button></div>
@@ -1102,6 +1116,16 @@ const projectArchive=document.getElementById('projectArchive');
 const refreshDiagnostics=document.getElementById('refreshDiagnostics');
 const storageManagerToggle=document.getElementById('storageManagerToggle');
 const undoLastImport=document.getElementById('undoLastImport');
+const openPhotographer=document.getElementById('openPhotographer');
+const photographerModal=document.getElementById('photographerModal');
+const closePhotographer=document.getElementById('closePhotographer');
+const photographerProduct=document.getElementById('photographerProduct');
+const photographerTitle=document.getElementById('photographerTitle');
+const photographerSku=document.getElementById('photographerSku');
+const photographerRoles=document.getElementById('photographerRoles');
+const photographerFile=document.getElementById('photographerFile');
+const photographerStatus=document.getElementById('photographerStatus');
+const photographerNext=document.getElementById('photographerNext');
 const compactStorage=document.getElementById('compactStorage');
 const clearSceneCache=document.getElementById('clearSceneCache');
 const storageManager=document.getElementById('storageManager');
@@ -1148,6 +1172,8 @@ let currentLabelSuggestions=[];
 let currentActivity=[];
 let currentAnalysisCache=null;
 let unmatchedPhotoPool=[];
+let photographerPendingRole='main';
+let photographerItems=[];
 let publicHealthCache=null;
 let largeQueuePaused=true;
 const EXCEL_AUTOPILOT_LIMIT=10;
@@ -4816,6 +4842,62 @@ function photoMatchScore(file,item){
   }
   return best;
 }
+const PHOTOGRAPHER_ROLES=[
+  {key:'main',label:'Главное фото',hint:'Чистый полный вид товара'},
+  {key:'package',label:'Упаковка',hint:'Вся упаковка целиком'},
+  {key:'label',label:'Маркировка',hint:'Этикетка и характеристики'},
+  {key:'barcode',label:'Штрихкод',hint:'EAN крупно и резко'},
+  {key:'detail',label:'Деталь',hint:'Важный дополнительный ракурс'}
+];
+function photographerRoleDone(item,role){
+  if(role==='main')return Boolean(item?.sourceDataUrl);
+  return (item?.additionalPhotos||[]).some(x=>x?.role===role&&x?.dataUrl);
+}
+function renderPhotographerProduct(){
+  const item=photographerItems.find(x=>x.id===photographerProduct.value)||photographerItems[0]||null;
+  if(!item){photographerTitle.textContent='Каталог пуст';photographerSku.textContent='SKU —';photographerRoles.innerHTML='';return}
+  photographerProduct.value=item.id;
+  photographerTitle.textContent=item.title||item.data?.seoTitle||'Товар';
+  photographerSku.textContent='SKU '+(skuOfStoredItem(item)||'не указан');
+  photographerRoles.innerHTML=PHOTOGRAPHER_ROLES.map(role=>{
+    const done=photographerRoleDone(item,role.key);
+    return '<button type="button" class="photographer-role '+(done?'done':'')+'" data-ph-role="'+role.key+'"><b>'+(done?'✓ ':'')+role.label+'</b><span>'+role.hint+'</span></button>';
+  }).join('');
+  photographerRoles.querySelectorAll('[data-ph-role]').forEach(btn=>btn.onclick=()=>{
+    photographerPendingRole=btn.dataset.phRole;
+    if(photographerPendingRole!=='main'&&!item.sourceDataUrl){photographerStatus.textContent='Сначала снимите главное фото.';return}
+    photographerFile.click();
+  });
+  const done=PHOTOGRAPHER_ROLES.filter(r=>photographerRoleDone(item,r.key)).length;
+  photographerStatus.textContent='Готово снимков: '+done+' из '+PHOTOGRAPHER_ROLES.length+'.';
+}
+async function openPhotographerMode(){
+  photographerItems=(await dbAll()).filter(x=>!x.published).sort((a,b)=>String(skuOfStoredItem(a)||a.title||'').localeCompare(String(skuOfStoredItem(b)||b.title||''),'ru'));
+  photographerProduct.innerHTML=photographerItems.map(item=>'<option value="'+esc(item.id)+'">'+esc((skuOfStoredItem(item)||'без SKU')+' · '+(item.title||item.data?.seoTitle||'Товар'))+'</option>').join('');
+  photographerModal.classList.add('show');renderPhotographerProduct();
+}
+async function attachPhotographerFile(file){
+  const item=photographerItems.find(x=>x.id===photographerProduct.value);if(!item||!file)return;
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024){photographerStatus.textContent='Нужен JPG/PNG/WebP до 10 МБ.';return}
+  const role=photographerPendingRole;
+  const dataUrl=await compressFileToDataUrl(file);
+  if(role==='main'){
+    item.sourceDataUrl=dataUrl;item.sourceFilename=file.name;item.photoHash=await imageHashFromDataUrl(dataUrl);
+  }else{
+    const extras=Array.isArray(item.additionalPhotos)?item.additionalPhotos:[];
+    const oldIndex=extras.findIndex(x=>x.role===role);
+    const photo={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),name:file.name,dataUrl,mimeType:(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role};
+    if(oldIndex>=0)extras[oldIndex]=photo;else if(extras.length<4)extras.push(photo);else{photographerStatus.textContent='У товара уже 4 дополнительных фото. Удалите лишнее в карточке товара.';return}
+    item.additionalPhotos=extras;
+  }
+  item.cards=[];item.scenes=[];item.quality=null;item.cardsStale=false;item.staleCardIndexes=[];item.analysisCache=null;item.generationFingerprint=null;
+  item.excelAutopilot={state:'matched',error:''};item.updatedAt=Date.now();
+  item.activity=[{at:Date.now(),type:'Режим фотографа',detail:photoRoleLabel(role)+' · '+file.name},...(item.activity||[])].slice(0,80);
+  await dbPut(item);
+  const idx=photographerItems.findIndex(x=>x.id===item.id);if(idx>=0)photographerItems[idx]=item;
+  photographerStatus.textContent=photoRoleLabel(role)+' сохранено локально.';renderPhotographerProduct();await renderHistory();
+}
+
 function inferPhotoRole(filename){
   const n=String(filename||'').toLocaleLowerCase('ru');
   if(/barcode|штрих|ean|gtin/.test(n))return 'barcode';
@@ -6151,6 +6233,11 @@ storageManagerToggle.onclick=async()=>{storageManager.classList.toggle('show');i
 compactStorage.onclick=()=>compactStorageNow();
 clearSceneCache.onclick=()=>clearAllSceneCacheNow();
 undoLastImport.onclick=()=>restoreLastImportSnapshot();
+openPhotographer.onclick=()=>openPhotographerMode();
+closePhotographer.onclick=()=>photographerModal.classList.remove('show');
+photographerProduct.addEventListener('change',()=>renderPhotographerProduct());
+photographerFile.addEventListener('change',async()=>{const file=photographerFile.files?.[0];photographerFile.value='';if(file)await attachPhotographerFile(file)});
+photographerNext.onclick=()=>{if(!photographerItems.length)return;const i=Math.max(0,photographerItems.findIndex(x=>x.id===photographerProduct.value));photographerProduct.value=photographerItems[(i+1)%photographerItems.length].id;renderPhotographerProduct()};
 publishCenterFilter.addEventListener('change',async()=>renderPublishCenter(await dbAll()));
 publishNextProblem.onclick=async()=>{
   const all=await dbAll();
