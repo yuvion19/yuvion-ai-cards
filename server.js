@@ -699,13 +699,17 @@ function productSeedFromHtml(html, finalUrl) {
     title: firstText(product.name, meta["og:title"], meta["twitter:title"], titleMatch?.[1]),
     description: firstText(product.description, meta.description, meta["og:description"], meta["twitter:description"]),
     brand: firstText(product.brand),
-    sku: firstText(product.sku, product.mpn, meta["product:retailer_item_id"]),
+    sku: firstText(product.sku, meta["product:retailer_item_id"]),
+    mpn: firstText(product.mpn),
     barcode: firstText(product.gtin13, product.gtin14, product.gtin12, product.gtin8, product.gtin),
     category: firstText(product.category, breadcrumbNames.length ? breadcrumbNames.join(" / ") : ""),
     price: firstText(offer.price, offer.lowPrice, offer.priceSpecification?.price, meta["product:price:amount"]),
     oldPrice: firstText(offer.highPrice),
     currency: firstText(offer.priceCurrency, offer.priceSpecification?.priceCurrency, meta["product:price:currency"]),
-    characteristics,
+    characteristics: [
+      ...(firstText(product.mpn) ? [{ name: "MPN / модель производителя", value: firstText(product.mpn), evidence: "Schema.org mpn" }] : []),
+      ...characteristics
+    ],
     imageUrls: [...new Set(images.map((x) => {
       try { return new URL(String(x), finalUrl).href; } catch { return ""; }
     }).filter(Boolean))].slice(0, 12)
@@ -829,7 +833,7 @@ app.post("/api/import-url", async (req, res) => {
     seed.characteristics.forEach(addSpec);
 
     const brand = compact(ai?.brand || seed.brand || knownValueFromCharacteristics(merged, ["бренд","brand"]), 100);
-    const sku = compact(ai?.sku || seed.sku || knownValueFromCharacteristics(merged, ["артикул","sku","модель"]), 100);
+    const sku = compact(ai?.sku || seed.sku || knownValueFromCharacteristics(merged, ["артикул","sku","код товара"]), 100);
     const barcode = compact(ai?.barcode || seed.barcode || knownValueFromCharacteristics(merged, ["штрих","ean","gtin"]), 64);
     const size = compact(ai?.size || knownValueFromCharacteristics(merged, ["размер","габарит"]), 120);
     const material = compact(ai?.material || knownValueFromCharacteristics(merged, ["материал","состав"]), 160);
