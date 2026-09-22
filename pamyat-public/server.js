@@ -986,6 +986,10 @@ app.get("/m/admin", (_req,res) => {
           <button class="btn secondary" id="revokeAllSessions">Выйти на всех устройствах</button>
           <button class="btn secondary" id="backupTest">Проверить внешний backup</button>
         </div>
+        <details style="margin-top:12px" open>
+          <summary><b>Активные входы</b></summary>
+          <div id="adminSessions" class="muted" style="margin-top:8px">Загрузка…</div>
+        </details>
       </div>
 
       <div class="card" id="adminDataTools">
@@ -1163,6 +1167,21 @@ app.get("/m/admin", (_req,res) => {
       a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
       setTimeout(()=>URL.revokeObjectURL(a.href),1000);
     }
+    async function loadSessions(){
+      const rows=await api("/api/admin/auth/sessions");
+      qs("#adminSessions").innerHTML=rows.length?rows.map(s=>
+        '<div class="card"><b>'+esc(s.device_label||"Устройство")+'</b>'+
+        '<div class="muted">Вход: '+esc(fmt(s.created_at))+'<br>Последняя активность: '+esc(fmt(s.last_seen_at))+'<br>Сессия до: '+esc(fmt(s.expires_at))+'</div>'+
+        (s.revoked?'<span class="tag">Завершена</span>':'<button class="btn secondary" data-revoke-session="'+esc(s.session_id)+'" style="margin-top:8px">Завершить эту сессию</button>')+
+        '</div>'
+      ).join(""):'<div class="muted">Активных серверных сессий пока нет.</div>';
+      qs("#adminSessions").querySelectorAll("[data-revoke-session]").forEach(b=>b.onclick=async()=>{
+        const r=await api("/api/admin/auth/sessions/"+encodeURIComponent(b.dataset.revokeSession)+"/revoke",{method:"POST"});
+        if(r.current){sessionStorage.removeItem(tokenKey);location.reload();return}
+        await loadSessions();
+      });
+    }
+
     async function loadUsers(){
       if(me?.role!=="owner")return;
       const rows=await api("/api/admin/users");
@@ -1225,7 +1244,7 @@ app.get("/m/admin", (_req,res) => {
       qs("#ownerUsersCard").style.display=owner?"block":"none";
       qs("#backupTest").style.display=owner?"inline-block":"none";
       if(owner)await loadUsers();
-      await loadTrash();
+      await Promise.all([loadTrash(),loadSessions()]);
       await load();
     }
     async function passwordLogin(){
