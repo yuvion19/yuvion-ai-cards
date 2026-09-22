@@ -2929,5 +2929,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v7.6.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v7.6.1 listening on port ${port}`);
 });
