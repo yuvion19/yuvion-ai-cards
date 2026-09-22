@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.7.0
+// Production release marker: v10.8.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1431,7 +1431,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.7.0",
+    version: "10.8.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1448,6 +1448,8 @@ app.get("/api/health", (_req, res) => {
     freeTextLocalFirst: true,
     freeLocalPreflight: true,
     mobileVisionClassifierFallback: true,
+    finalDataBeforeCardRender: true,
+    singlePhotoTruthfulVariation: true,
     designEngine: {
       paletteFromProduct: true,
       categoryThemes: Object.keys(styleProfiles).length,
@@ -1796,13 +1798,21 @@ function normalizeBrowserVisionCard(visionRaw, extraRaw = {}) {
 app.post("/api/local-vision-normalize", async (req, res) => {
   try {
     const { vision = {}, extraData = {}, image = "", mimeType = "" } = req.body ?? {};
-    const card = normalizeBrowserVisionCard(vision, extraData);
+    const enrichedVision = vision && typeof vision === "object" ? { ...vision } : {};
+    let audit = null;
     if (image && typeof image === "string" && ALLOWED_TYPES.has(String(mimeType || ""))) {
       try {
-        const audit = await assessSourcePhoto(Buffer.from(image, "base64"));
-        card.photoQuality = { score: audit.score, issues: audit.issues };
+        const buffer = Buffer.from(image, "base64");
+        audit = await assessSourcePhoto(buffer);
+        if (!Array.isArray(enrichedVision.colors) || !enrichedVision.colors.filter(Boolean).length) {
+          const palette = await extractProductPalette(buffer);
+          const color = fallbackColorName(palette?.[0] || "");
+          if (color) enrichedVision.colors = [color];
+        }
       } catch {}
     }
+    const card = normalizeBrowserVisionCard(enrichedVision, extraData);
+    if (audit) card.photoQuality = { score: audit.score, issues: audit.issues };
     return res.json(card);
   } catch (error) {
     console.error("Local vision normalize error:", { message: error?.message });
@@ -3063,6 +3073,23 @@ async function renderFreeScene(
       `<svg width="${layout.width + 40}" height="${layout.height + 46}" xmlns="http://www.w3.org/2000/svg"><filter id="s"><feGaussianBlur stdDeviation="15"/></filter><rect x="20" y="18" width="${layout.width}" height="${layout.height}" rx="40" fill="#171C23" fill-opacity=".16" filter="url(#s)"/></svg>`
     );
     composites.push({ input: panelShadow, left: layout.x - 20, top: layout.y - 8 });
+    // A single source photo cannot create a truthful unseen camera angle. Instead, make the cards visibly different
+    // with an upright full-product panel plus a secondary detail/reference panel on feature/spec/usage cards.
+    if (index > 0 && !secondarySourceBuffer) {
+      try {
+        const insetSize = index === 1
+          ? { width: 250, height: 250, x: 605, y: 650 }
+          : index === 2
+            ? { width: 230, height: 260, x: 620, y: 100 }
+            : { width: 265, height: 220, x: 575, y: 560 };
+        const inset = await prepareInsetVisual(sourceBuffer, insetSize.width, insetSize.height, intensity, "detail");
+        const frame = Buffer.from(
+          `<svg width="${insetSize.width + 26}" height="${insetSize.height + 26}" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="${insetSize.width + 14}" height="${insetSize.height + 14}" rx="34" fill="#FFFFFF" fill-opacity=".82" stroke="#FFFFFF" stroke-width="5"/></svg>`
+        );
+        composites.push({ input: frame, left: insetSize.x - 13, top: insetSize.y - 13 });
+        composites.push({ input: inset, left: insetSize.x, top: insetSize.y });
+      } catch {}
+    }
   }
   composites.push({ input: visual.product, left: layout.x, top: layout.y });
 
@@ -3137,7 +3164,7 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
   const title = compact(visual.coverTitle || card.seoTitle || card.category || "Товар", density.titleMax || 120);
   const category = compact(card.category || "Товар", 50);
   const characteristics = card.characteristics || [];
-  const benefits = (card.benefits.length ? card.benefits : characteristics.slice(0, 4).map((x) => `${x.name}: ${x.value}`)).filter(Boolean).slice(0,density.benefits||5);
+  const benefits = (card.benefits.length ? card.benefits : characteristics.length ? characteristics.slice(0, 4).map((x) => `${x.name}: ${x.value}`) : wrapWords(card.shortDescription || card.fullDescription || category, 34, 4)).filter(Boolean).slice(0,density.benefits||5);
   const font = "DejaVu Sans, Arial, sans-serif";
   const softText = mixHex(style.text, "#FFFFFF", 0.38);
   const border = mixHex(style.accent, "#FFFFFF", 0.70);
@@ -3907,5 +3934,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.7.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.8.0 listening on port ${port}`);
 });
