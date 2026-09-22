@@ -4002,15 +4002,21 @@ app.get("/api/admin/stats", requireAdmin, async (_req,res) => {
   catch(e){console.error("admin stats",e.data||e);res.status(500).json({error:"stats_failed"})}
 });
 
-function adminBroadcastText(e,mode){
+function adminBroadcastText(e,mode,locale="ru"){
   const privateKey=/^[0-9a-f-]{36}$/i.test(String(e.share_token||""))?String(e.share_token):"";
   const url=(APP_PUBLIC_URL||PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(e.id)+(e.visibility==="public"?"":privateKey?"?key="+encodeURIComponent(privateKey):"");
-  const when=[e.event_date,e.event_time].filter(Boolean).join(" ");
-  const where=[e.place,e.city].filter(Boolean).join(" · ");
-  const current=[e.full_name,when,where].filter(Boolean).join(" · ");
-  if(mode==="correction")return {title:"Исправление уведомления — "+(e.event_type||"Памятная дата"),body:"Предыдущее сообщение было отправлено ошибочно. Актуальная информация: "+current,url};
-  if(mode==="update")return {title:"Изменение события — "+(e.event_type||"Памятная дата"),body:current,url};
-  return {title:"Напоминание — "+(e.event_type||"Памятная дата"),body:current,url};
+  const when=[e.event_date,e.event_time].filter(Boolean).join(" "),where=[e.place,e.city].filter(Boolean).join(" · "),current=[e.full_name,when,where].filter(Boolean).join(" · ");
+  const lang=String(locale||"ru").toLowerCase().split(/[-_]/)[0];
+  const dict={
+    ru:{update:"Изменение события",announce:"Напоминание",correction:"Исправление уведомления",wrong:"Предыдущее сообщение было отправлено ошибочно. Актуальная информация:"},
+    en:{update:"Event update",announce:"Reminder",correction:"Notification correction",wrong:"The previous notification was sent in error. Current information:"},
+    he:{update:"עדכון אירוע",announce:"תזכורת",correction:"תיקון הודעה",wrong:"ההודעה הקודמת נשלחה בטעות. המידע העדכני:"},
+    az:{update:"Hadisə yeniləməsi",announce:"Xatırlatma",correction:"Bildiriş düzəlişi",wrong:"Əvvəlki bildiriş səhvən göndərilmişdi. Aktual məlumat:"}
+  };
+  const d=dict[lang]||dict.ru,eventType=e.event_type||"Памятная дата";
+  if(mode==="correction")return {title:d.correction+" — "+eventType,body:d.wrong+" "+current,url};
+  if(mode==="update")return {title:d.update+" — "+eventType,body:current,url};
+  return {title:d.announce+" — "+eventType,body:current,url};
 }
 async function deliverAdminBroadcast(target,e,text,marker){
   const item={...target,event_id:e.id,reminder_days:marker,timezone:target.timezone||"UTC",notification_revision:e.notification_revision||0};
@@ -4151,12 +4157,12 @@ app.post("/api/admin/events/:eventId/broadcast", requireAdminRole, async (req,re
     const d=await sb("rpc/memorial_admin_broadcast_targets",{method:"POST",body:{
       p_token:ADMIN_TOKEN,p_event_id:req.params.eventId,p_groups:groups.length?groups:null,p_only_previously_reached:onlyPrevious
     }});
-    const e=d?.event||{},targets=d?.targets||[],text=adminBroadcastText(e,mode);
+    const e=d?.event||{},targets=d?.targets||[];
     const confirmCount=Number(req.body?.confirm_count);
     if(!Number.isFinite(confirmCount)||confirmCount!==targets.length)return res.status(409).json({error:"confirm_count_mismatch",expected:targets.length});
     const rev=Math.max(0,Number(e.notification_revision||0)),marker=(mode==="update"?-1000:mode==="correction"?-3000:-2000)-rev;
     let sent=0,failed=0;
-    for(const target of targets){const x=await deliverAdminBroadcast(target,e,text,marker);sent+=x.sent;failed+=x.failed}
+    for(const target of targets){const x=await deliverAdminBroadcast(target,e,adminBroadcastText(e,mode,target.locale||"ru"),marker);sent+=x.sent;failed+=x.failed}
     res.json({ok:true,subscriptions:targets.length,sent,failed,groups:d?.groups||groups,mode,only_previous:onlyPrevious});
   }catch(e){console.error("admin broadcast",e.data||e);res.status(500).json({error:"broadcast_failed"})}
 });
@@ -4167,7 +4173,7 @@ app.post("/api/admin/events/:eventId/test-broadcast", requireAdminRole, async (r
     if(!validReminderEmail(email))return res.status(400).json({error:"admin_email_required"});
     const d=await sb("rpc/memorial_admin_event_detail",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}});
     const e=d?.event;if(!e)return res.status(404).json({error:"not_found"});
-    const mode=req.body?.mode==="update"?"update":"announcement",text=adminBroadcastText(e,mode);
+    const rawMode=clean(req.body?.mode,20),mode=["announcement","update","correction"].includes(rawMode)?rawMode:"announcement",text=adminBroadcastText(e,mode,"ru");
     text.title="[ТЕСТ] "+text.title;
     await sendEmailAddress(email,text);
     res.json({ok:true,channel:"email",to:email});
