@@ -3606,8 +3606,11 @@ function importHeaderScore(header,aliases){
     const a=normalizeImportHeader(alias);
     if(!a)continue;
     if(h===a)best=Math.max(best,100);
-    else if(h.includes(a)||a.includes(h))best=Math.max(best,78);
-    else{
+    else if(h.includes(a)||a.includes(h)){
+      const hTokens=h.split(' ').filter(Boolean),aTokens=a.split(' ').filter(Boolean);
+      const generic=aTokens.length===1&&hTokens.length>1;
+      best=Math.max(best,generic?35:78);
+    }else{
       const ht=new Set(h.split(' ').filter(Boolean)),at=a.split(' ').filter(Boolean);
       const overlap=at.filter(x=>ht.has(x)).length;
       if(overlap)best=Math.max(best,Math.round(55*overlap/Math.max(at.length,ht.size)));
