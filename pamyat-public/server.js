@@ -1194,7 +1194,8 @@ app.get("/m/admin", (_req,res) => {
       const rows=await api("/api/admin/users");
       qs("#adminUsersList").innerHTML=rows.map(x=>
         '<div class="card"><b>'+esc(x.display_name||x.email)+'</b><div class="muted">'+esc(x.email)+' · '+esc(x.role)+' · '+(x.active?"активен":"отключён")+'</div>'+
-        '<div class="row" style="margin-top:8px"><button class="btn secondary" data-user-edit="'+esc(x.email)+'" data-role="'+esc(x.role)+'" data-name="'+esc(x.display_name||"")+'" data-active="'+(x.active?"1":"0")+'">Изменить</button></div></div>'
+        '<div class="row" style="margin-top:8px"><button class="btn secondary" data-user-edit="'+esc(x.email)+'" data-role="'+esc(x.role)+'" data-name="'+esc(x.display_name||"")+'" data-active="'+(x.active?"1":"0")+'">Изменить</button>'+
+        '<button class="btn secondary" data-user-toggle="'+esc(x.email)+'" data-role="'+esc(x.role)+'" data-name="'+esc(x.display_name||"")+'" data-active="'+(x.active?"1":"0")+'" style="'+(x.active?'background:#f5e2e2':'')+'">'+(x.active?"Отключить":"Включить")+'</button></div></div>'
       ).join("")||'<div class="muted">Нет пользователей.</div>';
       qs("#adminUsersList").querySelectorAll("[data-user-edit]").forEach(b=>b.onclick=()=>{
         qs("#newAdminEmail").value=b.dataset.userEdit;
@@ -1202,6 +1203,16 @@ app.get("/m/admin", (_req,res) => {
         qs("#newAdminName").value=b.dataset.name||"";
         qs("#newAdminPassword").value="";
         qs("#newAdminEmail").scrollIntoView({behavior:"smooth"});
+      });
+      qs("#adminUsersList").querySelectorAll("[data-user-toggle]").forEach(b=>b.onclick=async()=>{
+        const active=b.dataset.active!=="1";
+        if(!confirm((active?"Включить ":"Отключить ")+b.dataset.userToggle+"?"))return;
+        try{
+          await api("/api/admin/users",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+            email:b.dataset.userToggle,role:b.dataset.role,display_name:b.dataset.name||"",active
+          })});
+          await loadUsers();
+        }catch(e){alert(e.message)}
       });
     }
     async function saveAdminUser(){
