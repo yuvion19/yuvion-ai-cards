@@ -3590,8 +3590,8 @@ const IMPORT_MAP_FIELDS=[
   {key:'material',label:'Материал',canonical:'Материал',aliases:['материал','material','состав материала']},
   {key:'size',label:'Размеры',canonical:'Размеры',aliases:['размеры','размер','габариты','dimensions','size']},
   {key:'description',label:'Описание',canonical:'Описание',aliases:['описание','description','полное описание','description full']},
-  {key:'cost',label:'Себестоимость',canonical:'Себестоимость',aliases:['себестоимость','закупочная цена','закупка','cost','cost price']},
-  {key:'stock',label:'Остаток',canonical:'Остаток',aliases:['остаток','количество','stock','qty','quantity']},
+  {key:'cost',label:'Себестоимость',canonical:'Себестоимость',aliases:['себестоимость','закупочная цена','цена закупки','закупка','cost','cost price']},
+  {key:'stock',label:'Остаток',canonical:'Остаток',aliases:['остаток','остаток на складе','количество','количество на складе','stock','qty','quantity']},
   {key:'boxes',label:'Коробки',canonical:'Коробки',aliases:['коробок','коробки','boxes','box count']},
   {key:'minStock',label:'Мин. остаток',canonical:'Минимальный остаток',aliases:['минимальный остаток','мин остаток','min stock','minimum stock']},
   {key:'location',label:'Место хранения',canonical:'Место хранения',aliases:['место хранения','ячейка','стеллаж','location','shelf']},
@@ -3608,8 +3608,8 @@ function importHeaderScore(header,aliases){
     if(h===a)best=Math.max(best,100);
     else if(h.includes(a)||a.includes(h)){
       const hTokens=h.split(' ').filter(Boolean),aTokens=a.split(' ').filter(Boolean);
-      const generic=aTokens.length===1&&hTokens.length>1;
-      best=Math.max(best,generic?35:78);
+      const genericAmbiguous=aTokens.length===1&&hTokens.length>1&&['цена','price'].includes(a);
+      best=Math.max(best,genericAmbiguous?35:78);
     }else{
       const ht=new Set(h.split(' ').filter(Boolean)),at=a.split(' ').filter(Boolean);
       const overlap=at.filter(x=>ht.has(x)).length;
