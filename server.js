@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Production release marker: v6.7.0
+// Production release marker: v6.7.1
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -26,6 +26,8 @@ const WINDOW_MS = 60 * 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 30;
 const MAX_CARD_BATCHES_PER_WINDOW = 12;
 const MAX_REGENERATIONS_PER_WINDOW = 12;
+const MAX_FREE_CARD_BATCHES_PER_WINDOW = 120;
+const MAX_FREE_REGENERATIONS_PER_WINDOW = 240;
 const MAX_URL_IMPORTS_PER_WINDOW = 20;
 const MAX_REMOTE_HTML_BYTES = 2500000;
 const MAX_REMOTE_IMAGE_BYTES = 12 * 1024 * 1024;
@@ -34,6 +36,8 @@ const REMOTE_FETCH_TIMEOUT_MS = 12000;
 const requestsByIp = new Map();
 const cardRequestsByIp = new Map();
 const regenRequestsByIp = new Map();
+const freeCardRequestsByIp = new Map();
+const freeRegenRequestsByIp = new Map();
 const urlImportRequestsByIp = new Map();
 let imagesEnabled = true;
 
@@ -956,9 +960,11 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "6.7.0",
+    version: "6.7.1",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
+    freeImageMode: true,
+    freeImageAiCalls: 0,
     imageRendering: {
       defaultMode: "free",
       freeMode: true,
@@ -1668,6 +1674,10 @@ async function addDirectoryToZip(zip, directory, prefix = "") {
   }
 }
 
+function renderModeFromBody(body) {
+  return body?.renderMode === "ai" ? "ai" : "free";
+}
+
 function imageErrorResponse(req, res, error, map, type) {
   stats.imageErrors += 1;
   recordError(type, error);
@@ -1698,21 +1708,28 @@ function imageErrorResponse(req, res, error, map, type) {
 
 app.post("/api/generate-cards", async (req, res) => {
   const ip = req.ip || "unknown";
+  let requestLimitMap = cardRequestsByIp;
   try {
-    if (!imagesEnabled) return res.status(503).json({ error: "Генерация изображений временно отключена администратором." });
-    if (limitMap(cardRequestsByIp, ip, MAX_CARD_BATCHES_PER_WINDOW)) {
-      stats.rateLimitErrors += 1;
-      return res.status(429).json({ error: "Лимит: не более 12 комплектов карточек в час с одного подключения." });
-    }
-
     const { image, mimeType, card, style = "minimal", renderMode = "free" } = req.body ?? {};
+    const mode = renderMode === "ai" ? "ai" : "free";
+    requestLimitMap = mode === "ai" ? cardRequestsByIp : freeCardRequestsByIp;
+
+    if (mode === "ai") {
+      if (!imagesEnabled) return res.status(503).json({ error: "AI-фоторежим временно отключён администратором. Бесплатные шаблонные карточки доступны." });
+      if (limitMap(cardRequestsByIp, ip, MAX_CARD_BATCHES_PER_WINDOW)) {
+        stats.rateLimitErrors += 1;
+        return res.status(429).json({ error: "Лимит AI-фоторежима: не более 12 комплектов в час с одного подключения. Бесплатный режим остаётся доступен." });
+      }
+    } else if (limitMap(freeCardRequestsByIp, ip, MAX_FREE_CARD_BATCHES_PER_WINDOW)) {
+      stats.rateLimitErrors += 1;
+      return res.status(429).json({ error: "Защитный лимит бесплатного рендера: 120 комплектов в час с одного подключения." });
+    }
     if (typeof image !== "string" || typeof mimeType !== "string" || !card || typeof card !== "object") {
       return res.status(400).json({ error: "Не хватает исходного фото или данных товара." });
     }
     if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
     if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
 
-    const mode = renderMode === "ai" ? "ai" : "free";
     if (mode === "ai" && !process.env.OPENAI_API_KEY) {
       return res.status(503).json({ error: "AI-фоторежим пока не настроен. Выберите бесплатный режим." });
     }
@@ -1768,20 +1785,28 @@ app.post("/api/generate-cards", async (req, res) => {
     });
   } catch (error) {
     console.error("Card generation error:", { message: error?.message, status: error?.status, code: error?.code });
-    return imageErrorResponse(req, res, error, cardRequestsByIp, "batch");
+    return imageErrorResponse(req, res, error, requestLimitMap, renderModeFromBody(req.body) === "ai" ? "batch-ai" : "batch-free");
   }
 });
 
 app.post("/api/regenerate-card", async (req, res) => {
   const ip = req.ip || "unknown";
+  let requestLimitMap = regenRequestsByIp;
   try {
-    if (!imagesEnabled) return res.status(503).json({ error: "Генерация изображений временно отключена администратором." });
-    if (limitMap(regenRequestsByIp, ip, MAX_REGENERATIONS_PER_WINDOW)) {
-      stats.rateLimitErrors += 1;
-      return res.status(429).json({ error: "Слишком много повторных генераций. Попробуйте позже." });
-    }
-
     const { image, mimeType, card, style = "minimal", index, renderMode = "free" } = req.body ?? {};
+    const mode = renderMode === "ai" ? "ai" : "free";
+    requestLimitMap = mode === "ai" ? regenRequestsByIp : freeRegenRequestsByIp;
+
+    if (mode === "ai") {
+      if (!imagesEnabled) return res.status(503).json({ error: "AI-фоторежим временно отключён администратором. Бесплатная перегенерация доступна." });
+      if (limitMap(regenRequestsByIp, ip, MAX_REGENERATIONS_PER_WINDOW)) {
+        stats.rateLimitErrors += 1;
+        return res.status(429).json({ error: "Слишком много AI-перегенераций. Бесплатный режим остаётся доступен." });
+      }
+    } else if (limitMap(freeRegenRequestsByIp, ip, MAX_FREE_REGENERATIONS_PER_WINDOW)) {
+      stats.rateLimitErrors += 1;
+      return res.status(429).json({ error: "Защитный лимит бесплатной перегенерации: 240 карточек в час с одного подключения." });
+    }
     const cardIndex = Number(index);
     if (![0, 1, 2, 3].includes(cardIndex)) return res.status(400).json({ error: "Некорректный номер карточки." });
     if (typeof image !== "string" || typeof mimeType !== "string" || !card || typeof card !== "object") {
@@ -1790,7 +1815,6 @@ app.post("/api/regenerate-card", async (req, res) => {
     if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
     if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
 
-    const mode = renderMode === "ai" ? "ai" : "free";
     if (mode === "ai" && !process.env.OPENAI_API_KEY) {
       return res.status(503).json({ error: "AI-фоторежим пока не настроен. Выберите бесплатный режим." });
     }
@@ -1834,7 +1858,7 @@ app.post("/api/regenerate-card", async (req, res) => {
     });
   } catch (error) {
     console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
-    return imageErrorResponse(req, res, error, regenRequestsByIp, "regenerate");
+    return imageErrorResponse(req, res, error, requestLimitMap, renderModeFromBody(req.body) === "ai" ? "regenerate-ai" : "regenerate-free");
   }
 });
 
@@ -2009,5 +2033,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v6.7.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v6.7.1 listening on port ${port}`);
 });

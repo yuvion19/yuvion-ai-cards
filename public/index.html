@@ -634,8 +634,8 @@
           </div>
           <div class="style-select"><b>Изображения:</b>
             <select id="renderMode">
-              <option value="free">Бесплатно · шаблоны (0 ₽ за фото)</option>
-              <option value="ai">AI-фото · платно</option>
+              <option value="free">Бесплатно · без image-AI (0 ₽ за изображения)</option>
+              <option value="ai">AI-фото · платный image-AI</option>
             </select>
           </div>
         </div>
@@ -645,7 +645,7 @@
       <div class="fast-note" id="fastNote">Выбран режим «Быстро». Текст готов и сохранён в истории. Переключите режим на «Полный комплект», если понадобятся изображения.</div>
       <div class="full-actions" id="fullActions">
         <button class="btn btn-ghost" id="copyText">Скопировать весь текст</button>
-        <button class="btn btn-primary" id="generateAll">Создать 4 карточки</button>
+        <button class="btn btn-primary" id="generateAll">Создать 4 карточки бесплатно</button>
       </div>
     </section>
 
@@ -3325,7 +3325,12 @@ editor.category.addEventListener('blur',()=>{
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
 styleSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
-renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
+function syncRenderModeUi(){
+  const free=renderModeSelect.value!=='ai';
+  generateAll.textContent=free?'Создать 4 карточки бесплатно':'Создать 4 AI-карточки';
+  generateAll.title=free?'Без вызова image-generation API. Используется исходное фото товара и шаблонная инфографика.':'Использует платную AI-генерацию изображений.';
+}
+renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
 function markCardsStale(indexes=[0,1,2,3]){
   if(currentCards.length){
@@ -5596,7 +5601,7 @@ async function refreshDiagnosticsNow(allItems=null){
   try{sw=('serviceWorker' in navigator)&&Boolean(await navigator.serviceWorker.getRegistration())?'активен':'не активен'}catch{}
   const lsBytes=Object.keys(localStorage).reduce((sum,key)=>sum+String(localStorage.getItem(key)||'').length*2,0);
   diagnosticList.innerHTML=[
-    ['Версия приложения','6.4.0'],['IndexedDB товаров',String(all.length)+' / '+CATALOG_LIMIT],
+    ['Версия приложения','6.7.1'],['IndexedDB товаров',String(all.length)+' / '+CATALOG_LIMIT],
     ['Хранилище',storageText+' из '+quotaText],['localStorage',Math.round(lsBytes/1024)+' КБ'],
     ['PWA Service Worker',sw],['Сеть',navigator.onLine===false?'офлайн':'онлайн'],['AI-очередь',queue.length?queue.length+' ожидают':'пусто'],
     ['Похожие товары',similarPairs.size?String(similarPairs.size):'не найдено'],
@@ -6603,7 +6608,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-renderModeSelect.value='free';renderNetworkState();initUiMode();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+renderModeSelect.value='free';renderNetworkState();initUiMode();syncRenderModeUi();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
