@@ -609,8 +609,8 @@ app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
     const afterSunset=Boolean(b.hebrew_after_sunset);
     const hebrewSourceDate=afterSunset?addDays(deathDate,1):deathDate;
     const manualYahrzeit=validDate(clean(b.manual_yahrzeit_date,10))?clean(b.manual_yahrzeit_date,10):null;
-    const computedYahrzeit=nextYahrzeit(hebrewSourceDate);
     const rule=["standard","adar_i","adar_ii","family_custom","manual"].includes(b.yahrzeit_rule)?b.yahrzeit_rule:"standard";
+    const computedYahrzeit=nextYahrzeit(hebrewSourceDate,new Date(),rule);
     const yahrzeit=manualYahrzeit||(rule==="manual"?null:computedYahrzeit);
     const base={
       full_name:fullName,death_date:deathDate,event_time:clean(b.event_time,20)||null,city:clean(b.city,120)||null,place:clean(b.place,180)||null,
@@ -1236,18 +1236,33 @@ function hebrewLabel(dateStr) {
       .format(new Date(dateStr + "T12:00:00Z"));
   } catch { return ""; }
 }
-function nextYahrzeit(deathDate, fromDate = new Date()) {
+function nextYahrzeit(deathDate, fromDate = new Date(), rule = "standard") {
   const target = hebrewParts(deathDate);
   if (!target) return null;
   const start = new Date(Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), fromDate.getUTCDate(), 12));
+  const targetMonth=String(target.month||"");
+  const targetDay=Number(target.day);
+  const isAdar=/^Adar/.test(targetMonth);
+  let fallback=null;
   for (let i = 0; i <= 450; i++) {
     const d = new Date(start);
     d.setUTCDate(d.getUTCDate() + i);
     const iso = d.toISOString().slice(0, 10);
     const p = hebrewParts(iso);
-    if (p && p.day === target.day && p.month === target.month) return iso;
+    if(!p)continue;
+    const pm=String(p.month||""),pd=Number(p.day);
+    let monthMatch=pm===targetMonth;
+    if(isAdar){
+      if(rule==="adar_i")monthMatch=(pm==="Adar I"||pm==="Adar");
+      else if(rule==="adar_ii")monthMatch=(pm==="Adar II"||pm==="Adar");
+      else if(targetMonth==="Adar I"||targetMonth==="Adar II")monthMatch=(pm===targetMonth||pm==="Adar");
+    }
+    if(monthMatch && pd===targetDay)return iso;
+    // In variable-length Cheshvan/Kislev, keep a conservative fallback to day 29;
+    // manual date remains available and takes priority for family/halachic custom.
+    if(!fallback && (targetMonth==="Cheshvan"||targetMonth==="Kislev") && targetDay===30 && pm===targetMonth && pd===29)fallback=iso;
   }
-  return null;
+  return fallback;
 }
 
 function escIcs(v) {
@@ -1457,9 +1472,9 @@ app.post("/api/events", rateLimit("events", 5, 15 * 60 * 1000), async (req, res)
 
     const afterSunset=Boolean(b.hebrew_after_sunset);
     const hebrewSourceDate=validDate(deathDate)?(afterSunset?addDays(deathDate,1):deathDate):null;
-    const computedYahrzeit = hebrewSourceDate ? nextYahrzeit(hebrewSourceDate) : null;
     const manualYahrzeit = validDate(clean(b.manual_yahrzeit_date, 10)) ? clean(b.manual_yahrzeit_date, 10) : null;
     const rule=["standard","adar_i","adar_ii","family_custom","manual"].includes(b.yahrzeit_rule)?b.yahrzeit_rule:"standard";
+    const computedYahrzeit = hebrewSourceDate ? nextYahrzeit(hebrewSourceDate,new Date(),rule) : null;
     const yahrzeit = manualYahrzeit || (rule==="manual"?null:computedYahrzeit);
 
     const base = {
