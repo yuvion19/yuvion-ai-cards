@@ -424,6 +424,20 @@ function roman(n) {
   for (const [v, s] of map) while (n >= v) { out += s; n -= v; }
   return out || "I";
 }
+function fromRoman(s) {
+  const v={I:1,V:5,X:10,L:50,C:100,D:500,M:1000}; let n=0,prev=0;
+  for (const ch of String(s||"").toUpperCase().split("").reverse()) { const x=v[ch]||0; if(x<prev)n-=x;else{n+=x;prev=x} }
+  return n || 1;
+}
+function qmdField(text, key) {
+  const re = new RegExp("^" + key.replace(/[.*+?^$\{\}()|[\\]\\]/g,"\\function roman(n) {
+  const map = [[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+  let out = "";
+  for (const [v, s] of map) while (n >= v) { out += s; n -= v; }
+  return out || "I";
+}") + ":\\s*\\|\\s*\\n\\s{4}([^\\n]+)","m");
+  return (text.match(re)?.[1] || "").trim();
+}
 function parseCoords(v) {
   const m = String(v ?? "").match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
   if (!m) return [null, null];
@@ -476,6 +490,40 @@ async function syncCemeteryCatalog(force = false) {
         });
       }
     }
+    const knownKeys = new Set(records.map(x => x.record_key));
+    try {
+      const tr = await fetch("https://api.github.com/repos/matzevalog/matzevalog/git/trees/main?recursive=1", {
+        headers: { "user-agent": "pamyat-community-hub/1.0", "accept": "application/vnd.github+json" }
+      });
+      if (tr.ok) {
+        const tree = await tr.json();
+        const paths = (tree.tree || []).map(x => x.path).filter(p => /^tombstones\/QBA[^/]+-[IVXLCDM]+\.qmd$/i.test(p));
+        for (const p of paths) {
+          const m = p.match(/^tombstones\/(QBA[^-]+)-([IVXLCDM]+)\.qmd$/i);
+          if (!m) continue;
+          const key = m[1] + ":" + fromRoman(m[2]);
+          if (knownKeys.has(key)) continue;
+          try {
+            const rr = await fetch("https://raw.githubusercontent.com/matzevalog/matzevalog/main/" + p, { headers: { "user-agent": "pamyat-community-hub/1.0" } });
+            if (!rr.ok) continue;
+            const txt = await rr.text();
+            const coordText = txt.match(/\*\*Координаты\*\*\s*\|\[([^\]]+)\]/)?.[1] || "";
+            const [lat, lon] = parseCoords(coordText);
+            records.push({
+              record_key:key,cemetery_code:"QBA",external_id:m[1],person_index:fromRoman(m[2]),
+              name_ru:qmdField(txt,"name-ru"),name_he:qmdField(txt,"name-he"),sex:(txt.match(/^sex:\s*(.+)$/m)?.[1]||"").trim(),
+              birth_gr:"",birth_he:"",death_gr:(txt.match(/^year-gr:\s*(.+)$/m)?.[1]||"").trim(),
+              death_he:(txt.match(/^year-he:\s*(.+)$/m)?.[1]||"").trim(),death_date:null,
+              latitude:lat,longitude:lon,tomb_type:"",material:"",source_code:"",
+              source_url:"https://matzevalog.github.io/matzevalog/" + p.replace(/^tombstones\//,"tombstones/").replace(/\.qmd$/i,".html"),
+              license:"См. исходную карточку"
+            });
+            knownKeys.add(key);
+          } catch (e) { console.error("qmd supplement", p, e.message); }
+        }
+      }
+    } catch (e) { console.error("catalog tree supplement", e.message); }
+
     let written = 0, skipped = 0;
     async function upsertBatch(batch) {
       try {
