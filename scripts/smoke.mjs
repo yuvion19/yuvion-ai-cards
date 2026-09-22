@@ -154,6 +154,11 @@ const features=[
   ['localCardVisualMetrics','local visual QA metrics'],
   ['visualQaVersion: 2','local QA v2 response'],
   ['localVisualQaV2: true','local visual QA v2 health metadata'],
+  ['localVisualQaV3: true','local visual QA v3 health metadata'],
+  ['seriesDiversityQa: true','series perceptual diversity QA metadata'],
+  ['deterministicQualityScore: true','deterministic image quality score metadata'],
+  ['localSeriesSimilarity','series similarity implementation'],
+  ['perceptualSignatureSimilarity','perceptual signature comparison'],
   ['entropyAndContrastChecks: true','entropy and contrast QA metadata'],
   ['smartPhotoCleanupV2: true','Smart Photo Cleanup v2 metadata'],
   ['adaptiveToneMapping: true','adaptive tone mapping metadata'],
@@ -233,3 +238,8 @@ if(!server.includes('error.code = "text_overlay_render_failed"'))fail('text over
 if(!server.includes('textPixels < 80'))fail('text overlay pixel threshold missing');else ok('text overlay pixel threshold present');
 
 if(!server.includes('fontRenderState.ready && textOverlayGuardState.ready'))fail('health must gate on font and overlay guard');else ok('health gates on font and overlay guard');
+
+if(!server.includes('visualQaVersion: 3'))fail('local QA v3 response marker missing');else ok('local QA v3 response marker present');
+if(!html.includes('syncQualityDownloadState'))fail('QA download gate missing');else ok('QA download gate present');
+if(!html.includes('Скачивание заблокировано: QA нашла карточки'))fail('blocked package messaging missing');else ok('blocked package messaging present');
+if(!html.includes('for(let round=0;round<2;round+=1)'))fail('bounded multi-round auto-fix missing');else ok('bounded multi-round auto-fix present');

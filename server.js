@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v8.7.1
+// Production release marker: v8.8.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1351,7 +1351,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "8.7.1",
+    version: "8.8.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1404,6 +1404,9 @@ app.get("/api/health", (_req, res) => {
       fullSeriesChooser: true,
       autoSeriesRegeneration: true,
       localVisualQaV2: true,
+      localVisualQaV3: true,
+      seriesDiversityQa: true,
+      deterministicQualityScore: true,
       entropyAndContrastChecks: true,
       smartPhotoCleanupV2: true,
       adaptiveToneMapping: true,
@@ -1701,6 +1704,63 @@ async function localCardVisualMetrics(buffer) {
   };
 }
 
+function deterministicQualityScore(hardIssues = [], warnings = []) {
+  const hard = Array.isArray(hardIssues) ? hardIssues.length : 0;
+  const soft = Array.isArray(warnings) ? warnings.length : 0;
+  return Math.max(0, Math.min(100, 100 - hard * 32 - soft * 8));
+}
+
+async function cardPerceptualSignature(buffer) {
+  const raw = await sharp(buffer, { failOn: "error" })
+    .resize(16, 16, { fit: "fill" })
+    .grayscale()
+    .raw()
+    .toBuffer();
+  const values = Array.from(raw);
+  const mean = values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+  const bits = values.map((value) => value >= mean ? 1 : 0);
+  return { values, bits };
+}
+
+function perceptualSignatureSimilarity(left, right) {
+  const length = Math.min(left?.values?.length || 0, right?.values?.length || 0);
+  if (!length) return 0;
+  let equalBits = 0;
+  let absoluteDelta = 0;
+  for (let i = 0; i < length; i += 1) {
+    if (left.bits[i] === right.bits[i]) equalBits += 1;
+    absoluteDelta += Math.abs(left.values[i] - right.values[i]);
+  }
+  const hashSimilarity = equalBits / length;
+  const toneSimilarity = 1 - Math.min(1, absoluteDelta / (length * 255));
+  return Math.max(0, Math.min(1, hashSimilarity * 0.78 + toneSimilarity * 0.22));
+}
+
+async function localSeriesSimilarity(cards) {
+  const signatures = await Promise.all(cards.map((card) =>
+    cardPerceptualSignature(Buffer.from(card.base64, "base64"))
+  ));
+  const pairs = [];
+  let maxSimilarity = 0;
+  for (let i = 0; i < signatures.length; i += 1) {
+    for (let j = i + 1; j < signatures.length; j += 1) {
+      const similarity = perceptualSignatureSimilarity(signatures[i], signatures[j]);
+      maxSimilarity = Math.max(maxSimilarity, similarity);
+      pairs.push({
+        left: i,
+        right: j,
+        similarity: Number(similarity.toFixed(4))
+      });
+    }
+  }
+  pairs.sort((a, b) => b.similarity - a.similarity);
+  return {
+    maxSimilarity: Number(maxSimilarity.toFixed(4)),
+    closestPair: pairs[0] || null,
+    pairs
+  };
+}
+
 async function makeQualityPreview(base64) {
   return sharp(Buffer.from(base64, "base64"))
     .resize(480, 640, { fit: "inside", withoutEnlargement: true })
@@ -1756,6 +1816,20 @@ app.post("/api/quality-check", async (req, res) => {
       previews.push("data:image/jpeg;base64," + thumb.toString("base64"));
     }
 
+    const seriesSimilarity = await localSeriesSimilarity(cards);
+    for (const pair of seriesSimilarity.pairs) {
+      const similarityPct = Math.round(pair.similarity * 1000) / 10;
+      if (pair.similarity >= 0.992) {
+        deterministicIssues[pair.right].push(
+          "Карточка почти дублирует карточку №" + (pair.left + 1) + " (" + similarityPct + "% визуального сходства)."
+        );
+      } else if (pair.similarity >= 0.975) {
+        deterministicWarnings[pair.right].push(
+          "Карточка слишком похожа на карточку №" + (pair.left + 1) + " (" + similarityPct + "%); серии не хватает визуального различия."
+        );
+      }
+    }
+
     if (localOnly) {
       const cardsResult = deterministicIssues.map((hardIssues, index) => {
         const warnings = deterministicWarnings[index] || [];
@@ -1766,6 +1840,7 @@ app.post("/api/quality-check", async (req, res) => {
           issues,
           warnings,
           metrics: localMetrics[index],
+          qualityScore: deterministicQualityScore(hardIssues, warnings),
           needsRegeneration: hardIssues.length > 0
         };
       });
@@ -1777,8 +1852,9 @@ app.post("/api/quality-check", async (req, res) => {
         overall: failures ? "Нужно исправить" : warningsCount ? "Есть замечания" : "Отлично",
         cards: cardsResult,
         local: true,
-        visualQaVersion: 2,
-        note: "Бесплатная локальная QA v2: размер, формат, целостность, яркость, контраст и визуальная информативность. Платный vision/image API не вызывается."
+        visualQaVersion: 3,
+        seriesSimilarity,
+        note: "Бесплатная локальная QA v3: размер, формат, целостность, яркость, контраст, визуальная информативность и perceptual-сравнение всей серии. Платный vision/image API не вызывается."
       });
     }
 
@@ -1846,11 +1922,14 @@ app.post("/api/quality-check", async (req, res) => {
         issues,
         localWarnings,
         localMetrics: localMetrics[index],
+        qualityScore: deterministicQualityScore(extraIssues, localWarnings.concat(needsRegeneration && !extraIssues.length ? ["AI-блокер"] : [])),
         needsRegeneration,
         status
       };
     });
     if (parsed.cards.some((x) => x.needsRegeneration)) parsed.overall = "Нужно исправить";
+    parsed.visualQaVersion = 3;
+    parsed.seriesSimilarity = seriesSimilarity;
 
     stats.qualityChecks += 1;
     stats.qualityFailures += parsed.cards.filter((x) => x.needsRegeneration).length;
@@ -3381,5 +3460,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v8.7.1 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v8.8.0 listening on port ${port}`);
 });

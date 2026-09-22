@@ -4035,7 +4035,7 @@ async function createImmediateFreeCards(file){
     if(data.designSubstyle)currentDesignSubstyle=data.designSubstyle;
     cardsStale=false;currentStaleCards=[];currentQuality=null;
     renderCards();renderDesignStudio();renderProductCockpit();
-    zipImages.disabled=currentCards.length!==4;zipFull.disabled=currentCards.length!==4;
+    zipImages.disabled=true;zipFull.disabled=true;
     creativeStatus.className='creative-status show done';
     creativeStatus.textContent='4 изображения уже готовы. Анализируем товар в фоне и затем обновим только текстовую инфографику.';
     addCurrentActivity('Быстрый бесплатный комплект','4 карточки созданы до завершения AI-анализа');
@@ -4202,57 +4202,95 @@ function markCardsStale(indexes=[0,1,2,3]){
   }
 }
 
+function syncQualityDownloadState(){
+  const blocked=currentCards.length!==4||!currentQuality||knownQaBlockers().length>0;
+  zipImages.disabled=blocked;
+  zipFull.disabled=blocked;
+}
+
+function qualitySummaryHtml(data,prefix='Проверка'){
+  const notes=(data?.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(x.index+1)+': '+issue));
+  const scores=(data?.cards||[]).map(x=>Number(x.qualityScore)).filter(Number.isFinite);
+  const avgScore=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null;
+  const closest=Number(data?.seriesSimilarity?.maxSimilarity);
+  const seriesNote=Number.isFinite(closest)?'<br>Максимальное сходство пары: '+Math.round(closest*1000)/10+'%.':'';
+  const scoreNote=avgScore!==null?'<br>Средняя локальная оценка: '+avgScore+'/100.':'';
+  return '<b>'+esc(prefix+': '+(data?.overall||'готово'))+'</b>'+
+    (notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.')+
+    scoreNote+seriesNote;
+}
+
+async function requestCardQuality(qaSource){
+  const response=await fetch('/api/quality-check',{
+    method:'POST',
+    headers:apiHeaders(),
+    body:JSON.stringify({
+      cards:currentCards,
+      card:collectEdits(),
+      sourceImage:qaSource.image||'',
+      sourceMimeType:qaSource.mimeType||'',
+      renderMode:renderModeSelect.value
+    })
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось проверить качество.');
+  return data;
+}
+
 async function checkQualityAndAutofix(autoFix=true){
   if(currentCards.length!==4||!currentData)return null;
   qaSummary.style.display='block';
-  qaSummary.innerHTML=renderModeSelect.value==='free'?'<b>Локальная проверка качества:</b> проверяем формат и целостность карточек…':'<b>AI-проверка качества:</b> анализируем готовые карточки…';
+  qaSummary.innerHTML=renderModeSelect.value==='free'
+    ?'<b>Локальная проверка качества:</b> проверяем формат, читаемость и различимость серии…'
+    :'<b>AI-проверка качества:</b> анализируем готовые карточки и различимость серии…';
+  zipImages.disabled=true;zipFull.disabled=true;
   try{
     let qaSource={};
     try{qaSource=await getSource()}catch{}
-    const response=await fetch('/api/quality-check',{
-      method:'POST',
-      headers:apiHeaders(),
-      body:JSON.stringify({cards:currentCards,card:collectEdits(),sourceImage:qaSource.image||'',sourceMimeType:qaSource.mimeType||'',renderMode:renderModeSelect.value})
-    });
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'Не удалось проверить качество.');
+
+    let data=await requestCardQuality(qaSource);
     currentQuality=data;
     addCurrentActivity('QA изображений',data.overall||'Проверка завершена');
     renderCards();
+    qaSummary.innerHTML=qualitySummaryHtml(data,data.local?'Локальная проверка':'AI-проверка');
 
-    const bad=(data.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(x=>Number.isInteger(x));
-    const notes=(data.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(x.index+1)+': '+issue));
-    qaSummary.innerHTML='<b>'+(data.local?'Локальная проверка: ':'AI-проверка: ')+esc(data.overall||'готово')+'</b>'+(notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
+    if(autoFix){
+      const repaired=new Set();
+      for(let round=0;round<2;round+=1){
+        const bad=(data.cards||[])
+          .filter(x=>x.needsRegeneration&&Number.isInteger(x.index)&&!repaired.has(x.index))
+          .map(x=>x.index)
+          .slice(0,2);
+        if(!bad.length)break;
 
-    if(autoFix&&bad.length){
-      const fixing=bad.slice(0,2);
-      creativeStatus.className='creative-status show';
-      creativeStatus.textContent='Проверка нашла серьёзные проблемы в '+fixing.length+' карточк'+(fixing.length===1?'е':'ах')+'. Автоматически переделываем только их.';
-      const src=await getSource();
-      for(const index of fixing){
-        const updated=await regenerateCardApi(index,src,collectEdits(),styleSelect.value);
-        currentCards[index]=updated;
-      }
-      renderCards();
-      await saveHistory();
-
-      const second=await fetch('/api/quality-check',{
-        method:'POST',headers:apiHeaders(),
-        body:JSON.stringify({cards:currentCards,card:collectEdits(),sourceImage:qaSource.image||'',sourceMimeType:qaSource.mimeType||'',renderMode:renderModeSelect.value})
-      });
-      const secondData=await second.json().catch(()=>({}));
-      if(second.ok){
-        currentQuality=secondData;
+        creativeStatus.className='creative-status show';
+        creativeStatus.textContent='QA-блокеры: автоматически исправляем карточки №'+bad.map(x=>x+1).join(', ')+' · проход '+(round+1)+'/2.';
+        const src=await getSource();
+        for(const index of bad){
+          const updated=await regenerateCardApi(index,src,collectEdits(),styleSelect.value);
+          currentCards[index]=updated;
+          repaired.add(index);
+        }
         renderCards();
-        const secondNotes=(secondData.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(x.index+1)+': '+issue));
-        qaSummary.innerHTML='<b>'+(secondData.local?'Повторная локальная проверка: ':'Повторная AI-проверка: ')+esc(secondData.overall||'готово')+'</b>'+(secondNotes.length?'<br>'+secondNotes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
+        await saveHistory();
+
+        data=await requestCardQuality(qaSource);
+        currentQuality=data;
+        renderCards();
+        qaSummary.innerHTML=qualitySummaryHtml(data,(data.local?'Повторная локальная проверка':'Повторная AI-проверка')+' · проход '+(round+1));
       }
     }
+
+    currentQuality=data;
+    syncQualityDownloadState();
+    renderPublishIssues();
     await saveHistory();
     return currentQuality;
   }catch(e){
+    currentQuality=null;
+    syncQualityDownloadState();
     qaSummary.style.display='block';
-    qaSummary.innerHTML='<b>Проверка качества пропущена:</b> '+esc(e.message||'не удалось выполнить проверку.');
+    qaSummary.innerHTML='<b>Проверка качества не завершена:</b> '+esc(e.message||'не удалось выполнить проверку.')+'<br>Скачивание комплекта заблокировано до успешной QA.';
     return null;
   }
 }
@@ -4338,12 +4376,20 @@ generateAll.onclick=async()=>{
       captureDesignSnapshot('Готовый комплект',true);
     }
     cardsStale=false;currentStaleCards=[];renderCards();renderProductCockpit();
-    zipImages.disabled=false;zipFull.disabled=false;
-    creativeStatus.className='creative-status show';creativeStatus.textContent='Изображения готовы. Выполняем автоматическую проверку качества.';
+    zipImages.disabled=true;zipFull.disabled=true;
+    creativeStatus.className='creative-status show';creativeStatus.textContent='Изображения готовы. Выполняем автоматическую проверку качества и различимости серии.';
     await saveHistory();
-    await checkQualityAndAutofix(!canLocalOverlay);
-    creativeStatus.className='creative-status show done';creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена без image-generation. Проверка завершена.':(renderModeSelect.value==='free'?'Комплект готов бесплатно: image-generation API не использовался.':'AI-комплект готов. QA завершён; при необходимости исправлены только проблемные карточки.');
-    await downloadPackage(false,true);
+    const qaResult=await checkQualityAndAutofix(!canLocalOverlay);
+    const qaBlocked=!qaResult||knownQaBlockers().length>0;
+    syncQualityDownloadState();
+    if(qaBlocked){
+      creativeStatus.className='creative-status show fail';
+      creativeStatus.textContent='Комплект создан, но QA не пропустила его в выгрузку. Исправьте отмеченные карточки — PNG и ZIP разблокируются автоматически.';
+    }else{
+      creativeStatus.className='creative-status show done';
+      creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена и QA пройдена.':(renderModeSelect.value==='free'?'Комплект готов бесплатно и прошёл QA v3.':'AI-комплект готов и прошёл QA v3.');
+      await downloadPackage(false,true);
+    }
   }catch(e){
     creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось создать карточки.';
   }finally{
@@ -4374,9 +4420,13 @@ async function moveCard(from,to){
 function renderCards(){
   cardsPreview.innerHTML='';
   let draggedIndex=null;
+  const qaPending=currentCards.length===4&&!currentQuality;
   currentCards.forEach((card,index)=>{
     const q=currentQuality?.cards?.find(x=>x.index===index);
-    const badge=q?'<span class="qa-badge '+(q.status==='OK'?'ok':q.status==='Переделать'?'bad':'warn')+'">'+esc(q.status)+'</span>':'';
+    const score=Number(q?.qualityScore);
+    const scoreText=Number.isFinite(score)?' · '+Math.round(score)+'/100':'';
+    const badge=q?'<span class="qa-badge '+(q.status==='OK'?'ok':q.status==='Переделать'?'bad':'warn')+'">'+esc(q.status+scoreText)+'</span>':'';
+    const downloadBlocked=qaPending||Boolean(q?.needsRegeneration);
     const el=document.createElement('div');
     el.className='preview-card';
     el.draggable=true;
@@ -4385,9 +4435,10 @@ function renderCards(){
       '<img alt="'+esc(card.title)+'" src="data:image/png;base64,'+card.base64+'">'+
       '<strong>'+(index+1)+'. '+esc(card.title)+'</strong>'+badge+
       (q?.issues?.length?'<div class="qa-mini-issues">'+q.issues.slice(0,2).map(esc).join('<br>')+'</div>':'')+
+      (qaPending?'<div class="qa-mini-issues">QA ещё не завершена — PNG пока заблокирован.</div>':'')+
       '<div class="reorder-hint">Перетащите карточку или используйте стрелки, чтобы изменить порядок загрузки.</div>'+
       '<div class="reorder-actions"><button class="btn btn-ghost btn-small move-left" '+(index===0?'disabled':'')+'>←</button><button class="btn btn-ghost btn-small move-right" '+(index===currentCards.length-1?'disabled':'')+'>→</button></div>'+
-      '<div class="card-actions"><button class="btn btn-ghost btn-small download-one">PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>';
+      '<div class="card-actions"><button class="btn btn-ghost btn-small download-one" '+(downloadBlocked?'disabled title="Доступно после успешной QA"':'')+'>PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>';
 
     el.addEventListener('dragstart',e=>{
       draggedIndex=index;
@@ -4409,6 +4460,7 @@ function renderCards(){
     el.querySelector('.regen-one').onclick=()=>regenerateOne(index,el);
     cardsPreview.appendChild(el);
   });
+  syncQualityDownloadState();
   renderYuvionExport();
   renderDesignStudio();
 }
@@ -4436,6 +4488,14 @@ async function regenerateOne(index,el){
 
 async function downloadPackage(includeDescription,auto=false){
   if(currentCards.length!==4)return;
+  if(!currentQuality||knownQaBlockers().length){
+    if(!auto){
+      creativeStatus.className='creative-status show fail';
+      creativeStatus.textContent=!currentQuality?'Сначала завершите QA комплекта.':'Скачивание заблокировано: QA нашла карточки, которые нужно переделать.';
+    }
+    syncQualityDownloadState();
+    return;
+  }
   try{
     const response=await fetch('/api/package',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards:currentCards,card:collectEdits(),extraData:collectExtraData(),variations:variationsForExport(),includeDescription})});
     const data=await response.json().catch(()=>({}));
