@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v8.5.0
+// Production release marker: v8.5.1
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1350,7 +1350,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "8.5.0",
+    version: "8.5.1",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -2717,7 +2717,7 @@ async function normalizeSceneForCache(sceneBuffer) {
 }
 
 function stripSvgTextNodes(svg) {
-  return String(svg || "").replace(/<text\\b[^>]*>[\\s\\S]*?<\\/text>/gi, "");
+  return String(svg || "").replace(/<text\b[^>]*>[\s\S]*?<\/text>/gi, "");
 }
 
 async function rasterizeOverlayWithTextGuard(overlaySvg) {
@@ -2726,7 +2726,7 @@ async function rasterizeOverlayWithTextGuard(overlaySvg) {
     .png({ compressionLevel: 9 })
     .toBuffer();
 
-  if (!/<text\\b/i.test(svg)) {
+  if (!/<text\b/i.test(svg)) {
     return { buffer: overlayBuffer, textPixels: 0, checked: false };
   }
 
@@ -3345,5 +3345,5 @@ if (!fontRenderState.ready) {
   console.log("SVG font render self-test OK:", fontRenderState.paintedPixels, "painted pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v8.5.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v8.5.1 listening on port ${port}`);
 });
