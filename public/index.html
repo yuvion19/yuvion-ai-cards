@@ -1681,13 +1681,14 @@ function renderExtraPhotos(){
     el.querySelector('button[aria-label]').onclick=()=>{
       currentAdditionalPhotos.splice(index,1);
       addCurrentActivity('Фото удалено',photo.name||('Ракурс '+(index+1)));
+      if(currentData){currentScenes=[];markCardsStale([0,1,2,3]);}
       renderExtraPhotos();
       if(currentData)saveHistoryDebounced();
     };
     el.querySelector('[data-photo-role]').onchange=(e)=>{
       photo.role=e.target.value;
       addCurrentActivity('Роль фото изменена',(photo.name||'Фото')+' → '+photoRoleLabel(photo.role));
-      if(currentData)saveHistoryDebounced();
+      if(currentData){currentScenes=[];markCardsStale([0,1,2,3]);saveHistoryDebounced();}
     };
     el.querySelector('.photo-ocr-btn').onclick=()=>runLabelOcr(photo);
     extraPhotoGrid.appendChild(el);
@@ -1789,6 +1790,7 @@ async function addAdditionalPhotos(files){
     });
   }
   currentAdditionalPhotos=currentAdditionalPhotos.slice(0,4);
+  if(currentData){currentScenes=[];markCardsStale([0,1,2,3]);}
   renderExtraPhotos();
   extraPhotosInput.value='';
   if(currentData)saveHistoryDebounced();
@@ -1798,6 +1800,13 @@ function additionalPhotosForAnalyze(){
   return currentAdditionalPhotos.slice(0,4).map(photo=>{
     const m=String(photo.dataUrl||'').match(/^data:([^;]+);base64,(.+)$/);
     return m?{mimeType:m[1],image:m[2]}:null;
+  }).filter(Boolean);
+}
+
+function additionalPhotosForRender(){
+  return currentAdditionalPhotos.slice(0,4).map(photo=>{
+    const m=String(photo.dataUrl||'').match(/^data:([^;]+);base64,(.+)$/);
+    return m?{mimeType:m[1],image:m[2],role:photo.role||'angle'}:null;
   }).filter(Boolean);
 }
 
@@ -3335,7 +3344,7 @@ async function loadCoverVariants(){
   coverVariantsBtn.disabled=true;coverVariantsBtn.textContent='Готовим…';
   try{
     const src=await getSource();
-    const response=await fetch('/api/cover-variants',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:collectEdits(),style:styleSelect.value,palette:currentPalette,composition:currentComposition,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions})});
+    const response=await fetch('/api/cover-variants',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:collectEdits(),style:styleSelect.value,palette:currentPalette,composition:currentComposition,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,additionalImages:additionalPhotosForRender()})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось создать варианты обложки.');
     currentCoverVariants=Array.isArray(data.variants)?data.variants:[];
@@ -3955,7 +3964,8 @@ async function createImmediateFreeCards(file){
     const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({
       ...src,card:provisional,style:styleSelect.value,renderMode:'free',palette:currentPalette,
       designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,
-      visualOptions:currentVisualOptions,composition:currentComposition
+      visualOptions:currentVisualOptions,composition:currentComposition,
+      additionalImages:additionalPhotosForRender()
     })});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось создать быстрый комплект.');
@@ -4190,7 +4200,7 @@ async function checkQualityAndAutofix(autoFix=true){
 async function regenerateCardApi(index,src,cardData,styleValue){
   const response=await fetch('/api/regenerate-card',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,composition:currentComposition})
+    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,composition:currentComposition,additionalImages:additionalPhotosForRender()})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку №'+(index+1)+'.');
@@ -4233,7 +4243,11 @@ generateAll.onclick=async()=>{
     ?'Пересобираем инфографику без нового AI-изображения: карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.'
     :selectiveAi
       ?'Обновляем только карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.'
-      :(renderModeSelect.value==='free'?'Создаём 4 карточки локально — без платной генерации изображений.':'Создаём 4 AI-изображения и накладываем инфографику.');
+      :(renderModeSelect.value==='free'
+        ?(currentAdditionalPhotos.length
+          ?'Создаём 4 усиленные карточки: используем главное фото, дополнительные ракурсы, детали и упаковку.'
+          :'Создаём 4 усиленные карточки: улучшаем исходник, отделяем фон, добавляем объём и адаптивную композицию.')
+        :'Создаём 4 AI-изображения и накладываем инфографику.');
   if(!canLocalOverlay&&!selectiveAi)cardsPreview.innerHTML='';
   try{
     if(canLocalOverlay){
@@ -4245,7 +4259,7 @@ generateAll.onclick=async()=>{
       addCurrentActivity('Точечная AI-перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
     }else{
       const src=await getSource();
-      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,composition:currentComposition})});
+      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,composition:currentComposition,additionalImages:additionalPhotosForRender()})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
       currentCards=data.cards||[];
@@ -4257,7 +4271,10 @@ generateAll.onclick=async()=>{
       if(data.visualOptions)currentVisualOptions=normalizeClientVisualOptions({...currentVisualOptions,...data.visualOptions,safeZone:currentVisualOptions.safeZone});
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
-      addCurrentActivity(renderModeSelect.value==='free'?'Создан бесплатный комплект':'Создан AI-комплект','4 карточки + чистые сцены');
+      const renderDetail=data.renderEngine==='power-local-v2'
+        ?('Power Render · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник'))
+        :'4 карточки + чистые сцены';
+      addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
     }
     cardsStale=false;currentStaleCards=[];renderCards();renderProductCockpit();
