@@ -556,15 +556,17 @@ function csvCell(v) {
 
 app.get("/health", async (_req, res) => {
   try {
-    const [e, c] = await Promise.all([
-      sb("rpc/memorial_event_search", { method: "POST", body: { p_query: "", p_city: "", p_type: "", p_limit: 1 } }),
-      sb("cemetery_records?select=record_key&limit=1")
-    ]);
+    const events = await sb("rpc/memorial_event_search", {
+      method: "POST",
+      body: { p_query: "", p_city: "", p_type: "", p_limit: 1 }
+    });
+    const cfg = await sb("rpc/memorial_public_site_config", { method: "POST", body: {} }).catch(() => ({}));
     res.json({
       ok: true,
       database: "supabase",
-      events_reachable: Array.isArray(e),
-      cemetery_index_reachable: Array.isArray(c),
+      events_reachable: Array.isArray(events),
+      cemetery_catalog_enabled: false,
+      active_frontend: cfg?.active_frontend || "current",
       push_configured: Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY),
       telegram_configured: Boolean(TELEGRAM_BOT_TOKEN),
       email_configured: Boolean(RESEND_API_KEY)
