@@ -256,7 +256,51 @@
     .card.upload{border-color:#E3E6EA;box-shadow:0 18px 52px rgba(16,29,42,.08)}.drop{background:linear-gradient(180deg,#FFFFFF,#F8FAFB);border-color:#D8DEE4}.drop:hover{border-color:#D75968;background:#FFFDFD}.editor,.creative,.yuvion-export{box-shadow:0 12px 34px rgba(16,29,42,.055)}
     @media(max-width:650px){.url-import-head{flex-direction:column}.url-import-form{grid-template-columns:1fr}.url-import-form .btn{width:100%}.source-reference.show{align-items:flex-start;flex-direction:column}}
 
-  </style>
+  
+    /* YUVION_V70_STUDIO */
+    :root{--v7-ink:#17181B;--v7-sub:#71757D;--v7-surface:#FFFFFF;--v7-soft:#F7F8FA;--v7-border:#E8E9ED;--v7-radius:24px}
+    body{background:radial-gradient(circle at 50% -12%,#FFF3F5 0,rgba(255,243,245,0) 33%),linear-gradient(180deg,#FFFFFF 0,#F8F8FA 38%,#F3F4F6 100%)}
+    .hero-shell{border-radius:34px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF7F8 46%,#F9EEF0 100%);border-color:#F0E2E5;box-shadow:0 28px 90px rgba(73,26,34,.10)}
+    .card,.editor,.creative,.yuvion-export,.product-cockpit{border-color:var(--v7-border);box-shadow:0 18px 55px rgba(25,29,36,.065)}
+    .simple-ui .workspace{max-width:1160px}
+    .simple-ui .workspace.show{gap:14px}
+    .simple-ui .workspace-head{padding:4px 4px 0}
+    .simple-ui .product-cockpit{border-radius:22px;background:linear-gradient(135deg,#111E2A,#1B2E3D);color:#fff;border:0}
+    .simple-ui .product-cockpit .cockpit-title span,.simple-ui .product-cockpit .cockpit-stat span{color:#BEC8CF}
+    .simple-ui .product-cockpit .cockpit-stat{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.08)}
+    .design-studio{margin:14px 0 0;border:1px solid var(--v7-border);border-radius:28px;background:rgba(255,255,255,.97);box-shadow:0 20px 60px rgba(24,28,34,.07);overflow:hidden}
+    .design-studio-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:20px 22px 14px}
+    .design-studio-head h3{margin:2px 0 5px;font-size:22px;letter-spacing:-.02em}.design-studio-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
+    .design-free-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:999px;background:#EAF8EE;color:#246B39;font-size:11px;font-weight:900;white-space:nowrap}.design-free-badge:before{content:"";width:7px;height:7px;border-radius:50%;background:#39A65A}
+    .design-studio-body{padding:0 22px 20px}
+    .design-style-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+    .design-style-card{position:relative;overflow:hidden;min-height:86px;border:1px solid #E5E7EB;border-radius:17px;background:#fff;padding:12px;cursor:pointer;text-align:left;transition:.18s;box-shadow:0 7px 22px rgba(20,24,30,.035)}
+    .design-style-card:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(20,24,30,.08)}.design-style-card.active{border-color:var(--brand);box-shadow:0 0 0 2px rgba(240,62,74,.12),0 14px 34px rgba(112,30,40,.10)}
+    .design-style-card b{position:relative;z-index:2;display:block;font-size:12px}.design-style-card span{position:relative;z-index:2;display:block;font-size:9px;color:#767B83;margin-top:4px;line-height:1.3}
+    .design-style-card:after{content:"";position:absolute;right:-16px;bottom:-25px;width:76px;height:76px;border-radius:50%;background:var(--swatch,#F03E4A);opacity:.16}
+    .design-style-card[data-style="kids"]{--swatch:#6B32D9;background:linear-gradient(135deg,#FFFDEB,#FFF4CF)}
+    .design-style-card[data-style="tech"]{--swatch:#222C36;background:linear-gradient(135deg,#FAFCFE,#EEF2F6)}
+    .design-style-card[data-style="home"]{--swatch:#9A7769;background:linear-gradient(135deg,#FFFDF9,#F7F0EA)}
+    .design-style-card[data-style="premium"]{--swatch:#8E2941;background:linear-gradient(135deg,#FFF9FA,#F8EDF0)}
+    .design-style-card[data-style="bright"]{--swatch:#FF7043;background:linear-gradient(135deg,#FFF7F1,#FFEAE1)}
+    .design-style-card[data-style="beauty"]{--swatch:#C74A7D;background:linear-gradient(135deg,#FFF9FC,#FCEAF2)}
+    .design-style-card[data-style="sport"]{--swatch:#146C5B;background:linear-gradient(135deg,#F7FFFC,#EAF8F4)}
+    .design-style-card[data-style="tools"]{--swatch:#E06A13;background:linear-gradient(135deg,#FFF9F2,#FFF0DF)}
+    .design-style-card[data-style="food"]{--swatch:#8D5C2A;background:linear-gradient(135deg,#FFFCF5,#F6F1E6)}
+    .design-style-card[data-style="minimal"]{--swatch:#BFC4CA;background:linear-gradient(135deg,#FFFFFF,#F6F7F8)}
+    .design-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid #EEF0F2}
+    .design-palette-wrap{display:flex;align-items:center;gap:9px}.design-palette-wrap>span{font-size:11px;font-weight:850;color:#656A72}.design-palette{display:flex;gap:5px}.palette-dot{width:26px;height:26px;border-radius:9px;border:2px solid #fff;box-shadow:0 0 0 1px #DDE0E4,0 4px 10px rgba(0,0,0,.08)}
+    .design-actions{display:flex;gap:7px;flex-wrap:wrap}.design-action{border:1px solid #E3E5E8;background:#F8F9FA;color:#31353B;border-radius:11px;padding:9px 11px;font-size:10px;font-weight:850;cursor:pointer}.design-action:hover{background:#F1F3F5}.design-action.primary{background:#171D23;color:#fff;border-color:#171D23}
+    .cards-preview.mobile-preview{max-width:390px;margin:16px auto;padding:12px;border-radius:30px;background:#121519;grid-template-columns:1fr!important;box-shadow:0 24px 70px rgba(0,0,0,.22)}
+    .cards-preview.mobile-preview .preview-card{background:#fff}.cards-preview.mobile-preview .preview-card:not(:first-child){display:none}
+    .preview-card{border-radius:20px!important;overflow:hidden}.preview-card img{background:#F4F5F7}
+    .creative-top h2{letter-spacing:-.025em}.creative-status.show.done{border:1px solid #CBE7D2}
+    .v7-source-quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}
+    .v7-source-btn{border:1px solid #E6E7EB;border-radius:14px;padding:11px 12px;background:#FAFBFC;color:#333840;font-size:11px;font-weight:850;cursor:pointer}.v7-source-btn:hover{border-color:#EEB8BE;background:#FFF8F9;color:var(--brand2)}
+    .simple-ui .editor{border-radius:24px}.simple-ui .creative{border-radius:24px}.simple-ui .yuvion-export{border-radius:24px}
+    @media(max-width:900px){.design-style-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:600px){.design-studio-head{padding:16px 16px 11px}.design-studio-body{padding:0 16px 16px}.design-style-grid{grid-template-columns:repeat(2,1fr)}.design-style-card{min-height:78px}.design-controls{align-items:flex-start}.design-actions{width:100%}.design-action{flex:1}.v7-source-quick{grid-template-columns:1fr}}
+</style>
 </head>
 <body class="simple-ui">
 <header>
@@ -403,7 +447,7 @@
         <div class="profile-field"><label>Бренд по умолчанию</label><input id="profileBrand" placeholder="Например: B*B Toys" /></div>
         <div class="profile-field"><label>Любимая категория / путь</label><input id="profileCategory" placeholder="Например: Игрушки / Мягкие игрушки" /></div>
         <div class="profile-field"><label>Режим по умолчанию</label><select id="profileMode"><option value="full">Полный комплект</option><option value="fast">Быстро</option></select></div>
-        <div class="profile-field"><label>Стиль карточек</label><select id="profileStyle"><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select></div>
+        <div class="profile-field"><label>Стиль карточек</label><select id="profileStyle"><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option><option value="kids">Игрушки</option><option value="beauty">Красота</option><option value="sport">Спорт</option><option value="tools">Инструменты</option><option value="food">Еда</option></select></div>
         <div class="profile-field"><label>Скидка от 2 шт., %</label><input id="profileDiscount2" inputmode="decimal" value="5" /></div>
         <div class="profile-field"><label>Скидка от 3 шт., %</label><input id="profileDiscount3" inputmode="decimal" value="10" /></div>
         <div class="profile-field"><label>Префикс SKU</label><input id="profileSkuPrefix" maxlength="32" placeholder="Например: YU-" /></div>
@@ -452,6 +496,11 @@
     <div class="mode-row">
       <button class="mode" data-mode="fast"><b>Быстро</b><span>Только название, описание и характеристики. Без дорогой генерации изображений.</span></button>
       <button class="mode active" data-mode="full"><b>Полный комплект</b><span>Автоматически: продающий текст + 4 карточки 900×1200 + ZIP.</span></button>
+    </div>
+    <div class="v7-source-quick">
+      <button type="button" class="v7-source-btn" id="v7PhotoSource">Фото товара · самый быстрый старт</button>
+      <button type="button" class="v7-source-btn" id="v7UrlSource">Ссылка · забрать данные и фото</button>
+      <button type="button" class="v7-source-btn" id="v7ExcelSource">Excel · обработать ассортимент</button>
     </div>
 
     <div class="url-import-card">
@@ -523,7 +572,7 @@
 
     <div class="row">
       <div class="filemeta" id="filemeta">Файл ещё не выбран</div>
-      <button class="btn btn-primary" id="analyze" disabled>Проанализировать фото</button>
+      <button class="btn btn-primary" id="analyze" disabled>Создать всё автоматически</button>
     </div>
 
     <div class="notice">Размеры, материал, бренд, модель и другие неподтверждённые параметры не добавляются автоматически. После анализа вы сможете исправить результат до генерации изображений.</div>
@@ -536,6 +585,34 @@
       <div><div class="section-kicker">Проверка товара</div><h2>Проверьте данные</h2><div class="muted" id="confidence"></div><div class="save-state saved" id="saveState" style="margin-top:7px">Изменения сохраняются автоматически</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" id="saveRevision">Сохранить версию</button><button class="btn btn-ghost" id="similarProduct">Создать похожий</button><button class="btn btn-ghost" id="newProduct">Новый товар</button></div>
     </div>
+    <section class="design-studio" id="designStudio">
+      <div class="design-studio-head">
+        <div><div class="section-kicker">Дизайн 7.0</div><h3>Стиль карточек</h3><p>Yuvion подбирает тему и цвета автоматически. Можно выбрать другой стиль — товар и подтверждённые факты останутся теми же.</p></div>
+        <div class="design-free-badge">Бесплатный рендер</div>
+      </div>
+      <div class="design-studio-body">
+        <div class="design-style-grid" id="designStyleGrid">
+          <button type="button" class="design-style-card" data-style="bright"><b>Яркий</b><span>Универсальная продающая подача</span></button>
+          <button type="button" class="design-style-card" data-style="kids"><b>Игрушки</b><span>Динамично и заметно</span></button>
+          <button type="button" class="design-style-card" data-style="premium"><b>Премиум</b><span>Сдержанно и дороже визуально</span></button>
+          <button type="button" class="design-style-card" data-style="tech"><b>Техника</b><span>Чётко, технологично, структурно</span></button>
+          <button type="button" class="design-style-card" data-style="home"><b>Дом</b><span>Мягкая натуральная подача</span></button>
+          <button type="button" class="design-style-card" data-style="beauty"><b>Красота</b><span>Лёгкая beauty-эстетика</span></button>
+          <button type="button" class="design-style-card" data-style="sport"><b>Спорт</b><span>Энергия и контраст</span></button>
+          <button type="button" class="design-style-card" data-style="tools"><b>Инструменты</b><span>Практично и по делу</span></button>
+          <button type="button" class="design-style-card" data-style="food"><b>Еда</b><span>Тепло и аппетитно</span></button>
+          <button type="button" class="design-style-card" data-style="minimal"><b>Минимализм</b><span>Чистый каталог без шума</span></button>
+        </div>
+        <div class="design-controls">
+          <div class="design-palette-wrap"><span>Палитра товара</span><div class="design-palette" id="designPalette"><i class="palette-dot" style="background:#F03E4A"></i><i class="palette-dot" style="background:#FFD8DC"></i><i class="palette-dot" style="background:#FFFFFF"></i></div></div>
+          <div class="design-actions">
+            <button type="button" class="design-action" id="designVariant">Другой вариант</button>
+            <button type="button" class="design-action" id="mobilePreview">Мобильный вид</button>
+            <button type="button" class="design-action primary" id="applyDesign">Пересобрать 4 карточки</button>
+          </div>
+        </div>
+      </div>
+    </section>
     <div class="source-reference" id="sourceReference"></div>
     <details class="revision-box" id="revisionBox"><summary>Версии товара <span class="muted" id="revisionCount" style="font-size:10px">0 сохранённых</span></summary><div class="revision-body"><div class="revision-list" id="revisionList"></div></div></details>
     <section class="product-cockpit" id="productCockpit">
@@ -631,6 +708,10 @@
               <option value="tech">Техника</option>
               <option value="home">Дом и интерьер</option>
               <option value="kids">Игрушки и детские товары</option>
+              <option value="beauty">Красота и уход</option>
+              <option value="sport">Спорт и активность</option>
+              <option value="tools">Инструменты и ремонт</option>
+              <option value="food">Еда и напитки</option>
             </select>
           </div>
           <div class="style-select"><b>Изображения:</b>
@@ -898,6 +979,15 @@ const planGrid=document.getElementById('planGrid');
 const styleSelect=document.getElementById('style');
 const renderModeSelect=document.getElementById('renderMode');
 const autoCards=document.getElementById('autoCards');
+const designStudio=document.getElementById('designStudio');
+const designStyleGrid=document.getElementById('designStyleGrid');
+const designPalette=document.getElementById('designPalette');
+const designVariantBtn=document.getElementById('designVariant');
+const mobilePreviewBtn=document.getElementById('mobilePreview');
+const applyDesignBtn=document.getElementById('applyDesign');
+const v7PhotoSource=document.getElementById('v7PhotoSource');
+const v7UrlSource=document.getElementById('v7UrlSource');
+const v7ExcelSource=document.getElementById('v7ExcelSource');
 const fastNote=document.getElementById('fastNote');
 const fullActions=document.getElementById('fullActions');
 const creative=document.getElementById('creative');
@@ -1177,6 +1267,8 @@ let currentData=null;
 let currentSourceReference=null;
 let currentCards=[];
 let currentScenes=[];
+let currentPalette=[];
+let currentDesignVariant=0;
 let currentMode='full';
 let currentHistoryId=null;
 let busy=false;
@@ -1329,6 +1421,7 @@ async function importFromProductUrl(){
     workspace.classList.add('show');
     addCurrentActivity('Импорт по ссылке',currentSourceReference?.url||url);
     await checkDuplicateSku();await checkBarcodeState('product');await saveHistory();
+    await refreshDesignPalette();
     autoCreateCardsIfEnabled();
     const warnings=Array.isArray(payload.warnings)?payload.warnings.filter(Boolean):[];
     if(currencyWarning)warnings.unshift(currencyWarning);
@@ -2968,6 +3061,7 @@ document.querySelectorAll('.mode').forEach(btn=>btn.onclick=()=>{
 
 function syncModeUi(){
   const full=currentMode==='full';
+  analyzeBtn.textContent=full&&autoCards?.checked?'Создать всё автоматически':'Проанализировать фото';
   fullActions.style.display=full?'flex':'none';
   fastNote.classList.toggle('show',!full);
   if(!full) creative.classList.remove('show');
@@ -2978,6 +3072,14 @@ function syncModeUi(){
 ['dragleave','drop'].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault();drop.classList.remove('drag')}));
 drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0])});
 fileInput.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0])});
+v7PhotoSource.onclick=()=>fileInput.click();
+v7UrlSource.onclick=()=>{productUrlInput.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>productUrlInput.focus(),300)};
+v7ExcelSource.onclick=()=>{const box=document.getElementById('excelAutopilot');if(box){box.open=true;box.scrollIntoView({behavior:'smooth',block:'start'})}};
+designStyleGrid.addEventListener('click',e=>{const btn=e.target.closest('[data-style]');if(btn)chooseDesignStyle(btn.dataset.style)});
+designVariantBtn.onclick=()=>{currentDesignVariant=(currentDesignVariant+1)%4;currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();if(currentCards.length===4)generateAll.click()};
+mobilePreviewBtn.onclick=()=>{cardsPreview.classList.toggle('mobile-preview');renderDesignStudio()};
+applyDesignBtn.onclick=()=>{if(currentData){currentScenes=[];markCardsStale([0,1,2,3]);generateAll.click()}else analyzeBtn.click()};
+autoCards.addEventListener('change',()=>{syncModeUi();saveHistoryDebounced()});
 importProductUrl.onclick=()=>importFromProductUrl();
 productUrlInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();importFromProductUrl()}});
 productUrlInput.addEventListener('input',()=>{if(urlImportStatus.classList.contains('bad'))urlImportStatus.className='url-import-status'});
@@ -3007,6 +3109,7 @@ async function setFile(file){
   currentPhotoHash=await imageHashFromFile(file);
   await checkPhotoDuplicate(currentPhotoHash);
   await inspectImage(file);
+  await refreshDesignPalette();
   await savePhotoDraft(file);
 }
 
@@ -3237,12 +3340,72 @@ async function compressedSource(){
 }
 
 
+
+function rgbToHexClient(r,g,b){
+  const clamp=x=>Math.max(0,Math.min(255,Math.round(x)));
+  return '#'+[clamp(r),clamp(g),clamp(b)].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+function paletteDistanceClient(a,b){
+  const p=x=>[parseInt(x.slice(1,3),16),parseInt(x.slice(3,5),16),parseInt(x.slice(5,7),16)];
+  const x=p(a),y=p(b);return Math.hypot(x[0]-y[0],x[1]-y[1],x[2]-y[2]);
+}
+async function extractPaletteFromDataUrl(dataUrl){
+  return new Promise(resolve=>{
+    if(!dataUrl){resolve([]);return}
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const canvas=document.createElement('canvas');canvas.width=60;canvas.height=60;
+        const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,60,60);
+        const d=ctx.getImageData(0,0,60,60).data,buckets=new Map();
+        for(let i=0;i<d.length;i+=16){
+          const r=d[i],g=d[i+1],b=d[i+2],a=d[i+3];if(a<180)continue;
+          const hi=Math.max(r,g,b),lo=Math.min(r,g,b),light=(hi+lo)/2,sat=hi-lo;
+          if(light>242||light<18||(sat<16&&light>205))continue;
+          const q=n=>Math.max(0,Math.min(255,Math.round(n/32)*32));
+          const hex=rgbToHexClient(q(r),q(g),q(b));
+          buckets.set(hex,(buckets.get(hex)||0)+1+Math.min(2.5,sat/70));
+        }
+        const ranked=[...buckets.entries()].sort((a,b)=>b[1]-a[1]).map(x=>x[0]),chosen=[];
+        for(const color of ranked){if(chosen.every(x=>paletteDistanceClient(x,color)>=52))chosen.push(color);if(chosen.length>=4)break}
+        resolve(chosen);
+      }catch{resolve([])}
+    };
+    img.onerror=()=>resolve([]);img.src=dataUrl;
+  });
+}
+async function refreshDesignPalette(){
+  try{
+    let dataUrl=sourceDataUrl;
+    if(!dataUrl&&selectedFile)dataUrl=await fileToDataUrl(selectedFile);
+    const palette=await extractPaletteFromDataUrl(dataUrl);
+    if(palette.length)currentPalette=palette;
+  }catch{}
+  renderDesignStudio();
+}
+function renderDesignStudio(){
+  if(!designStyleGrid)return;
+  designStyleGrid.querySelectorAll('[data-style]').forEach(btn=>btn.classList.toggle('active',btn.dataset.style===styleSelect.value));
+  const colors=currentPalette.length?currentPalette:['#F03E4A','#D62F3B','#FFF0F2'];
+  designPalette.innerHTML=colors.slice(0,4).map(color=>'<i class="palette-dot" title="'+esc(color)+'" style="background:'+esc(color)+'"></i>').join('');
+  designVariantBtn.textContent='Другой вариант · '+(currentDesignVariant+1)+'/4';
+  mobilePreviewBtn.textContent=cardsPreview.classList.contains('mobile-preview')?'Обычный вид':'Мобильный вид';
+}
+function chooseDesignStyle(style){
+  if(!styleSelect.querySelector('option[value="'+style+'"]'))return;
+  styleSelect.value=style;styleSelect.dataset.userChanged='1';
+  currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();renderProductCockpit();saveHistoryDebounced();
+}
 function recommendedStyleForProduct(card){
   const text=[card?.category,card?.seoTitle,card?.shortDescription].filter(Boolean).join(' ').toLowerCase();
   if(/игруш|детск|реб[её]н|антистресс|конструктор|кукл|машинк|настольн/.test(text))return 'kids';
-  if(/электрон|техник|кабель|заряд|науш|смартф|ламп|гаджет|инструмент/.test(text))return 'tech';
+  if(/космет|уход|крем|сыворот|шампун|макияж|парфюм/.test(text))return 'beauty';
+  if(/спорт|фитнес|трениров|туризм|поход|мяч|гантел|велосип/.test(text))return 'sport';
+  if(/инструмент|ремонт|дрел|шуруп|ключ|отв[её]рт|строител/.test(text))return 'tools';
+  if(/еда|напит|чай|кофе|слад|печень|соус|круп|продукт/.test(text))return 'food';
+  if(/электрон|техник|кабель|заряд|науш|смартф|ламп|гаджет/.test(text))return 'tech';
   if(/дом|кухн|интерьер|декор|посуда|текстил|хранен|уборк/.test(text))return 'home';
-  if(/космет|уход|парфюм|подар|аксессуар|украшен/.test(text))return 'premium';
+  if(/подар|аксессуар|украшен|премиум/.test(text))return 'premium';
   return 'bright';
 }
 
@@ -3251,11 +3414,13 @@ function prepareAutomaticCardStyle(){
   if(!styleSelect.dataset.userChanged)styleSelect.value=recommendedStyleForProduct(currentData);
   renderModeSelect.value='free';
   syncRenderModeUi();
+  renderDesignStudio();
 }
 
-function autoCreateCardsIfEnabled(){
+async function autoCreateCardsIfEnabled(){
   if(!autoCards?.checked||currentMode!=='full'||cardsBusy||!currentData)return;
   prepareAutomaticCardStyle();
+  await refreshDesignPalette();
   window.setTimeout(()=>{ if(!cardsBusy&&currentData&&currentCards.length!==4)generateAll.click(); },80);
 }
 
@@ -3355,7 +3520,7 @@ editor.category.addEventListener('blur',()=>{
   renderCategoryValidation();
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
-styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
+styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();renderProductCockpit();saveHistoryDebounced()};
 function syncRenderModeUi(){
   const free=renderModeSelect.value!=='ai';
   generateAll.textContent=free?'Создать 4 карточки бесплатно':'Создать 4 AI-карточки';
@@ -3434,10 +3599,13 @@ async function checkQualityAndAutofix(autoFix=true){
 async function regenerateCardApi(index,src,cardData,styleValue){
   const response=await fetch('/api/regenerate-card',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value})
+    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку №'+(index+1)+'.');
+  if(Array.isArray(data.palette)&&data.palette.length)currentPalette=data.palette;
+  if(Number.isInteger(data.designVariant))currentDesignVariant=data.designVariant;
+  renderDesignStudio();
   if(data.scene){
     currentScenes=Array.isArray(currentScenes)?currentScenes:[];
     currentScenes[index]=data.scene;
@@ -3449,7 +3617,7 @@ async function renderOverlayCardsApi(indexes,cardData,styleValue){
   if(!Array.isArray(currentScenes)||currentScenes.length!==4)throw new Error('Чистые сцены недоступны.');
   const response=await fetch('/api/render-card-overlays',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({scenes:currentScenes,card:cardData,style:styleValue,indexes})
+    body:JSON.stringify({scenes:currentScenes,card:cardData,style:styleValue,indexes,palette:currentPalette,designVariant:currentDesignVariant})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось пересобрать инфографику.');
@@ -3482,11 +3650,14 @@ generateAll.onclick=async()=>{
       addCurrentActivity('Точечная AI-перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
     }else{
       const src=await getSource();
-      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value})});
+      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
       currentCards=data.cards||[];
       currentScenes=data.scenes||[];
+      if(Array.isArray(data.palette)&&data.palette.length)currentPalette=data.palette;
+      if(Number.isInteger(data.designVariant))currentDesignVariant=data.designVariant;
+      renderDesignStudio();
       addCurrentActivity(renderModeSelect.value==='free'?'Создан бесплатный комплект':'Создан AI-комплект','4 карточки + чистые сцены');
     }
     cardsStale=false;currentStaleCards=[];renderCards();renderProductCockpit();
@@ -3562,6 +3733,7 @@ function renderCards(){
     cardsPreview.appendChild(el);
   });
   renderYuvionExport();
+  renderDesignStudio();
 }
 
 async function regenerateOne(index,el){
@@ -6639,7 +6811,8 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-renderModeSelect.value='free';renderNetworkState();initUiMode();syncRenderModeUi();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+renderModeSelect.value='free';renderNetworkState();initUiMode();
+renderDesignStudio();syncRenderModeUi();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
