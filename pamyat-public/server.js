@@ -1645,11 +1645,12 @@ function parseCookies(req) {
   }
   return out;
 }
-function adminSessionSign(email,role="admin",sessionVersion=1,ttlMs=8*60*60*1000){
+function adminSessionSign(email,role="admin",sessionVersion=1,sessionId=null,ttlMs=8*60*60*1000){
   const payload=Buffer.from(JSON.stringify({
     email:String(email||"").toLowerCase(),
     role,
     session_version:Number(sessionVersion||1),
+    session_id:sessionId||null,
     exp:Date.now()+ttlMs
   })).toString("base64url");
   const sig=crypto.createHmac("sha256",ADMIN_TOKEN).update(payload).digest("base64url");
@@ -1673,16 +1674,22 @@ async function isAdmin(req) {
   const s=adminSessionVerify(parseCookies(req).pamyat_admin_session);
   if(!s)return false;
   try{
-    const allowed=await sb("rpc/memorial_admin_session_allowed",{
-      method:"POST",
-      body:{p_token:ADMIN_TOKEN,p_email:s.email,p_session_version:Number(s.session_version)}
-    });
+    const allowed=s.session_id
+      ? await sb("rpc/memorial_admin_session_touch",{
+          method:"POST",
+          body:{p_token:ADMIN_TOKEN,p_session_id:s.session_id,p_email:s.email,p_session_version:Number(s.session_version)}
+        })
+      : await sb("rpc/memorial_admin_session_allowed",{
+          method:"POST",
+          body:{p_token:ADMIN_TOKEN,p_email:s.email,p_session_version:Number(s.session_version)}
+        });
     if(!allowed?.allowed)return false;
     req.adminIdentity={
       email:allowed.email,
       role:allowed.role||s.role||"moderator",
       display_name:allowed.display_name||null,
-      session_version:allowed.session_version
+      session_version:allowed.session_version,
+      session_id:s.session_id||null
     };
     return true;
   }catch{return false}
@@ -1700,6 +1707,28 @@ function requireRoles(...roles){
 }
 function requireOwner(req,res,next){ return requireRoles("owner")(req,res,next); }
 function requireAdminRole(req,res,next){ return requireRoles("owner","admin")(req,res,next); }
+
+function adminDeviceLabel(req){
+  const ua=String(req.headers["user-agent"]||"");
+  if(/iPhone/i.test(ua))return "iPhone";
+  if(/iPad/i.test(ua))return "iPad";
+  if(/Android/i.test(ua))return "Android";
+  if(/Macintosh|Mac OS X/i.test(ua))return "Mac";
+  if(/Windows/i.test(ua))return "Windows";
+  if(/Linux/i.test(ua))return "Linux";
+  return "Устройство";
+}
+async function createAdminSession(req,identity,provider){
+  const sessionId=crypto.randomUUID();
+  const ttlMs=8*60*60*1000;
+  const expiresAt=new Date(Date.now()+ttlMs).toISOString();
+  await sb("rpc/memorial_admin_session_create",{method:"POST",body:{
+    p_token:ADMIN_TOKEN,p_session_id:sessionId,p_email:identity.email,p_role:identity.role||"moderator",
+    p_device_label:adminDeviceLabel(req),p_user_agent:clean(req.headers["user-agent"],500),p_expires_at:expiresAt
+  }});
+  const cookie=adminSessionSign(identity.email,identity.role||"moderator",identity.session_version||1,sessionId,ttlMs);
+  return {cookie,sessionId,expiresAt,provider};
+}
 
 function securePasswordCompare(password,salt,expectedHash){
   if(!salt||!expectedHash)return false;
@@ -2763,9 +2792,9 @@ app.post("/api/admin/auth/password", rateLimit("admin-password-login",8,15*60*10
     const password=String(req.body?.password||"");
     const identity=await adminPasswordIdentity(user,password);
     if(!identity?.allowed)return res.status(401).json({error:"invalid_login"});
-    const cookie=adminSessionSign(identity.email,identity.role||"moderator",identity.session_version||1);
-    res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
-    res.json({ok:true,email:identity.email,role:identity.role||"moderator",display_name:identity.display_name||null,provider:"password"});
+    const sess=await createAdminSession(req,identity,"password");
+    res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(sess.cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
+    res.json({ok:true,email:identity.email,role:identity.role||"moderator",display_name:identity.display_name||null,provider:"password",session_id:sess.sessionId});
   }catch(e){
     console.error("admin password login",e.data||e);
     res.status(500).json({error:"login_failed"});
@@ -2815,9 +2844,9 @@ app.post("/api/admin/auth/session", rateLimit("admin-auth-session",12,15*60*1000
       const email=String(user.email||"").toLowerCase();
       const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
       if(!allowed?.allowed)return res.status(403).json({error:"admin_not_allowed"});
-      const cookie=adminSessionSign(email,allowed.role||"admin",allowed.session_version||1);
-      res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
-      return res.json({ok:true,email,role:allowed.role||"admin",provider:"supabase"});
+      const sess=await createAdminSession(req,{...allowed,email},"supabase");
+      res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(sess.cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
+      return res.json({ok:true,email,role:allowed.role||"admin",provider:"supabase",session_id:sess.sessionId});
     }
 
     const raw=clean(req.body?.login_token,500);
@@ -2826,13 +2855,17 @@ app.post("/api/admin/auth/session", rateLimit("admin-auth-session",12,15*60*1000
     const data=await sb("rpc/memorial_admin_login_token_consume",{method:"POST",body:{p_token:ADMIN_TOKEN,p_hash:hash}});
     if(!data?.ok)return res.status(401).json({error:"invalid_or_expired_login"});
     const allowedNow=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:data.email}});
-    const cookie=adminSessionSign(data.email,data.role||allowedNow.role||"admin",allowedNow.session_version||1);
-    res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
-    res.json({ok:true,email:data.email,role:data.role||"admin",provider:"resend"});
+    const sess=await createAdminSession(req,{...allowedNow,email:data.email,role:data.role||allowedNow.role||"admin"},"resend");
+    res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(sess.cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
+    res.json({ok:true,email:data.email,role:data.role||allowedNow.role||"admin",provider:"resend",session_id:sess.sessionId});
   }catch(e){console.error("admin session",e.data||e);res.status(500).json({error:"session_failed"})}
 });
 
-app.post("/api/admin/auth/logout", (_req,res) => {
+app.post("/api/admin/auth/logout", async (req,res) => {
+  try{
+    const s=adminSessionVerify(parseCookies(req).pamyat_admin_session);
+    if(s?.session_id&&s?.email)await sb("rpc/memorial_admin_session_revoke",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:s.email,p_session_id:s.session_id}});
+  }catch{}
   res.setHeader("Set-Cookie","pamyat_admin_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
   res.json({ok:true});
 });
@@ -2845,6 +2878,24 @@ app.post("/api/admin/moderation/:kind/:id/:action", requireAdmin, async (req,res
   }catch(e){console.error("moderation action",e.data||e);res.status(400).json({error:"moderation_failed"})}
 });
 
+
+app.get("/api/admin/auth/sessions", requireAdmin, async (req,res) => {
+  try{
+    if(req.adminIdentity?.legacy)return res.json([]);
+    const rows=await sb("rpc/memorial_admin_sessions_list",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:req.adminIdentity.email}});
+    res.json(rows||[]);
+  }catch(e){console.error("sessions list",e.data||e);res.status(500).json({error:"sessions_failed"})}
+});
+
+app.post("/api/admin/auth/sessions/:sessionId/revoke", requireAdmin, async (req,res) => {
+  try{
+    const sid=clean(req.params.sessionId,50);
+    if(!/^[0-9a-f-]{36}$/i.test(sid))return res.status(400).json({error:"bad_session"});
+    await sb("rpc/memorial_admin_session_revoke",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:req.adminIdentity.email,p_session_id:sid}});
+    if(req.adminIdentity?.session_id===sid)res.setHeader("Set-Cookie","pamyat_admin_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+    res.json({ok:true,current:req.adminIdentity?.session_id===sid});
+  }catch(e){console.error("session revoke",e.data||e);res.status(500).json({error:"session_revoke_failed"})}
+});
 
 app.get("/api/admin/users", requireOwner, async (_req,res) => {
   try{
