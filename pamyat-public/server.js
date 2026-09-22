@@ -2532,30 +2532,42 @@ app.get("/api/events/:eventId/share-card.svg", rateLimit("share-card",60,60*60*1
     const rawKey=clean(req.query.key,80),accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
     const e=await sb("rpc/memorial_event_detail_access",{method:"POST",body:{p_event_id:req.params.eventId,p_share_token:accessKey}});
     if(!e)return res.status(404).send("Not found");
+    const format=["portrait","square","wide"].includes(String(req.query.format||""))?String(req.query.format):"portrait";
+    const dims=format==="square"?{w:1080,h:1080}:format==="wide"?{w:1600,h:900}:{w:1080,h:1350};
     const base=(PUBLIC_BASE_URL||"").replace(/\/$/,""),suffix=accessKey?"?key="+encodeURIComponent(accessKey):"";
     const url=base+"/m/memorial/"+encodeURIComponent(e.id)+suffix;
-    const qr=await QRCode.toDataURL(url,{margin:1,width:260,errorCorrectionLevel:"M"});
-    const wrap=(v,max=28)=>{const words=String(v||"").split(/\s+/),out=[];let line="";for(const w of words){const next=(line+" "+w).trim();if(next.length>max&&line){out.push(line);line=w}else line=next}if(line)out.push(line);return out.slice(0,4)};
-    const nameLines=wrap(e.full_name,27);
-    const nameSvg=nameLines.map((x,i)=>'<text x="540" y="'+(430+i*76)+'" text-anchor="middle" font-size="64" font-weight="700" fill="#211d18">'+htmlEsc(x)+'</text>').join("");
-    const place=htmlEsc([e.place,e.city].filter(Boolean).join(" · ")),note=htmlEsc(String(e.note||"").slice(0,180));
+    const qrSize=format==="wide"?220:format==="square"?220:260;
+    const qr=await QRCode.toDataURL(url,{margin:1,width:qrSize,errorCorrectionLevel:"M"});
+    const wrap=(v,max)=>{const words=String(v||"").split(/\s+/),out=[];let line="";for(const w of words){const next=(line+" "+w).trim();if(next.length>max&&line){out.push(line);line=w}else line=next}if(line)out.push(line);return out.slice(0,4)};
+    const cx=dims.w/2,margin=Math.round(Math.min(dims.w,dims.h)*.05),innerW=dims.w-margin*2,innerH=dims.h-margin*2;
+    const nameMax=format==="wide"?42:27,nameFont=format==="wide"?58:format==="square"?56:64;
+    const nameLines=wrap(e.full_name,nameMax);
+    const nameStart=format==="wide"?300:format==="square"?335:430;
+    const nameStep=format==="wide"?66:format==="square"?66:76;
+    const nameSvg=nameLines.map((x,i)=>'<text x="'+cx+'" y="'+(nameStart+i*nameStep)+'" text-anchor="middle" font-size="'+nameFont+'" font-weight="700" fill="#211d18">'+htmlEsc(x)+'</text>').join("");
+    const place=htmlEsc([e.place,e.city].filter(Boolean).join(" · ")),note=htmlEsc(String(e.note||"").slice(0,format==="wide"?120:180));
+    const eventY=format==="wide"?580:format==="square"?650:770;
+    const dateY=eventY+58,placeY=dateY+52,heY=placeY+46,noteY=heY+50;
+    const qrX=format==="wide"?dims.w-qrSize-110:(dims.w-qrSize)/2;
+    const qrY=format==="wide"?dims.h-qrSize-80:format==="square"?dims.h-qrSize-65:1035;
     const svg=[
-      '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">',
-      '<rect width="1080" height="1350" fill="#f5f1e8"/><rect x="54" y="54" width="972" height="1242" rx="38" fill="#fffdf8" stroke="#cfc2ad" stroke-width="3"/>',
-      '<text x="540" y="165" text-anchor="middle" font-size="58" fill="#4c3e2d">✡</text><text x="540" y="235" text-anchor="middle" font-size="42" font-family="serif" fill="#4c3e2d">נר נשמה</text>',
-      '<line x1="270" y1="285" x2="810" y2="285" stroke="#cfc2ad" stroke-width="2"/>',nameSvg,
-      '<text x="540" y="770" text-anchor="middle" font-size="38" fill="#5b4934">'+htmlEsc(e.event_type||"Памятная дата")+'</text>',
-      '<text x="540" y="830" text-anchor="middle" font-size="36" fill="#27231e">'+htmlEsc(e.event_date||"")+(e.event_time?" · "+htmlEsc(e.event_time):"")+'</text>',
-      '<text x="540" y="885" text-anchor="middle" font-size="28" fill="#746d63">'+place+'</text>',
-      e.hebrew_death_label?'<text x="540" y="935" text-anchor="middle" font-size="27" fill="#746d63">'+htmlEsc(e.hebrew_death_label)+'</text>':"",
-      '<text x="540" y="1000" text-anchor="middle" font-size="24" fill="#746d63">'+note+'</text>',
-      '<image href="'+qr+'" x="410" y="1035" width="260" height="260"/><text x="540" y="1315" text-anchor="middle" font-size="24" fill="#5b4934">Память Джуури</text></svg>'
+      '<svg xmlns="http://www.w3.org/2000/svg" width="'+dims.w+'" height="'+dims.h+'" viewBox="0 0 '+dims.w+' '+dims.h+'">',
+      '<rect width="'+dims.w+'" height="'+dims.h+'" fill="#f5f1e8"/><rect x="'+margin+'" y="'+margin+'" width="'+innerW+'" height="'+innerH+'" rx="38" fill="#fffdf8" stroke="#cfc2ad" stroke-width="3"/>',
+      '<text x="'+cx+'" y="'+(margin+105)+'" text-anchor="middle" font-size="58" fill="#4c3e2d">✡</text><text x="'+cx+'" y="'+(margin+170)+'" text-anchor="middle" font-size="42" font-family="serif" fill="#4c3e2d">נר נשמה</text>',
+      '<line x1="'+(cx-Math.min(300,dims.w*.25))+'" y1="'+(margin+218)+'" x2="'+(cx+Math.min(300,dims.w*.25))+'" y2="'+(margin+218)+'" stroke="#cfc2ad" stroke-width="2"/>',
+      nameSvg,
+      '<text x="'+cx+'" y="'+eventY+'" text-anchor="middle" font-size="38" fill="#5b4934">'+htmlEsc(e.event_type||"Памятная дата")+'</text>',
+      '<text x="'+cx+'" y="'+dateY+'" text-anchor="middle" font-size="36" fill="#27231e">'+htmlEsc(e.event_date||"")+(e.event_time?" · "+htmlEsc(e.event_time):"")+'</text>',
+      '<text x="'+cx+'" y="'+placeY+'" text-anchor="middle" font-size="28" fill="#746d63">'+place+'</text>',
+      e.hebrew_death_label?'<text x="'+cx+'" y="'+heY+'" text-anchor="middle" font-size="27" fill="#746d63">'+htmlEsc(e.hebrew_death_label)+'</text>':"",
+      note?'<text x="'+cx+'" y="'+noteY+'" text-anchor="middle" font-size="24" fill="#746d63">'+note+'</text>':"",
+      '<image href="'+qr+'" x="'+qrX+'" y="'+qrY+'" width="'+qrSize+'" height="'+qrSize+'"/>',
+      '<text x="'+(format==="wide"?110:cx)+'" y="'+(dims.h-28)+'" text-anchor="'+(format==="wide"?"start":"middle")+'" font-size="24" fill="#5b4934">Память Джуури</text></svg>'
     ].join("");
-    res.type("image/svg+xml").setHeader("Content-Disposition",'inline; filename="pamyat-'+e.id+'.svg"');
+    res.type("image/svg+xml").setHeader("Content-Disposition",'inline; filename="pamyat-'+format+'-'+e.id+'.svg"');
     res.setHeader("Cache-Control",e.visibility==="public"?"public,max-age=300":"private,no-store");res.send(svg);
   }catch(e){console.error("share card",e.data||e);res.status(500).send("Failed")}
 });
-
 app.get("/api/notifications", async (req, res) => {
   try {
     const days = Math.max(0, Math.min(Number(req.query.days || 30), 366));
