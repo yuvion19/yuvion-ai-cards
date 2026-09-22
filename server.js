@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Production release marker: v7.0.0
+// Production release marker: v7.1.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -411,19 +411,42 @@ function colorDistance(a, b) {
   return Math.hypot(x.r - y.r, x.g - y.g, x.b - y.b);
 }
 
-function resolveRenderStyle(styleKey, palette = []) {
+function normalizeDesignIntensity(value) {
+  return ["calm", "selling", "bold"].includes(value) ? value : "selling";
+}
+
+function normalizeDesignSubstyle(value) {
+  return ["auto", "clean", "contrast", "soft"].includes(value) ? value : "auto";
+}
+
+function resolveRenderStyle(styleKey, palette = [], intensity = "selling", substyle = "auto") {
   const base = styleProfiles[styleKey] || styleProfiles.minimal;
   const colors = normalizePalette(palette);
-  if (!colors.length) return { ...base };
-  const accent = colors[0];
+  const level = normalizeDesignIntensity(intensity);
+  const detail = normalizeDesignSubstyle(substyle);
+  let accent = colors[0] || base.accent;
   let accent2 = colors.find((color) => colorDistance(color, accent) >= 70) || colors[1] || base.accent2;
   if (colorDistance(accent, accent2) < 45) accent2 = mixHex(accent, base.accent2, 0.62);
-  return {
-    ...base,
-    accent,
-    accent2,
-    panel: mixHex("#FFFFFF", colors[2] || accent, 0.055)
-  };
+  if (level === "calm") {
+    accent = mixHex(accent, "#FFFFFF", 0.22);
+    accent2 = mixHex(accent2, "#FFFFFF", 0.14);
+  } else if (level === "bold") {
+    accent = mixHex(accent, "#111111", 0.06);
+    accent2 = mixHex(accent2, "#111111", 0.20);
+  }
+  let panel = mixHex("#FFFFFF", colors[2] || accent, level === "bold" ? 0.075 : level === "calm" ? 0.025 : 0.055);
+  if (detail === "clean") {
+    panel = "#FFFFFF";
+    accent2 = mixHex(accent2, "#252A30", 0.22);
+  } else if (detail === "contrast") {
+    accent2 = mixHex(accent2, "#111111", 0.34);
+    panel = "#FFFFFF";
+  } else if (detail === "soft") {
+    accent = mixHex(accent, "#FFFFFF", 0.14);
+    accent2 = mixHex(accent2, "#FFFFFF", 0.08);
+    panel = mixHex("#FFFFFF", accent, 0.035);
+  }
+  return { ...base, accent, accent2, panel, intensity: level, substyle: detail };
 }
 
 async function extractProductPalette(sourceBuffer) {
@@ -482,13 +505,25 @@ function normalizeComposition(raw) {
   };
 }
 
-function adjustedFreeLayout(index, composition = {}) {
+function adjustedFreeLayout(index, composition = {}, designVariant = 0, intensity = "selling", sourceAspect = 1) {
   const base = freeSceneLayouts[index] || freeSceneLayouts[0];
   const tune = normalizeComposition(composition);
-  const width = Math.round(base.width * tune.scale);
-  const height = Math.round(base.height * tune.scale);
-  const x = Math.round(base.x - (width - base.width) / 2 + tune.shiftX);
-  const y = Math.round(base.y - (height - base.height) / 2 + tune.shiftY);
+  const variant = Math.max(0, Math.min(3, Number(designVariant) || 0));
+  const level = normalizeDesignIntensity(intensity);
+  const aspect = Number(sourceAspect) > 0 ? Number(sourceAspect) : 1;
+  const variantShift = [
+    { x: 0, y: 0, scale: 1 },
+    { x: index === 1 ? -34 : 42, y: -18, scale: 1.04 },
+    { x: index === 1 ? 26 : -38, y: 24, scale: 0.96 },
+    { x: index === 1 ? -12 : 18, y: 40, scale: 1.08 }
+  ][variant];
+  const aspectScale = aspect > 1.45 ? 0.92 : aspect < 0.72 ? 0.94 : 1;
+  const levelScale = level === "bold" ? 1.06 : level === "calm" ? 0.94 : 1;
+  const scale = tune.scale * variantShift.scale * aspectScale * levelScale;
+  const width = Math.round(base.width * scale);
+  const height = Math.round(base.height * scale);
+  const x = Math.round(base.x - (width - base.width) / 2 + tune.shiftX + variantShift.x);
+  const y = Math.round(base.y - (height - base.height) / 2 + tune.shiftY + variantShift.y);
   return {
     x: Math.max(-80, Math.min(880 - Math.max(80, width * 0.2), x)),
     y: Math.max(-80, Math.min(1120 - Math.max(80, height * 0.2), y)),
@@ -1142,7 +1177,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "7.0.0",
+    version: "7.1.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1151,6 +1186,10 @@ app.get("/api/health", (_req, res) => {
       paletteFromProduct: true,
       categoryThemes: Object.keys(styleProfiles).length,
       layoutVariants: 4,
+      designIntensityLevels: 3,
+      designSubstyles: 4,
+      freeCoverAB: true,
+      smartPlacement: true,
       manualComposition: true
     },
     imageRendering: {
@@ -1609,14 +1648,17 @@ const freeSceneLayouts = [
   { x: 105, y: 105, width: 690, height: 535 }
 ];
 
-function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0) {
-  const style = resolveRenderStyle(styleKey, palette);
+function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0, intensity = "selling", substyle = "auto") {
+  const level = normalizeDesignIntensity(intensity);
+  const detail = normalizeDesignSubstyle(substyle);
+  const style = resolveRenderStyle(styleKey, palette, level, detail);
   const playful = styleKey === "kids";
   const technical = styleKey === "tech" || styleKey === "tools";
   const premium = styleKey === "premium" || styleKey === "beauty";
   const variant = Math.max(0, Math.min(3, Number(designVariant) || 0));
-  const bgA = mixHex("#FFFFFF", style.accent, playful ? 0.10 : premium ? 0.025 : 0.045);
-  const bgB = mixHex("#FFFFFF", style.accent2, playful ? 0.18 : technical ? 0.075 : 0.095);
+  const energy = level === "bold" ? 1.35 : level === "calm" ? 0.68 : 1;
+  const bgA = mixHex("#FFFFFF", style.accent, Math.min(0.28, (playful ? 0.10 : premium ? 0.025 : 0.045) * energy));
+  const bgB = mixHex("#FFFFFF", style.accent2, Math.min(0.32, (playful ? 0.18 : technical ? 0.075 : 0.095) * energy));
   const bgC = style.accent;
   const shiftX = [0, 62, -48, 34][variant];
   const shiftY = [0, -35, 55, 28][variant];
@@ -1733,8 +1775,13 @@ async function edgeWhiteCutout(sourceBuffer, layout) {
     .toBuffer();
 }
 
-async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], designVariant = 0, composition = {}) {
-  const layout = adjustedFreeLayout(index, composition);
+async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], designVariant = 0, composition = {}, intensity = "selling", substyle = "auto") {
+  let sourceAspect = 1;
+  try {
+    const meta = await sharp(sourceBuffer).rotate().metadata();
+    if (meta.width && meta.height) sourceAspect = meta.width / meta.height;
+  } catch {}
+  const layout = adjustedFreeLayout(index, composition, designVariant, intensity, sourceAspect);
   let product;
   try {
     product = await edgeWhiteCutout(sourceBuffer, layout);
@@ -1750,7 +1797,7 @@ async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], desi
       .toBuffer();
   }
 
-  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, designVariant)))
+  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, designVariant, intensity, substyle)))
     .composite([{ input: product, left: layout.x, top: layout.y }])
     .png({ compressionLevel: 9 })
     .toBuffer();
@@ -1807,17 +1854,19 @@ async function generateScene(client, sourceBuffer, mimeType, scenePrompt, index,
   throw lastError;
 }
 
-function overlayForCard(index, cardRaw, styleKey, palette = []) {
+function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "selling", substyle = "auto") {
   const card = normalizeCard(cardRaw);
-  const style = resolveRenderStyle(styleKey, palette);
+  const level = normalizeDesignIntensity(intensity);
+  const style = resolveRenderStyle(styleKey, palette, level, substyle);
   const title = compact(card.seoTitle || card.category || "Товар", 120);
   const category = compact(card.category || "Товар", 50);
   const characteristics = card.characteristics || [];
   const benefits = card.benefits.length ? card.benefits : characteristics.slice(0, 4).map((x) => `${x.name}: ${x.value}`);
 
   if (index === 0) {
-    const titleLines = wrapWords(title, 25, 3);
-    const quick = benefits.slice(0, 3);
+    const titleLines = wrapWords(title, level === "bold" ? 22 : level === "calm" ? 28 : 25, 3);
+    const quick = benefits.slice(0, level === "calm" ? 2 : 3);
+    const titleSize = level === "bold" ? 52 : level === "calm" ? 43 : 47;
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
         <rect width="900" height="1200" fill="none"/>
@@ -1826,7 +1875,7 @@ function overlayForCard(index, cardRaw, styleKey, palette = []) {
         <rect x="38" y="790" rx="38" width="824" height="372" fill="${style.panel}" fill-opacity="0.97"/>
         <rect x="72" y="824" rx="18" width="250" height="42" fill="${style.accent}" fill-opacity="0.12"/>
         <text x="92" y="853" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="800" fill="${style.accent2}">${escapeXml(category.toUpperCase())}</text>
-        ${textLines(titleLines, { x: 72, y: 918, size: 47, lineHeight: 55, weight: 850, fill: style.text })}
+        ${textLines(titleLines, { x: 72, y: 918, size: titleSize, lineHeight: titleSize + 8, weight: 850, fill: style.text })}
         ${quick.length ? bulletGroups(quick, { x: 84, y: 1080, maxChars: 35, maxItems: 3, size: 22, lineHeight: 27, gap: 7, accent: style.accent, text: style.text }) : ""}
       </svg>`;
   }
@@ -2000,7 +2049,7 @@ app.post("/api/generate-cards", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = cardRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0, composition = {} } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto" } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? cardRequestsByIp : freeCardRequestsByIp;
 
@@ -2031,6 +2080,8 @@ app.post("/api/generate-cards", async (req, res) => {
     const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
     const variant = normalizeDesignVariant(designVariant, normalized);
     const renderComposition = normalizeComposition(composition);
+    const intensity = normalizeDesignIntensity(designIntensity);
+    const substyle = normalizeDesignSubstyle(designSubstyle);
     let scenes = [];
 
     if (mode === "ai") {
@@ -2046,7 +2097,7 @@ app.post("/api/generate-cards", async (req, res) => {
       stats.aiSceneRenders += 4;
       stats.estimatedImageOutputUsd += 4 * IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey, renderPalette, variant, renderComposition)));
+      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey, renderPalette, variant, renderComposition, intensity, substyle)));
       stats.freeSceneRenders += 4;
     }
 
@@ -2056,7 +2107,7 @@ app.post("/api/generate-cards", async (req, res) => {
     const cards = [];
 
     for (let index = 0; index < 4; index += 1) {
-      const overlay = overlayForCard(index, normalized, styleKey, renderPalette);
+      const overlay = overlayForCard(index, normalized, styleKey, renderPalette, intensity, substyle);
       const buffer = await composeCard(cachedScenes[index], overlay);
       cards.push({ filename: fileNames[index], title: titles[index], base64: buffer.toString("base64") });
     }
@@ -2077,6 +2128,8 @@ app.post("/api/generate-cards", async (req, res) => {
       aiImageCalls: mode === "ai" ? 4 : 0,
       palette: renderPalette,
       designVariant: variant,
+      designIntensity: intensity,
+      designSubstyle: substyle,
       composition: renderComposition,
       description: descriptionText(normalized)
     });
@@ -2090,7 +2143,7 @@ app.post("/api/regenerate-card", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = regenRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0, composition = {} } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto" } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? regenRequestsByIp : freeRegenRequestsByIp;
 
@@ -2123,6 +2176,8 @@ app.post("/api/regenerate-card", async (req, res) => {
     const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
     const variant = normalizeDesignVariant(designVariant, normalized);
     const renderComposition = normalizeComposition(composition);
+    const intensity = normalizeDesignIntensity(designIntensity);
+    const substyle = normalizeDesignSubstyle(designSubstyle);
     let scene;
 
     if (mode === "ai") {
@@ -2131,12 +2186,12 @@ app.post("/api/regenerate-card", async (req, res) => {
       stats.aiSceneRenders += 1;
       stats.estimatedImageOutputUsd += IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey, renderPalette, variant, renderComposition);
+      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey, renderPalette, variant, renderComposition, intensity, substyle);
       stats.freeSceneRenders += 1;
     }
 
     const cachedScene = await normalizeSceneForCache(scene);
-    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey, renderPalette));
+    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey, renderPalette, intensity, substyle));
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
 
@@ -2158,6 +2213,8 @@ app.post("/api/regenerate-card", async (req, res) => {
       aiImageCalls: mode === "ai" ? 1 : 0,
       palette: renderPalette,
       designVariant: variant,
+      designIntensity: intensity,
+      designSubstyle: substyle,
       composition: renderComposition
     });
   } catch (error) {
@@ -2168,7 +2225,7 @@ app.post("/api/regenerate-card", async (req, res) => {
 
 app.post("/api/render-card-overlays", async (req, res) => {
   try {
-    const { scenes, card, style = "minimal", indexes = [0, 1, 2, 3], palette = [] } = req.body ?? {};
+    const { scenes, card, style = "minimal", indexes = [0, 1, 2, 3], palette = [], designIntensity = "selling", designSubstyle = "auto" } = req.body ?? {};
     if (!Array.isArray(scenes) || scenes.length !== 4 || !card || typeof card !== "object") {
       return res.status(400).json({ error: "Нужны четыре сохранённые сцены и данные товара." });
     }
@@ -2179,6 +2236,8 @@ app.post("/api/render-card-overlays", async (req, res) => {
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
     const renderPalette = normalizePalette(palette);
+    const intensity = normalizeDesignIntensity(designIntensity);
+    const substyle = normalizeDesignSubstyle(designSubstyle);
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
     const cards = [];
@@ -2192,7 +2251,7 @@ app.post("/api/render-card-overlays", async (req, res) => {
         return res.status(413).json({ error: "Сохранённая сцена слишком большая." });
       }
       const sceneBuffer = Buffer.from(scene.base64, "base64");
-      const buffer = await composeCard(sceneBuffer, overlayForCard(index, normalized, styleKey, renderPalette));
+      const buffer = await composeCard(sceneBuffer, overlayForCard(index, normalized, styleKey, renderPalette, intensity, substyle));
       cards.push({ index, filename: names[index], title: titles[index], base64: buffer.toString("base64") });
     }
 
@@ -2202,6 +2261,55 @@ app.post("/api/render-card-overlays", async (req, res) => {
     recordError("render-card-overlays", error);
     console.error("Local overlay render error:", { message: error?.message });
     return res.status(500).json({ error: "Не удалось локально пересобрать инфографику." });
+  }
+});
+
+
+app.post("/api/cover-variants", async (req, res) => {
+  const ip = req.ip || "unknown";
+  try {
+    if (limitMap(freeRegenRequestsByIp, ip, MAX_FREE_REGENERATIONS_PER_WINDOW)) {
+      stats.rateLimitErrors += 1;
+      return res.status(429).json({ error: "Защитный лимит бесплатных вариантов временно исчерпан." });
+    }
+    const { image, mimeType, card, style = "minimal", palette = [], composition = {}, designSubstyle = "auto" } = req.body ?? {};
+    if (typeof image !== "string" || typeof mimeType !== "string" || !card || typeof card !== "object") {
+      return res.status(400).json({ error: "Не хватает исходного фото или данных товара." });
+    }
+    if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
+    if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
+
+    const sourceBuffer = Buffer.from(image, "base64");
+    const normalized = normalizeCard(card);
+    const styleKey = styleProfiles[style] ? style : "minimal";
+    const suppliedPalette = normalizePalette(palette);
+    const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
+    const renderComposition = normalizeComposition(composition);
+    const substyle = normalizeDesignSubstyle(designSubstyle);
+    const options = [
+      { variant: 0, intensity: "calm", label: "Чистая" },
+      { variant: 1, intensity: "selling", label: "Продающая" },
+      { variant: 3, intensity: "bold", label: "Заметная" }
+    ];
+    const variants = [];
+    for (const option of options) {
+      const scene = await renderFreeScene(sourceBuffer, 0, styleKey, renderPalette, option.variant, renderComposition, option.intensity, substyle);
+      const cachedScene = await normalizeSceneForCache(scene);
+      const buffer = await composeCard(cachedScene, overlayForCard(0, normalized, styleKey, renderPalette, option.intensity, substyle));
+      variants.push({
+        variant: option.variant,
+        intensity: option.intensity,
+        label: option.label,
+        card: { filename: "01_cover.png", title: "Обложка", base64: buffer.toString("base64") },
+        scene: { index: 0, mimeType: "image/jpeg", base64: cachedScene.toString("base64") }
+      });
+    }
+    stats.freeSceneRenders += variants.length;
+    stats.imagesGenerated += variants.length;
+    return res.json({ variants, palette: renderPalette, designSubstyle: substyle, aiImageCalls: 0 });
+  } catch (error) {
+    console.error("Cover variants error:", { message: error?.message, status: error?.status, code: error?.code });
+    return imageErrorResponse(req, res, error, freeRegenRequestsByIp, "cover-variants-free");
   }
 });
 
@@ -2338,5 +2446,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v7.0.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v7.1.0 listening on port ${port}`);
 });
