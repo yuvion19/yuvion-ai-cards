@@ -956,9 +956,14 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "6.6.0",
+    version: "6.7.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
+    imageRendering: {
+      defaultMode: "free",
+      freeMode: true,
+      aiMode: Boolean(process.env.OPENAI_API_KEY)
+    },
     estimates: {
       imageOutputUsdPerCard: IMAGE_OUTPUT_ESTIMATE_USD,
       textInputUsdPerMillion: TEXT_INPUT_USD_PER_M,
