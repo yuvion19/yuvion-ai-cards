@@ -1,4 +1,4 @@
-const CACHE='yuvion-ai-shell-v22';
+const CACHE='yuvion-ai-shell-v23';
 const SHELL=['/','/manifest.webmanifest','/icons/yuvion-icon.svg','/vendor/jszip.min.js','/vendor/jspdf.umd.min.js','/vendor/jsbarcode.all.min.js'];
 
 self.addEventListener('install',event=>{
