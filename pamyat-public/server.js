@@ -752,6 +752,12 @@ app.get("/m/reminders", (_req,res) => {
     </div>
 
     <div class="card">
+      <h3 style="margin-top:0">Какие объявления получать</h3>
+      <p class="muted">Можно получать всё или только выбранные группы. Администратор может создавать дополнительные группы.</p>
+      <div id="interestGroups"><div class="muted">Загрузка групп…</div></div>
+    </div>
+
+    <div class="card">
       <h3 style="margin-top:0">Куда присылать</h3>
 
       <div class="check"><input id="chPush" type="checkbox" checked><span><b>Push на телефон</b><br><span class="muted" id="stPush">проверка…</span></span></div>
@@ -819,6 +825,18 @@ app.get("/m/reminders", (_req,res) => {
     function isStandalone(){
       return window.matchMedia?.("(display-mode: standalone)")?.matches || navigator.standalone===true;
     }
+    async function loadInterestGroups(){
+      try{
+        const groups=await fetch("/api/notification-groups",{cache:"no-store"}).then(r=>r.json());
+        const box=document.getElementById("interestGroups");
+        box.innerHTML=(groups||[]).map(g=>'<label class="check"><input type="checkbox" class="interestGroup" value="'+String(g.slug).replace(/"/g,"&quot;")+'" '+(g.slug==="all"?"checked":"")+'><span><b>'+String(g.name||g.slug).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))+'</b>'+(g.description?'<br><span class="muted">'+String(g.description).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))+'</span>':"")+'</span></label>').join("")||'<div class="muted">Группы не настроены.</div>';
+        box.querySelectorAll(".interestGroup").forEach(i=>i.onchange=()=>{
+          if(i.value==="all"&&i.checked)box.querySelectorAll('.interestGroup:not([value="all"])').forEach(x=>x.checked=false);
+          if(i.value!=="all"&&i.checked){const a=box.querySelector('.interestGroup[value="all"]');if(a)a.checked=false}
+          if(!box.querySelector(".interestGroup:checked")){const a=box.querySelector('.interestGroup[value="all"]');if(a)a.checked=true}
+        });
+      }catch{document.getElementById("interestGroups").innerHTML='<div class="muted">Не удалось загрузить группы.</div>'}
+    }
     async function loadDeviceStatus(){
       const t=localStorage.getItem(tokenKey); if(!t)return;
       try{
@@ -828,7 +846,8 @@ app.get("/m/reminders", (_req,res) => {
         const last=d.last_delivery||{},names={push:"Push",email:"Email",telegram:"Telegram",whatsapp:"WhatsApp",sms:"SMS"};
         const rows=Object.keys(names).map(k=>names[k]+": "+(last[k]?new Date(last[k]).toLocaleString("ru-RU"):"ещё не отправлялось"));
         const sched=Object.entries(d.reminder_times||{}).sort((a,b)=>Number(b[0])-Number(a[0])).map(([day,time])=>(day==="0"?"в день события":"за "+day+" дн.")+" — "+time).join("<br>");
-        document.getElementById("deviceDelivery").innerHTML=rows.join("<br>")+"<br><b>Расписание:</b><br>"+(sched||("по умолчанию — "+(d.reminder_time||"09:00")))+"<br>Срочные похоронные объявления: "+(d.urgent_alerts?"включены":"выключены");
+        const groups=(d.interest_groups||["all"]).join(", ");
+        document.getElementById("deviceDelivery").innerHTML=rows.join("<br>")+"<br><b>Расписание:</b><br>"+(sched||("по умолчанию — "+(d.reminder_time||"09:00")))+"<br><b>Группы:</b> "+groups+"<br>Срочные похоронные объявления: "+(d.urgent_alerts?"включены":"выключены");
         document.getElementById("deviceDeliveryCard").style.display="block";
       }catch{}
     }
@@ -894,7 +913,8 @@ app.get("/m/reminders", (_req,res) => {
         sms_value:normPhone(document.getElementById("remSms").value),
         reminder_time:document.getElementById("remTime").value||"09:00",
         reminder_times:Object.fromEntries([...document.querySelectorAll(".remTimeByDay")].map(i=>[i.dataset.day,i.value||"09:00"])),
-        urgent_alerts:document.getElementById("urgentAlerts").checked
+        urgent_alerts:document.getElementById("urgentAlerts").checked,
+        interest_groups:[...document.querySelectorAll(".interestGroup:checked")].map(i=>i.value)
       };
     }
     function restore(){
@@ -914,6 +934,7 @@ app.get("/m/reminders", (_req,res) => {
         document.getElementById("remTime").value=x.reminder_time||"09:00";
         if(x.reminder_times)document.querySelectorAll(".remTimeByDay").forEach(i=>{if(x.reminder_times[i.dataset.day])i.value=x.reminder_times[i.dataset.day]});
         document.getElementById("urgentAlerts").checked=Boolean(x.urgent_alerts);
+        if(Array.isArray(x.interest_groups)&&x.interest_groups.length)document.querySelectorAll(".interestGroup").forEach(i=>i.checked=x.interest_groups.includes(i.value));
       }catch{}
     }
     async function save(){
@@ -933,6 +954,7 @@ app.get("/m/reminders", (_req,res) => {
           reminder_time:x.reminder_time,
           reminder_times:x.reminder_times,
           urgent_alerts:x.urgent_alerts,
+          interest_groups:x.interest_groups.length?x.interest_groups:["all"],
           push_enabled:x.push,
           email:x.email_value||null,email_enabled:x.email,
           telegram_chat_id:x.telegram_value||null,telegram_enabled:x.telegram,
@@ -983,6 +1005,7 @@ app.get("/m/reminders", (_req,res) => {
     document.querySelectorAll(".testChannel").forEach(btn=>btn.onclick=()=>testChannel(btn.dataset.channel));
     document.getElementById("disableReminders").onclick=disable;
     (async()=>{
+      await loadInterestGroups();
       await loadStatus();
       restore();
       const pushBox=document.getElementById("chPush");
@@ -2731,6 +2754,13 @@ function reminderProviderStatus(){
   };
 }
 
+app.get("/api/notification-groups", async (_req,res)=>{
+  try{
+    const groups=await sb("rpc/memorial_notification_groups",{method:"POST",body:{}});
+    res.setHeader("Cache-Control","public,max-age=60");res.json(groups||[]);
+  }catch(e){res.status(500).json({error:"groups_failed"})}
+});
+
 app.get("/api/reminders/status", (_req,res) => {
   res.setHeader("Cache-Control","no-store");
   res.json(reminderProviderStatus());
@@ -2760,7 +2790,8 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
     if(smsEnabled && !validE164(smsPhone))return res.status(400).json({error:"sms_phone_e164_required"});
 
     const dt=clean(b.device_token,100);
-    const token=await sb("rpc/memorial_reminder_subscribe",{
+    const groups=(Array.isArray(b.interest_groups)?b.interest_groups:[]).map(x=>clean(x,64).toLowerCase()).filter(x=>/^[a-z0-9][a-z0-9-]{0,63}$/.test(x)).slice(0,30);
+    const token=await sb("rpc/memorial_reminder_subscribe_v2",{
       method:"POST",
       body:{
         p_device_token:/^[0-9a-f-]{36}$/i.test(dt)?dt:null,
@@ -2776,7 +2807,8 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
         p_email:email||null,p_email_enabled:emailEnabled,
         p_telegram_chat_id:telegramChat||null,p_telegram_enabled:telegramEnabled,
         p_whatsapp_phone:whatsappPhone||null,p_whatsapp_enabled:whatsappEnabled,
-        p_sms_phone:smsPhone||null,p_sms_enabled:smsEnabled
+        p_sms_phone:smsPhone||null,p_sms_enabled:smsEnabled,
+        p_interest_groups:groups.length?groups:["all"]
       }
     });
     await sb("rpc/memorial_reminder_set_urgent",{method:"POST",body:{p_device_token:token,p_enabled:Boolean(b.urgent_alerts)}});
