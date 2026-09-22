@@ -7,7 +7,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";\nconst SUPABASE_RPC_SECRET = process.env.SUPABASE_RPC_SECRET || "";
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 app.use(express.json({ limit: "1mb" }));
