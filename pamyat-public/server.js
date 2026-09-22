@@ -90,7 +90,7 @@ app.get("/m/catalog", async (req,res) => {
       rows=await sb("rpc/memorial_cemetery_search",{method:"POST",body:{p_query:q,p_limit:100}});
     } else {
       const params=new URLSearchParams();
-      params.set("select","record_key,external_id,name_ru,name_he,death_gr,death_he,latitude,longitude,source_url");
+      params.set("select","record_key,external_id,name_ru,name_he,death_gr,death_he,latitude,longitude,source_url,quality_status");
       params.set("cemetery_code","eq.QBA");
       params.set("order","external_id.asc,person_index.asc");
       params.set("limit",String(limit));
@@ -300,11 +300,10 @@ app.post("/m/person/:key/relation", rateLimit("mobile-family",8,3600000), async 
   try{
     const card=await sb("rpc/memorial_person_card",{method:"POST",body:{p_record_key:req.params.key}});
     const x=card?.record;if(!x)return res.status(404).send(mobileShell("Ошибка",'<div class="err">Запись не найдена.</div>'));
-    await sb("rpc/memorial_submit_family_relation",{method:"POST",body:{
-      p_person_name:x.name_ru||x.external_id,p_person_death:x.death_date||null,
-      p_relative_name:clean(req.body.relative_name,180),p_relative_death:validDate(req.body.relative_death)?req.body.relative_death:null,
-      p_relation_type:clean(req.body.relation_type,40),p_cemetery_record_key:req.params.key,
-      p_submitted_by:clean(req.body.submitted_by,120)||null,p_contact:clean(req.body.contact,180)||null,p_evidence:"Добавлено из карточки QBA "+x.external_id
+    await sb("rpc/memorial_submit_relation_from_cemetery",{method:"POST",body:{
+      p_record_key:req.params.key,p_relative_name:clean(req.body.relative_name,180),p_relative_death:validDate(req.body.relative_death)?req.body.relative_death:null,
+      p_relation_type:clean(req.body.relation_type,40),p_submitted_by:clean(req.body.submitted_by,120)||null,
+      p_contact:clean(req.body.contact,180)||null,p_evidence:"Добавлено из карточки QBA "+x.external_id
     }});
     res.send(mobileShell("Отправлено",'<div class="ok">Родственная связь отправлена на модерацию.</div><p><a class="btn" href="/m/person/'+encodeURIComponent(req.params.key)+'">Вернуться</a></p>'));
   }catch(e){res.status(400).send(mobileShell("Ошибка",'<div class="err">Не удалось отправить связь.</div>'))}
@@ -366,6 +365,19 @@ app.get("/m/offline", (_req,res)=>{
   res.send(mobileShell("Офлайн-каталог",`<h1>Офлайн-каталог и карта</h1><p class="muted">Один раз сохраните каталог при наличии интернета. После этого поиск и координатная схема работают без сети.</p><button id="saveOffline" class="btn" style="width:100%">Сохранить / обновить 1238 записей</button><p id="offlineStatus" class="muted"></p><input id="offlineQ" class="field" placeholder="Поиск офлайн"><div id="offlineMap" style="margin-top:10px"></div><div id="offlineResults"></div>`,{scripts}));
 });
 
+
+app.get("/api/admin/identification", requireAdmin, async (_req,res)=>{
+  try{const data=await sb("rpc/memorial_admin_identification_queue",{method:"POST",body:{p_token:ADMIN_TOKEN}});res.json(data||[])}
+  catch(e){res.status(500).json({error:"identification_queue_failed"})}
+});
+app.get("/api/admin/identification/:id", requireAdmin, async (req,res)=>{
+  try{const data=await sb("rpc/memorial_admin_identification_detail",{method:"POST",body:{p_token:ADMIN_TOKEN,p_id:req.params.id}});if(!data)return res.status(404).json({error:"not_found"});res.json(data)}
+  catch(e){res.status(500).json({error:"identification_detail_failed"})}
+});
+app.post("/api/admin/identification/:id/:action", requireAdmin, async (req,res)=>{
+  try{const ok=await sb("rpc/memorial_admin_identification_action",{method:"POST",body:{p_token:ADMIN_TOKEN,p_id:req.params.id,p_action:req.params.action,p_record_key:clean(req.body?.record_key,100)||null}});res.json({ok:Boolean(ok)})}
+  catch(e){res.status(400).json({error:"identification_action_failed"})}
+});
 app.get("/api/admin/duplicates", requireAdmin, async (_req,res)=>{
   try{const data=await sb("rpc/memorial_duplicate_queue",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:150}});res.json(data||[])}
   catch(e){res.status(500).json({error:"duplicates_failed"})}
