@@ -107,13 +107,75 @@ function safeSourceLink(v){
 function isMobileUA(req) {
   return /iPhone|iPad|iPod|Android|Mobile/i.test(String(req.headers["user-agent"] || ""));
 }
+const MOBILE_I18N={
+  en:{
+    "Память Джуури":"Juhuri Memory","Меню":"Menu","Главная":"Home","Мобильная версия":"Mobile version",
+    "+ Добавить событие":"+ Add event","Срочное похоронное объявление":"Urgent funeral notice","Поиск по памяти":"Memory search",
+    "Стена памяти":"Memory wall","Календарь":"Calendar","Сегодня вспоминаем":"Remembering today","Напоминания":"Reminders",
+    "Модерация":"Moderation","Открыть полную версию":"Open full version","Найти":"Search","Открыть памятную страницу":"Open memorial page",
+    "Почтить память":"Remember","Добавить в календарь":"Add to calendar","Поделиться":"Share","Печатная карточка":"Printable card",
+    "Зажечь свечу":"Light a candle","Нер нешама — свеча памяти":"Ner Neshama — memorial candle",
+    "Подтверждено семьёй ✓":"Family verified ✓","Добрые слова":"Kind words","Сообщить об ошибке":"Report an error",
+    "Ваше имя":"Your name","Дата":"Date","Место":"Place","Город":"City","Комментарий":"Comment",
+    "Войти":"Sign in","Выйти":"Sign out","Показать пароль":"Show password","Поиск":"Search","Архив":"Archive"
+  },
+  he:{
+    "Память Джуури":"זיכרון ג׳והורי","Меню":"תפריט","Главная":"ראשי","Мобильная версия":"גרסה לנייד",
+    "+ Добавить событие":"+ הוספת אירוע","Срочное похоронное объявление":"הודעת לוויה דחופה","Поиск по памяти":"חיפוש בזיכרון",
+    "Стена памяти":"קיר זיכרון","Календарь":"לוח שנה","Сегодня вспоминаем":"זוכרים היום","Напоминания":"תזכורות",
+    "Модерация":"ניהול","Открыть полную версию":"פתיחת הגרסה המלאה","Найти":"חיפוש","Открыть памятную страницу":"פתיחת דף הזיכרון",
+    "Почтить память":"לכבד את הזיכרון","Добавить в календарь":"הוספה ליומן","Поделиться":"שיתוף","Печатная карточка":"כרטיס להדפסה",
+    "Зажечь свечу":"הדלקת נר","Нер нешама — свеча памяти":"נר נשמה","Подтверждено семьёй ✓":"אומת על ידי המשפחה ✓",
+    "Добрые слова":"מילות זיכרון","Сообщить об ошибке":"דיווח על טעות","Ваше имя":"השם שלך","Дата":"תאריך","Место":"מקום",
+    "Город":"עיר","Комментарий":"הערה","Войти":"כניסה","Выйти":"יציאה","Показать пароль":"הצגת סיסמה","Поиск":"חיפוש","Архив":"ארכיון"
+  },
+  az:{
+    "Память Джуури":"Cuhuri Yaddaşı","Меню":"Menyu","Главная":"Ana səhifə","Мобильная версия":"Mobil versiya",
+    "+ Добавить событие":"+ Hadisə əlavə et","Срочное похоронное объявление":"Təcili dəfn elanı","Поиск по памяти":"Xatirələr üzrə axtarış",
+    "Стена памяти":"Xatirə divarı","Календарь":"Təqvim","Сегодня вспоминаем":"Bu gün xatırlayırıq","Напоминания":"Xatırlatmalar",
+    "Модерация":"Moderasiya","Открыть полную версию":"Tam versiyanı aç","Найти":"Axtar","Открыть памятную страницу":"Xatirə səhifəsini aç",
+    "Почтить память":"Xatirəsini yad et","Добавить в календарь":"Təqvimə əlavə et","Поделиться":"Paylaş","Печатная карточка":"Çap kartı",
+    "Зажечь свечу":"Şam yandır","Нер нешама — свеча памяти":"Ner Neşama — xatirə şamı","Подтверждено семьёй ✓":"Ailə tərəfindən təsdiqlənib ✓",
+    "Добрые слова":"Xatirə sözləri","Сообщить об ошибке":"Səhv barədə bildir","Ваше имя":"Adınız","Дата":"Tarix","Место":"Yer",
+    "Город":"Şəhər","Комментарий":"Şərh","Войти":"Daxil ol","Выйти":"Çıx","Показать пароль":"Şifrəni göstər","Поиск":"Axtarış","Архив":"Arxiv"
+  },
+  juuri:{
+    "Память Джуури":"Память Джуури","Меню":"Меню","Главная":"Главная","Мобильная версия":"Мобильная версия",
+    "Календарь":"Луьвэхь","Сегодня вспоминаем":"Имбуруз вспоминаем","Подтверждено семьёй ✓":"Кифлет ✓",
+    "Нер нешама — свеча памяти":"Нер нешама — נר נשמה","Поиск":"Поиск","Архив":"Архив"
+  }
+};
 function mobileShell(title, body, opts = {}) {
   const extraHead = opts.extraHead || "";
   const scripts = opts.scripts || "";
+  const i18nJson=JSON.stringify(MOBILE_I18N).replace(/</g,"\\u003c");
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#4c3e2d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Память"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icon.svg"><title>${htmlEsc(title)} — Память Джуури</title>${extraHead}<style>
   :root{--bg:#f5f1e8;--paper:#fffdf8;--ink:#27231e;--muted:#746d63;--line:#ded6c8;--accent:#5b4934;--soft:#eee6d9}
-  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}
-  </style></head><body><header><div class="top"><div class="brand">Память Джуури</div><select class="field" style="width:auto;padding:8px" aria-label="Язык" onchange="if(this.value!=='ru'){localStorage.setItem('pamyatLang',this.value);location.href='/pamyat-juhuro?lang='+encodeURIComponent(this.value)}"><option value="ru">RU</option><option value="he">HE</option><option value="az">AZ</option><option value="en">EN</option><option value="juuri">JUURI β</option></select><a class="btn secondary" href="/m">Меню</a></div></header><main class="wrap">${body}</main>${scripts}</body></html>`;
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}.skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;z-index:999;background:#fff;padding:10px;border-radius:8px}.btn:focus,.field:focus,input:focus,select:focus,textarea:focus{outline:3px solid #8b6d45;outline-offset:2px}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}body[data-font="large"]{font-size:19px}body[data-font="xlarge"]{font-size:22px}
+  </style></head><body><a class="skip" href="#main">К содержанию</a><header><div class="top"><div class="brand">Память Джуури</div><select id="uiLang" class="field" style="width:auto;padding:8px" aria-label="Язык"><option value="ru">RU</option><option value="juuri">JUURI β</option><option value="he">HE</option><option value="en">EN</option><option value="az">AZ</option></select><button id="fontDown" class="btn secondary" style="padding:8px" aria-label="Уменьшить шрифт">A−</button><button id="fontUp" class="btn secondary" style="padding:8px" aria-label="Увеличить шрифт">A+</button><a class="btn secondary" href="/m">Меню</a></div></header><main id="main" class="wrap">${body}</main><script>
+  (()=>{
+    const dictionaries=${i18nJson};
+    const params=new URLSearchParams(location.search);
+    const saved=localStorage.getItem("pamyatLang");
+    const lang=params.get("lang")||saved||"ru";
+    const select=document.getElementById("uiLang");if(select)select.value=["ru","juuri","he","en","az"].includes(lang)?lang:"ru";
+    const applyLanguage=l=>{
+      localStorage.setItem("pamyatLang",l);
+      document.documentElement.lang=l==="juuri"?"jdt":l;
+      document.documentElement.dir=l==="he"?"rtl":"ltr";
+      const d=dictionaries[l]||{};
+      const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+      const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+      for(const n of nodes){const raw=n.nodeValue,trim=raw.trim();if(trim&&d[trim])n.nodeValue=raw.replace(trim,d[trim])}
+      document.querySelectorAll("[placeholder]").forEach(el=>{const p=el.getAttribute("placeholder");if(d[p])el.setAttribute("placeholder",d[p])});
+    };
+    applyLanguage(lang);
+    if(select)select.onchange=()=>{const u=new URL(location.href);u.searchParams.set("lang",select.value);localStorage.setItem("pamyatLang",select.value);location.href=u.toString()};
+    const levels=["","large","xlarge"];let fi=Number(localStorage.getItem("pamyatFont")||0);document.body.dataset.font=levels[fi]||"";
+    document.getElementById("fontUp").onclick=()=>{fi=Math.min(2,fi+1);localStorage.setItem("pamyatFont",fi);document.body.dataset.font=levels[fi]};
+    document.getElementById("fontDown").onclick=()=>{fi=Math.max(0,fi-1);localStorage.setItem("pamyatFont",fi);document.body.dataset.font=levels[fi]};
+  })();
+  </script>${scripts}</body></html>`;
 }
 
 app.get("/m", (_req,res) => {
