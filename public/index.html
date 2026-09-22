@@ -202,6 +202,7 @@
     @media(max-width:760px){.ops-v64-grid{grid-template-columns:repeat(2,1fr)}}
 
 
+    .bulk-edit-modal{position:fixed;inset:0;z-index:115;background:rgba(10,19,27,.72);display:none;align-items:center;justify-content:center;padding:16px}.bulk-edit-modal.show{display:flex}.bulk-edit-card{width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;padding:18px;box-shadow:0 28px 80px rgba(0,0,0,.24)}.bulk-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}.bulk-edit-grid label span{display:block;font-size:9px;font-weight:850;margin-bottom:4px}.bulk-edit-grid input,.bulk-edit-grid select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff}.bulk-edit-note{font-size:10px;color:var(--muted);line-height:1.45;margin-top:10px}.bulk-edit-actions{display:flex;justify-content:flex-end;margin-top:12px}@media(max-width:650px){.bulk-edit-grid{grid-template-columns:1fr}}
     .network-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border-radius:999px;background:#ECF7EF;color:#27663A;font-size:9px;font-weight:900;white-space:nowrap}.network-pill:before{content:"";width:6px;height:6px;border-radius:50%;background:#45A35F}.network-pill.offline{background:#FFF4E6;color:#8A5A00}.network-pill.offline:before{background:#E09A20}
     /* YUVION_V65_DESIGN */
     :root{
@@ -748,6 +749,7 @@
       <div class="bulk-actions">
         <button class="bulk-btn" id="bulkSelectVisible">Выбрать видимые</button>
         <button class="bulk-btn primary" id="bulkDownload">Скачать пакет</button>
+        <button class="bulk-btn" id="bulkEdit">Массово изменить</button>
         <button class="bulk-btn" id="bulkLabels">Этикетки PDF</button>
         <button class="bulk-btn" id="bulkPublish">Опубликованы</button>
         <button class="bulk-btn" id="bulkDraft">В черновики</button>
@@ -768,6 +770,22 @@
     <button class="dock-btn" id="dockCards">Карточки</button>
     <button class="dock-btn primary simple-only" id="dockNext">Продолжить</button>
     <button class="dock-btn primary" id="dockYuvion">Yuvion</button>
+  </div>
+</div>
+
+<div class="bulk-edit-modal" id="bulkEditModal">
+  <div class="bulk-edit-card">
+    <div class="scanner-top"><div><b>Массовое изменение</b><div class="muted" style="font-size:10px">Применяются только заполненные поля. SKU/EAN и технические характеристики здесь не меняются.</div></div><button class="btn btn-ghost btn-small" id="closeBulkEdit">Закрыть</button></div>
+    <div class="bulk-edit-grid">
+      <label><span>Категория</span><input id="bulkEditCategory" placeholder="Не менять"></label>
+      <label><span>Бренд</span><input id="bulkEditBrand" placeholder="Подтверждённый бренд"></label>
+      <label><span>Стиль карточек</span><select id="bulkEditStyle"><option value="">Не менять</option><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select></label>
+      <label><span>Коллекция / метка</span><input id="bulkEditCollection" placeholder="Например: Новинки"></label>
+      <label><span>Скидка от 2 шт., %</span><input id="bulkEditDiscount2" type="number" min="0" max="99" step="0.1" placeholder="Не менять"></label>
+      <label><span>Скидка от 3 шт., %</span><input id="bulkEditDiscount3" type="number" min="0" max="99" step="0.1" placeholder="Не менять"></label>
+    </div>
+    <div class="bulk-edit-note" id="bulkEditNote"></div>
+    <div class="bulk-edit-actions"><button class="btn btn-primary" id="applyBulkEdit">Применить к выбранным</button></div>
   </div>
 </div>
 
@@ -888,6 +906,7 @@ const bulkBar=document.getElementById('bulkBar');
 const bulkCount=document.getElementById('bulkCount');
 const bulkSelectVisible=document.getElementById('bulkSelectVisible');
 const bulkDownload=document.getElementById('bulkDownload');
+const bulkEdit=document.getElementById('bulkEdit');
 const bulkPublish=document.getElementById('bulkPublish');
 const bulkDraft=document.getElementById('bulkDraft');
 const bulkDelete=document.getElementById('bulkDelete');
@@ -1015,6 +1034,16 @@ const importProductsBtn=document.getElementById('importProducts');
 const importProductsFile=document.getElementById('importProductsFile');
 const importNote=document.getElementById('importNote');
 const bulkLabels=document.getElementById('bulkLabels');
+const bulkEditModal=document.getElementById('bulkEditModal');
+const closeBulkEdit=document.getElementById('closeBulkEdit');
+const bulkEditCategory=document.getElementById('bulkEditCategory');
+const bulkEditBrand=document.getElementById('bulkEditBrand');
+const bulkEditStyle=document.getElementById('bulkEditStyle');
+const bulkEditCollection=document.getElementById('bulkEditCollection');
+const bulkEditDiscount2=document.getElementById('bulkEditDiscount2');
+const bulkEditDiscount3=document.getElementById('bulkEditDiscount3');
+const bulkEditNote=document.getElementById('bulkEditNote');
+const applyBulkEdit=document.getElementById('applyBulkEdit');
 const jumpExcel=document.getElementById('jumpExcel');
 const jumpTools=document.getElementById('jumpTools');
 const networkPill=document.getElementById('networkPill');
@@ -3843,11 +3872,63 @@ async function togglePublished(id){
 }
 
 
+function openBulkEditor(){
+  if(!selectedDraftIds.size)return;
+  bulkEditCategory.value='';bulkEditBrand.value='';bulkEditStyle.value='';bulkEditCollection.value='';bulkEditDiscount2.value='';bulkEditDiscount3.value='';
+  bulkEditNote.textContent='Выбрано товаров: '+selectedDraftIds.size+'. Категория, бренд и стиль могут потребовать обновления инфографики. Изменение только цен не вызывает image-generation.';
+  bulkEditModal.classList.add('show');
+}
+async function applyBulkEditorNow(){
+  const category=bulkEditCategory.value.trim(),brand=bulkEditBrand.value.trim(),style=bulkEditStyle.value;
+  const collection=bulkEditCollection.value.trim();
+  const d2=bulkEditDiscount2.value.trim()===''?null:Number(bulkEditDiscount2.value);
+  const d3=bulkEditDiscount3.value.trim()===''?null:Number(bulkEditDiscount3.value);
+  if(!category&&!brand&&!style&&!collection&&d2===null&&d3===null){bulkEditNote.textContent='Заполните хотя бы одно поле.';return}
+  applyBulkEdit.disabled=true;let changed=0,priceSkipped=0;
+  try{
+    for(const id of [...selectedDraftIds]){
+      const item=await dbGet(id);if(!item)continue;
+      item.data=item.data||{};item.extraData=item.extraData||item.data.confirmedData||{};item.privateData=item.privateData||{};
+      let visualChange=false;
+      if(category&&item.data.category!==category){item.data.category=category;visualChange=true}
+      if(brand&&item.extraData.brand!==brand){
+        item.extraData.brand=brand;item.data.confirmedData={...(item.data.confirmedData||{}),brand};
+        const rest=(item.data.characteristics||[]).filter(x=>normalizedFactText(x.name)!=='бренд');
+        item.data.characteristics=[{name:'Бренд',value:brand,source:'Продавец'},...rest].slice(0,12);
+        item.data.factProvenance={...(item.data.factProvenance||{}),бренд:'Продавец'};visualChange=true;
+      }
+      if(style&&item.style!==style){item.style=style;visualChange=true}
+      if(collection){
+        const cols=new Set(Array.isArray(item.privateData.collections)?item.privateData.collections:[]);
+        cols.add(collection);item.privateData.collections=[...cols].slice(0,30);
+      }
+      if(d2!==null||d3!==null){
+        const p=moneyNumber(item.extraData.price1||item.extraData.price);
+        if(p>0){
+          if(d2!==null&&Number.isFinite(d2))item.extraData.price2=String(Math.max(0,Math.round(p*(1-Math.max(0,Math.min(99,d2))/100))));
+          if(d3!==null&&Number.isFinite(d3))item.extraData.price3=String(Math.max(0,Math.round(p*(1-Math.max(0,Math.min(99,d3))/100))));
+          item.data.confirmedData={...(item.data.confirmedData||{}),...item.extraData};
+        }else priceSkipped++;
+      }
+      if(visualChange&&Array.isArray(item.cards)&&item.cards.length){
+        item.cardsStale=true;item.staleCardIndexes=[0,1,2,3];item.analysisCache=null;item.generationFingerprint=null;
+      }
+      item.updatedAt=Date.now();
+      item.activity=[{at:Date.now(),type:'Массовое изменение',detail:[category?'категория':'',brand?'бренд':'',style?'стиль':'',collection?'коллекция':'',(d2!==null||d3!==null)?'цены':''].filter(Boolean).join(', ')},...(item.activity||[])].slice(0,80);
+      await dbPut(item);changed++;
+    }
+    bulkEditNote.textContent='Изменено: '+changed+(priceSkipped?' · скидки пропущены без розничной цены: '+priceSkipped:'')+'.';
+    await renderHistory();
+    setTimeout(()=>bulkEditModal.classList.remove('show'),450);
+  }finally{applyBulkEdit.disabled=false}
+}
+
 function updateBulkBar(){
   const count=selectedDraftIds.size;
   bulkBar.classList.toggle('show',count>0);
   bulkCount.textContent=count+' '+(count===1?'товар выбран':count<5?'товара выбрано':'товаров выбрано');
   bulkDownload.disabled=count===0;
+  bulkEdit.disabled=count===0;
   bulkLabels.disabled=count===0;
   bulkPublish.disabled=count===0;
   bulkDraft.disabled=count===0;
@@ -6123,6 +6204,9 @@ bulkSelectVisible.onclick=()=>{
 };
 bulkClear.onclick=()=>{selectedDraftIds.clear();renderHistory()};
 bulkDownload.onclick=()=>bulkDownloadLocalPackage();
+bulkEdit.onclick=()=>openBulkEditor();
+closeBulkEdit.onclick=()=>bulkEditModal.classList.remove('show');
+applyBulkEdit.onclick=()=>applyBulkEditorNow();
 bulkLabels.onclick=()=>bulkGenerateLabelsPdf();
 bulkPublish.onclick=()=>bulkSetPublished(true);
 bulkDraft.onclick=()=>bulkSetPublished(false);
