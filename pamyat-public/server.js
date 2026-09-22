@@ -814,7 +814,7 @@ app.use((_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log("Pamyat community hub listening on " + PORT);
-  setTimeout(() => syncCemeteryCatalog(false).catch(e => console.error("catalog sync", e.message)), 3000);
+  setTimeout(() => syncCemeteryCatalog(true).catch(e => console.error("catalog sync", e.data || e.message)), 3000);
   setTimeout(() => runNotificationCycle(), 10000);
   setTimeout(() => createDailySnapshot(), 15000);
   setTimeout(() => configureTelegramWebhook(), 20000);
