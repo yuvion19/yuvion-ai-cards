@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v8.3.0
+// Production release marker: v8.4.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -67,6 +67,7 @@ const freeCardRequestsByIp = new Map();
 const freeRegenRequestsByIp = new Map();
 const urlImportRequestsByIp = new Map();
 let imagesEnabled = true;
+let fontRenderState = { ready: false, paintedPixels: 0, error: "not-checked" };
 
 const stats = {
   startedAt: new Date().toISOString(),
@@ -211,6 +212,30 @@ function wrapWords(value, maxChars = 28, maxLines = 3) {
 
 function textLines(lines, { x, y, size, lineHeight, weight = 600, fill = "#1D1B1C", anchor = "start" }) {
   return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="DejaVu Sans, Arial, sans-serif" font-size="${size}" font-weight="${weight}" fill="${fill}">${lines.map(escapeXml).map((line, index) => `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${line}</tspan>`).join("")}</text>`;
+}
+
+async function verifySvgTextRendering() {
+  try {
+    const svg = Buffer.from(
+      '<svg width="420" height="110" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect width="420" height="110" fill="none"/>' +
+      '<text x="12" y="72" font-family="DejaVu Sans, sans-serif" font-size="46" font-weight="700" fill="#111111">Yuvion ТЕСТ 123</text>' +
+      '</svg>'
+    );
+    const raw = await sharp(svg).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    let paintedPixels = 0;
+    const channels = raw.info.channels;
+    for (let p = 0; p < raw.data.length; p += channels) {
+      if (channels >= 4 && raw.data[p + 3] > 16) paintedPixels += 1;
+    }
+    return {
+      ready: paintedPixels > 250,
+      paintedPixels,
+      error: paintedPixels > 250 ? "" : "SVG text produced too few painted pixels"
+    };
+  } catch (error) {
+    return { ready: false, paintedPixels: 0, error: String(error?.message || "font render check failed").slice(0, 180) };
+  }
 }
 
 function bulletGroups(items, { x, y, maxChars = 25, maxItems = 5, size = 30, lineHeight = 40, gap = 24, accent = "#F03E4A", text = "#33282A" }) {
@@ -1319,14 +1344,18 @@ app.get("/vendor/jsbarcode.all.min.js", (_req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  res.json({
-    ok: true,
+  const healthOk = Boolean(fontRenderState.ready);
+  res.status(healthOk ? 200 : 503).json({
+    ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "8.3.0",
+    version: "8.4.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
     freeImageAiCalls: 0,
+    fontRenderingReady: Boolean(fontRenderState.ready),
+    fontPaintedPixels: Number(fontRenderState.paintedPixels || 0),
+    fontRenderingError: fontRenderState.error || "",
     analyzeTimeoutSeconds: AI_ANALYZE_TIMEOUT_MS / 1000,
     analyzeRetryTimeoutSeconds: AI_ANALYZE_RETRY_TIMEOUT_MS / 1000,
     analyzeFastVision: true,
@@ -1380,6 +1409,9 @@ app.get("/api/health", (_req, res) => {
       mobileCaptureFlow: true,
       cameraGallerySplit: true,
       pwaMobileIntake: true,
+      embeddedSystemFonts: true,
+      svgTextSelfTest: true,
+      textOverlayHealthGate: true,
       darkWorkbench: true,
       wideWorkbench: true,
       manualComposition: true
@@ -3241,6 +3273,12 @@ app.get("*splat", (_req, res) => {
 });
 
 const port = Number(process.env.PORT || 3000);
+fontRenderState = await verifySvgTextRendering();
+if (!fontRenderState.ready) {
+  console.error("SVG font render self-test failed:", fontRenderState);
+} else {
+  console.log("SVG font render self-test OK:", fontRenderState.paintedPixels, "painted pixels");
+}
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v8.3.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v8.4.0 listening on port ${port}`);
 });

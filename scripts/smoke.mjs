@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const html=fs.readFileSync('public/index.html','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const server=fs.readFileSync('server.js','utf8');
+const dockerfile=fs.readFileSync('Dockerfile','utf8');
 
 const fail=(message)=>{console.error('SMOKE FAIL:',message);process.exitCode=1};
 const ok=(message)=>console.log('SMOKE OK:',message);
@@ -170,6 +171,10 @@ const features=[
   ['id="chooseProductPhoto"','gallery action'],
   ['mobileCaptureFlow: true','mobile capture flow health metadata'],
   ['cameraGallerySplit: true','camera/gallery split metadata'],
+  ['verifySvgTextRendering','SVG text runtime self-test'],
+  ['fontRenderingReady','font rendering health flag'],
+  ['svgTextSelfTest: true','SVG text self-test health metadata'],
+  ['textOverlayHealthGate: true','text overlay health gate metadata'],
   ['subject-touches-frame','safe fallback when subject touches source edge'],
   ['firstRing','two-stage alpha feather implementation']
 ];
@@ -208,3 +213,6 @@ if(!server.includes('marketplaceEditorialOverlays: true'))fail('editorial overla
 if(!server.includes('fourDistinctCompositions: true'))fail('four distinct compositions metadata missing');else ok('four distinct compositions metadata present');
 if(!server.includes('designArchetype'))fail('design archetype routing missing');else ok('design archetype routing present');
 if(!server.includes('makeProductHalo'))fail('product halo enhancement missing');else ok('product halo enhancement present');
+
+if(!dockerfile.includes('fonts-dejavu-core'))fail('Dockerfile must install DejaVu fonts');else ok('Dockerfile installs DejaVu fonts');
+if(!dockerfile.includes('fontconfig'))fail('Dockerfile must install fontconfig');else ok('Dockerfile installs fontconfig');
