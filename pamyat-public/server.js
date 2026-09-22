@@ -418,15 +418,15 @@ app.get("/m/reminders", (_req,res) => {
 
     <div class="card">
       <h3 style="margin-top:0">Когда напоминать</h3>
-      <div class="check"><input type="checkbox" class="remDay" value="30"><span>За 30 дней</span></div>
-      <div class="check"><input type="checkbox" class="remDay" value="14"><span>За 14 дней</span></div>
-      <div class="check"><input type="checkbox" class="remDay" value="7" checked><span>За 7 дней</span></div>
-      <div class="check"><input type="checkbox" class="remDay" value="3"><span>За 3 дня</span></div>
-      <div class="check"><input type="checkbox" class="remDay" value="1" checked><span>За 1 день</span></div>
-      <div class="check"><input type="checkbox" class="remDay" value="0" checked><span>В день события</span></div>
-      <label>Время отправки</label>
+      <div class="row"><label class="check" style="flex:1"><input type="checkbox" class="remDay" value="30"><span>За 30 дней</span></label><input class="field remTimeByDay" data-day="30" type="time" value="09:00" style="width:130px"></div>
+      <div class="row"><label class="check" style="flex:1"><input type="checkbox" class="remDay" value="14"><span>За 14 дней</span></label><input class="field remTimeByDay" data-day="14" type="time" value="09:00" style="width:130px"></div>
+      <div class="row"><label class="check" style="flex:1"><input type="checkbox" class="remDay" value="7" checked><span>За 7 дней</span></label><input class="field remTimeByDay" data-day="7" type="time" value="10:00" style="width:130px"></div>
+      <div class="row"><label class="check" style="flex:1"><input type="checkbox" class="remDay" value="3"><span>За 3 дня</span></label><input class="field remTimeByDay" data-day="3" type="time" value="10:00" style="width:130px"></div>
+      <div class="row"><label class="check" style="flex:1"><input type="checkbox" class="remDay" value="1" checked><span>За 1 день</span></label><input class="field remTimeByDay" data-day="1" type="time" value="19:00" style="width:130px"></div>
+      <div class="row"><label class="check" style="flex:1"><input type="checkbox" class="remDay" value="0" checked><span>В день события</span></label><input class="field remTimeByDay" data-day="0" type="time" value="08:30" style="width:130px"></div>
+      <label>Время по умолчанию</label>
       <input id="remTime" class="field" type="time" value="09:00">
-      <p class="muted">Время применяется в часовом поясе вашего устройства.</p>
+      <p class="muted">У каждого срока можно задать своё время. Оно применяется в часовом поясе устройства.</p>
       <div class="check"><input id="urgentAlerts" type="checkbox"><span><b>Срочные похоронные объявления</b><br><span class="muted">Получать однократное уведомление сразу после одобрения срочного объявления.</span></span></div>
     </div>
 
@@ -506,7 +506,8 @@ app.get("/m/reminders", (_req,res) => {
         const d=await r.json(); if(!d)return;
         const last=d.last_delivery||{},names={push:"Push",email:"Email",telegram:"Telegram",whatsapp:"WhatsApp",sms:"SMS"};
         const rows=Object.keys(names).map(k=>names[k]+": "+(last[k]?new Date(last[k]).toLocaleString("ru-RU"):"ещё не отправлялось"));
-        document.getElementById("deviceDelivery").innerHTML=rows.join("<br>")+"<br>Время отправки: "+(d.reminder_time||"09:00")+"<br>Срочные похоронные объявления: "+(d.urgent_alerts?"включены":"выключены");
+        const sched=Object.entries(d.reminder_times||{}).sort((a,b)=>Number(b[0])-Number(a[0])).map(([day,time])=>(day==="0"?"в день события":"за "+day+" дн.")+" — "+time).join("<br>");
+        document.getElementById("deviceDelivery").innerHTML=rows.join("<br>")+"<br><b>Расписание:</b><br>"+(sched||("по умолчанию — "+(d.reminder_time||"09:00")))+"<br>Срочные похоронные объявления: "+(d.urgent_alerts?"включены":"выключены");
         document.getElementById("deviceDeliveryCard").style.display="block";
       }catch{}
     }
@@ -571,6 +572,7 @@ app.get("/m/reminders", (_req,res) => {
         whatsapp_value:normPhone(document.getElementById("remWhatsapp").value),
         sms_value:normPhone(document.getElementById("remSms").value),
         reminder_time:document.getElementById("remTime").value||"09:00",
+        reminder_times:Object.fromEntries([...document.querySelectorAll(".remTimeByDay")].map(i=>[i.dataset.day,i.value||"09:00"])),
         urgent_alerts:document.getElementById("urgentAlerts").checked
       };
     }
@@ -589,6 +591,7 @@ app.get("/m/reminders", (_req,res) => {
         document.getElementById("remWhatsapp").value=x.whatsapp_value||"";
         document.getElementById("remSms").value=x.sms_value||"";
         document.getElementById("remTime").value=x.reminder_time||"09:00";
+        if(x.reminder_times)document.querySelectorAll(".remTimeByDay").forEach(i=>{if(x.reminder_times[i.dataset.day])i.value=x.reminder_times[i.dataset.day]});
         document.getElementById("urgentAlerts").checked=Boolean(x.urgent_alerts);
       }catch{}
     }
@@ -607,6 +610,7 @@ app.get("/m/reminders", (_req,res) => {
           locale:navigator.language||"ru",
           reminder_days:x.days,
           reminder_time:x.reminder_time,
+          reminder_times:x.reminder_times,
           urgent_alerts:x.urgent_alerts,
           push_enabled:x.push,
           email:x.email_value||null,email_enabled:x.email,
@@ -2298,6 +2302,7 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
         p_locale:clean(b.locale,20)||"ru",
         p_reminder_days:days,
         p_reminder_time:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(b.reminder_time||""))?b.reminder_time:"09:00",
+        p_reminder_times:Object.fromEntries(Object.entries(b.reminder_times||{}).filter(([k,v])=>["0","1","3","7","14","30"].includes(k)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v)))),
         p_push_enabled:pushEnabled,
         p_email:email||null,p_email_enabled:emailEnabled,
         p_telegram_chat_id:telegramChat||null,p_telegram_enabled:telegramEnabled,
