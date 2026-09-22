@@ -153,4 +153,7 @@ if(healthVersion!==pkg.version)fail('package/server version mismatch: '+pkg.vers
 if(process.exitCode)process.exit(process.exitCode);
 
 if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
-if(!server.includes('version: "7.6.0'))fail('server health version is not 7.6.0');else ok('server health version 7.6.0');
+if(!server.includes('version: "'+pkg.version+'"'))fail('server health version does not match package version');else ok('server health version '+pkg.version);
+if(server.includes('primaryRole: selectedSource.role'))fail('batch renderer references undefined selectedSource');else ok('batch renderer response variables safe');
+if(!server.includes('renderEngine: "power-local-v3"'))fail('power-local-v3 renderer marker missing');else ok('power-local-v3 renderer marker present');
+if(!server.includes('makeProductHalo'))fail('product halo enhancement missing');else ok('product halo enhancement present');
