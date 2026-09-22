@@ -245,6 +245,17 @@
       .card,.editor,.yuvion-export,.creative{border-radius:18px;padding:18px}.excel-autopilot,.publish-center,.confirmation-center,.ops-v64{border-radius:18px}
     }
 
+  
+    /* YUVION_V66_URL_IMPORT */
+    .url-import-card{position:relative;overflow:hidden;margin-bottom:16px;padding:16px;border:1px solid #DFE3E8;border-radius:18px;background:linear-gradient(135deg,#111E2A 0%,#172B3D 66%,#203D52 100%);color:#fff;box-shadow:0 16px 38px rgba(16,29,42,.12)}
+    .url-import-card:after{content:"";position:absolute;right:-60px;top:-80px;width:210px;height:210px;border-radius:50%;background:radial-gradient(circle,rgba(233,54,73,.34),transparent 70%);pointer-events:none}.url-import-head{position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.url-import-head b{display:block;font-size:14px}.url-import-head span{display:block;margin-top:3px;color:#BAC6CF;font-size:10px;line-height:1.45}.url-import-tag{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.13);font-size:9px;font-weight:900;white-space:nowrap}.url-import-tag:before{content:"↗";color:#FF8794}
+    .url-import-form{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}.url-import-form input{width:100%;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.09);color:#fff;border-radius:12px;padding:12px 13px;outline:none}.url-import-form input::placeholder{color:#98A7B4}.url-import-form input:focus{border-color:#FF7B89;box-shadow:0 0 0 3px rgba(233,54,73,.16)}.url-import-form .btn{min-width:160px}.url-import-hint{position:relative;z-index:1;margin-top:8px;font-size:9px;color:#9FAFBB;line-height:1.45}.url-import-status{display:none;position:relative;z-index:1;margin-top:9px;padding:9px 10px;border-radius:10px;background:rgba(255,255,255,.08);font-size:10px;line-height:1.45}.url-import-status.show{display:block}.url-import-status.ok{background:rgba(63,166,93,.18);color:#D9F3E0}.url-import-status.warn{background:rgba(225,164,39,.16);color:#FFE8B0}.url-import-status.bad{background:rgba(233,54,73,.18);color:#FFD9DE}
+    .source-divider{display:flex;align-items:center;gap:10px;margin:12px 0 14px;color:#9A9FA6;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}.source-divider:before,.source-divider:after{content:"";height:1px;background:#E8EAED;flex:1}
+    .source-reference{display:none;margin-top:10px;padding:9px 11px;border:1px solid #DDE7EE;border-radius:12px;background:#F5F9FC;color:#304B60;font-size:10px;line-height:1.4}.source-reference.show{display:flex;align-items:center;justify-content:space-between;gap:10px}.source-reference b{font-size:10px}.source-reference span{color:#6E8190}.source-reference a{color:#C92A3D;font-weight:850;text-decoration:none;white-space:nowrap}
+    .source-badge.web{background:#EEF5FA;color:#315F84}.url-source-mark{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:999px;background:#EEF5FA;color:#315F84;font-size:8px;font-weight:900}
+    .card.upload{border-color:#E3E6EA;box-shadow:0 18px 52px rgba(16,29,42,.08)}.drop{background:linear-gradient(180deg,#FFFFFF,#F8FAFB);border-color:#D8DEE4}.drop:hover{border-color:#D75968;background:#FFFDFD}.editor,.creative,.yuvion-export{box-shadow:0 12px 34px rgba(16,29,42,.055)}
+    @media(max-width:650px){.url-import-head{flex-direction:column}.url-import-form{grid-template-columns:1fr}.url-import-form .btn{width:100%}.source-reference.show{align-items:flex-start;flex-direction:column}}
+
   </style>
 </head>
 <body class="simple-ui">
@@ -443,6 +454,14 @@
       <button class="mode active" data-mode="full"><b>Полный комплект</b><span>Текст + план + 4 карточки 900×1200 + ZIP.</span></button>
     </div>
 
+    <div class="url-import-card">
+      <div class="url-import-head"><div><b>Есть ссылка на товар?</b><span>Вставьте публичную страницу другого магазина или сайта поставщика — Yuvion заберёт опубликованные данные и фотографии в черновик.</span></div><div class="url-import-tag">Импорт по ссылке</div></div>
+      <div class="url-import-form"><input id="productUrlInput" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com/product/..." maxlength="2048"><button class="btn btn-primary" id="importProductUrl">Забрать товар</button></div>
+      <div class="url-import-hint">Сервис не обходит авторизацию, CAPTCHA и закрытые страницы. Технические факты помечаются как «Сайт-источник», чтобы было видно их происхождение.</div>
+      <div class="url-import-status" id="urlImportStatus"></div>
+    </div>
+    <div class="source-divider">или добавьте свои фото</div>
+
     <label class="drop" id="drop">
       <input id="file" type="file" accept="image/jpeg,image/png,image/webp" />
       <div class="drop-inner" id="dropText">
@@ -517,6 +536,7 @@
       <div><div class="section-kicker">Проверка товара</div><h2>Проверьте данные</h2><div class="muted" id="confidence"></div><div class="save-state saved" id="saveState" style="margin-top:7px">Изменения сохраняются автоматически</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" id="saveRevision">Сохранить версию</button><button class="btn btn-ghost" id="similarProduct">Создать похожий</button><button class="btn btn-ghost" id="newProduct">Новый товар</button></div>
     </div>
+    <div class="source-reference" id="sourceReference"></div>
     <details class="revision-box" id="revisionBox"><summary>Версии товара <span class="muted" id="revisionCount" style="font-size:10px">0 сохранённых</span></summary><div class="revision-body"><div class="revision-list" id="revisionList"></div></div></details>
     <section class="product-cockpit" id="productCockpit">
       <div class="cockpit-top">
@@ -1133,10 +1153,15 @@ const storageGrid=document.getElementById('storageGrid');
 const storageManagerNote=document.getElementById('storageManagerNote');
 const diagnosticList=document.getElementById('diagnosticList');
 const activityList=document.getElementById('activityList');
+const productUrlInput=document.getElementById('productUrlInput');
+const importProductUrl=document.getElementById('importProductUrl');
+const urlImportStatus=document.getElementById('urlImportStatus');
+const sourceReference=document.getElementById('sourceReference');
 
 let selectedFile=null;
 let sourceDataUrl=null;
 let currentData=null;
+let currentSourceReference=null;
 let currentCards=[];
 let currentScenes=[];
 let currentMode='full';
@@ -1220,6 +1245,80 @@ async function fetchJsonRetry(url,options={},retries=2){
 function showError(message){error.textContent=message;error.classList.add('show')}
 function clearError(){error.classList.remove('show');error.textContent=''}
 function esc(s){const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML}
+function renderSourceReference(){
+  if(!sourceReference)return;
+  const src=currentSourceReference;
+  if(!src?.url){sourceReference.className='source-reference';sourceReference.innerHTML='';return}
+  let href='';
+  try{const u=new URL(src.url);if(['http:','https:'].includes(u.protocol))href=u.href}catch{}
+  sourceReference.className='source-reference show';
+  sourceReference.innerHTML='<div><b>Источник: '+esc(src.host||'сторонний сайт')+'</b><span> · данные импортированы '+esc(src.fetchedAt?new Date(src.fetchedAt).toLocaleString('ru-RU'):'')+'</span></div>'+(href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">Открыть источник ↗</a>':'');
+}
+
+function setUrlImportStatus(message,type=''){
+  urlImportStatus.className='url-import-status show '+type;
+  urlImportStatus.textContent=message;
+}
+
+async function importFromProductUrl(){
+  if(busy)return;
+  const url=productUrlInput.value.trim();
+  if(!url){setUrlImportStatus('Вставьте ссылку на публичную страницу товара.','bad');return}
+  busy=true;importProductUrl.disabled=true;importProductUrl.textContent='Забираем…';clearError();
+  setUrlImportStatus('Читаем публичные данные страницы, характеристики и изображения…','');
+  try{
+    const payload=await fetchJsonRetry('/api/import-url',{
+      method:'POST',headers:apiHeaders(),body:JSON.stringify({url})
+    },1);
+    resetProduct(false);
+    currentHistoryId=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36);
+    currentSourceReference=payload.source||null;
+    currentData=payload.data||null;
+    if(!currentData)throw new Error('Страница не вернула данные товара.');
+
+    const importedExtra={...(payload.extraData||{})};
+    const defaults=loadSellerDefaults();
+    const p1=moneyNumber(importedExtra.price1);
+    if(p1>0){
+      if(!importedExtra.price2)importedExtra.price2=String(Math.max(0,Math.round(p1*(1-Number(defaults.discount2??5)/100))));
+      if(!importedExtra.price3)importedExtra.price3=String(Math.max(0,Math.round(p1*(1-Number(defaults.discount3??10)/100))));
+    }
+    currentData.confirmedData={...importedExtra};
+    fillExtraData(importedExtra);
+
+    const images=Array.isArray(payload.images)?payload.images:[];
+    const main=images[0]?.dataUrl||'';
+    sourceDataUrl=main||null;
+    selectedFile=null;
+    currentAdditionalPhotos=images.slice(1,5).map((img,index)=>({
+      id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+index,
+      name:'imported-'+String(index+2)+'.jpg',
+      mimeType:'image/jpeg',
+      dataUrl:img.dataUrl,
+      role:img.role||'angle',
+      remoteUrl:img.remoteUrl||''
+    }));
+    currentPhotoHash=sourceDataUrl?await imageHashFromDataUrl(sourceDataUrl):'';
+    currentCards=[];currentScenes=[];currentQuality=null;currentStaleCards=[];cardsStale=false;
+    fillEditor(currentData);
+    renderSourceReference();renderExtraPhotos();renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderFactSources();renderYuvionExport();renderProductCockpit();syncModeUi();
+    preview.src=sourceDataUrl||'';preview.classList.toggle('show',!!sourceDataUrl);drop.classList.toggle('has',!!sourceDataUrl);dropText.style.display=sourceDataUrl?'none':'';
+    meta.textContent=sourceDataUrl?'Фото и данные импортированы с '+(currentSourceReference?.host||'сайта'):'Данные импортированы без фотографии';
+    analyzeBtn.disabled=!sourceDataUrl;
+    confidence.textContent='Уверенность импорта: '+(currentData.confidence||'не указана');
+    workspace.classList.add('show');
+    addCurrentActivity('Импорт по ссылке',currentSourceReference?.url||url);
+    await checkDuplicateSku();await checkBarcodeState('product');await saveHistory();
+    const warnings=Array.isArray(payload.warnings)?payload.warnings.filter(Boolean):[];
+    setUrlImportStatus('Товар импортирован: данные'+(sourceDataUrl?' и фотографии':'')+' перенесены в черновик.'+(warnings.length?' '+warnings.join(' '):''),warnings.length?'warn':'ok');
+    workspace.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){
+    setUrlImportStatus(e.message||'Не удалось импортировать товар по ссылке.','bad');
+  }finally{
+    busy=false;importProductUrl.disabled=false;importProductUrl.textContent='Забрать товар';
+  }
+}
+
 function collectExtraData(){
   const out={};
   for(const [key,el] of Object.entries(extraFields))out[key]=el.value.trim();
@@ -2377,7 +2476,7 @@ function confirmedSourceForSpec(spec,data=currentData){
   const x=data?.confirmedData||collectExtraData();
   const n=normalizedFactText(spec?.name),v=normalizedFactText(spec?.value);
   const explicit=data?.factProvenance?.[n];
-  if(['Продавец','Маркировка','Фото'].includes(explicit))return explicit;
+  if(['Продавец','Маркировка','Фото','Сайт-источник'].includes(explicit))return explicit;
   const known=[
     ['бренд',x?.brand],['артикул',x?.sku],['штрихкод/ean',x?.barcode],['размеры',x?.size],['материал',x?.material]
   ];
@@ -2385,7 +2484,7 @@ function confirmedSourceForSpec(spec,data=currentData){
   return '';
 }
 function factSourceOf(spec,data=currentData){
-  return confirmedSourceForSpec(spec,data)||(['Продавец','Маркировка','Фото'].includes(spec?.source)?spec.source:'Фото');
+  return confirmedSourceForSpec(spec,data)||(['Продавец','Маркировка','Фото','Сайт-источник'].includes(spec?.source)?spec.source:'Фото');
 }
 function isTechnicalFactName(name){
   const n=normalizedFactText(name);
@@ -2393,7 +2492,7 @@ function isTechnicalFactName(name){
 }
 function factBlockers(data=currentData){
   const d=data||{};
-  return (d.characteristics||[]).filter(spec=>isTechnicalFactName(spec.name)&&!['Продавец','Маркировка'].includes(factSourceOf(spec,d))).map(spec=>({
+  return (d.characteristics||[]).filter(spec=>isTechnicalFactName(spec.name)&&!['Продавец','Маркировка','Сайт-источник'].includes(factSourceOf(spec,d))).map(spec=>({
     name:spec.name,value:spec.value,source:factSourceOf(spec,d),
     message:spec.name+': точный технический факт требует подтверждения продавцом или читаемой маркировкой.'
   }));
@@ -2408,7 +2507,7 @@ function renderFactSources(){
   factSourceList.innerHTML=specs.length?specs.map(spec=>{
     const source=factSourceOf(spec,d);
     const blocked=blockedKeys.has(normalizedFactText(spec.name)+'|'+normalizedFactText(spec.value));
-    const cls=source==='Продавец'?'seller':source==='Маркировка'?'label':'photo';
+    const cls=source==='Продавец'?'seller':source==='Маркировка'?'label':source==='Сайт-источник'?'web':'photo';
     return '<div class="fact-source-row '+(blocked?'blocked':'')+'"><div class="fact-source-name"><b>'+esc(spec.name)+':</b> '+esc(spec.value)+'</div><span class="source-badge '+(blocked?'blocked':cls)+'">'+esc(blocked?'Нужно подтвердить':source)+'</span></div>';
   }).join(''):'<div class="muted" style="font-size:10px">Подтверждённые характеристики пока не указаны.</div>';
   factBlockerNote.innerHTML=blockers.length?'<div class="fact-blocker-note"><b>Публикация заблокирована:</b> '+blockers.map(x=>esc(x.name)).join(', ')+'. Уточните значение вручную или используйте читаемую маркировку.</div>':'';
@@ -2856,6 +2955,9 @@ function syncModeUi(){
 ['dragleave','drop'].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault();drop.classList.remove('drag')}));
 drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0])});
 fileInput.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0])});
+importProductUrl.onclick=()=>importFromProductUrl();
+productUrlInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();importFromProductUrl()}});
+productUrlInput.addEventListener('input',()=>{if(urlImportStatus.classList.contains('bad'))urlImportStatus.className='url-import-status'});
 
 async function setFile(file){
   clearError();
@@ -3464,11 +3566,11 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentScenes=[];currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
-  clearExtraData();renderYuvionExport();renderCategoryMemory();updateWorkflow();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
+  clearExtraData();renderSourceReference();renderYuvionExport();renderCategoryMemory();updateWorkflow();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
 }
 
 /* IndexedDB history */
@@ -3547,9 +3649,9 @@ function storedFactBlockers(item){
     const n=normalizedFactText(spec?.name),v=normalizedFactText(spec?.value);
     const known=[['бренд',x.brand],['артикул',x.sku],['штрихкод/ean',x.barcode],['размеры',x.size],['материал',x.material]];
     if(known.some(([name,value])=>normalizedFactText(name)===n&&value&&normalizedFactText(value)===v))return 'Продавец';
-    return ['Продавец','Маркировка','Фото'].includes(spec?.source)?spec.source:'Фото';
+    return ['Продавец','Маркировка','Фото','Сайт-источник'].includes(spec?.source)?spec.source:'Фото';
   };
-  return (d.characteristics||[]).filter(spec=>isTechnicalFactName(spec.name)&&!['Продавец','Маркировка'].includes(sourceFor(spec)));
+  return (d.characteristics||[]).filter(spec=>isTechnicalFactName(spec.name)&&!['Продавец','Маркировка','Сайт-источник'].includes(sourceFor(spec)));
 }
 
 function missingCategoryRequiredSpecs(data){
@@ -3819,6 +3921,7 @@ async function saveHistory(){
       updatedAt:Date.now(),
       title:edited.seoTitle||'Товар',
       data:edited,
+      sourceReference:currentSourceReference,
       extraData:collectExtraData(),
       privateData:collectPrivateData(),
       sourceDataUrl:src,
@@ -5562,6 +5665,7 @@ async function restoreHistory(item){
   currentPhotoHash=String(item.photoHash||'');
   currentHistoryId=item.id;
   currentData=item.data||null;
+  currentSourceReference=item.sourceReference||null;
   currentCards=item.cards||[];
   currentScenes=Array.isArray(item.scenes)?item.scenes.slice(0,4):[];
   currentQuality=item.quality||null;
@@ -5574,7 +5678,7 @@ async function restoreHistory(item){
   currentAnalysisCache=item.analysisCache||null;
   cardsStale=Boolean(item.cardsStale);
   currentStaleCards=Array.isArray(item.staleCardIndexes)?item.staleCardIndexes.filter(x=>[0,1,2,3].includes(Number(x))).map(Number):[];
-  renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderModeration();renderActivity();
+  renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderModeration();renderActivity();renderSourceReference();
   currentMode=item.mode||'full';
   styleSelect.value=item.style||'minimal';
   fillExtraData(item.extraData||item.data?.confirmedData||{});
