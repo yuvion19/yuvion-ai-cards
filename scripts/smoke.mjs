@@ -45,7 +45,9 @@ const features=[
   ['Сайт-источник','URL provenance marker'],
   ['hydrateExcelItemFromUrl','Excel URL hydration'],
   ["key:'sourceUrl'",'Excel URL column mapping'],
-  ['urlImportPending','resumable URL import state']
+  ['urlImportPending','resumable URL import state'],
+  ['safeRasterTypes','remote SVG rejection'],
+  ['embeddedPublicJson','modern storefront embedded JSON fallback']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
@@ -53,7 +55,7 @@ for(const [needle,label] of features){
 
 const urlSecurity=[
   'MAX_REMOTE_HTML_BYTES','MAX_REMOTE_IMAGE_BYTES','REMOTE_FETCH_TIMEOUT_MS',
-  'localhost','169 && b === 254','192 && b === 168','redirect: "manual"'
+  'localhost','169 && b === 254','192 && b === 168','redirect: "manual"','safeRasterTypes'
 ];
 const missingUrlSecurity=urlSecurity.filter(needle=>!server.includes(needle));
 if(missingUrlSecurity.length)fail('URL import security guard missing: '+missingUrlSecurity.join(', '));else ok('URL import security guards present');
