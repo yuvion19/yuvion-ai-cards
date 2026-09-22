@@ -109,7 +109,7 @@ const features=[
   ['iconBenefitGroups','icon benefit layout'],
   ['showTitleToggle','textless cover UI'],
   ['createImmediateFreeCards','immediate free card generation'],
-  ['AbortController','client analysis timeout'],
+  ['setTimeout(()=>controller.abort(),75000)','client analysis timeout budget'],
   ['hadImmediateCards','preserve cards during analysis'],
   ['AI_ANALYZE_TIMEOUT_MS','server analysis timeout'],
   ['analyzeTimeoutSeconds','health analysis timeout metadata'],
