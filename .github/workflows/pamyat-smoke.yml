@@ -33,9 +33,11 @@ jobs:
         run: curl --fail --silent --show-error https://yuvion-ai-cards-ags2-production.up.railway.app/m | grep -q "Мобильная версия"
       - name: Mobile add form
         run: curl --fail --silent --show-error https://yuvion-ai-cards-ags2-production.up.railway.app/m/add | grep -q "Добавить событие"
-      - name: Cemetery catalog
-        run: curl --fail --silent --show-error "https://yuvion-ai-cards-ags2-production.up.railway.app/api/cemetery/search?q=QBA&limit=2" | grep -q "record_key"
-      - name: Cemetery map data
-        run: curl --fail --silent --show-error "https://yuvion-ai-cards-ags2-production.up.railway.app/api/cemetery/map?limit=2" | grep -q "latitude"
+      - name: Mobile calendar
+        run: curl --fail --silent --show-error https://yuvion-ai-cards-ags2-production.up.railway.app/m/calendar | grep -q "Ближайшие памятные даты"
+      - name: Mobile family
+        run: curl --fail --silent --show-error https://yuvion-ai-cards-ags2-production.up.railway.app/m/family | grep -q "Родословная"
+      - name: Cemetery catalog disabled
+        run: test "$(curl -s -o /dev/null -w '%{http_code}' https://yuvion-ai-cards-ags2-production.up.railway.app/api/cemetery/search?q=QBA)" = "404"
       - name: Database mutation selftest
         run: curl --fail --silent --show-error https://yuvion-ai-cards-ags2-production.up.railway.app/api/selftest | grep -q '"ok":true'
