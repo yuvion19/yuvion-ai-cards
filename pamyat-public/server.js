@@ -1552,7 +1552,7 @@ app.post("/api/admin/identification/:id/:action", requireAdmin, async (req,res)=
   try{const ok=await sb("rpc/memorial_admin_identification_action",{method:"POST",body:{p_token:ADMIN_TOKEN,p_id:req.params.id,p_action:req.params.action,p_record_key:clean(req.body?.record_key,100)||null}});res.json({ok:Boolean(ok)})}
   catch(e){res.status(400).json({error:"identification_action_failed"})}
 });
-app.post("/api/admin/duplicates/merge", requireAdmin, async (req,res)=>{
+app.post("/api/admin/duplicates/merge", requireAdminRole, async (req,res)=>{
   try{
     const data=await sb("rpc/memorial_admin_merge_events",{method:"POST",body:{
       p_token:ADMIN_TOKEN,p_keep_id:req.body?.keep_id,p_duplicate_id:req.body?.duplicate_id
@@ -1560,11 +1560,11 @@ app.post("/api/admin/duplicates/merge", requireAdmin, async (req,res)=>{
     res.json(data);
   }catch(e){res.status(400).json({error:"merge_failed",detail:e.data||e.message})}
 });
-app.get("/api/admin/duplicates", requireAdmin, async (_req,res)=>{
+app.get("/api/admin/duplicates", requireAdminRole, async (_req,res)=>{
   try{const data=await sb("rpc/memorial_duplicate_queue",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:150}});res.json(data||[])}
   catch(e){res.status(500).json({error:"duplicates_failed"})}
 });
-app.post("/api/admin/frontend-release/:value", requireAdmin, async (req,res)=>{
+app.post("/api/admin/frontend-release/:value", requireOwner, async (req,res)=>{
   try{const ok=await sb("rpc/memorial_admin_set_frontend_release",{method:"POST",body:{p_token:ADMIN_TOKEN,p_value:req.params.value}});res.json({ok:Boolean(ok),active:req.params.value})}
   catch(e){res.status(400).json({error:"release_switch_failed"})}
 });
@@ -2693,7 +2693,7 @@ app.get("/api/admin/auth/status", async (req,res) => {
   }:{ok:false});
 });
 
-app.post("/api/admin/setup-email", requireAdmin, rateLimit("admin-setup-email",8,60*60*1000), async (req,res) => {
+app.post("/api/admin/setup-email", requireOwner, rateLimit("admin-setup-email",8,60*60*1000), async (req,res) => {
   try{
     const email=clean(req.body?.email,180).toLowerCase();
     const role=clean(req.body?.role,20)==="moderator"?"moderator":"admin";
@@ -3073,13 +3073,13 @@ app.get("/api/admin/queue", requireAdmin, async (_req, res) => {
     res.status(500).json({ error: "admin_failed" });
   }
 });
-app.post("/api/admin/events/:eventId/delete-person", requireAdmin, async (req,res) => {
+app.post("/api/admin/events/:eventId/delete-person", requireAdminRole, async (req,res) => {
   try{
-    const data=await sb("rpc/memorial_admin_hide_person",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}});
+    const data=await sb("rpc/memorial_admin_trash_person",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}});
     res.json(data);
   }catch(e){
-    console.error("admin delete person",e.data||e);
-    res.status(400).json({error:"delete_person_failed"});
+    console.error("admin trash person",e.data||e);
+    res.status(400).json({error:"trash_person_failed"});
   }
 });
 
@@ -3113,18 +3113,18 @@ app.get("/api/admin/events/:eventId/history", requireAdmin, async (req,res) => {
     res.json(data);
   } catch { res.status(400).json({error:"history_failed"}); }
 });
-app.post("/api/admin/history/:historyId/rollback", requireAdmin, async (req,res) => {
+app.post("/api/admin/history/:historyId/rollback", requireAdminRole, async (req,res) => {
   try {
     const data = await sb("rpc/memorial_admin_rollback",{method:"POST",body:{p_token:ADMIN_TOKEN,p_history_id:Number(req.params.historyId)}});
     res.json({ok:Boolean(data)});
   } catch { res.status(400).json({error:"rollback_failed"}); }
 });
-app.post("/api/admin/backup/test", requireAdmin, async (_req,res)=>{
+app.post("/api/admin/backup/test", requireOwner, async (_req,res)=>{
   try{const r=await sendOffsiteBackup();res.status(r.ok?200:503).json(r)}
   catch(e){res.status(502).json({ok:false,error:e.message||"backup_failed"})}
 });
 
-app.post("/api/admin/snapshot", requireAdmin, async (_req,res) => {
+app.post("/api/admin/snapshot", requireAdminRole, async (_req,res) => {
   try {
     const data = await sb("rpc/memorial_create_daily_snapshot",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:new Date().toISOString().slice(0,10)}});
     res.json({ok:Boolean(data)});
