@@ -1844,10 +1844,115 @@ function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0
     </svg>`;
 }
 
-async function edgeWhiteCutout(sourceBuffer, layout) {
+
+const renderImageRoles = new Set(["angle", "package", "label", "barcode", "detail"]);
+
+function normalizeRenderAdditionalImages(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const item of raw.slice(0, 4)) {
+    const mimeType = String(item?.mimeType || "");
+    const image = String(item?.image || "");
+    const role = renderImageRoles.has(item?.role) ? item.role : "angle";
+    if (!ALLOWED_TYPES.has(mimeType) || !image || decodedImageSize(image) > MAX_IMAGE_BYTES) continue;
+    out.push({ mimeType, role, buffer: Buffer.from(image, "base64") });
+  }
+  return out;
+}
+
+function pickRenderSource(index, mainBuffer, additional) {
+  const priorities = [
+    [],
+    ["detail", "angle", "package"],
+    ["package", "detail", "angle", "label"],
+    ["angle", "detail", "package"]
+  ][index] || [];
+  for (const role of priorities) {
+    const found = additional.find((item) => item.role === role);
+    if (found) return { ...found, source: "extra" };
+  }
+  return { buffer: mainBuffer, role: "main", source: "main" };
+}
+
+function pickInsetSource(index, primary, additional) {
+  const priorities = [
+    ["package", "detail", "angle"],
+    ["detail", "package", "angle"],
+    ["package", "detail", "angle"],
+    ["angle", "detail", "package"]
+  ][index] || [];
+  for (const role of priorities) {
+    const found = additional.find((item) => item !== primary && item.role === role);
+    if (found) return found;
+  }
+  return null;
+}
+
+async function sourceToneStats(sourceBuffer) {
+  try {
+    const prepared = await sharp(sourceBuffer)
+      .rotate()
+      .resize(96, 96, { fit: "inside", withoutEnlargement: false })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const { data, info } = prepared;
+    let sum = 0;
+    let count = 0;
+    let edge = 0;
+    for (let y = 0; y < info.height; y += 1) {
+      for (let x = 0; x < info.width; x += 1) {
+        const p = (y * info.width + x) * info.channels;
+        const g = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
+        sum += g;
+        count += 1;
+        if (x > 0) {
+          const q = p - info.channels;
+          const prev = 0.299 * data[q] + 0.587 * data[q + 1] + 0.114 * data[q + 2];
+          edge += Math.abs(g - prev);
+        }
+      }
+    }
+    return { mean: count ? sum / count : 150, edge: count ? edge / count : 12 };
+  } catch {
+    return { mean: 150, edge: 12 };
+  }
+}
+
+async function enhanceProductSource(sourceBuffer, intensity = "selling", role = "main") {
+  const stats = await sourceToneStats(sourceBuffer);
+  const level = normalizeDesignIntensity(intensity);
+  const technical = role === "label" || role === "barcode";
+  let gain = 1.025;
+  let offset = 0;
+  if (stats.mean < 72) { gain = 1.16; offset = 8; }
+  else if (stats.mean < 105) { gain = 1.10; offset = 5; }
+  else if (stats.mean < 135) { gain = 1.055; offset = 2; }
+  else if (stats.mean > 226) { gain = 0.965; offset = -2; }
+  if (level === "calm") gain = 1 + (gain - 1) * 0.65;
+  if (level === "bold" && stats.mean < 205) gain += 0.015;
+
+  const saturation = technical ? 1 : level === "bold" ? 1.09 : level === "calm" ? 1.015 : 1.05;
+  const sigma = stats.edge < 6 ? 1.05 : stats.edge < 10 ? 0.82 : 0.58;
+
+  return sharp(sourceBuffer)
+    .rotate()
+    .resize(1800, 1800, { fit: "inside", withoutEnlargement: false })
+    .linear(gain, offset)
+    .modulate({ saturation })
+    .sharpen(sigma)
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
+function rgbDistance3(a, b) {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+async function smartBackgroundCutout(sourceBuffer, layout) {
   const prepared = await sharp(sourceBuffer)
     .rotate()
-    .resize(1200, 1200, { fit: "inside", withoutEnlargement: false })
+    .resize(1100, 1100, { fit: "inside", withoutEnlargement: false })
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
@@ -1855,22 +1960,49 @@ async function edgeWhiteCutout(sourceBuffer, layout) {
   const data = prepared.data;
   const { width, height, channels } = prepared.info;
   const total = width * height;
+  const patch = Math.max(10, Math.min(28, Math.floor(Math.min(width, height) * 0.04)));
+  const cornerBoxes = [
+    [0, 0, patch, patch],
+    [width - patch, 0, width, patch],
+    [0, height - patch, patch, height],
+    [width - patch, height - patch, width, height]
+  ];
+  const corners = cornerBoxes.map(([x0, y0, x1, y1]) => {
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let y = y0; y < y1; y += 2) {
+      for (let x = x0; x < x1; x += 2) {
+        const p = (y * width + x) * channels;
+        r += data[p]; g += data[p + 1]; b += data[p + 2]; n += 1;
+      }
+    }
+    return [r / Math.max(1, n), g / Math.max(1, n), b / Math.max(1, n)];
+  });
+  const avg = corners.reduce((acc, x) => [acc[0] + x[0], acc[1] + x[1], acc[2] + x[2]], [0, 0, 0]).map((x) => x / corners.length);
+  const bgBrightness = 0.299 * avg[0] + 0.587 * avg[1] + 0.114 * avg[2];
+  let cornerSpread = 0;
+  for (let i = 0; i < corners.length; i += 1) {
+    for (let j = i + 1; j < corners.length; j += 1) cornerSpread = Math.max(cornerSpread, rgbDistance3(corners[i], corners[j]));
+  }
+  if (bgBrightness < 168 || cornerSpread > 92) throw new Error("background-not-clean-enough");
+
+  const threshold = Math.max(28, Math.min(64, 36 + cornerSpread * 0.22));
   const seen = new Uint8Array(total);
   const queue = new Int32Array(total);
-  let head = 0;
-  let tail = 0;
-  const whiteish = (idx) => {
+  let head = 0, tail = 0;
+  const backgroundLike = (idx, multiplier = 1) => {
     const p = idx * channels;
-    const r = data[p], g = data[p + 1], b = data[p + 2], a = data[p + 3];
-    const hi = Math.max(r, g, b), lo = Math.min(r, g, b);
-    return a > 0 && lo >= 236 && hi - lo <= 24;
+    if (data[p + 3] === 0) return true;
+    const pixel = [data[p], data[p + 1], data[p + 2]];
+    const luminance = 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2];
+    if (luminance < Math.max(120, bgBrightness - 72)) return false;
+    const distance = Math.min(...corners.map((corner) => rgbDistance3(pixel, corner)));
+    return distance <= threshold * multiplier;
   };
   const push = (idx) => {
-    if (idx < 0 || idx >= total || seen[idx] || !whiteish(idx)) return;
+    if (idx < 0 || idx >= total || seen[idx] || !backgroundLike(idx)) return;
     seen[idx] = 1;
     queue[tail++] = idx;
   };
-
   for (let x = 0; x < width; x += 1) {
     push(x);
     push((height - 1) * width + x);
@@ -1879,7 +2011,6 @@ async function edgeWhiteCutout(sourceBuffer, layout) {
     push(y * width);
     push(y * width + width - 1);
   }
-
   while (head < tail) {
     const idx = queue[head++];
     const x = idx % width;
@@ -1889,53 +2020,149 @@ async function edgeWhiteCutout(sourceBuffer, layout) {
     if (idx + width < total) push(idx + width);
   }
 
+  let remaining = 0;
   let minX = width, minY = height, maxX = -1, maxY = -1;
   for (let idx = 0; idx < total; idx += 1) {
     const p = idx * channels;
     if (seen[idx]) data[p + 3] = 0;
     if (data[p + 3] > 8) {
-      const x = idx % width;
-      const y = Math.floor(idx / width);
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
+      remaining += 1;
+      const x = idx % width, y = Math.floor(idx / width);
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
     }
   }
+  if (remaining < total * 0.035 || maxX < minX || maxY < minY) throw new Error("cutout-too-aggressive");
 
-  if (maxX < minX || maxY < minY) throw new Error("cutout-empty");
-  return sharp(data, { raw: { width, height, channels } })
+  // One-pixel soft edge to reduce white halos on light studio photos.
+  const alpha = new Uint8Array(total);
+  for (let idx = 0; idx < total; idx += 1) alpha[idx] = data[idx * channels + 3];
+  for (let idx = 0; idx < total; idx += 1) {
+    if (alpha[idx] === 0) continue;
+    const x = idx % width;
+    const neighbors = [idx - 1, idx + 1, idx - width, idx + width];
+    let touchesTransparent = false;
+    for (const n of neighbors) {
+      if (n < 0 || n >= total) continue;
+      if ((n === idx - 1 && x === 0) || (n === idx + 1 && x === width - 1)) continue;
+      if (alpha[n] === 0) { touchesTransparent = true; break; }
+    }
+    if (touchesTransparent && backgroundLike(idx, 1.55)) data[idx * channels + 3] = Math.min(data[idx * channels + 3], 150);
+  }
+
+  const extracted = await sharp(data, { raw: { width, height, channels } })
     .extract({ left: minX, top: minY, width: maxX - minX + 1, height: maxY - minY + 1 })
-    .resize(layout.width, layout.height, { fit: "contain", withoutEnlargement: false })
+    .resize(layout.width, layout.height, {
+      fit: "contain",
+      withoutEnlargement: false,
+      background: { r: 255, g: 255, b: 255, alpha: 0 }
+    })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+  return extracted;
+}
+
+async function roundedPhotoPanel(sourceBuffer, width, height, radius = 34) {
+  const photo = await sharp(sourceBuffer)
+    .rotate()
+    .resize(width, height, {
+      fit: "contain",
+      withoutEnlargement: false,
+      background: { r: 255, g: 255, b: 255, alpha: 1 }
+    })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+  const mask = Buffer.from(
+    `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="${width}" height="${height}" rx="${radius}" fill="#fff"/></svg>`
+  );
+  return sharp(photo)
+    .ensureAlpha()
+    .composite([{ input: mask, blend: "dest-in" }])
     .png({ compressionLevel: 9 })
     .toBuffer();
 }
 
-async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], designVariant = 0, composition = {}, intensity = "selling", substyle = "auto", visualOptions = {}) {
+async function makeProductShadow(productBuffer, opacity = 0.22, blur = 13) {
+  const raw = await sharp(productBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = raw;
+  for (let p = 0; p < data.length; p += info.channels) {
+    data[p] = 22;
+    data[p + 1] = 22;
+    data[p + 2] = 26;
+    data[p + 3] = Math.round(data[p + 3] * opacity);
+  }
+  return sharp(data, { raw: info }).blur(blur).png({ compressionLevel: 9 }).toBuffer();
+}
+
+async function prepareProductVisual(sourceBuffer, layout, intensity = "selling", role = "main") {
+  const enhanced = await enhanceProductSource(sourceBuffer, intensity, role);
+  try {
+    const product = await smartBackgroundCutout(enhanced, layout);
+    return { product, cutout: true, enhanced };
+  } catch {
+    const product = await roundedPhotoPanel(enhanced, layout.width, layout.height, 36);
+    return { product, cutout: false, enhanced };
+  }
+}
+
+async function prepareInsetVisual(sourceBuffer, width, height, intensity = "selling", role = "detail") {
+  const enhanced = await enhanceProductSource(sourceBuffer, intensity, role);
+  return roundedPhotoPanel(enhanced, width, height, 28);
+}
+
+async function renderFreeScene(
+  sourceBuffer,
+  index,
+  styleKey,
+  palette = [],
+  designVariant = 0,
+  composition = {},
+  intensity = "selling",
+  substyle = "auto",
+  visualOptions = {},
+  secondarySourceBuffer = null,
+  primaryRole = "main",
+  secondaryRole = ""
+) {
   let sourceAspect = 1;
   try {
     const meta = await sharp(sourceBuffer).rotate().metadata();
     if (meta.width && meta.height) sourceAspect = meta.width / meta.height;
   } catch {}
   const layout = adjustedFreeLayout(index, composition, designVariant, intensity, sourceAspect);
-  let product;
-  try {
-    product = await edgeWhiteCutout(sourceBuffer, layout);
-  } catch {
-    product = await sharp(sourceBuffer)
-      .rotate()
-      .resize(layout.width, layout.height, {
-        fit: "contain",
-        withoutEnlargement: false,
-        background: { r: 255, g: 255, b: 255, alpha: 1 }
-      })
-      .png({ compressionLevel: 9 })
-      .toBuffer();
+  const visual = await prepareProductVisual(sourceBuffer, layout, intensity, primaryRole);
+  const composites = [];
+
+  if (secondarySourceBuffer && ["package", "detail", "angle"].includes(secondaryRole)) {
+    const insetSize = index === 0 ? { width: 205, height: 235, x: 650, y: 142 }
+      : index === 2 ? { width: 210, height: 230, x: 635, y: 115 }
+      : { width: 190, height: 215, x: 665, y: 120 };
+    try {
+      const inset = await prepareInsetVisual(secondarySourceBuffer, insetSize.width, insetSize.height, intensity, secondaryRole);
+      const insetShadowSvg = Buffer.from(
+        `<svg width="${insetSize.width + 30}" height="${insetSize.height + 36}" xmlns="http://www.w3.org/2000/svg"><filter id="s"><feGaussianBlur stdDeviation="10"/></filter><rect x="15" y="14" width="${insetSize.width}" height="${insetSize.height}" rx="30" fill="#111820" fill-opacity=".18" filter="url(#s)"/></svg>`
+      );
+      composites.push({ input: insetShadowSvg, left: insetSize.x - 15, top: insetSize.y - 8 });
+      composites.push({ input: inset, left: insetSize.x, top: insetSize.y });
+    } catch {}
   }
 
+  if (visual.cutout) {
+    try {
+      const shadow = await makeProductShadow(visual.product, intensity === "bold" ? 0.27 : 0.22, intensity === "bold" ? 15 : 13);
+      composites.push({ input: shadow, left: layout.x + 12, top: layout.y + 20 });
+    } catch {}
+  } else {
+    const panelShadow = Buffer.from(
+      `<svg width="${layout.width + 40}" height="${layout.height + 46}" xmlns="http://www.w3.org/2000/svg"><filter id="s"><feGaussianBlur stdDeviation="15"/></filter><rect x="20" y="18" width="${layout.width}" height="${layout.height}" rx="40" fill="#171C23" fill-opacity=".16" filter="url(#s)"/></svg>`
+    );
+    composites.push({ input: panelShadow, left: layout.x - 20, top: layout.y - 8 });
+  }
+  composites.push({ input: visual.product, left: layout.x, top: layout.y });
+
   return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, designVariant, intensity, substyle, visualOptions)))
-    .composite([{ input: product, left: layout.x, top: layout.y }])
-    .png({ compressionLevel: 9 })
+    .composite(composites)
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer();
 }
 
