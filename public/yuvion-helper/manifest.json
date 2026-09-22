@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Yuvion Helper",
-  "version": "2.0.0",
-  "description": "Переносит данные и готовые изображения из Yuvion AI Cards в форму admin.yuvion.ru для последующей проверки пользователем.",
+  "version": "3.0.0",
+  "description": "Переносит данные и готовые изображения из Yuvion AI Cards в admin.yuvion.ru, диагностирует совместимость формы и оставляет финальную публикацию пользователю.",
   "permissions": [
     "activeTab",
     "scripting",
