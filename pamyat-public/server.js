@@ -241,6 +241,37 @@ Object.assign(MOBILE_I18N.az,{
   "Добавить событие":"Hadisə əlavə et","Отправить":"Göndər","ФИО":"Tam ad","Тип события":"Hadisə növü",
   "Дата события":"Hadisə tarixi","Описание":"Təsvir","Ваш контакт":"Əlaqə məlumatınız"
 });
+Object.assign(MOBILE_I18N.en,{
+  "Лента памяти":"Memory feed","Книга памяти":"Memory book","Центр уведомлений":"Notification center","Установить приложение":"Install app",
+  "Следить за памятными датами":"Follow memorial dates","Не следить":"Stop following","История обновлений":"Update history",
+  "Подтверждение присутствия":"Attendance","Буду":"I will attend","Не смогу":"I cannot attend","Сообщите изменения":"Notify me of changes",
+  "Традиция / нусах":"Tradition / nusach","Все доступные тексты":"All available texts","Сефардская / восточная традиция":"Sephardic / Eastern tradition",
+  "Горско-еврейская община — базовый проверяемый набор":"Mountain Jewish community — reviewed core set","Прослушать":"Listen",
+  "Общие уведомления":"General notifications","Тихие часы":"Quiet hours","Какие объявления получать":"Which notices to receive",
+  "Состояние системы":"System status","Проверка системы":"System check","Маршрут к месту":"Directions","Контакт семьи":"Family contact",
+  "Последнее обновление":"Last updated","Карточка для мессенджеров":"Card for messengers","Книга памяти":"Memory book",
+  "Отметить всё прочитанным":"Mark all as read","Прочитано":"Read","Непрочитанных":"Unread"
+});
+Object.assign(MOBILE_I18N.he,{
+  "Лента памяти":"זרם זיכרון","Книга памяти":"ספר זיכרון","Центр уведомлений":"מרכז התראות","Установить приложение":"התקנת היישום",
+  "Следить за памятными датами":"מעקב אחר תאריכי הזיכרון","Не следить":"הפסקת מעקב","История обновлений":"היסטוריית עדכונים",
+  "Подтверждение присутствия":"אישור השתתפות","Буду":"אגיע","Не смогу":"לא אוכל להגיע","Сообщите изменения":"עדכנו אותי על שינויים",
+  "Традиция / нусах":"מסורת / נוסח","Все доступные тексты":"כל הטקסטים הזמינים","Сефардская / восточная традиция":"מסורת ספרדית / מזרחית",
+  "Горско-еврейская община — базовый проверяемый набор":"קהילת יהודי ההרים — אוסף בסיסי שנבדק","Прослушать":"האזנה",
+  "Общие уведомления":"התראות כלליות","Тихие часы":"שעות שקטות","Какие объявления получать":"אילו הודעות לקבל",
+  "Состояние системы":"מצב המערכת","Проверка системы":"בדיקת המערכת","Маршрут к месту":"ניווט למקום","Контакт семьи":"איש קשר של המשפחה",
+  "Последнее обновление":"עדכון אחרון","Карточка для мессенджеров":"כרטיס לשיתוף","Отметить всё прочитанным":"סימון הכול כנקרא","Прочитано":"נקרא","Непрочитанных":"לא נקראו"
+});
+Object.assign(MOBILE_I18N.az,{
+  "Лента памяти":"Xatirə lenti","Книга памяти":"Xatirə kitabı","Центр уведомлений":"Bildiriş mərkəzi","Установить приложение":"Tətbiqi quraşdır",
+  "Следить за памятными датами":"Xatirə tarixlərini izləmək","Не следить":"İzləməyi dayandır","История обновлений":"Yenilənmə tarixçəsi",
+  "Подтверждение присутствия":"İştirak təsdiqi","Буду":"Gələcəyəm","Не смогу":"Gələ bilməyəcəyəm","Сообщите изменения":"Dəyişiklikləri mənə bildirin",
+  "Традиция / нусах":"Ənənə / nusax","Все доступные тексты":"Bütün mövcud mətnlər","Сефардская / восточная традиция":"Sefarad / Şərq ənənəsi",
+  "Горско-еврейская община — базовый проверяемый набор":"Dağ yəhudiləri icması — yoxlanılmış əsas mətnlər","Прослушать":"Dinlə",
+  "Общие уведомления":"Ümumi bildirişlər","Тихие часы":"Sakit saatlar","Какие объявления получать":"Hansı bildirişləri almaq",
+  "Состояние системы":"Sistem vəziyyəti","Проверка системы":"Sistem yoxlaması","Маршрут к месту":"Məkana marşrut","Контакт семьи":"Ailə əlaqəsi",
+  "Последнее обновление":"Son yenilənmə","Карточка для мессенджеров":"Mesajlaşma üçün kart","Отметить всё прочитанным":"Hamısını oxunmuş et","Прочитано":"Oxunub","Непрочитанных":"Oxunmamış"
+});
 // Juuri remains beta: untranslated strings deliberately fall back to Russian until reviewed by a fluent speaker.
 
 function mobileShell(title, body, opts = {}) {
@@ -295,6 +326,7 @@ app.get("/m", (_req,res) => {
       <a class="btn" href="/m/book">Книга памяти</a>
       <a class="btn" href="/m/inbox">Центр уведомлений</a>
       <a class="btn" href="/m/reminders">Напоминания</a>
+      <a class="btn" href="/m/status">Состояние системы</a>
       <a class="btn" href="/api/selftest">Проверка системы</a>
       <a class="btn secondary" href="/m/admin">Модерация</a>
     </div>
@@ -305,6 +337,19 @@ app.get("/m", (_req,res) => {
     window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;btn.style.display="block"});
     btn.onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;btn.style.display="none"};
   </script>`}));
+});
+
+app.get("/m/status", async (_req,res)=>{
+  try{
+    const db=await sb("rpc/memorial_selftest",{method:"POST",body:{}}).catch(()=>({ok:false}));
+    const p=reminderProviderStatus();
+    const rows=[
+      ["База данных",Boolean(db?.ok)],["Push",p.push],["Email",p.email],["Telegram",p.telegram],["WhatsApp",p.whatsapp],["SMS",p.sms]
+    ];
+    const html=rows.map(([name,ok])=>'<div class="card"><b>'+htmlEsc(name)+'</b><span class="tag" style="float:right;'+(ok?'':'background:#f5e2e2')+'">'+(ok?'OK':'нужна настройка')+'</span></div>').join("");
+    res.setHeader("Cache-Control","no-store");
+    res.send(mobileShell("Состояние системы",'<h1>Состояние системы</h1><p class="muted">Показывается доступность базы и подключение каналов без раскрытия секретных настроек.</p>'+html));
+  }catch(e){res.status(503).send(mobileShell("Состояние системы",'<div class="err">Диагностика временно недоступна.</div>'))}
 });
 
 app.get("/m/feed", async (_req,res)=>{
