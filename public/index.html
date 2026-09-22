@@ -2789,6 +2789,7 @@ async function checkQualityAndAutofix(autoFix=true){
         qaSummary.innerHTML='<b>Повторная AI-проверка: '+esc(secondData.overall||'готово')+'</b>'+(secondNotes.length?'<br>'+secondNotes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
       }
     }
+    await saveHistory();
     return currentQuality;
   }catch(e){
     qaSummary.style.display='block';
@@ -2941,7 +2942,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderRevisionList();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentQuality=null;currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderRevisionList();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
@@ -3048,6 +3049,7 @@ async function savePhotoDraft(file){
       photoHash:currentPhotoHash||'',
       additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
+      quality:currentQuality,
       variations:variationsForExport(),
       revisions:currentRevisions,
       moderation:currentModeration,
@@ -4106,6 +4108,7 @@ async function restoreHistory(item){
   currentHistoryId=item.id;
   currentData=item.data||null;
   currentCards=item.cards||[];
+  currentQuality=item.quality||null;
   currentVariations=Array.isArray(item.variations)?item.variations.map(normalizeVariation):[];
   currentAdditionalPhotos=Array.isArray(item.additionalPhotos)?item.additionalPhotos.slice(0,4):[];
   currentRevisions=Array.isArray(item.revisions)?item.revisions.slice(0,12):[];
@@ -4151,6 +4154,11 @@ async function restoreHistory(item){
     creative.classList.toggle('show',currentMode==='full');
     creativeStatus.className='creative-status show done';
     creativeStatus.textContent=item.published?'Товар отмечен как опубликованный. Изменения переведут его обратно в черновик.':'Комплект восстановлен из локального каталога.';
+    if(currentQuality){
+      const notes=(currentQuality.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(Number(x.index)+1)+': '+issue));
+      qaSummary.style.display='block';
+      qaSummary.innerHTML='<b>Сохранённая AI-проверка: '+esc(currentQuality.overall||'готово')+'</b>'+(notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Критических проблем не обнаружено.');
+    }else qaSummary.style.display='none';
     zipImages.disabled=false;zipFull.disabled=false;
   }else{
     creative.classList.remove('show');
