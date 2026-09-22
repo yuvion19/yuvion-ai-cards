@@ -378,6 +378,14 @@ app.post("/api/admin/identification/:id/:action", requireAdmin, async (req,res)=
   try{const ok=await sb("rpc/memorial_admin_identification_action",{method:"POST",body:{p_token:ADMIN_TOKEN,p_id:req.params.id,p_action:req.params.action,p_record_key:clean(req.body?.record_key,100)||null}});res.json({ok:Boolean(ok)})}
   catch(e){res.status(400).json({error:"identification_action_failed"})}
 });
+app.post("/api/admin/duplicates/merge", requireAdmin, async (req,res)=>{
+  try{
+    const data=await sb("rpc/memorial_admin_merge_events",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_keep_id:req.body?.keep_id,p_duplicate_id:req.body?.duplicate_id
+    }});
+    res.json(data);
+  }catch(e){res.status(400).json({error:"merge_failed",detail:e.data||e.message})}
+});
 app.get("/api/admin/duplicates", requireAdmin, async (_req,res)=>{
   try{const data=await sb("rpc/memorial_duplicate_queue",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:150}});res.json(data||[])}
   catch(e){res.status(500).json({error:"duplicates_failed"})}
