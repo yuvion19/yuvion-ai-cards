@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Production release marker: v6.4.0
+// Production release marker: v6.5.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -38,6 +38,7 @@ const stats = {
   fullMode: 0,
   cardBatches: 0,
   singleRegenerations: 0,
+  localOverlayRenders: 0,
   imagesGenerated: 0,
   imageErrors: 0,
   creditsExhausted: 0,
@@ -451,7 +452,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "6.4.0",
+    version: "6.5.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     estimates: {
@@ -1002,14 +1003,27 @@ function overlayForCard(index, cardRaw, styleKey) {
     </svg>`;
 }
 
-async function composeCard(sceneBuffer, overlaySvg) {
-  const base = await sharp(sceneBuffer)
+async function normalizeSceneForCache(sceneBuffer) {
+  return sharp(sceneBuffer)
     .resize(900, 1200, {
       fit: "contain",
       background: { r: 252, g: 248, b: 248, alpha: 1 }
     })
-    .png({ compressionLevel: 9 })
+    .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer();
+}
+
+async function composeCard(sceneBuffer, overlaySvg) {
+  const meta = await sharp(sceneBuffer).metadata();
+  const base = Number(meta.width) === 900 && Number(meta.height) === 1200
+    ? sceneBuffer
+    : await sharp(sceneBuffer)
+      .resize(900, 1200, {
+        fit: "contain",
+        background: { r: 252, g: 248, b: 248, alpha: 1 }
+      })
+      .png({ compressionLevel: 9 })
+      .toBuffer();
 
   return sharp(base)
     .composite([{ input: Buffer.from(overlaySvg) }])
@@ -1132,13 +1146,14 @@ app.post("/api/generate-cards", async (req, res) => {
       scenes.push(...pair);
     }
 
+    const cachedScenes = await Promise.all(scenes.map((scene) => normalizeSceneForCache(scene)));
     const fileNames = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
     const cards = [];
 
     for (let index = 0; index < 4; index += 1) {
       const overlay = overlayForCard(index, normalized, styleKey);
-      const buffer = await composeCard(scenes[index], overlay);
+      const buffer = await composeCard(cachedScenes[index], overlay);
       cards.push({ filename: fileNames[index], title: titles[index], base64: buffer.toString("base64") });
     }
 
@@ -1148,6 +1163,11 @@ app.post("/api/generate-cards", async (req, res) => {
 
     return res.json({
       cards,
+      scenes: cachedScenes.map((buffer, index) => ({
+        index,
+        mimeType: "image/jpeg",
+        base64: buffer.toString("base64")
+      })),
       format: "900x1200",
       style: styleKey,
       description: descriptionText(normalized)
@@ -1181,7 +1201,8 @@ app.post("/api/regenerate-card", async (req, res) => {
     const styleKey = styleProfiles[style] ? style : "minimal";
     const sourceBuffer = Buffer.from(image, "base64");
     const scene = await generateScene(client, sourceBuffer, mimeType, cardScenes[cardIndex], cardIndex + 1, styleKey);
-    const buffer = await composeCard(scene, overlayForCard(cardIndex, normalized, styleKey));
+    const cachedScene = await normalizeSceneForCache(scene);
+    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey));
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
 
@@ -1194,11 +1215,54 @@ app.post("/api/regenerate-card", async (req, res) => {
         filename: names[cardIndex],
         title: titles[cardIndex],
         base64: buffer.toString("base64")
+      },
+      scene: {
+        index: cardIndex,
+        mimeType: "image/jpeg",
+        base64: cachedScene.toString("base64")
       }
     });
   } catch (error) {
     console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
     return imageErrorResponse(req, res, error, regenRequestsByIp, "regenerate");
+  }
+});
+
+app.post("/api/render-card-overlays", async (req, res) => {
+  try {
+    const { scenes, card, style = "minimal", indexes = [0, 1, 2, 3] } = req.body ?? {};
+    if (!Array.isArray(scenes) || scenes.length !== 4 || !card || typeof card !== "object") {
+      return res.status(400).json({ error: "Нужны четыре сохранённые сцены и данные товара." });
+    }
+    const wanted = [...new Set((Array.isArray(indexes) ? indexes : []).map(Number))]
+      .filter((x) => [0, 1, 2, 3].includes(x));
+    if (!wanted.length) return res.status(400).json({ error: "Не выбраны карточки для пересборки." });
+
+    const normalized = normalizeCard(card);
+    const styleKey = styleProfiles[style] ? style : "minimal";
+    const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
+    const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
+    const cards = [];
+
+    for (const index of wanted) {
+      const scene = scenes[index];
+      if (!scene || typeof scene.base64 !== "string") {
+        return res.status(400).json({ error: "Сохранённая сцена №" + (index + 1) + " повреждена." });
+      }
+      if (decodedImageSize(scene.base64) > MAX_IMAGE_BYTES) {
+        return res.status(413).json({ error: "Сохранённая сцена слишком большая." });
+      }
+      const sceneBuffer = Buffer.from(scene.base64, "base64");
+      const buffer = await composeCard(sceneBuffer, overlayForCard(index, normalized, styleKey));
+      cards.push({ index, filename: names[index], title: titles[index], base64: buffer.toString("base64") });
+    }
+
+    stats.localOverlayRenders += cards.length;
+    return res.json({ cards, style: styleKey, aiImageCalls: 0 });
+  } catch (error) {
+    recordError("render-card-overlays", error);
+    console.error("Local overlay render error:", { message: error?.message });
+    return res.status(500).json({ error: "Не удалось локально пересобрать инфографику." });
   }
 });
 
@@ -1332,5 +1396,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v6.4.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v6.5.0 listening on port ${port}`);
 });

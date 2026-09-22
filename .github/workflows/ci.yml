@@ -1,0 +1,34 @@
+name: CI smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node --check server.js
+      - run: npm test
+      - name: Runtime healthcheck
+        run: |
+          PORT=8080 npm start > /tmp/yuvion-server.log 2>&1 &
+          pid=$!
+          trap "kill $pid || true" EXIT
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8080/api/health > /tmp/health.json; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/yuvion-server.log
+          exit 1

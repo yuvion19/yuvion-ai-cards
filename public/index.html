@@ -171,7 +171,7 @@
     .import-map-card{width:min(850px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:22px;padding:18px;box-shadow:0 30px 90px rgba(0,0,0,.35)}
     .import-map-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.import-map-head h3{margin:0 0 4px}.import-map-head p{margin:0;color:var(--muted);font-size:11px}
     .import-map-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}.import-map-field{display:grid;grid-template-columns:145px minmax(0,1fr);gap:7px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:10px}.import-map-field label{font-size:10px;font-weight:850}.import-map-field select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px;background:#fff;font-size:10px}
-    .import-preview{margin-top:12px;padding:10px;border-radius:10px;background:#F7F7F8;font-size:10px;color:#635B5D;overflow:auto;white-space:nowrap}.import-map-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+    .import-preview{margin-top:12px;padding:10px;border-radius:10px;background:#F7F7F8;font-size:10px;color:#635B5D;overflow:auto;white-space:normal;line-height:1.45}.import-diff-stats{display:grid;grid-template-columns:repeat(5,minmax(80px,1fr));gap:6px;margin-bottom:9px}.import-diff-stat{padding:8px;border-radius:9px;background:#fff;border:1px solid var(--line)}.import-diff-stat b{display:block;font-size:15px}.import-diff-stat span{font-size:8px;color:var(--muted);font-weight:800}.import-diff-list{display:grid;gap:5px}.import-diff-row{padding:6px 8px;border-radius:8px;background:#fff;border:1px solid var(--line);font-size:9px}.import-map-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
     @media(max-width:700px){.import-map-grid{grid-template-columns:1fr}.import-map-field{grid-template-columns:115px minmax(0,1fr)}}
 
   
@@ -196,14 +196,61 @@
     .ops-v64{max-width:1100px;margin:16px auto;border:1px solid var(--line);border-radius:22px;background:#fff;overflow:hidden}.ops-v64-body{padding:16px 18px 18px}.ops-v64-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.ops-v64-card{border:1px solid var(--line);border-radius:12px;padding:11px;background:#FCFAFA}.ops-v64-card b{display:block;font-size:11px}.ops-v64-card span{display:block;margin-top:3px;font-size:9px;color:var(--muted);line-height:1.4}.ops-v64-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.diagnostic-list,.activity-list{display:grid;gap:5px;margin-top:10px}.diagnostic-row,.activity-row{display:flex;justify-content:space-between;gap:12px;padding:7px 8px;border-radius:8px;background:#F7F7F8;font-size:9px}.activity-row{display:block}.activity-row b{font-size:9px}.activity-row small{display:block;color:var(--muted);margin-top:2px}
     .queue-resume-note{margin-top:8px;padding:8px 9px;border-radius:9px;background:#FFF8E8;color:#7D5700;font-size:9px;display:none}.queue-resume-note.show{display:block}
     .unmatched-manager{display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}.unmatched-manager.show{display:block}.unmatched-manager h4{margin:0 0 7px;font-size:11px}.unmatched-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,1fr) auto;gap:7px;align-items:center;padding:7px;border:1px solid var(--line);border-radius:9px;margin-top:6px}.unmatched-row b{font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unmatched-row select{border:1px solid var(--line);border-radius:8px;padding:6px;font-size:9px;background:#fff}
+    .ops-budget{display:grid;grid-template-columns:minmax(220px,320px) minmax(0,1fr);gap:10px;align-items:end;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#FBFAFA}.ops-budget label span{display:block;font-size:9px;font-weight:850;margin-bottom:5px}.ops-budget input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 9px;background:#fff}.ops-budget>div{font-size:9px;color:var(--muted);line-height:1.4;padding-bottom:3px}@media(max-width:680px){.ops-budget{grid-template-columns:1fr}}
+    .confirmation-center{max-width:1100px;margin:16px auto;border:1px solid var(--line);border-radius:22px;background:#fff;overflow:hidden}.confirmation-body{padding:14px 18px 18px}.confirmation-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;color:var(--muted)}.confirmation-list{display:grid;gap:7px;margin-top:10px}.confirmation-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:11px;background:#FCFAFA}.confirmation-row b{font-size:11px}.confirmation-row small{display:block;font-size:9px;color:var(--muted);margin-top:2px}.confirmation-pills{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}.confirmation-pill{font-size:8px;font-weight:850;padding:4px 6px;border-radius:999px;background:#EEF4FA;color:#315F84}@media(max-width:700px){.confirmation-toolbar{align-items:flex-start;flex-direction:column}.confirmation-row{grid-template-columns:1fr}.confirmation-row .btn{justify-self:start}}
+    .storage-manager{display:none;margin-top:10px;padding:11px;border:1px solid var(--line);border-radius:12px;background:#FCFAFA}.storage-manager.show{display:block}.storage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.storage-cell{padding:9px;border:1px solid var(--line);border-radius:10px;background:#fff}.storage-cell b{display:block;font-size:13px}.storage-cell span{display:block;font-size:8px;color:var(--muted);margin-top:2px}@media(max-width:700px){.storage-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:760px){.ops-v64-grid{grid-template-columns:repeat(2,1fr)}}
+
+
+    .photographer-modal{position:fixed;inset:0;z-index:116;background:rgba(10,19,27,.82);display:none;align-items:center;justify-content:center;padding:14px}.photographer-modal.show{display:flex}.photographer-card{width:min(560px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:22px;padding:18px;box-shadow:0 30px 90px rgba(0,0,0,.3)}.photographer-card>select{width:100%;margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}.photographer-product{padding:14px;margin-top:10px;border-radius:13px;background:#101D2A;color:#fff}.photographer-product b{display:block;font-size:17px}.photographer-product span{display:block;color:#C6D0D8;font-size:11px;margin-top:4px}.photographer-roles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}.photographer-role{border:1px solid var(--line);border-radius:12px;padding:12px;background:#F8F9FA;text-align:left;cursor:pointer}.photographer-role b{display:block;font-size:11px}.photographer-role span{display:block;font-size:9px;color:var(--muted);margin-top:3px}.photographer-role.done{background:#EDF8F0;border-color:#CDE7D4;color:#226B38}.photographer-status{margin-top:10px;font-size:10px;color:var(--muted);min-height:15px}.photographer-actions{display:flex;justify-content:flex-end;margin-top:10px}@media(max-width:520px){.photographer-card{border-radius:18px}.photographer-roles{grid-template-columns:1fr}}
+    .bulk-edit-modal{position:fixed;inset:0;z-index:115;background:rgba(10,19,27,.72);display:none;align-items:center;justify-content:center;padding:16px}.bulk-edit-modal.show{display:flex}.bulk-edit-card{width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;padding:18px;box-shadow:0 28px 80px rgba(0,0,0,.24)}.bulk-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}.bulk-edit-grid label span{display:block;font-size:9px;font-weight:850;margin-bottom:4px}.bulk-edit-grid input,.bulk-edit-grid select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff}.bulk-edit-note{font-size:10px;color:var(--muted);line-height:1.45;margin-top:10px}.bulk-edit-actions{display:flex;justify-content:flex-end;margin-top:12px}@media(max-width:650px){.bulk-edit-grid{grid-template-columns:1fr}}
+    .network-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border-radius:999px;background:#ECF7EF;color:#27663A;font-size:9px;font-weight:900;white-space:nowrap}.network-pill:before{content:"";width:6px;height:6px;border-radius:50%;background:#45A35F}.network-pill.offline{background:#FFF4E6;color:#8A5A00}.network-pill.offline:before{background:#E09A20}
+    /* YUVION_V65_DESIGN */
+    :root{
+      --brand:#E93649;--brand2:#C92A3D;--brand3:#9F1D2D;
+      --text:#15191E;--muted:#69717A;--line:#E7E9EC;--bg:#F4F6F8;
+      --navy:#101D2A;--soft:#FFF1F3;--soft2:#FFF8F9;
+      --shadow:0 12px 38px rgba(16,29,42,.07);--shadow2:0 24px 70px rgba(16,29,42,.10)
+    }
+    body{background:
+      radial-gradient(circle at 15% -10%,rgba(233,54,73,.08),transparent 28rem),
+      radial-gradient(circle at 90% 8%,rgba(16,29,42,.055),transparent 25rem),
+      linear-gradient(180deg,#FDFDFE 0,#F7F8FA 35%,#F3F5F7 100%);color:var(--text)}
+    header{background:rgba(255,255,255,.82);border-bottom:1px solid rgba(226,229,233,.88);box-shadow:0 1px 0 rgba(16,29,42,.02)}
+    .head{height:70px}.brand-logo{width:146px}.brand{gap:10px}.release-chip{display:inline-flex;align-items:center;padding:4px 7px;border-radius:999px;background:#111E2A;color:#fff;font-size:9px;font-weight:900;letter-spacing:.03em}
+    .back{font-size:12px;color:#4E5965}.back:hover{color:var(--brand)}
+    main{padding-top:34px}.wrap{max-width:1180px}
+    .hero-shell{max-width:980px;padding:34px 38px;border-radius:28px;background:
+      radial-gradient(circle at 88% 18%,rgba(233,54,73,.12),transparent 18rem),
+      linear-gradient(135deg,#FFFFFF 0%,#FCFCFD 58%,#FFF4F6 100%);border:1px solid #E9EBEE;box-shadow:0 24px 70px rgba(16,29,42,.08)}
+    .hero{text-align:left}.hero .eyebrow{background:#111E2A;color:#fff;padding:7px 11px;font-size:10px;letter-spacing:.055em;text-transform:uppercase}.hero h1{max-width:720px;font-size:clamp(38px,5vw,60px);letter-spacing:-.055em;margin:18px 0 12px}.hero p{max-width:720px;font-size:17px;color:#606A74}.hero-badges{justify-content:flex-start}.hero-badge{background:rgba(255,255,255,.88);border-color:#E5E7EA;color:#53606A}
+    .workflow{max-width:900px;padding:8px;border-radius:16px;background:rgba(255,255,255,.82);border-color:#E4E7EA;box-shadow:0 8px 30px rgba(16,29,42,.04)}.workflow-step{border-radius:10px}.workflow-step.active{background:#111E2A;color:#fff}.workflow-step.active .n{background:#E93649}.workflow-step.done{background:#F1F8F3}
+    .focus-panel{max-width:900px;border:0;border-radius:20px;background:linear-gradient(135deg,#101D2A,#172B3C);color:#fff;box-shadow:0 18px 48px rgba(16,29,42,.18)}.focus-copy span{color:#FF8794}.focus-copy small{color:#C4CDD4}.focus-panel .btn-primary{box-shadow:0 10px 24px rgba(233,54,73,.25)}
+    .smart-strip{max-width:900px;background:rgba(255,255,255,.88);color:var(--text);border:1px solid #E4E7EA;box-shadow:0 10px 28px rgba(16,29,42,.045)}.smart-strip span{color:var(--muted)}.smart-pill{background:#F4F6F8;border:1px solid #E1E5E8;color:#34414C}.smart-pill:hover{background:#EDF0F3}.smart-pill.ui-mode-pill{background:#111E2A;color:#fff;border-color:#111E2A}
+    .card,.editor,.yuvion-export,.creative,.excel-autopilot,.publish-center,.confirmation-center,.ops-v64{border-color:#E4E7EA;box-shadow:var(--shadow);background:rgba(255,255,255,.94)}
+    .v63-panel-summary{background:#fff;padding:16px 18px}.v63-panel-summary b{font-size:14px;letter-spacing:-.01em}.v63-panel-summary>span:last-child{color:#66717B}.excel-autopilot[open]>.v63-panel-summary,.publish-center[open]>.v63-panel-summary,.confirmation-center[open]>.v63-panel-summary,.ops-v64[open]>.v63-panel-summary{background:#FAFBFC}
+    .excel-auto-step,.ops-v64-card,.publish-stat,.excel-stat{background:#F7F8FA;border-color:#E7E9EC}.excel-stat b,.publish-stat b{font-size:22px;letter-spacing:-.035em}
+    .btn{border-radius:11px}.btn-primary{background:linear-gradient(135deg,#EC4052,#D92F43);box-shadow:0 8px 18px rgba(217,47,67,.16)}.btn-primary:hover{background:linear-gradient(135deg,#DF3346,#C9283A)}.btn-ghost{background:#F1F3F5;color:#37424C}.btn-ghost:hover{background:#E9ECEF}
+    .drop{border-color:#CDD3D8;background:linear-gradient(180deg,#FFFFFF,#F8F9FA);border-radius:20px}.drop:hover{border-color:#E93649}.icon{border-radius:17px;background:linear-gradient(145deg,#111E2A,#24384A);box-shadow:0 12px 28px rgba(16,29,42,.18)}
+    .editor,.yuvion-export,.creative{border-radius:22px}.field input,.field textarea,.field select{border-color:#DDE1E5;border-radius:10px;background:#FDFDFE}.field input:focus,.field textarea:focus,.field select:focus{border-color:#E76C78;box-shadow:0 0 0 3px rgba(233,54,73,.10)}
+    .plan-card,.preview-card,.export-row,.readiness,.ai-quality,.fact-sources{border-color:#E4E7EA;background:#F9FAFB}.preview-card{padding:8px;border-radius:14px}.preview-card img{border-radius:10px}
+    .readiness-ring{background:conic-gradient(#E93649 calc(var(--p)*1%),#E8EBEE 0)}.readiness-ring:before{background:#fff}
+    .sticky-dock{background:rgba(16,29,42,.94);border:1px solid rgba(255,255,255,.08)}
+    .simple-ui #confirmationCenter,.simple-ui #operationsV64{display:none}.simple-ui.show-tools #confirmationCenter,.simple-ui.show-tools #operationsV64{display:block}
+    .simple-ui .hero-shell{padding:30px 34px}.simple-ui .hero{text-align:left}.simple-ui .hero p{margin:0;max-width:690px}.simple-ui .hero-badges{justify-content:flex-start}
+    @media(max-width:760px){
+      main{padding-top:20px}.wrap{padding:0 14px}.head{height:62px}.brand-logo{width:126px}.brand small{display:none}.release-chip{display:none}
+      .hero-shell{padding:24px 20px;border-radius:22px}.simple-ui .hero-shell{padding:24px 20px}.hero h1,.simple-ui h1{font-size:clamp(34px,11vw,48px)}.hero p,.simple-ui .hero p{font-size:15px}
+      .smart-strip{border-radius:14px}.smart-strip-actions{justify-content:flex-start!important;overflow:auto;flex-wrap:nowrap}.smart-pill{white-space:nowrap}
+      .card,.editor,.yuvion-export,.creative{border-radius:18px;padding:18px}.excel-autopilot,.publish-center,.confirmation-center,.ops-v64{border-radius:18px}
+    }
 
   </style>
 </head>
 <body class="simple-ui">
 <header>
   <div class="wrap head">
-    <a class="brand" href="/"><img class="brand-logo" src="data:image/png;base64,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" alt="Yuvion" /><span><small>AI-карточки товаров</small></span></a>
+    <a class="brand" href="/"><img class="brand-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJ4AAAAzCAYAAABmB7FLAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAfJSURBVHhe7Zp9bBRlHse/O7Ozu93u7JaWVpEKdxT0RE2tnh5Cj1e9I5woCBHjSytbgcMUDeUPiQn3EnKHCRbvsCenkdwREkBEFKlCAOuBVlReakUxope+cL71hdp2dzv71r0/pM/O83S2u9ud7Vz3nk+yye/tycxmv/v8Zn4zpkgkEgGHM8IIbIDDGQm48DiGwIXHMQQuPI4hcOFxDIELj2MIXHgcQ+DC4xgCFx7HEEypPLkINDSyoRHDUlLMhjijiJSF11lZxYbTjuwug6OinA1zRhG81XIMgQuPYwgpt9re7TvYcNqxlhTzVjvKSUl4HM5w4a2WYwhceBxDSLnVBhoaETj7MRsehDhxArLumMOGCaGmZih1x9mwJvz6bvSji/ASneW5qh6Hfck9bBihpmZ0bdiIUFMzmxoEn+FlBiMqPACQV7rhKH+Q+MmIDnGEF/7ue4S//Y6KxXrCwT51sZQUa8a00KrTig2FVr1WLB79nZcQar0I88QJEHLHsOlBqI8h5I+FuXA8lR9gOOeSDCMuPEtJMfJqthA/2fVDCQ8Auv+8Gb43DxP/ymO1MGVlUTV9R47hhz9uIn7Ba3sgFuRT58Kep5pvZ8wjdl7NFlhKiuH/6DQurX2SxMfVv01sluCFr9CxfBXxc7c+A+stJQkfP9zegZ5naxA8/znC7R0kLhbkQ7p2CuRVFTD/9CfUmgE6K6uIqKzTpyF385/YEoCpG/iOeqL7zYXsLkNezRbqkwwpr1/lpnzv3v2UDwCeHbuIbb97AcSCfCo/HKy3/RzmiROIr9SfpPJqfAffJLZUNAnWW0qo/FAEGhrRtmgZlOPvUqIDgHBbO5R330f7QxXwHXyLymnhf/8D+N6InstIorvwcPnfqv4kSyprhbw82BcvJL53114qr5x4D6HmFuLLK2mhpoJ1xjRi+w7E/kH7Dh0htm1WKZUbCt/Bt6juYC6ahKxfzYPsLoN94QJYb72Z5Lqfrh7ULrXo+evzgwQ8EqRFeEYjr4iKqd/jgVL3L+Krd0D7vfdAGBP/uihRbKXTie2PseOFmlsQ6VOIb5v9Syofi1BTM7qfria+9fZfILd6E3J+/xQcFeVwrV+H3L9sRvbSRaSms7IqrqgiioLev73AhtNORgpPcDmRfd+9xPfuex0A4D99ltoF9NztAMBSfCOkKUXEV07UU3kAVGuz3HwTzEWTqHwsel/YTmxpShFy/vAUxPyxVA0AONeuQdaCXxO/59kaKq9GmvzjufYdrUPf0To2nVYyUngAIK9YTuxA4zkEzn0G34FaEstethSC7CC+Xlhn3E5sX+0hKgcAytvR3dc2eyaVG4rgF18S2+Euh+CIfe6yuwwmSQIA+D88hYjiZ0sAZh7a89w29Hf9QOXTScYKz2S3I/uBZcT3HailBtTyyqgw9cT+m/nE9tefRCQUIn74628Q7ugkfqLXd/2XuhBuawcAmCQJ1mm3siUU4rgrIVzeDSOKgsC5T9kSAIAgO5C9dDFweSzT+9I/2JK0kbHCA7PrqS/oHQ/dD5PNRnw9Ea8aB+n664ivFrvv8FFiW6dPgzg2j/hDEWppJbZ0w1SYLBYqr4V4RQGxg59oCw8AHCseIaMX3+u1UN45wZakhYwWnskiUcPqAfS+tmPJmjuL2H3H3iG2WoT2+XcSOx7i1YXEDn56HpFAgMprEf6+jdjqPwKL4HBAVrXc3he3o7/XQ9Wkg4wWHphdDwAcyx8GRJGKDSCodqCIEr3zVNPvoX8UracF9iXRO0t//Un0ezwIt7VTYxxrgm0WAMSxeRBycgAAkWAQ/o9OsyUU4bZ29KvuZqWpP6PyLLY5M2FffDcAINT6H3i2/5Mt0Z2MFx5MJmoeONSw1nx1IfmBQ00tmo/xAmeiL0QILic1NB7AJEnUMZW649RuZ5s7GyazmfiJYJ4Q3fW8e/ZRORbvy/sQCQYBAJYbpkJwOtmSQTgrV5FjeF95jU3rTuYLL0kG2lJEUdC1YSOVCzU1o0c187KU3ETl1aiH2Kzw7IvuInaiqHfRQEMjerY+r3m36t21lxKm/NtHqXwsTDYb5NUriB9hdna94cJjkB+hX2DocK9G96Zn0F29FV0bNiL89TcAAJPNCtf6daqVNFnzoq+A+U+dQeCz88QfateNRdYdc2BfuID43pdfRefqx9Hz3DYEGhrh2bkbl6rWU38M5xOPJfX0xzazFPZFP/5hgl/+m03rChcegzT1OsjuMuIHv7gAX+0h+PYfoFpv3ratceeAavGRmGq4myyu9euQfd8S4gcvfAXvnn3orKxC799fgv/DUyRnmzuLqk0UV9UaiFeNY8O6w4WngaOiHAV7d8I2qxSCK3p9JOTkwFY6HQX7d0O6ZjK1Rgutdw+zVS14ODifeAy51Ztivs4kXlEAZ9UajNn4OzaVGKII19o1bFR3dH8tSuu1JfVrROzrPvHWx8snAvuwPJn2g4E5miDArBprJEoyx06mNqL4EWq9iFDrRYRbWmGePAnmwvEQC8fDZLWy5YREj5Fo3XD5vxAe538P3mo5hpAW4QUaGqlPsqSyljM60L3VxiNeq40Hb7WZQVp2PA4nHlx4HEPQpdUmi/rWPNX1nNFJysLjcIYDb7UcQ+DC4xgCFx7HELjwOIbAhccxBC48jiH8F5tsCFQ8jT7+AAAAAElFTkSuQmCC" alt="Yuvion" /><span><small>AI-карточки товаров</small></span><span class="release-chip">v6.5</span></a>
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <a class="back" href="https://admin.yuvion.ru/" target="_blank" rel="noopener">Личный кабинет →</a>
       <a class="back" href="https://yuvion.ru/" target="_blank" rel="noopener">yuvion.ru</a>
@@ -220,7 +267,7 @@
     <div class="hero-badges">
       <span class="hero-badge"><span class="hero-dot"></span>Характеристики не выдумываются</span>
       <span class="hero-badge"><span class="hero-dot"></span>Черновики сохраняются локально</span>
-      <span class="hero-badge"><span class="hero-dot"></span>Yuvion Helper 2.0</span>
+      <span class="hero-badge"><span class="hero-dot"></span>Yuvion Helper 3.0</span>
     </div>
   </section>
 
@@ -241,6 +288,8 @@
     <div class="smart-strip-actions">
       <button class="smart-pill" id="jumpHistory">Каталог</button>
       <button class="smart-pill" id="jumpExcel">Excel → карточки</button>
+      <button class="smart-pill" id="jumpTools">Инструменты</button>
+      <span class="network-pill" id="networkPill">Онлайн</span>
       <button class="smart-pill advanced-tool" id="jumpBatch">Пакет до 10 товаров</button>
       <button class="smart-pill advanced-tool" id="openIntake">Приёмка</button>
       <button class="smart-pill advanced-tool" id="jumpProblems">Проблемы</button>
@@ -291,8 +340,16 @@
     </div>
   </details>
 
+  <details class="confirmation-center" id="confirmationCenter">
+    <summary class="v63-panel-summary"><span><b>Центр подтверждений</b><small>OCR-факты, которые требуют решения продавца</small></span><span id="confirmationSummary">0 ожидают</span></summary>
+    <div class="confirmation-body">
+      <div class="confirmation-toolbar"><span>AI ничего не подтверждает сам. Откройте товар и примите или исправьте найденные значения.</span><button class="btn btn-ghost btn-small" id="runBulkLabelOcr">OCR маркировок очереди</button></div>
+      <div class="confirmation-list" id="confirmationList"></div>
+    </div>
+  </details>
+
   <details class="ops-v64" id="operationsV64">
-    <summary class="v63-panel-summary"><span><b>Операционный центр v6.4</b><small>очередь, отчёты, архив и диагностика</small></span><span>Открыть</span></summary>
+    <summary class="v63-panel-summary"><span><b>Операционный центр</b><small>очередь, бюджет, архив, storage и диагностика</small></span><span>Открыть</span></summary>
     <div class="ops-v64-body">
       <div class="ops-v64-grid">
         <div class="ops-v64-card"><b id="opsQueueValue">0</b><span>товаров в возобновляемой AI-очереди</span></div>
@@ -301,14 +358,29 @@
         <div class="ops-v64-card"><b id="opsStorageValue">—</b><span>занято хранилища браузера</span></div>
       </div>
       <div class="queue-resume-note" id="queueResumeNote"></div>
+      <div class="ops-budget">
+        <label><span>Лимит image-бюджета на очередь, $</span><input id="queueBudgetUsd" type="number" min="0" step="0.5" value="10"></label>
+        <div id="queueBudgetStatus">Ориентировочный лимит применяется только к генерации изображений. 0 = без лимита.</div>
+      </div>
       <div class="ops-v64-actions">
         <button class="btn btn-primary btn-small" id="resumeLargeQueue">Продолжить очередь</button>
         <button class="btn btn-ghost btn-small" id="pauseLargeQueue">Пауза</button>
         <button class="btn btn-ghost btn-small" id="exportCatalogReport">Отчёт CSV</button>
         <button class="btn btn-ghost btn-small" id="projectArchive">Архив проекта</button>
         <button class="btn btn-ghost btn-small" id="refreshDiagnostics">Диагностика</button>
+        <button class="btn btn-ghost btn-small" id="storageManagerToggle">Хранилище</button>
+        <button class="btn btn-ghost btn-small" id="undoLastImport">Откатить Excel</button>
+        <button class="btn btn-ghost btn-small" id="openPhotographer">Режим фотографа</button>
       </div>
       <div class="diagnostic-list" id="diagnosticList"></div>
+      <div class="storage-manager" id="storageManager">
+        <div class="storage-grid" id="storageGrid"></div>
+        <div class="ops-v64-actions">
+          <button class="btn btn-ghost btn-small" id="compactStorage">Безопасная очистка</button>
+          <button class="btn btn-ghost btn-small" id="clearSceneCache">Удалить чистые сцены</button>
+        </div>
+        <div class="muted" id="storageManagerNote" style="font-size:9px;margin-top:7px">Финальные PNG и исходные фото безопасная очистка не удаляет.</div>
+      </div>
       <div style="margin-top:12px"><b style="font-size:11px">Последние действия текущего товара</b><div class="activity-list" id="activityList"></div></div>
     </div>
   </details>
@@ -583,7 +655,7 @@
         <p>Для Chrome/Edge на компьютере: скопируйте пакет товара, откройте личный кабинет и запустите расширение Yuvion Helper. Оно заполнит текстовые поля и, если 4 карточки уже готовы, попытается подставить изображения. Категорию всё равно нужно подтвердить в выпадающем списке, а перед сохранением — проверить форму.</p>
         <div class="helper-actions">
           <button class="btn btn-ghost btn-small" id="copyAutofillPackage">Скопировать полный пакет</button>
-          <a class="btn btn-ghost btn-small" href="/api/helper-download">Скачать Yuvion Helper 2.0</a>
+          <a class="btn btn-ghost btn-small" href="/api/helper-download">Скачать Yuvion Helper 3.0</a>
         </div>
       </div>
     </section>
@@ -679,6 +751,7 @@
       <div class="bulk-actions">
         <button class="bulk-btn" id="bulkSelectVisible">Выбрать видимые</button>
         <button class="bulk-btn primary" id="bulkDownload">Скачать пакет</button>
+        <button class="bulk-btn" id="bulkEdit">Массово изменить</button>
         <button class="bulk-btn" id="bulkLabels">Этикетки PDF</button>
         <button class="bulk-btn" id="bulkPublish">Опубликованы</button>
         <button class="bulk-btn" id="bulkDraft">В черновики</button>
@@ -699,6 +772,34 @@
     <button class="dock-btn" id="dockCards">Карточки</button>
     <button class="dock-btn primary simple-only" id="dockNext">Продолжить</button>
     <button class="dock-btn primary" id="dockYuvion">Yuvion</button>
+  </div>
+</div>
+
+<div class="photographer-modal" id="photographerModal">
+  <div class="photographer-card">
+    <div class="scanner-top"><div><b>Режим фотографа</b><div class="muted" style="font-size:10px">Только SKU и фото. Цены, описания и складские данные здесь не показываются.</div></div><button class="btn btn-ghost btn-small" id="closePhotographer">Закрыть</button></div>
+    <select id="photographerProduct"></select>
+    <div class="photographer-product"><b id="photographerTitle">Выберите товар</b><span id="photographerSku">SKU —</span></div>
+    <div class="photographer-roles" id="photographerRoles"></div>
+    <input id="photographerFile" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
+    <div class="photographer-status" id="photographerStatus">Сначала выберите товар.</div>
+    <div class="photographer-actions"><button class="btn btn-primary btn-small" id="photographerNext">Следующий товар</button></div>
+  </div>
+</div>
+
+<div class="bulk-edit-modal" id="bulkEditModal">
+  <div class="bulk-edit-card">
+    <div class="scanner-top"><div><b>Массовое изменение</b><div class="muted" style="font-size:10px">Применяются только заполненные поля. SKU/EAN и технические характеристики здесь не меняются.</div></div><button class="btn btn-ghost btn-small" id="closeBulkEdit">Закрыть</button></div>
+    <div class="bulk-edit-grid">
+      <label><span>Категория</span><input id="bulkEditCategory" placeholder="Не менять"></label>
+      <label><span>Бренд</span><input id="bulkEditBrand" placeholder="Подтверждённый бренд"></label>
+      <label><span>Стиль карточек</span><select id="bulkEditStyle"><option value="">Не менять</option><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select></label>
+      <label><span>Коллекция / метка</span><input id="bulkEditCollection" placeholder="Например: Новинки"></label>
+      <label><span>Скидка от 2 шт., %</span><input id="bulkEditDiscount2" type="number" min="0" max="99" step="0.1" placeholder="Не менять"></label>
+      <label><span>Скидка от 3 шт., %</span><input id="bulkEditDiscount3" type="number" min="0" max="99" step="0.1" placeholder="Не менять"></label>
+    </div>
+    <div class="bulk-edit-note" id="bulkEditNote"></div>
+    <div class="bulk-edit-actions"><button class="btn btn-primary" id="applyBulkEdit">Применить к выбранным</button></div>
   </div>
 </div>
 
@@ -731,7 +832,7 @@
     <div class="import-map-head"><div><h3>Сопоставление колонок</h3><p id="importMapSubtitle">Проверьте, какие колонки таблицы соответствуют полям Yuvion.</p></div><button class="btn btn-ghost btn-small" id="cancelImportMap">Закрыть</button></div>
     <div class="import-map-grid" id="importMapGrid"></div>
     <div class="import-preview" id="importMapPreview"></div>
-    <div class="import-map-actions"><button class="btn btn-ghost" id="resetImportMap">Автораспознавание</button><button class="btn btn-primary" id="confirmImportMap">Импортировать</button></div>
+    <div class="import-map-actions"><button class="btn btn-ghost" id="resetImportMap">Автораспознавание</button><button class="btn btn-primary" id="confirmImportMap">Проверить изменения</button></div>
   </div>
 </div>
 
@@ -819,6 +920,7 @@ const bulkBar=document.getElementById('bulkBar');
 const bulkCount=document.getElementById('bulkCount');
 const bulkSelectVisible=document.getElementById('bulkSelectVisible');
 const bulkDownload=document.getElementById('bulkDownload');
+const bulkEdit=document.getElementById('bulkEdit');
 const bulkPublish=document.getElementById('bulkPublish');
 const bulkDraft=document.getElementById('bulkDraft');
 const bulkDelete=document.getElementById('bulkDelete');
@@ -946,7 +1048,19 @@ const importProductsBtn=document.getElementById('importProducts');
 const importProductsFile=document.getElementById('importProductsFile');
 const importNote=document.getElementById('importNote');
 const bulkLabels=document.getElementById('bulkLabels');
+const bulkEditModal=document.getElementById('bulkEditModal');
+const closeBulkEdit=document.getElementById('closeBulkEdit');
+const bulkEditCategory=document.getElementById('bulkEditCategory');
+const bulkEditBrand=document.getElementById('bulkEditBrand');
+const bulkEditStyle=document.getElementById('bulkEditStyle');
+const bulkEditCollection=document.getElementById('bulkEditCollection');
+const bulkEditDiscount2=document.getElementById('bulkEditDiscount2');
+const bulkEditDiscount3=document.getElementById('bulkEditDiscount3');
+const bulkEditNote=document.getElementById('bulkEditNote');
+const applyBulkEdit=document.getElementById('applyBulkEdit');
 const jumpExcel=document.getElementById('jumpExcel');
+const jumpTools=document.getElementById('jumpTools');
+const networkPill=document.getElementById('networkPill');
 const excelImportStart=document.getElementById('excelImportStart');
 const excelPhotoFiles=document.getElementById('excelPhotoFiles');
 const runExcelAutopilot=document.getElementById('runExcelAutopilot');
@@ -969,6 +1083,10 @@ const publishProblemCount=document.getElementById('publishProblemCount');
 const publishNoPhotoCount=document.getElementById('publishNoPhotoCount');
 const publishDoneCount=document.getElementById('publishDoneCount');
 const publishNextProblem=document.getElementById('publishNextProblem');
+const confirmationCenter=document.getElementById('confirmationCenter');
+const confirmationSummary=document.getElementById('confirmationSummary');
+const confirmationList=document.getElementById('confirmationList');
+const runBulkLabelOcr=document.getElementById('runBulkLabelOcr');
 const factSourcesPanel=document.getElementById('factSourcesPanel');
 const factSourceList=document.getElementById('factSourceList');
 const factBlockerNote=document.getElementById('factBlockerNote');
@@ -989,11 +1107,30 @@ const opsCacheValue=document.getElementById('opsCacheValue');
 const opsErrorValue=document.getElementById('opsErrorValue');
 const opsStorageValue=document.getElementById('opsStorageValue');
 const queueResumeNote=document.getElementById('queueResumeNote');
+const queueBudgetUsd=document.getElementById('queueBudgetUsd');
+const queueBudgetStatus=document.getElementById('queueBudgetStatus');
 const resumeLargeQueue=document.getElementById('resumeLargeQueue');
 const pauseLargeQueue=document.getElementById('pauseLargeQueue');
 const exportCatalogReport=document.getElementById('exportCatalogReport');
 const projectArchive=document.getElementById('projectArchive');
 const refreshDiagnostics=document.getElementById('refreshDiagnostics');
+const storageManagerToggle=document.getElementById('storageManagerToggle');
+const undoLastImport=document.getElementById('undoLastImport');
+const openPhotographer=document.getElementById('openPhotographer');
+const photographerModal=document.getElementById('photographerModal');
+const closePhotographer=document.getElementById('closePhotographer');
+const photographerProduct=document.getElementById('photographerProduct');
+const photographerTitle=document.getElementById('photographerTitle');
+const photographerSku=document.getElementById('photographerSku');
+const photographerRoles=document.getElementById('photographerRoles');
+const photographerFile=document.getElementById('photographerFile');
+const photographerStatus=document.getElementById('photographerStatus');
+const photographerNext=document.getElementById('photographerNext');
+const compactStorage=document.getElementById('compactStorage');
+const clearSceneCache=document.getElementById('clearSceneCache');
+const storageManager=document.getElementById('storageManager');
+const storageGrid=document.getElementById('storageGrid');
+const storageManagerNote=document.getElementById('storageManagerNote');
 const diagnosticList=document.getElementById('diagnosticList');
 const activityList=document.getElementById('activityList');
 
@@ -1001,6 +1138,7 @@ let selectedFile=null;
 let sourceDataUrl=null;
 let currentData=null;
 let currentCards=[];
+let currentScenes=[];
 let currentMode='full';
 let currentHistoryId=null;
 let busy=false;
@@ -1034,13 +1172,51 @@ let currentLabelSuggestions=[];
 let currentActivity=[];
 let currentAnalysisCache=null;
 let unmatchedPhotoPool=[];
+let photographerPendingRole='main';
+let photographerItems=[];
 let publicHealthCache=null;
 let largeQueuePaused=true;
 const EXCEL_AUTOPILOT_LIMIT=10;
 const LARGE_QUEUE_KEY='yuvionLargeQueueV1';
+const QUEUE_BUDGET_KEY='yuvionQueueBudgetUsdV1';
 
 localStorage.removeItem('yuvionSessionId');
+queueBudgetUsd.value=localStorage.getItem(QUEUE_BUDGET_KEY)||'10';
+queueBudgetUsd.addEventListener('change',()=>{saveQueueBudget();refreshDiagnosticsNow()});
 function apiHeaders(){return {'Content-Type':'application/json'}}
+function renderNetworkState(){
+  const online=navigator.onLine!==false;
+  networkPill.textContent=online?'Онлайн':'Офлайн · AI на паузе';
+  networkPill.classList.toggle('offline',!online);
+  if(!online&&excelAutopilotBusy){
+    largeQueuePaused=true;
+    saveLargeQueueState({pending:true,paused:true,offline:true});
+  }
+}
+window.addEventListener('online',()=>{renderNetworkState();refreshDiagnosticsNow()});
+window.addEventListener('offline',()=>{renderNetworkState();refreshDiagnosticsNow()});
+
+function queueBudgetLimit(){
+  const n=Number(queueBudgetUsd?.value||localStorage.getItem(QUEUE_BUDGET_KEY)||0);
+  return Number.isFinite(n)&&n>0?n:0;
+}
+function saveQueueBudget(){
+  if(queueBudgetUsd)localStorage.setItem(QUEUE_BUDGET_KEY,String(Math.max(0,Number(queueBudgetUsd.value)||0)));
+}
+async function fetchJsonRetry(url,options={},retries=2){
+  let lastError=null;
+  for(let attempt=0;attempt<=retries;attempt++){
+    try{
+      const response=await fetch(url,options);
+      const data=await response.json().catch(()=>({}));
+      if(response.status===429||response.status===402||response.status===401||response.status===400)return {response,data};
+      if(response.ok||response.status<500)return {response,data};
+      lastError=new Error(data.error||('HTTP '+response.status));
+    }catch(e){lastError=e}
+    if(attempt<retries)await new Promise(r=>setTimeout(r,700*(attempt+1)));
+  }
+  throw lastError||new Error('Сетевой запрос не выполнен.');
+}
 function showError(message){error.textContent=message;error.classList.add('show')}
 function clearError(){error.classList.remove('show');error.textContent=''}
 function esc(s){const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML}
@@ -1263,7 +1439,11 @@ function applyCategoryRule({applyTemplate=false}={}){
   const rule=categoryRuleFor(editor.category.value);
   const fallbackStyle=DEFAULT_CATEGORY_STYLES[categoryRoot(editor.category.value)]||'';
   const chosenStyle=rule?.style||fallbackStyle;
-  if(chosenStyle&&styleSelect.querySelector('option[value="'+chosenStyle+'"]'))styleSelect.value=chosenStyle;
+  const previousStyle=styleSelect.value;
+  if(chosenStyle&&styleSelect.querySelector('option[value="'+chosenStyle+'"]')){
+    styleSelect.value=chosenStyle;
+    if(previousStyle!==chosenStyle&&currentCards.length)currentScenes=[];
+  }
   if(!rule)return fallbackStyle?{category:categoryRoot(editor.category.value),style:fallbackStyle,specs:[]}:null;
   if(applyTemplate&&Array.isArray(rule.specs)&&rule.specs.length){
     const existing=new Set(currentSpecNames().map(x=>x.toLocaleLowerCase('ru')));
@@ -1895,6 +2075,21 @@ function renderModeration(){
   renderProductCockpit();
 }
 
+const MODERATION_PATTERNS_KEY='yuvionModerationPatternsV1';
+function loadModerationPatterns(){
+  try{return JSON.parse(localStorage.getItem(MODERATION_PATTERNS_KEY)||'{}')||{}}catch{return {}}
+}
+function rememberModerationPattern(reason){
+  const key=String(reason||'').trim().replace(/\s+/g,' ').slice(0,180);if(!key)return;
+  const all=loadModerationPatterns();const entry=all[key]||{count:0,lastAt:0};
+  entry.count=Number(entry.count||0)+1;entry.lastAt=Date.now();all[key]=entry;
+  const trimmed=Object.fromEntries(Object.entries(all).sort((a,b)=>Number(b[1]?.lastAt||0)-Number(a[1]?.lastAt||0)).slice(0,30));
+  localStorage.setItem(MODERATION_PATTERNS_KEY,JSON.stringify(trimmed));
+}
+function topModerationPattern(){
+  return Object.entries(loadModerationPatterns()).sort((a,b)=>Number(b[1]?.count||0)-Number(a[1]?.count||0))[0]||null;
+}
+
 async function recordModeration(){
   if(!currentData||!currentHistoryId)return;
   const status=moderationStatus.value;
@@ -1909,6 +2104,7 @@ async function recordModeration(){
       at:Date.now()
     },...currentModeration.log]
   });
+  if(status==='rejected'&&reason)rememberModerationPattern(reason);
   renderModeration();
   addCurrentActivity('Статус модерации',moderationLabel(status)+(reason?' · '+reason:''));
   await saveHistory();
@@ -2672,7 +2868,7 @@ async function setFile(file){
 
   if(!attachExisting){
     currentHistoryId=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36);
-    currentData=null;currentCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentPrivateData={cost:''};
+    currentData=null;currentCards=[];currentScenes=[];currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentPrivateData={cost:''};
     renderVariations();renderExtraPhotos();renderRevisionList();
     clearExtraData();
     await maybeAutoAssignSku();
@@ -2924,7 +3120,7 @@ analyzeBtn.onclick=async()=>{
     const response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
-    currentData=data;currentCards=[];cardsStale=false;currentStaleCards=[];currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
+    currentData=data;currentCards=[];currentScenes=[];cardsStale=false;currentStaleCards=[];currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
     addCurrentActivity('AI-анализ завершён','Уверенность: '+(data.confidence||'не указана'));
     fillEditor(data);
     applyCategoryRule({applyTemplate:true});
@@ -3010,7 +3206,7 @@ editor.category.addEventListener('blur',()=>{
   renderCategoryValidation();
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
-styleSelect.onchange=()=>{markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
+styleSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
 
 function markCardsStale(indexes=[0,1,2,3]){
   if(currentCards.length){
@@ -3087,35 +3283,63 @@ async function regenerateCardApi(index,src,cardData,styleValue){
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку №'+(index+1)+'.');
+  if(data.scene){
+    currentScenes=Array.isArray(currentScenes)?currentScenes:[];
+    currentScenes[index]=data.scene;
+  }
   return data.card;
+}
+
+async function renderOverlayCardsApi(indexes,cardData,styleValue){
+  if(!Array.isArray(currentScenes)||currentScenes.length!==4)throw new Error('Чистые сцены недоступны.');
+  const response=await fetch('/api/render-card-overlays',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({scenes:currentScenes,card:cardData,style:styleValue,indexes})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось пересобрать инфографику.');
+  for(const rendered of (data.cards||[])){
+    if(Number.isInteger(rendered.index))currentCards[rendered.index]=rendered;
+  }
+  return data;
 }
 
 generateAll.onclick=async()=>{
   if(cardsBusy||!currentData)return;
   currentData=collectEdits();cardsBusy=true;generateAll.disabled=true;creative.classList.add('show');
   currentQuality=null;qaSummary.style.display='none';
-  const selective=currentCards.length===4&&cardsStale&&currentStaleCards.length>0&&currentStaleCards.length<4;
+  const canLocalOverlay=currentCards.length===4&&currentScenes.length===4&&cardsStale&&currentStaleCards.length>0;
+  const selectiveAi=currentCards.length===4&&cardsStale&&currentStaleCards.length>0&&currentStaleCards.length<4&&!canLocalOverlay;
   creativeStatus.className='creative-status show';
-  creativeStatus.textContent=selective?'Обновляем только карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.':'Создаём 4 изображения и накладываем инфографику.';
-  if(!selective)cardsPreview.innerHTML='';
+  creativeStatus.textContent=canLocalOverlay
+    ?'Пересобираем инфографику без нового AI-изображения: карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.'
+    :selectiveAi
+      ?'Обновляем только карточки №'+currentStaleCards.map(x=>x+1).join(', ')+'.'
+      :'Создаём 4 изображения и накладываем инфографику.';
+  if(!canLocalOverlay&&!selectiveAi)cardsPreview.innerHTML='';
   try{
-    const src=await getSource();
-    if(selective){
+    if(canLocalOverlay){
+      await renderOverlayCardsApi([...currentStaleCards],currentData,styleSelect.value);
+      addCurrentActivity('Инфографика пересобрана без AI','Карточки №'+currentStaleCards.map(x=>x+1).join(', '));
+    }else if(selectiveAi){
+      const src=await getSource();
       for(const index of [...currentStaleCards])currentCards[index]=await regenerateCardApi(index,src,currentData,styleSelect.value);
-      addCurrentActivity('Точечная перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
+      addCurrentActivity('Точечная AI-перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
     }else{
+      const src=await getSource();
       const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
       currentCards=data.cards||[];
-      addCurrentActivity('Создан комплект изображений','4 карточки');
+      currentScenes=data.scenes||[];
+      addCurrentActivity('Создан комплект изображений','4 карточки + чистые сцены');
     }
     cardsStale=false;currentStaleCards=[];renderCards();renderProductCockpit();
     zipImages.disabled=false;zipFull.disabled=false;
     creativeStatus.className='creative-status show';creativeStatus.textContent='Изображения готовы. Выполняем автоматическую проверку качества.';
     await saveHistory();
-    await checkQualityAndAutofix(true);
-    creativeStatus.className='creative-status show done';creativeStatus.textContent='Комплект готов. QA завершён; при необходимости исправлены только проблемные карточки.';
+    await checkQualityAndAutofix(!canLocalOverlay);
+    creativeStatus.className='creative-status show done';creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена без image-generation. QA завершён.':'Комплект готов. QA завершён; при необходимости исправлены только проблемные карточки.';
     await downloadPackage(false,true);
   }catch(e){
     creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось создать карточки.';
@@ -3137,6 +3361,7 @@ async function moveCard(from,to){
   currentCards.splice(to,0,card);
   normalizeCardFilenames();
   currentQuality=null;
+  currentScenes=[];
   if(cardsStale)currentStaleCards=[0,1,2,3];
   addCurrentActivity('Порядок карточек изменён','Позиция '+(from+1)+' → '+(to+1));
   renderCards();
@@ -3239,7 +3464,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentScenes=[];currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
@@ -3247,14 +3472,62 @@ function resetProduct(keepSimilar=false){
 }
 
 /* IndexedDB history */
-const DB_NAME='YuvionCardsHistoryV1',STORE='items';
-const CATALOG_LIMIT=500;
-function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
-async function dbPut(item){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(item);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
-async function dbGet(id){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)})}
-async function dbAll(){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
+const DB_NAME='YuvionCardsHistoryV1',STORE='items',SNAPSHOT_STORE='snapshots';
+const CATALOG_LIMIT=500,ITEM_SCHEMA_VERSION=2;
+function migrateStoredItem(raw){
+  const item=raw&&typeof raw==='object'?raw:{};
+  if(!Array.isArray(item.cards))item.cards=[];
+  if(!Array.isArray(item.scenes))item.scenes=[];
+  if(!Array.isArray(item.additionalPhotos))item.additionalPhotos=[];
+  if(!Array.isArray(item.variations))item.variations=[];
+  if(!Array.isArray(item.revisions))item.revisions=[];
+  if(!Array.isArray(item.activity))item.activity=[];
+  if(!Array.isArray(item.labelSuggestions))item.labelSuggestions=[];
+  if(!Array.isArray(item.staleCardIndexes))item.staleCardIndexes=[];
+  item.schemaVersion=ITEM_SCHEMA_VERSION;
+  return item;
+}
+function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'});if(!db.objectStoreNames.contains(SNAPSHOT_STORE))db.createObjectStore(SNAPSHOT_STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function dbPut(item){const db=await openDb();const migrated=migrateStoredItem(item);return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(migrated);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function dbGet(id){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).get(id);req.onsuccess=()=>resolve(req.result?migrateStoredItem(req.result):null);req.onerror=()=>reject(req.error)})}
+async function dbAll(){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();req.onsuccess=()=>resolve((req.result||[]).map(migrateStoredItem));req.onerror=()=>reject(req.error)})}
 async function dbDelete(id){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
 async function dbClear(){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function snapshotPut(item){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(SNAPSHOT_STORE,'readwrite');tx.objectStore(SNAPSHOT_STORE).put(item);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function snapshotAll(){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(SNAPSHOT_STORE).objectStore(SNAPSHOT_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
+async function snapshotDelete(id){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(SNAPSHOT_STORE,'readwrite');tx.objectStore(SNAPSHOT_STORE).delete(id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function createImportSnapshot(filename){
+  const all=await dbAll();
+  const id='import-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
+  const fields=all.map(item=>({
+    id:item.id,title:item.title,data:item.data,extraData:item.extraData,privateData:item.privateData,
+    cardsStale:item.cardsStale,staleCardIndexes:item.staleCardIndexes,analysisCache:item.analysisCache,
+    generationFingerprint:item.generationFingerprint,activity:item.activity,updatedAt:item.updatedAt,
+    excelAutopilot:item.excelAutopilot,importedFrom:item.importedFrom,importedAt:item.importedAt,lastImportBatchId:item.lastImportBatchId
+  }));
+  await snapshotPut({id,at:Date.now(),filename:String(filename||'таблица').slice(0,120),items:fields});
+  const snapshots=(await snapshotAll()).sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  for(const old of snapshots.slice(3))await snapshotDelete(old.id);
+  return id;
+}
+async function restoreLastImportSnapshot(){
+  const snapshots=(await snapshotAll()).sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  const snap=snapshots[0];if(!snap){alert('Снимков Excel-импорта пока нет.');return}
+  if(!confirm('Откатить последнюю Excel-синхронизацию «'+(snap.filename||'таблица')+'»? Фото и готовые PNG не удаляются.'))return;
+  const before=new Map((snap.items||[]).map(x=>[x.id,x]));
+  const current=await dbAll();
+  for(const item of current){
+    if(item.lastImportBatchId===snap.id&&!before.has(item.id))await dbDelete(item.id);
+  }
+  for(const saved of (snap.items||[])){
+    const currentItem=await dbGet(saved.id);
+    if(!currentItem)continue;
+    await dbPut({...currentItem,...saved,lastImportBatchId:saved.lastImportBatchId||null,activity:[{at:Date.now(),type:'Откат Excel',detail:snap.filename||''},...(saved.activity||[])].slice(0,80)});
+  }
+  await snapshotDelete(snap.id);
+  await renderHistory();
+  await refreshDiagnosticsNow();
+}
 
 async function trimCatalog(){
   const all=(await dbAll()).sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
@@ -3386,6 +3659,7 @@ async function savePhotoDraft(file){
       photoHash:currentPhotoHash||'',
       additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
+      scenes:currentScenes,
       quality:currentQuality,
       cardsStale:Boolean(cardsStale),
       variations:variationsForExport(),
@@ -3538,7 +3812,9 @@ async function saveHistory(){
   try{
     const src=await compressedSource();
     const edited=collectEdits();
+    const previous=await dbGet(currentHistoryId);
     const item={
+      ...(previous||{}),
       id:currentHistoryId,
       updatedAt:Date.now(),
       title:edited.seoTitle||'Товар',
@@ -3549,6 +3825,7 @@ async function saveHistory(){
       photoHash:currentPhotoHash||'',
       additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
+      scenes:currentScenes,
       quality:currentQuality,
       cardsStale:Boolean(cardsStale),
       staleCardIndexes:currentStaleCards,
@@ -3560,7 +3837,8 @@ async function saveHistory(){
       moderation:currentModeration,
       mode:currentMode,
       style:styleSelect.value,
-      published:false
+      published:false,
+      publishedAt:null
     };
     await dbPut(item);
     if(edited.category)rememberCategory(edited.category,edited.seoTitle);
@@ -3609,20 +3887,82 @@ async function togglePublished(id){
       return;
     }
   }
-  item.published=!item.published;
-  item.publishedAt=item.published?Date.now():null;
+  const becomingPublished=!item.published;
+  item.published=becomingPublished;
+  item.publishedAt=becomingPublished?Date.now():null;
   item.updatedAt=Date.now();
-  item.activity=[{at:Date.now(),type:item.published?'Отмечен опубликованным':'Возвращён в черновики',detail:''},...(item.activity||[])].slice(0,80);
+  if(becomingPublished){
+    const cardHashes=[];
+    for(const card of item.cards||[])cardHashes.push(await sha256Text(String(card?.base64||'')));
+    const snapshot={
+      at:Date.now(),data:item.data||{},extraData:item.extraData||item.data?.confirmedData||{},
+      quality:item.quality||null,style:item.style||'',cardHashes,cardNames:(item.cards||[]).map(x=>x.filename||'')
+    };
+    item.publishedSnapshots=[snapshot,...(Array.isArray(item.publishedSnapshots)?item.publishedSnapshots:[])].slice(0,3);
+  }
+  item.activity=[{at:Date.now(),type:item.published?'Отмечен опубликованным':'Возвращён в черновики',detail:item.published?'Сохранён аудит + SHA 4 PNG':''},...(item.activity||[])].slice(0,80);
   await dbPut(item);
   await renderHistory();
 }
 
+
+function openBulkEditor(){
+  if(!selectedDraftIds.size)return;
+  bulkEditCategory.value='';bulkEditBrand.value='';bulkEditStyle.value='';bulkEditCollection.value='';bulkEditDiscount2.value='';bulkEditDiscount3.value='';
+  bulkEditNote.textContent='Выбрано товаров: '+selectedDraftIds.size+'. Категория, бренд и стиль могут потребовать обновления инфографики. Изменение только цен не вызывает image-generation.';
+  bulkEditModal.classList.add('show');
+}
+async function applyBulkEditorNow(){
+  const category=bulkEditCategory.value.trim(),brand=bulkEditBrand.value.trim(),style=bulkEditStyle.value;
+  const collection=bulkEditCollection.value.trim();
+  const d2=bulkEditDiscount2.value.trim()===''?null:Number(bulkEditDiscount2.value);
+  const d3=bulkEditDiscount3.value.trim()===''?null:Number(bulkEditDiscount3.value);
+  if(!category&&!brand&&!style&&!collection&&d2===null&&d3===null){bulkEditNote.textContent='Заполните хотя бы одно поле.';return}
+  applyBulkEdit.disabled=true;let changed=0,priceSkipped=0;
+  try{
+    for(const id of [...selectedDraftIds]){
+      const item=await dbGet(id);if(!item)continue;
+      item.data=item.data||{};item.extraData=item.extraData||item.data.confirmedData||{};item.privateData=item.privateData||{};
+      let visualChange=false;
+      if(category&&item.data.category!==category){item.data.category=category;visualChange=true}
+      if(brand&&item.extraData.brand!==brand){
+        item.extraData.brand=brand;item.data.confirmedData={...(item.data.confirmedData||{}),brand};
+        const rest=(item.data.characteristics||[]).filter(x=>normalizedFactText(x.name)!=='бренд');
+        item.data.characteristics=[{name:'Бренд',value:brand,source:'Продавец'},...rest].slice(0,12);
+        item.data.factProvenance={...(item.data.factProvenance||{}),бренд:'Продавец'};visualChange=true;
+      }
+      if(style&&item.style!==style){item.style=style;visualChange=true}
+      if(collection){
+        const cols=new Set(Array.isArray(item.privateData.collections)?item.privateData.collections:[]);
+        cols.add(collection);item.privateData.collections=[...cols].slice(0,30);
+      }
+      if(d2!==null||d3!==null){
+        const p=moneyNumber(item.extraData.price1||item.extraData.price);
+        if(p>0){
+          if(d2!==null&&Number.isFinite(d2))item.extraData.price2=String(Math.max(0,Math.round(p*(1-Math.max(0,Math.min(99,d2))/100))));
+          if(d3!==null&&Number.isFinite(d3))item.extraData.price3=String(Math.max(0,Math.round(p*(1-Math.max(0,Math.min(99,d3))/100))));
+          item.data.confirmedData={...(item.data.confirmedData||{}),...item.extraData};
+        }else priceSkipped++;
+      }
+      if(visualChange&&Array.isArray(item.cards)&&item.cards.length){
+        item.cardsStale=true;item.staleCardIndexes=[0,1,2,3];item.analysisCache=null;item.generationFingerprint=null;
+      }
+      item.updatedAt=Date.now();
+      item.activity=[{at:Date.now(),type:'Массовое изменение',detail:[category?'категория':'',brand?'бренд':'',style?'стиль':'',collection?'коллекция':'',(d2!==null||d3!==null)?'цены':''].filter(Boolean).join(', ')},...(item.activity||[])].slice(0,80);
+      await dbPut(item);changed++;
+    }
+    bulkEditNote.textContent='Изменено: '+changed+(priceSkipped?' · скидки пропущены без розничной цены: '+priceSkipped:'')+'.';
+    await renderHistory();
+    setTimeout(()=>bulkEditModal.classList.remove('show'),450);
+  }finally{applyBulkEdit.disabled=false}
+}
 
 function updateBulkBar(){
   const count=selectedDraftIds.size;
   bulkBar.classList.toggle('show',count>0);
   bulkCount.textContent=count+' '+(count===1?'товар выбран':count<5?'товара выбрано':'товаров выбрано');
   bulkDownload.disabled=count===0;
+  bulkEdit.disabled=count===0;
   bulkLabels.disabled=count===0;
   bulkPublish.disabled=count===0;
   bulkDraft.disabled=count===0;
@@ -4001,33 +4341,97 @@ function renderImportMapper({redetect=false}={}){
   }).join('');
   importMapGrid.querySelectorAll('[data-import-map]').forEach(select=>select.onchange=()=>{
     pendingImportMap.mapping[select.dataset.importMap]=Number(select.value);
+    pendingImportMap.diffReady=false;pendingImportMap.preparedRows=null;confirmImportMap.textContent='Проверить изменения';
     updateImportMapPreview();
   });
   updateImportMapPreview();
 }
 function openImportMapper(rows,filename){
   if(!Array.isArray(rows)||rows.length<2)throw new Error('В таблице нужны заголовки и хотя бы одна строка товара.');
-  pendingImportMap={rows,filename:String(filename||'таблица'),mapping:null};
+  pendingImportMap={rows,filename:String(filename||'таблица'),mapping:null,diffReady:false,preparedRows:null};
   renderImportMapper({redetect:true});
   importMapModal.classList.add('show');
 }
 function closeImportMapper(){
   pendingImportMap=null;
+  confirmImportMap.textContent='Проверить изменения';
   importMapModal.classList.remove('show');
 }
+async function previewMappedImportDiff(rows){
+  const headers=rows[0].map(v=>String(v||'').trim());
+  const existing=await dbAll();
+  const skuIndex=new Map(),barcodeIndex=new Map();
+  for(const item of existing){
+    const sku=skuOfStoredItem(item),barcode=barcodeOfStoredItem(item);
+    if(sku){if(!skuIndex.has(sku))skuIndex.set(sku,[]);skuIndex.get(sku).push(item)}
+    if(barcode){if(!barcodeIndex.has(barcode))barcodeIndex.set(barcode,[]);barcodeIndex.get(barcode).push(item)}
+  }
+  const seen=new Set(),samples=[];
+  let created=0,updated=0,unchanged=0,conflicts=0,skipped=0;
+  for(const row of rows.slice(1,CATALOG_LIMIT+1)){
+    const record=importRecordFromRow(headers,row);
+    if(!Object.values(record).some(Boolean)){skipped++;continue}
+    const sku=normalizeSku(record.sku),barcode=normalizeBarcode(record.barcode);
+    const candidates=[...(sku?(skuIndex.get(sku)||[]):[]),...(barcode?(barcodeIndex.get(barcode)||[]):[])];
+    const unique=[...new Map(candidates.map(x=>[x.id,x])).values()];
+    if(unique.length>1){conflicts++;if(samples.length<8)samples.push('Конфликт: '+(record.sku||record.barcode||record.title||'строка без ключа'));continue}
+    const old=unique[0]||null;
+    if(!old){created++;if(samples.length<8)samples.push('Новый: '+(record.sku||record.title||record.barcode||'товар'));continue}
+    seen.add(old.id);
+    const d=old.data||{},x=old.extraData||d.confirmedData||{},p=old.privateData||{};
+    const before={
+      title:d.seoTitle||old.title||'',category:d.category||'',description:d.fullDescription||d.shortDescription||'',
+      brand:x.brand||'',sku:x.sku||'',barcode:x.barcode||'',size:x.size||'',material:x.material||'',
+      price1:x.price1||x.price||'',price2:x.price2||'',price3:x.price3||'',oldPrice:x.oldPrice||'',
+      cost:p.cost||'',stock:p.stock||'',boxes:p.boxes||'',minStock:p.minStock||'',location:p.location||'',
+      collections:Array.isArray(p.collections)?p.collections.join(', '):''
+    };
+    const changes=[];
+    for(const key of Object.keys(before)){
+      const incoming=String(record[key]??'').trim();
+      if(incoming&&incoming!==String(before[key]??'').trim())changes.push(key+': «'+String(before[key]||'—').slice(0,35)+'» → «'+incoming.slice(0,35)+'»');
+    }
+    if(changes.length){
+      updated++;
+      if(samples.length<8)samples.push((record.sku||record.title||old.title||'Товар')+': '+changes.slice(0,2).join(' · '));
+    }else unchanged++;
+  }
+  const missing=existing.filter(item=>item.importedFrom&&!seen.has(item.id)).length;
+  return {created,updated,unchanged,conflicts,skipped,missing,samples,truncated:Math.max(0,rows.length-1-CATALOG_LIMIT)};
+}
+function renderMappedImportDiff(diff){
+  const stats=[
+    ['Новых',diff.created],['Изменено',diff.updated],['Без изменений',diff.unchanged],['Конфликтов',diff.conflicts],['Исчезли',diff.missing]
+  ];
+  importMapPreview.innerHTML='<div class="import-diff-stats">'+stats.map(x=>'<div class="import-diff-stat"><b>'+x[1]+'</b><span>'+esc(x[0])+'</span></div>').join('')+'</div>'+
+    '<div class="import-diff-list">'+(diff.samples.length?diff.samples.map(x=>'<div class="import-diff-row">'+esc(x)+'</div>').join(''):'<div class="import-diff-row">Изменений в существующих товарах не найдено.</div>')+'</div>'+
+    '<div style="margin-top:8px;color:var(--muted)">Удаление исчезнувших товаров не выполняется. Пустых строк: '+diff.skipped+(diff.truncated?' · сверх лимита: '+diff.truncated:'')+'.</div>';
+}
+
 async function confirmMappedImport(){
   if(!pendingImportMap)return;
   const source=pendingImportMap;
   const headers=IMPORT_MAP_FIELDS.map(field=>field.canonical);
-  const mappedRows=[headers,...source.rows.slice(1).map(row=>IMPORT_MAP_FIELDS.map(field=>{
+  const mappedRows=source.preparedRows||[headers,...source.rows.slice(1).map(row=>IMPORT_MAP_FIELDS.map(field=>{
     const idx=Number(source.mapping[field.key]??-1);
     return idx>=0?String(row[idx]??''):'';
   }))];
+  if(!source.diffReady){
+    source.preparedRows=mappedRows;
+    const diff=await previewMappedImportDiff(mappedRows);
+    source.diffReady=true;source.diff=diff;
+    renderMappedImportDiff(diff);
+    importMapSubtitle.textContent='Предпросмотр изменений · '+source.filename;
+    confirmImportMap.textContent='Применить изменения';
+    return;
+  }
   importMapModal.classList.remove('show');
   pendingImportMap=null;
+  confirmImportMap.textContent='Проверить изменения';
   importNote.className='import-note show';
-  importNote.textContent='Импортируем сопоставленные данные локально…';
-  await importProductRows(mappedRows,source.filename);
+  importNote.textContent='Создаём локальную точку отката и применяем изменения…';
+  const importBatchId=await createImportSnapshot(source.filename);
+  await importProductRows(mappedRows,source.filename,importBatchId);
 }
 
 function parseCsvText(text){
@@ -4147,7 +4551,7 @@ function importRecordFromRow(headers,row){
   };
 }
 
-async function importProductRows(rows,filename='таблица'){
+async function importProductRows(rows,filename='таблица',importBatchId=''){
   if(!Array.isArray(rows)||rows.length<2)throw new Error('В таблице нужны заголовки и хотя бы одна строка товара.');
   const headers=rows[0].map(v=>String(v||'').trim());
   if(!headers.some(Boolean))throw new Error('Не удалось определить заголовки таблицы.');
@@ -4266,7 +4670,7 @@ async function importProductRows(rows,filename='таблица'){
         analysisCache:changedPublic?null:(old.analysisCache||null),
         generationFingerprint:changedPublic?null:(old.generationFingerprint||null),
         importedFrom:String(filename||'таблица').slice(0,120),
-        importedAt:Date.now(),updatedAt:Date.now(),
+        importedAt:Date.now(),updatedAt:Date.now(),lastImportBatchId:importBatchId||old.lastImportBatchId||null,
         excelAutopilot:changedPublic&&old.sourceDataUrl?{state:'matched',error:''}:(old.excelAutopilot||{state:'waiting',error:''})
       };
       await dbPut(updatedItem);
@@ -4292,10 +4696,10 @@ async function importProductRows(rows,filename='таблица'){
       id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
       updatedAt:Date.now()-created,title,data,extraData,
       privateData:{cost:record.cost||'',stock:record.stock||'',boxes:record.boxes||'',minStock:record.minStock||'',location:record.location||'',collections:parseCollections(record.collections||'')},
-      sourceDataUrl:'',additionalPhotos:[],cards:[],quality:null,cardsStale:false,variations:[],revisions:[],
+      sourceDataUrl:'',additionalPhotos:[],cards:[],scenes:[],quality:null,cardsStale:false,variations:[],revisions:[],
       activity:[{at:Date.now(),type:'Импортирован из Excel',detail:String(filename||'таблица').slice(0,120)}],
       labelSuggestions:[],analysisCache:null,mode:defaults.mode||'full',style:importedRule?.style||defaults.style||'minimal',
-      published:false,importedFrom:String(filename||'таблица').slice(0,120),importedAt:Date.now(),excelAutopilot:{state:'waiting',error:''}
+      published:false,importedFrom:String(filename||'таблица').slice(0,120),importedAt:Date.now(),lastImportBatchId:importBatchId||null,excelAutopilot:{state:'waiting',error:''}
     };
     await dbPut(item);
     seenIds.add(item.id);
@@ -4442,6 +4846,62 @@ function photoMatchScore(file,item){
   }
   return best;
 }
+const PHOTOGRAPHER_ROLES=[
+  {key:'main',label:'Главное фото',hint:'Чистый полный вид товара'},
+  {key:'package',label:'Упаковка',hint:'Вся упаковка целиком'},
+  {key:'label',label:'Маркировка',hint:'Этикетка и характеристики'},
+  {key:'barcode',label:'Штрихкод',hint:'EAN крупно и резко'},
+  {key:'detail',label:'Деталь',hint:'Важный дополнительный ракурс'}
+];
+function photographerRoleDone(item,role){
+  if(role==='main')return Boolean(item?.sourceDataUrl);
+  return (item?.additionalPhotos||[]).some(x=>x?.role===role&&x?.dataUrl);
+}
+function renderPhotographerProduct(){
+  const item=photographerItems.find(x=>x.id===photographerProduct.value)||photographerItems[0]||null;
+  if(!item){photographerTitle.textContent='Каталог пуст';photographerSku.textContent='SKU —';photographerRoles.innerHTML='';return}
+  photographerProduct.value=item.id;
+  photographerTitle.textContent=item.title||item.data?.seoTitle||'Товар';
+  photographerSku.textContent='SKU '+(skuOfStoredItem(item)||'не указан');
+  photographerRoles.innerHTML=PHOTOGRAPHER_ROLES.map(role=>{
+    const done=photographerRoleDone(item,role.key);
+    return '<button type="button" class="photographer-role '+(done?'done':'')+'" data-ph-role="'+role.key+'"><b>'+(done?'✓ ':'')+role.label+'</b><span>'+role.hint+'</span></button>';
+  }).join('');
+  photographerRoles.querySelectorAll('[data-ph-role]').forEach(btn=>btn.onclick=()=>{
+    photographerPendingRole=btn.dataset.phRole;
+    if(photographerPendingRole!=='main'&&!item.sourceDataUrl){photographerStatus.textContent='Сначала снимите главное фото.';return}
+    photographerFile.click();
+  });
+  const done=PHOTOGRAPHER_ROLES.filter(r=>photographerRoleDone(item,r.key)).length;
+  photographerStatus.textContent='Готово снимков: '+done+' из '+PHOTOGRAPHER_ROLES.length+'.';
+}
+async function openPhotographerMode(){
+  photographerItems=(await dbAll()).filter(x=>!x.published).sort((a,b)=>String(skuOfStoredItem(a)||a.title||'').localeCompare(String(skuOfStoredItem(b)||b.title||''),'ru'));
+  photographerProduct.innerHTML=photographerItems.map(item=>'<option value="'+esc(item.id)+'">'+esc((skuOfStoredItem(item)||'без SKU')+' · '+(item.title||item.data?.seoTitle||'Товар'))+'</option>').join('');
+  photographerModal.classList.add('show');renderPhotographerProduct();
+}
+async function attachPhotographerFile(file){
+  const item=photographerItems.find(x=>x.id===photographerProduct.value);if(!item||!file)return;
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024){photographerStatus.textContent='Нужен JPG/PNG/WebP до 10 МБ.';return}
+  const role=photographerPendingRole;
+  const dataUrl=await compressFileToDataUrl(file);
+  if(role==='main'){
+    item.sourceDataUrl=dataUrl;item.sourceFilename=file.name;item.photoHash=await imageHashFromDataUrl(dataUrl);
+  }else{
+    const extras=Array.isArray(item.additionalPhotos)?item.additionalPhotos:[];
+    const oldIndex=extras.findIndex(x=>x.role===role);
+    const photo={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),name:file.name,dataUrl,mimeType:(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role};
+    if(oldIndex>=0)extras[oldIndex]=photo;else if(extras.length<4)extras.push(photo);else{photographerStatus.textContent='У товара уже 4 дополнительных фото. Удалите лишнее в карточке товара.';return}
+    item.additionalPhotos=extras;
+  }
+  item.cards=[];item.scenes=[];item.quality=null;item.cardsStale=false;item.staleCardIndexes=[];item.analysisCache=null;item.generationFingerprint=null;
+  item.excelAutopilot={state:'matched',error:''};item.updatedAt=Date.now();
+  item.activity=[{at:Date.now(),type:'Режим фотографа',detail:photoRoleLabel(role)+' · '+file.name},...(item.activity||[])].slice(0,80);
+  await dbPut(item);
+  const idx=photographerItems.findIndex(x=>x.id===item.id);if(idx>=0)photographerItems[idx]=item;
+  photographerStatus.textContent=photoRoleLabel(role)+' сохранено локально.';renderPhotographerProduct();await renderHistory();
+}
+
 function inferPhotoRole(filename){
   const n=String(filename||'').toLocaleLowerCase('ru');
   if(/barcode|штрих|ean|gtin/.test(n))return 'barcode';
@@ -4465,7 +4925,7 @@ async function attachPhotoFileToItem(file,item,{asMain=false}={}){
     extras.push({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),name:file.name,dataUrl,mimeType:(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role:inferPhotoRole(file.name)});
     item.additionalPhotos=extras;
   }
-  item.cards=[];item.quality=null;item.cardsStale=false;item.staleCardIndexes=[];item.analysisCache=null;item.generationFingerprint=null;
+  item.cards=[];item.scenes=[];item.quality=null;item.cardsStale=false;item.staleCardIndexes=[];item.analysisCache=null;item.generationFingerprint=null;
   item.excelAutopilot={state:'matched',error:''};item.updatedAt=Date.now();
   item.activity=[{at:Date.now(),type:'Фото назначено вручную',detail:file.name},...(item.activity||[])].slice(0,80);
   await dbPut(item);
@@ -4526,6 +4986,7 @@ async function matchExcelPhotos(files){
     item.additionalPhotos=photos.slice(1).map(x=>({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),dataUrl:x.dataUrl,name:x.file.name,mimeType:(x.dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role:inferPhotoRole(x.file.name)}));
     item.photoHash=await imageHashFromDataUrl(photos[0].dataUrl);
     item.cards=[];
+    item.scenes=[];
     item.quality=null;
     item.cardsStale=false;
     item.staleCardIndexes=[];
@@ -4655,8 +5116,8 @@ async function processExcelAutopilotItem(item,style){
     analyzed=typeof structuredClone==='function'?structuredClone(item.analysisCache.data):JSON.parse(JSON.stringify(item.analysisCache.data));
     analysisFromCache=true;
   }else{
-    const analyze=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,mode:'full',extraData,additionalImages})});
-    analyzed=await analyze.json().catch(()=>({}));
+    const {response:analyze,data:analyzedPayload}=await fetchJsonRetry('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,mode:'full',extraData,additionalImages})},2);
+    analyzed=analyzedPayload;
     if(!analyze.ok)throw new Error(analyzed.error||'Не удалось проанализировать товар.');
   }
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
@@ -4672,27 +5133,27 @@ async function processExcelAutopilotItem(item,style){
     return item;
   }
 
-  const gen=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style})});
-  const generated=await gen.json().catch(()=>({}));
+  const {response:gen,data:generated}=await fetchJsonRetry('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style})},1);
   if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
   let cards=generated.cards||[];
+  let scenes=generated.scenes||[];
   if(cards.length!==4)throw new Error('Генерация вернула неполный комплект изображений.');
   const qaCall=async()=> {
-    const q=await fetch('/api/quality-check',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards,card:analyzed,sourceImage:src.base64,sourceMimeType:src.mime})});
-    if(!q.ok)return null;return q.json().catch(()=>null);
+    const {response:q,data}=await fetchJsonRetry('/api/quality-check',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards,card:analyzed,sourceImage:src.base64,sourceMimeType:src.mime})},2);
+    if(!q.ok)return null;return data;
   };
   let quality=await qaCall();
   const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,2);
   let regenerated=0;
   for(const index of bad){
-    const regen=await fetch('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index})});
-    const payload=await regen.json().catch(()=>({}));
-    if(regen.ok&&payload.card){cards[index]=payload.card;regenerated++}
+    const {response:regen,data:payload}=await fetchJsonRetry('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index})},1);
+    if(regen.ok&&payload.card){cards[index]=payload.card;if(payload.scene)scenes[index]=payload.scene;regenerated++}
   }
   if(bad.length)quality=await qaCall();
   item.data=analyzed;
   item.title=analyzed.seoTitle||item.title||'Товар';
   item.cards=cards;
+  item.scenes=scenes;
   item.quality=quality;
   item.cardsStale=false;
   item.staleCardIndexes=[];
@@ -4715,21 +5176,40 @@ async function processExcelAutopilotItem(item,style){
 }
 async function runExcelAutopilotQueue(){
   if(excelAutopilotBusy)return;
+  if(navigator.onLine===false){
+    largeQueuePaused=true;saveLargeQueueState({pending:true,paused:true,offline:true});
+    excelAutoProgress.classList.add('show');excelAutoProgressText.textContent='Нет соединения. Excel, фото и черновики доступны локально; AI-очередь поставлена на паузу.';
+    renderNetworkState();return;
+  }
   const all=await dbAll();
   const queue=excelQueueItems(all).slice(0,EXCEL_AUTOPILOT_LIMIT);
   if(!queue.length){saveLargeQueueState({pending:false,paused:true});await refreshDiagnosticsNow(all);return}
   excelAutopilotBusy=true;largeQueuePaused=false;runExcelAutopilot.disabled=true;excelAutoProgress.classList.add('show');
   saveLargeQueueState({pending:true,paused:false,totalRemaining:excelQueueItems(all).length});
   const style=excelAutopilotStyle.value||loadSellerDefaults().style||'minimal';
-  let done=0,success=0,haltedByLimit=false;
+  if(!publicHealthCache){try{const h=await fetch('/api/health');if(h.ok)publicHealthCache=await h.json()}catch{}}
+  const imageRate=Number(publicHealthCache?.estimates?.imageOutputUsdPerCard||0);
+  const budget=queueBudgetLimit();
+  let spent=Number(loadLargeQueueState().spentImageUsd||0);
+  let done=0,success=0,haltedByLimit=false,haltedByBudget=false;
   try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:queue.length})})}catch{}
   for(let i=0;i<queue.length;i++){
     const item=queue[i];
+    const conservativeEstimate=imageRate*4;
+    if(budget&&imageRate&&spent+conservativeEstimate>budget){
+      haltedByBudget=true;largeQueuePaused=true;break;
+    }
+    const beforeBatches=Number(item.aiLocal?.cardBatches||0),beforeRegens=Number(item.aiLocal?.regenerations||0);
     item.excelAutopilot={state:'work',error:''};await dbPut(item);
     excelAutoProgressText.textContent='Товар '+(i+1)+' из '+queue.length+': '+(item.title||skuOfStoredItem(item)||'товар');
     excelAutoBar.style.width=Math.round(i/queue.length*100)+'%';
     await renderHistory();
-    try{await processExcelAutopilotItem(item,style);success++}
+    try{
+      const processed=await processExcelAutopilotItem(item,style);success++;
+      const deltaBatches=Math.max(0,Number(processed.aiLocal?.cardBatches||0)-beforeBatches);
+      const deltaRegens=Math.max(0,Number(processed.aiLocal?.regenerations||0)-beforeRegens);
+      spent+=imageRate*(deltaBatches*4+deltaRegens);
+    }
     catch(e){
       const message=String(e.message||'Ошибка обработки');
       item.excelAutopilot={state:'error',error:message.slice(0,240)};item.updatedAt=Date.now();
@@ -4738,19 +5218,21 @@ async function runExcelAutopilotQueue(){
       if(/лимит|слишком много|429/i.test(message))haltedByLimit=true;
     }
     done++;excelAutoBar.style.width=Math.round(done/queue.length*100)+'%';
-    saveLargeQueueState({pending:true,paused:largeQueuePaused,lastProductId:item.id,completedInRun:done});
+    saveLargeQueueState({pending:true,paused:largeQueuePaused,lastProductId:item.id,completedInRun:done,spentImageUsd:spent});
     await renderHistory();
-    if(haltedByLimit||largeQueuePaused)break;
+    if(haltedByLimit||haltedByBudget||largeQueuePaused)break;
   }
   excelAutopilotBusy=false;
   const remaining=excelQueueItems(await dbAll()).length;
-  const paused=Boolean(largeQueuePaused||haltedByLimit||remaining);
-  saveLargeQueueState({pending:remaining>0,paused,totalRemaining:remaining});
+  const paused=Boolean(largeQueuePaused||haltedByLimit||haltedByBudget||remaining);
+  saveLargeQueueState({pending:remaining>0,paused,totalRemaining:remaining,spentImageUsd:spent});
   excelAutoProgressText.textContent=haltedByLimit
     ?'Очередь остановлена защитным лимитом AI. Готово: '+success+'. Необработанные товары сохранены.'
-    :largeQueuePaused&&remaining
-      ?'Очередь на паузе. Готово: '+success+'. Осталось: '+remaining+'.'
-      :'Завершено: '+success+' из '+done+'.'+(remaining?' В очереди осталось: '+remaining+'. Нажмите «Продолжить очередь».':' Очередь обработана.');
+    :haltedByBudget
+      ?'Очередь остановлена по локальному budget-controller. Потраченный image-ориентир: $'+spent.toFixed(2)+' из $'+budget.toFixed(2)+'.'
+      :largeQueuePaused&&remaining
+        ?'Очередь на паузе. Готово: '+success+'. Осталось: '+remaining+'.'
+        :'Завершено: '+success+' из '+done+'.'+(remaining?' В очереди осталось: '+remaining+'. Нажмите «Продолжить очередь».':' Очередь обработана.');
   await renderHistory();
   if(!remaining&&!haltedByLimit){
     document.getElementById('publishCenter').open=true;
@@ -4765,19 +5247,73 @@ function csvCell(value){
 }
 async function exportCatalogReportNow(){
   const all=await dbAll();
-  const rows=[['SKU','Название','Статус','Готовность','Категория','Цена','Фото','Карточки','QA блокеры','Последнее изменение']];
+  const rows=[[
+    'Название','Артикул','Бренд','Штрихкод','Категория','Цена за 1','Цена от 2','Цена от 3','Старая цена',
+    'Материал','Размеры','Описание','Себестоимость','Остаток','Коробки','Минимальный остаток','Место хранения','Коллекции',
+    'Статус Yuvion','Готовность','Фото','Карточки','QA блокеры','OCR ожидает','Последнее изменение'
+  ]];
   for(const item of all){
-    const d=item.data||{},x=item.extraData||d.confirmedData||{},r=item.data?storedReadiness(item):{done:0,total:0};
+    const d=item.data||{},x=item.extraData||d.confirmedData||{},p=item.privateData||{},r=item.data?storedReadiness(item):{done:0,total:0};
     rows.push([
-      skuOfStoredItem(item),item.title||d.seoTitle||'',draftStatus(item).label,
-      item.data?(r.done+'/'+r.total):'0/0',d.category||'',x.price1||'',
-      item.sourceDataUrl?'Да':'Нет',Array.isArray(item.cards)?item.cards.length:0,
-      storedQaBlockers(item).length,item.updatedAt?new Date(item.updatedAt).toISOString():''
+      item.title||d.seoTitle||'',skuOfStoredItem(item),x.brand||storedCharValue(d,'Бренд')||'',barcodeOfStoredItem(item),d.category||'',
+      x.price1||x.price||'',x.price2||'',x.price3||'',x.oldPrice||'',x.material||storedCharValue(d,'Материал')||'',x.size||storedCharValue(d,'Размеры')||'',
+      d.fullDescription||d.shortDescription||'',p.cost||'',p.stock||'',p.boxes||'',p.minStock||'',p.location||'',
+      Array.isArray(p.collections)?p.collections.join(', '):'',
+      draftStatus(item).label,item.data?(r.done+'/'+r.total):'0/0',item.sourceDataUrl?'Да':'Нет',Array.isArray(item.cards)?item.cards.length:0,
+      storedQaBlockers(item).length,Array.isArray(item.labelSuggestions)?item.labelSuggestions.length:0,item.updatedAt?new Date(item.updatedAt).toISOString():''
     ]);
   }
   const csv='\uFEFF'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');
-  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'yuvion-report-'+new Date().toISOString().slice(0,10)+'.csv');
+  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'yuvion-roundtrip-'+new Date().toISOString().slice(0,10)+'.csv');
 }
+function approximateBase64Bytes(value){
+  const s=String(value||'');const comma=s.indexOf(',');const b64=comma>=0?s.slice(comma+1):s;
+  return Math.round(b64.length*.75);
+}
+function formatBytes(bytes){
+  const n=Number(bytes||0);if(n<1024)return n+' Б';if(n<1024*1024)return (n/1024).toFixed(1)+' КБ';return (n/1024/1024).toFixed(1)+' МБ';
+}
+function catalogStorageBreakdown(all){
+  let sources=0,cards=0,scenes=0,extras=0,revisions=0,caches=0;
+  for(const item of all||[]){
+    sources+=approximateBase64Bytes(item.sourceDataUrl);
+    for(const x of item.cards||[])cards+=approximateBase64Bytes(x?.base64);
+    for(const x of item.scenes||[])scenes+=approximateBase64Bytes(x?.base64);
+    for(const x of item.additionalPhotos||[])extras+=approximateBase64Bytes(x?.dataUrl);
+    revisions+=new Blob([JSON.stringify(item.revisions||[])]).size;
+    caches+=new Blob([JSON.stringify(item.analysisCache||{})]).size;
+  }
+  return {sources,cards,scenes,extras,revisions,caches,total:sources+cards+scenes+extras+revisions+caches};
+}
+async function renderStorageManager(allItems=null){
+  const all=Array.isArray(allItems)?allItems:await dbAll();
+  const b=catalogStorageBreakdown(all);
+  const cells=[['Исходные фото',b.sources],['Доп. фото',b.extras],['Финальные PNG',b.cards],['Чистые сцены',b.scenes],['Версии',b.revisions],['AI-кэш',b.caches]];
+  storageGrid.innerHTML=cells.map(x=>'<div class="storage-cell"><b>'+formatBytes(x[1])+'</b><span>'+x[0]+'</span></div>').join('');
+  const snaps=(await snapshotAll()).sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  storageManagerNote.textContent='Оценка данных каталога: '+formatBytes(b.total)+'. Снимков Excel для отката: '+snaps.length+'. Безопасная очистка сохраняет исходные фото и финальные PNG.';
+}
+async function compactStorageNow(){
+  if(!confirm('Выполнить безопасную очистку? У опубликованных товаров удалятся чистые сцены и AI-кэш, а версии сократятся до 3. Финальные PNG и исходные фото сохранятся.'))return;
+  const all=await dbAll();
+  for(const item of all){
+    let changed=false;
+    if(Array.isArray(item.revisions)&&item.revisions.length>3){item.revisions=item.revisions.slice(0,3);changed=true}
+    if(item.published&&Array.isArray(item.scenes)&&item.scenes.length){item.scenes=[];changed=true}
+    if(item.published&&item.analysisCache){item.analysisCache=null;item.generationFingerprint=null;changed=true}
+    if(item.published&&Array.isArray(item.labelSuggestions)&&item.labelSuggestions.length){item.labelSuggestions=[];changed=true}
+    if(changed)await dbPut(item);
+  }
+  await renderHistory();await renderStorageManager();
+}
+async function clearAllSceneCacheNow(){
+  if(!confirm('Удалить чистые сцены у всех товаров? Финальные PNG сохранятся, но следующая правка инфографики может снова потребовать AI-генерацию.'))return;
+  const all=await dbAll();
+  for(const item of all){if(Array.isArray(item.scenes)&&item.scenes.length){item.scenes=[];await dbPut(item)}}
+  if(currentHistoryId){currentScenes=[];await saveHistory()}
+  await renderStorageManager();
+}
+
 async function refreshDiagnosticsNow(allItems=null){
   const all=Array.isArray(allItems)?allItems:await dbAll();
   const queue=excelQueueItems(all);
@@ -4794,6 +5330,13 @@ async function refreshDiagnosticsNow(allItems=null){
   const localImageEstimate=imageRate?localImageOutputs*imageRate:0;
   const nextCount=Math.min(queue.length,EXCEL_AUTOPILOT_LIMIT);
   const nextImageEstimate=imageRate?nextCount*4*imageRate:0;
+  const moderationTop=topModerationPattern();
+  const styleStats=new Map();
+  for(const item of all){
+    const key=item.style||'minimal',x=styleStats.get(key)||{total:0,clean:0,regen:0};
+    x.total++;if(item.quality&&!storedQaBlockers(item).length)x.clean++;x.regen+=Number(item.aiLocal?.regenerations||0);styleStats.set(key,x);
+  }
+  const stableStyle=[...styleStats.entries()].filter(([,x])=>x.total>=2).sort((a,b)=>(b[1].clean/b[1].total)-(a[1].clean/a[1].total)||a[1].regen-b[1].regen)[0]||null;
   const similarPairs=new Set();
   for(const item of all){
     const hit=similarCatalogProduct(item,all);
@@ -4818,12 +5361,18 @@ async function refreshDiagnosticsNow(allItems=null){
   diagnosticList.innerHTML=[
     ['Версия приложения','6.4.0'],['IndexedDB товаров',String(all.length)+' / '+CATALOG_LIMIT],
     ['Хранилище',storageText+' из '+quotaText],['localStorage',Math.round(lsBytes/1024)+' КБ'],
-    ['PWA Service Worker',sw],['AI-очередь',queue.length?queue.length+' ожидают':'пусто'],
+    ['PWA Service Worker',sw],['Сеть',navigator.onLine===false?'офлайн':'онлайн'],['AI-очередь',queue.length?queue.length+' ожидают':'пусто'],
     ['Похожие товары',similarPairs.size?String(similarPairs.size):'не найдено'],
     ['AI image outputs локально',String(localImageOutputs)+(localImageEstimate?' · ≈ $'+localImageEstimate.toFixed(2):'')],
+    ['Схема локальных данных','v'+ITEM_SCHEMA_VERSION],
+    ['Стабильный стиль',stableStyle?(stableStyle[0]+' · '+stableStyle[1].clean+'/'+stableStyle[1].total+' QA clean'):'недостаточно данных'],
+    ['Повторяемое отклонение',moderationTop?(moderationTop[0].slice(0,65)+' · '+moderationTop[1].count+'×'):'не накоплено'],
     ['Следующий запуск',nextCount?(nextCount+' товаров'+(nextImageEstimate?' · image ≈ $'+nextImageEstimate.toFixed(2):'')):'очередь пуста']
   ].map(x=>'<div class="diagnostic-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('');
+  if(storageManager.classList.contains('show'))await renderStorageManager(all);
   const state=loadLargeQueueState();
+  const budgetLimit=queueBudgetLimit();
+  queueBudgetStatus.textContent='Image-ориентир очереди: $'+Number(state.spentImageUsd||0).toFixed(2)+(budgetLimit?' из $'+budgetLimit.toFixed(2):' · лимит не задан')+'. Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
   queueResumeNote.classList.toggle('show',Boolean(state.pending));
   queueResumeNote.textContent=state.pending?'Сохранена незавершённая очередь. Последний запуск: '+new Date(state.updatedAt||Date.now()).toLocaleString('ru-RU')+'. Нажмите «Продолжить очередь».':'';
 }
@@ -4835,6 +5384,49 @@ function saveLargeQueueState(patch={}){
   const next={...current,...patch,updatedAt:Date.now()};
   localStorage.setItem(LARGE_QUEUE_KEY,JSON.stringify(next));
   return next;
+}
+
+function labelPhotoForStoredItem(item){
+  return (item?.additionalPhotos||[]).find(x=>['label','barcode','package'].includes(x?.role)&&x?.dataUrl)||null;
+}
+function renderConfirmationCenter(allItems=[]){
+  if(!confirmationList)return;
+  const pending=(allItems||[]).filter(item=>Array.isArray(item.labelSuggestions)&&item.labelSuggestions.length);
+  const total=pending.reduce((sum,item)=>sum+item.labelSuggestions.length,0);
+  confirmationSummary.textContent=total+' '+(total===1?'ожидает':'ожидают');
+  confirmationList.innerHTML=pending.length?pending.slice(0,30).map(item=>{
+    const fields=item.labelSuggestions.slice(0,5);
+    return '<div class="confirmation-row"><div><b>'+esc(item.title||item.data?.seoTitle||'Товар')+'</b><small>'+esc(skuOfStoredItem(item)||'без SKU')+' · найдено '+item.labelSuggestions.length+'</small><div class="confirmation-pills">'+fields.map(x=>'<span class="confirmation-pill">'+esc(x.name)+': '+esc(x.value)+'</span>').join('')+'</div></div><button class="btn btn-primary btn-small" data-confirm-open="'+esc(item.id)+'">Проверить</button></div>';
+  }).join(''):'<div class="muted" style="font-size:10px">Неподтверждённых OCR-фактов нет.</div>';
+  confirmationList.querySelectorAll('[data-confirm-open]').forEach(btn=>btn.onclick=async()=>{
+    const item=(allItems||[]).find(x=>x.id===btn.dataset.confirmOpen);if(item)await restoreHistory(item);
+  });
+}
+async function runBulkLabelOcrNow(){
+  if(excelAutopilotBusy)return;
+  const all=await dbAll();
+  const candidates=all.filter(item=>labelPhotoForStoredItem(item)&&!(item.labelSuggestions||[]).length).slice(0,10);
+  if(!candidates.length){alert('Нет товаров с фото маркировки, ожидающих OCR. Назначьте снимку роль «Маркировка», «Штрихкод» или «Упаковка».');return}
+  runBulkLabelOcr.disabled=true;runBulkLabelOcr.textContent='OCR работает…';
+  let done=0,found=0;
+  try{
+    for(const item of candidates){
+      const photo=labelPhotoForStoredItem(item);const parts=dataUrlParts(photo.dataUrl);if(!parts)continue;
+      const {response,data}=await fetchJsonRetry('/api/label-ocr',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:parts.base64,mimeType:parts.mime})},2);
+      if(response.status===429){break}
+      if(response.ok){
+        item.labelSuggestions=(data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||''}));
+        item.activity=[{at:Date.now(),type:'Массовый OCR маркировки',detail:'Найдено полей: '+item.labelSuggestions.length},...(item.activity||[])].slice(0,80);
+        item.updatedAt=Date.now();await dbPut(item);found+=item.labelSuggestions.length;
+      }
+      done++;
+    }
+  }finally{
+    runBulkLabelOcr.disabled=false;runBulkLabelOcr.textContent='OCR маркировок очереди';
+    const refreshed=await dbAll();renderConfirmationCenter(refreshed);await renderHistory();
+    confirmationCenter.open=true;confirmationCenter.scrollIntoView({behavior:'smooth',block:'start'});
+    if(done)confirmationSummary.textContent=found+' найдено в '+done+' товарах';
+  }
 }
 
 function renderDashboard(allItems){
@@ -4877,6 +5469,7 @@ async function renderHistory(){
     renderDashboard(all);
     renderExcelAutopilot(all);
     renderPublishCenter(all);
+    renderConfirmationCenter(all);
     if(unmatchedPhotoPool.length)renderUnmatchedPhotoManager(excelImportedItems(all));
     refreshDiagnosticsNow(all);
     await renderV6Panels(all);
@@ -4970,6 +5563,7 @@ async function restoreHistory(item){
   currentHistoryId=item.id;
   currentData=item.data||null;
   currentCards=item.cards||[];
+  currentScenes=Array.isArray(item.scenes)?item.scenes.slice(0,4):[];
   currentQuality=item.quality||null;
   currentVariations=Array.isArray(item.variations)?item.variations.map(normalizeVariation):[];
   currentAdditionalPhotos=Array.isArray(item.additionalPhotos)?item.additionalPhotos.slice(0,4):[];
@@ -5632,12 +6226,22 @@ excelPhotoFiles.addEventListener('change',async()=>{
   }catch(e){excelPhotoMatchText.textContent='Не удалось привязать фото: '+(e.message||'ошибка')}
   finally{excelPhotoFiles.value=''}
 });
-runExcelAutopilot.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false});runExcelAutopilotQueue();};
+runExcelAutopilot.onclick=()=>{largeQueuePaused=false;const st=loadLargeQueueState();saveLargeQueueState({pending:true,paused:false,spentImageUsd:st.pending?Number(st.spentImageUsd||0):0});runExcelAutopilotQueue();};
 resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false});runExcelAutopilotQueue();};
 pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueueItems(await dbAll()).length>0;saveLargeQueueState({pending,paused:true});excelAutoProgressText.textContent=excelAutopilotBusy?'Очередь будет поставлена на паузу после текущего товара.':'Очередь на паузе.';await refreshDiagnosticsNow();};
 exportCatalogReport.onclick=()=>exportCatalogReportNow();
 projectArchive.onclick=()=>createEncryptedBackup();
 refreshDiagnostics.onclick=()=>refreshDiagnosticsNow();
+runBulkLabelOcr.onclick=()=>runBulkLabelOcrNow();
+storageManagerToggle.onclick=async()=>{storageManager.classList.toggle('show');if(storageManager.classList.contains('show'))await renderStorageManager()};
+compactStorage.onclick=()=>compactStorageNow();
+clearSceneCache.onclick=()=>clearAllSceneCacheNow();
+undoLastImport.onclick=()=>restoreLastImportSnapshot();
+openPhotographer.onclick=()=>openPhotographerMode();
+closePhotographer.onclick=()=>photographerModal.classList.remove('show');
+photographerProduct.addEventListener('change',()=>renderPhotographerProduct());
+photographerFile.addEventListener('change',async()=>{const file=photographerFile.files?.[0];photographerFile.value='';if(file)await attachPhotographerFile(file)});
+photographerNext.onclick=()=>{if(!photographerItems.length)return;const i=Math.max(0,photographerItems.findIndex(x=>x.id===photographerProduct.value));photographerProduct.value=photographerItems[(i+1)%photographerItems.length].id;renderPhotographerProduct()};
 publishCenterFilter.addEventListener('change',async()=>renderPublishCenter(await dbAll()));
 publishNextProblem.onclick=async()=>{
   const all=await dbAll();
@@ -5645,7 +6249,7 @@ publishNextProblem.onclick=async()=>{
   if(item)await restoreHistory(item);else alert('Проблемных товаров не найдено.');
 };
 cancelImportMap.onclick=()=>closeImportMapper();
-resetImportMap.onclick=()=>renderImportMapper({redetect:true});
+resetImportMap.onclick=()=>{if(pendingImportMap){pendingImportMap.diffReady=false;pendingImportMap.preparedRows=null}confirmImportMap.textContent='Проверить изменения';renderImportMapper({redetect:true})};
 confirmImportMap.onclick=async()=>{
   confirmImportMap.disabled=true;
   try{await confirmMappedImport()}catch(e){
@@ -5695,6 +6299,9 @@ bulkSelectVisible.onclick=()=>{
 };
 bulkClear.onclick=()=>{selectedDraftIds.clear();renderHistory()};
 bulkDownload.onclick=()=>bulkDownloadLocalPackage();
+bulkEdit.onclick=()=>openBulkEditor();
+closeBulkEdit.onclick=()=>bulkEditModal.classList.remove('show');
+applyBulkEdit.onclick=()=>applyBulkEditorNow();
 bulkLabels.onclick=()=>bulkGenerateLabelsPdf();
 bulkPublish.onclick=()=>bulkSetPublished(true);
 bulkDraft.onclick=()=>bulkSetPublished(false);
@@ -5702,6 +6309,12 @@ bulkDelete.onclick=()=>bulkDeleteSelected();
 
 document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
 jumpExcel.onclick=()=>{document.getElementById('excelAutopilot').open=true;document.getElementById('excelAutopilot').scrollIntoView({behavior:'smooth',block:'start'})};
+jumpTools.onclick=()=>{
+  document.body.classList.toggle('show-tools');
+  const open=document.body.classList.contains('show-tools');
+  jumpTools.textContent=open?'Скрыть инструменты':'Инструменты';
+  if(open){operationsV64.open=true;operationsV64.scrollIntoView({behavior:'smooth',block:'start'})}
+};
 document.getElementById('jumpHistory').onclick=()=>{
   if(isSimpleUi())document.body.classList.add('show-catalog');
   document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
@@ -5751,7 +6364,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-initUiMode();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+renderNetworkState();initUiMode();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>

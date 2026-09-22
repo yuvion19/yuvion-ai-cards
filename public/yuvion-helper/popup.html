@@ -6,19 +6,19 @@
 <style>
 body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;width:330px;margin:0;padding:16px;background:#faf7f7;color:#211b1d}
 h1{font-size:18px;margin:0 0 7px}p{font-size:12px;line-height:1.45;color:#6f6568;margin:0 0 12px}
-.badge{display:inline-flex;padding:4px 7px;border-radius:999px;background:#fff0f2;color:#c72f3d;font-size:10px;font-weight:800;margin-bottom:9px}
+.diag{margin-top:8px;display:grid;gap:5px}.diag div{padding:7px 8px;border-radius:8px;background:#f6f7f8;font-size:11px}.badge{display:inline-flex;padding:4px 7px;border-radius:999px;background:#fff0f2;color:#c72f3d;font-size:10px;font-weight:800;margin-bottom:9px}
 button{width:100%;border:0;border-radius:11px;padding:11px 12px;background:#F03E4A;color:#fff;font-weight:800;cursor:pointer}
 button.secondary{margin-top:8px;background:#f3e9eb;color:#513b40}.status{margin-top:10px;padding:9px 10px;border-radius:9px;background:#fff;border:1px solid #eee0e2;font-size:12px;line-height:1.4}
 small{display:block;margin-top:10px;color:#8a7f82;line-height:1.4}
 </style>
 </head>
 <body>
-<div class="badge">Helper 2.0</div>
+<div class="badge">Helper 3.0</div>
 <h1>Yuvion Helper</h1>
 <p>Скопируйте полный пакет в Yuvion AI Cards, откройте форму нового товара в admin.yuvion.ru и запустите перенос.</p>
 <button id="fill">Вставить пакет и заполнить</button>
-<button class="secondary" id="open">Открыть admin.yuvion.ru</button>
-<div class="status" id="status">Готов к работе.</div>
+<button class="secondary" id="open">Открыть admin.yuvion.ru</button><button class="secondary" id="diag">Показать последний отчёт</button>
+<div class="status" id="status">Готов к работе.</div><div class="diag" id="diagBox"></div>
 <small>Helper заполняет найденные поля и пытается подставить до 4 готовых PNG. Категорию и итоговую форму необходимо проверить вручную. Расширение никогда не нажимает «Отправить на модерацию».</small>
 <script src="popup.js"></script>
 </body>
