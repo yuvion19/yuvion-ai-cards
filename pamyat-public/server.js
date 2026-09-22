@@ -10,6 +10,9 @@ import QRCode from "qrcode";
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+const ADMIN_LOGIN_USER = process.env.ADMIN_LOGIN_USER || "";
+const ADMIN_LOGIN_SALT = process.env.ADMIN_LOGIN_SALT || "";
+const ADMIN_LOGIN_PASSWORD_HASH = process.env.ADMIN_LOGIN_PASSWORD_HASH || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
@@ -784,16 +787,22 @@ app.get("/m/admin", (_req,res) => {
     <p class="muted">Очередь заявок, статистика и контроль доставки уведомлений.</p>
 
     <div class="card" id="adminLoginCard">
-      <h3 style="margin-top:0">Вход по email</h3>
-      <label>Email администратора</label>
-      <input id="mAdminEmail" class="field" type="email" autocomplete="email" placeholder="name@example.com">
-      <button class="btn" id="mAdminMagic" style="width:100%;margin-top:10px">Прислать ссылку входа</button>
+      <h3 style="margin-top:0">Вход в админку</h3>
+      <p class="muted">Основной вход теперь работает без писем и одноразовых ссылок.</p>
+      <label>Логин</label>
+      <input id="mAdminUser" class="field" autocomplete="username" placeholder="Email администратора">
+      <label>Пароль</label>
+      <input id="mAdminPassword" class="field" type="password" autocomplete="current-password" placeholder="Пароль">
+      <button class="btn" id="mAdminPasswordLogin" style="width:100%;margin-top:10px">Войти</button>
       <details style="margin-top:12px">
-        <summary>Первичная настройка / резервный вход</summary>
+        <summary>Резервные способы входа</summary>
+        <label>Email</label>
+        <input id="mAdminEmail" class="field" type="email" autocomplete="email" placeholder="name@example.com">
+        <button class="btn secondary" id="mAdminMagic" style="width:100%;margin-top:8px">Прислать ссылку входа</button>
         <label>Админ-токен</label>
-        <input id="mAdminToken" class="field" type="password" autocomplete="current-password" placeholder="Токен">
+        <input id="mAdminToken" class="field" type="password" autocomplete="off" placeholder="Токен">
         <button class="btn secondary" id="mAdminLogin" style="width:100%;margin-top:8px">Войти по токену</button>
-        <button class="btn secondary" id="mAdminBindEmail" style="width:100%;margin-top:8px">Разрешить email выше для будущих входов</button>
+        <button class="btn secondary" id="mAdminBindEmail" style="width:100%;margin-top:8px">Разрешить email выше</button>
       </details>
       <div id="mAdminLoginStatus" style="margin-top:8px"></div>
     </div>
@@ -952,6 +961,18 @@ app.get("/m/admin", (_req,res) => {
     async function showApp(){
       qs("#adminLoginCard").style.display="none";qs("#mAdminApp").style.display="block";await load();
     }
+    async function passwordLogin(){
+      const user=qs("#mAdminUser").value.trim(),password=qs("#mAdminPassword").value;
+      qs("#mAdminLoginStatus").innerHTML='<div class="muted">Проверка…</div>';
+      try{
+        const r=await fetch("/api/admin/auth/password",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({user,password})});
+        const d=await r.json();
+        if(!r.ok)throw new Error(d.error||"Неверный логин или пароль");
+        qs("#mAdminPassword").value="";
+        qs("#mAdminLoginStatus").innerHTML="";
+        await showApp();
+      }catch(e){qs("#mAdminLoginStatus").innerHTML='<div class="err">Неверный логин или пароль.</div>'}
+    }
     async function tokenLogin(){
       const v=qs("#mAdminToken").value.trim();if(v)sessionStorage.setItem(tokenKey,v);
       try{await api("/api/admin/auth/status");qs("#mAdminToken").value="";await showApp()}
@@ -1005,6 +1026,9 @@ app.get("/m/admin", (_req,res) => {
     }
 
     qs("#backupTest").onclick=async()=>{try{const r=await api("/api/admin/backup/test",{method:"POST"});alert(r.ok?"Внешняя резервная копия отправлена.":"Внешний backup ещё не настроен.")}catch(e){alert("Backup: "+e.message)}};
+    qs("#mAdminPasswordLogin").onclick=passwordLogin;
+    qs("#mAdminPassword").addEventListener("keydown",e=>{if(e.key==="Enter")passwordLogin()});
+    qs("#mAdminUser").addEventListener("keydown",e=>{if(e.key==="Enter")passwordLogin()});
     qs("#mAdminMagic").onclick=magic;qs("#mAdminLogin").onclick=tokenLogin;qs("#mAdminBindEmail").onclick=bindEmail;
     qs("#mAdminReload").onclick=()=>load().catch(e=>alert(e.message));
     qs("#mAdminStatus").onchange=()=>load().catch(()=>{});
@@ -1306,6 +1330,17 @@ function isAdmin(req) {
 function requireAdmin(req, res, next) {
   if (!isAdmin(req)) return res.status(401).json({ error: "admin_required" });
   next();
+}
+
+function adminPasswordOk(user,password){
+  if(!ADMIN_LOGIN_USER||!ADMIN_LOGIN_SALT||!ADMIN_LOGIN_PASSWORD_HASH)return false;
+  if(String(user||"").trim().toLowerCase()!==ADMIN_LOGIN_USER.trim().toLowerCase())return false;
+  try{
+    const got=crypto.scryptSync(String(password||""),ADMIN_LOGIN_SALT,64).toString("hex");
+    const expected=ADMIN_LOGIN_PASSWORD_HASH.trim().toLowerCase();
+    if(got.length!==expected.length)return false;
+    return crypto.timingSafeEqual(Buffer.from(got,"hex"),Buffer.from(expected,"hex"));
+  }catch{return false}
 }
 
 async function sb(pathname, { method = "GET", body, prefer } = {}) {
@@ -2289,6 +2324,22 @@ app.post("/api/admin/setup-email", requireAdmin, rateLimit("admin-setup-email",8
     await sb("rpc/memorial_admin_add_user",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email,p_role:role}});
     res.json({ok:true,email,role});
   }catch(e){console.error("admin setup email",e.data||e);res.status(500).json({error:"setup_failed"})}
+});
+
+app.post("/api/admin/auth/password", rateLimit("admin-password-login",8,15*60*1000), async (req,res) => {
+  try{
+    const user=clean(req.body?.user,180).toLowerCase();
+    const password=String(req.body?.password||"");
+    if(!adminPasswordOk(user,password))return res.status(401).json({error:"invalid_login"});
+    const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:user}});
+    if(!allowed?.allowed)return res.status(403).json({error:"admin_not_allowed"});
+    const cookie=adminSessionSign(user,allowed.role||"admin");
+    res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
+    res.json({ok:true,email:user,role:allowed.role||"admin",provider:"password"});
+  }catch(e){
+    console.error("admin password login",e.data||e);
+    res.status(500).json({error:"login_failed"});
+  }
 });
 
 app.post("/api/admin/auth/request", rateLimit("admin-auth-request",6,15*60*1000), async (req,res) => {
