@@ -11,8 +11,14 @@ import net from "node:net";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const AI_ANALYZE_TIMEOUT_MS = 24_000;
-const AI_ANALYZE_RETRY_TIMEOUT_MS = 16_000;
+function envDurationMs(name, fallback, min, max) {
+  const value = Number(process.env[name] || fallback);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+const AI_ANALYZE_TIMEOUT_MS = envDurationMs("AI_ANALYZE_TIMEOUT_MS", 36_000, 20_000, 60_000);
+const AI_ANALYZE_RETRY_TIMEOUT_MS = envDurationMs("AI_ANALYZE_RETRY_TIMEOUT_MS", 24_000, 12_000, 45_000);
 
 async function withTimeout(promise, ms, message = "Операция заняла слишком много времени.") {
   let timer;
@@ -1808,6 +1814,25 @@ function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0
     <ellipse cx="690" cy="190" rx="260" ry="175" fill="${style.accent}" fill-opacity="0.055"/>
     <ellipse cx="125" cy="1020" rx="210" ry="160" fill="${style.accent2}" fill-opacity="0.04"/>` : "";
 
+  const sceneProps = index === 0
+    ? `<g opacity="${level === "bold" ? 0.72 : 0.52}">
+        <ellipse cx="450" cy="700" rx="310" ry="72" fill="#FFFFFF"/>
+        <rect x="255" y="650" width="390" height="72" rx="36" fill="#FFFFFF" fill-opacity=".76"/>
+      </g>`
+    : index === 1
+      ? `<g opacity=".22" fill="none" stroke="${style.accent2}" stroke-width="4">
+          <circle cx="710" cy="370" r="178"/><circle cx="710" cy="370" r="132"/><circle cx="710" cy="370" r="86"/>
+        </g>`
+      : index === 2
+        ? `<g transform="rotate(-7 660 350)" opacity=".20">
+            <rect x="485" y="160" width="350" height="430" rx="64" fill="#FFFFFF" stroke="${style.accent}" stroke-width="4"/>
+            <rect x="520" y="200" width="280" height="360" rx="48" fill="none" stroke="${style.accent2}" stroke-width="3"/>
+          </g>`
+        : `<g opacity=".16" stroke="${style.accent2}" stroke-width="3" fill="none">
+            <path d="M80 640 L450 470 L820 640"/><path d="M155 705 L450 545 L745 705"/>
+            <path d="M235 770 L450 620 L665 770"/>
+          </g>`;
+
   const seasonDecor = visual.season === "newyear"
     ? `<g opacity="0.16" fill="${style.accent2}"><circle cx="115" cy="145" r="10"/><circle cx="165" cy="105" r="6"/><circle cx="760" cy="330" r="9"/><circle cx="810" cy="285" r="5"/><path d="M720 92 l18 32 36 4-26 24 8 36-36-18-32 18 6-36-26-24 36-4z"/></g>`
     : visual.season === "spring"
@@ -1840,6 +1865,7 @@ function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0
       </g>
       <circle cx="${690 + shiftX}" cy="${185 + shiftY}" r="${playful ? 250 : 210}" fill="${style.accent2}" fill-opacity="${playful ? 0.13 : 0.055}"/>
       <ellipse cx="450" cy="535" rx="390" ry="325" fill="url(#glow)"/>
+      ${sceneProps}
       <ellipse cx="450" cy="${index === 1 ? 815 : 710}" rx="${index === 1 ? 230 : 305}" ry="36" fill="#1E1720" fill-opacity="0.12" filter="url(#softShadow)"/>
       ${playful ? dots : ""}
       ${technicalLines}
@@ -1992,9 +2018,13 @@ async function smartBackgroundCutout(sourceBuffer, layout) {
   for (let i = 0; i < corners.length; i += 1) {
     for (let j = i + 1; j < corners.length; j += 1) cornerSpread = Math.max(cornerSpread, rgbDistance3(corners[i], corners[j]));
   }
-  if (bgBrightness < 168 || cornerSpread > 92) throw new Error("background-not-clean-enough");
+  const darkUniformBackground = bgBrightness < 168;
+  const allowedCornerSpread = darkUniformBackground ? 52 : 92;
+  if (cornerSpread > allowedCornerSpread) throw new Error("background-not-clean-enough");
 
-  const threshold = Math.max(28, Math.min(64, 36 + cornerSpread * 0.22));
+  const threshold = darkUniformBackground
+    ? Math.max(18, Math.min(42, 22 + cornerSpread * 0.24))
+    : Math.max(28, Math.min(64, 36 + cornerSpread * 0.22));
   const seen = new Uint8Array(total);
   const queue = new Int32Array(total);
   let head = 0, tail = 0;
@@ -2003,7 +2033,7 @@ async function smartBackgroundCutout(sourceBuffer, layout) {
     if (data[p + 3] === 0) return true;
     const pixel = [data[p], data[p + 1], data[p + 2]];
     const luminance = 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2];
-    if (luminance < Math.max(120, bgBrightness - 72)) return false;
+    if (!darkUniformBackground && luminance < Math.max(120, bgBrightness - 72)) return false;
     let distance = Infinity;
     for (let i = 0; i < corners.length; i += 1) {
       const d = rgbDistance3(pixel, corners[i]);
@@ -2107,6 +2137,21 @@ async function makeProductShadow(productBuffer, opacity = 0.22, blur = 13) {
   return sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } }).blur(blur).png({ compressionLevel: 9 }).toBuffer();
 }
 
+async function makeProductHalo(productBuffer, opacity = 0.30, blur = 16) {
+  const raw = await sharp(productBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = raw;
+  for (let p = 0; p < data.length; p += info.channels) {
+    data[p] = 255;
+    data[p + 1] = 255;
+    data[p + 2] = 255;
+    data[p + 3] = Math.round(data[p + 3] * opacity);
+  }
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } })
+    .blur(blur)
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
 async function prepareProductVisual(sourceBuffer, layout, intensity = "selling", role = "main") {
   const enhanced = await enhanceProductSource(sourceBuffer, intensity, role);
   try {
@@ -2161,6 +2206,10 @@ async function renderFreeScene(
   }
 
   if (visual.cutout) {
+    try {
+      const halo = await makeProductHalo(visual.product, intensity === "bold" ? 0.34 : intensity === "calm" ? 0.20 : 0.28, intensity === "bold" ? 18 : 15);
+      composites.push({ input: halo, left: layout.x, top: layout.y });
+    } catch {}
     try {
       const shadow = await makeProductShadow(visual.product, intensity === "bold" ? 0.27 : 0.22, intensity === "bold" ? 15 : 13);
       composites.push({ input: shadow, left: layout.x + 12, top: layout.y + 20 });
