@@ -314,6 +314,21 @@
     .cover-lab{display:none;margin-top:14px;border-top:1px solid #EEF0F2;padding-top:14px}.cover-lab.show{display:block}.cover-lab-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.cover-lab-head b{font-size:12px}.cover-lab-head span{font-size:10px;color:var(--muted)}
     .cover-variant-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.cover-variant{border:1px solid #E4E6EA;border-radius:15px;padding:7px;background:#fff;cursor:pointer;text-align:left;transition:.16s}.cover-variant:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(20,24,30,.09)}.cover-variant.selected{border-color:var(--brand);box-shadow:0 0 0 2px rgba(240,62,74,.10)}.cover-variant img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;background:#F4F5F7}.cover-variant b{display:block;font-size:10px;margin:7px 3px 2px}.cover-variant small{display:block;font-size:9px;color:var(--muted);margin:0 3px 3px}
     @media(max-width:700px){.design-personality{grid-template-columns:1fr}.cover-variant-grid{grid-template-columns:1fr 1fr}.cover-variant:last-child{grid-column:1/-1;max-width:50%;justify-self:center}}
+
+    /* YUVION_V72_VISUAL_WORKSPACE */
+    .design-preview-workspace{display:grid;grid-template-columns:minmax(260px,.72fr) minmax(0,1.28fr);gap:14px;margin-top:14px}
+    .design-preview-panel{border:1px solid #E9EBEF;border-radius:18px;background:#FAFBFC;padding:12px;min-width:0}
+    .design-preview-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:9px}.design-preview-panel-head b{font-size:11px}.design-preview-panel-head span{font-size:9px;color:var(--muted);line-height:1.35;text-align:right}
+    .live-cover-frame{display:flex;justify-content:center;align-items:center;min-height:350px;border-radius:15px;background:linear-gradient(145deg,#ECEFF3,#F8F9FA);padding:12px}
+    .live-cover{--live-a:#F03E4A;--live-b:#FFD8DC;position:relative;width:min(100%,250px);aspect-ratio:3/4;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,color-mix(in srgb,var(--live-a) 9%,#fff),color-mix(in srgb,var(--live-b) 18%,#fff));box-shadow:0 18px 45px rgba(26,31,38,.15)}
+    .live-cover:before{content:"";position:absolute;width:185px;height:185px;border-radius:50%;right:-54px;top:40px;background:var(--live-b);opacity:.13}.live-cover:after{content:"";position:absolute;width:210px;height:210px;border-radius:50%;left:-95px;top:225px;background:var(--live-a);opacity:.07}
+    .live-cover-brand{position:absolute;z-index:4;left:14px;top:14px;background:var(--live-a);color:#fff;border-radius:8px;padding:5px 8px;font-size:7px;font-weight:950;letter-spacing:.04em}
+    .live-cover-product{position:absolute;z-index:2;left:10%;right:10%;top:10%;width:80%;height:52%;object-fit:contain;filter:drop-shadow(0 12px 16px rgba(20,20,24,.16))}
+    .live-cover-copy{position:absolute;z-index:4;left:11px;right:11px;bottom:11px;background:rgba(255,255,255,.94);border-radius:14px;padding:12px;backdrop-filter:blur(10px)}
+    .live-cover-category{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:color-mix(in srgb,var(--live-a) 11%,transparent);color:var(--live-a);border-radius:7px;padding:3px 6px;font-size:6px;font-weight:900;text-transform:uppercase}.live-cover-title{display:block;margin-top:7px;color:#202226;font-size:14px;line-height:1.08;letter-spacing:-.035em;font-weight:950}.live-cover-benefits{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}.live-cover-benefits span{font-size:6px;font-weight:800;color:#555B63;background:#F0F2F4;border-radius:6px;padding:3px 5px}
+    .market-preview{overflow:hidden;border-radius:14px;background:#F0F2F4;padding:12px}.market-preview-label{font-size:8px;color:#737982;margin-bottom:8px}.market-row{display:grid;grid-template-columns:repeat(5,minmax(80px,1fr));gap:7px;min-width:480px}.market-item{background:#fff;border-radius:11px;padding:6px;box-shadow:0 5px 14px rgba(27,32,40,.05)}.market-item.current{outline:2px solid var(--brand);box-shadow:0 10px 24px rgba(116,28,42,.13)}.market-thumb{aspect-ratio:3/4;border-radius:8px;background:linear-gradient(145deg,#E5E8EC,#F8F9FA);overflow:hidden;display:flex;align-items:center;justify-content:center}.market-thumb img{width:100%;height:100%;object-fit:cover}.market-placeholder{width:64%;height:58%;border-radius:12px;background:linear-gradient(145deg,#C9CDD3,#EEF0F3)}.market-name{font-size:7px;font-weight:850;line-height:1.2;margin-top:6px;color:#2F3338;height:26px;overflow:hidden}.market-price{font-size:8px;font-weight:950;margin-top:3px;color:#1E2125}
+    .design-history{margin-top:12px;border:1px solid #ECEEF1;border-radius:15px;background:#fff;padding:11px}.design-history-head{display:flex;justify-content:space-between;align-items:center;gap:9px}.design-history-head b{font-size:11px}.design-history-save{border:1px solid #E1E4E8;background:#F7F8FA;border-radius:9px;padding:6px 9px;font-size:9px;font-weight:850;cursor:pointer}.design-history-list{display:flex;gap:7px;overflow:auto;margin-top:9px;padding-bottom:2px}.design-history-empty{font-size:9px;color:var(--muted)}.design-snapshot{flex:0 0 142px;border:1px solid #E5E7EB;border-radius:11px;background:#FAFBFC;padding:8px;text-align:left;cursor:pointer}.design-snapshot:hover{border-color:#D3D7DC;background:#fff}.design-snapshot-top{display:flex;align-items:center;gap:5px}.design-snapshot-swatch{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--snap-a,#F03E4A),var(--snap-b,#FFD8DC))}.design-snapshot b{font-size:9px;line-height:1.15}.design-snapshot small{display:block;font-size:8px;color:#777D84;margin-top:4px;line-height:1.25}
+    @media(max-width:820px){.design-preview-workspace{grid-template-columns:1fr}.live-cover-frame{min-height:330px}}
 </style>
 </head>
 <body class="simple-ui">
@@ -601,7 +616,7 @@
     </div>
     <section class="design-studio" id="designStudio">
       <div class="design-studio-head">
-        <div><div class="section-kicker">Дизайн 7.1</div><h3>Стиль карточек</h3><p>Yuvion подбирает тему, палитру и подачу автоматически. Можно менять выразительность и сравнивать 3 обложки — факты товара не меняются.</p></div>
+        <div><div class="section-kicker">Дизайн 7.2</div><h3>Стиль карточек</h3><p>Yuvion подбирает тему, палитру и подачу автоматически. Live-preview показывает изменения сразу, а история дизайна позволяет быстро вернуть удачный вариант.</p></div>
         <div class="design-free-badge">Бесплатный рендер</div>
       </div>
       <div class="design-studio-body">
@@ -644,6 +659,30 @@
             <button type="button" class="design-action" id="designVariant">Другой вариант</button>
             <button type="button" class="design-action" id="mobilePreview">Мобильный вид</button>
             <button type="button" class="design-action primary" id="applyDesign">Пересобрать 4 карточки</button>
+          </div>
+        </div>
+        <div class="design-preview-workspace">
+          <div class="design-preview-panel">
+            <div class="design-preview-panel-head"><b>Live-preview обложки</b><span>Приблизительный вид без рендера</span></div>
+            <div class="live-cover-frame">
+              <div class="live-cover" id="liveCover">
+                <div class="live-cover-brand">YUVION</div>
+                <img class="live-cover-product" id="liveCoverProduct" alt="">
+                <div class="live-cover-copy">
+                  <span class="live-cover-category" id="liveCoverCategory">ТОВАР</span>
+                  <b class="live-cover-title" id="liveCoverTitle">Название товара</b>
+                  <div class="live-cover-benefits" id="liveCoverBenefits"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="design-preview-panel">
+            <div class="design-preview-panel-head"><b>Вид в каталоге</b><span>Условная выдача для проверки заметности, не реальные конкуренты</span></div>
+            <div class="market-preview" id="marketPreview"></div>
+            <div class="design-history">
+              <div class="design-history-head"><b>История дизайна</b><button type="button" class="design-history-save" id="saveDesignSnapshot">Сохранить вариант</button></div>
+              <div class="design-history-list" id="designHistoryList"></div>
+            </div>
           </div>
         </div>
         <div class="cover-lab" id="coverLab">
@@ -1038,6 +1077,14 @@ const beautifyDesign=document.getElementById('beautifyDesign');
 const coverVariantsBtn=document.getElementById('coverVariants');
 const coverLab=document.getElementById('coverLab');
 const coverVariantGrid=document.getElementById('coverVariantGrid');
+const liveCover=document.getElementById('liveCover');
+const liveCoverProduct=document.getElementById('liveCoverProduct');
+const liveCoverCategory=document.getElementById('liveCoverCategory');
+const liveCoverTitle=document.getElementById('liveCoverTitle');
+const liveCoverBenefits=document.getElementById('liveCoverBenefits');
+const marketPreview=document.getElementById('marketPreview');
+const saveDesignSnapshotBtn=document.getElementById('saveDesignSnapshot');
+const designHistoryList=document.getElementById('designHistoryList');
 const productScale=document.getElementById('productScale');
 const productShiftX=document.getElementById('productShiftX');
 const productShiftY=document.getElementById('productShiftY');
@@ -1332,6 +1379,7 @@ let currentDesignVariant=0;
 let currentDesignIntensity='selling';
 let currentDesignSubstyle='auto';
 let currentCoverVariants=[];
+let currentDesignSnapshots=[];
 let beautifyStep=0;
 let currentComposition={scale:1,shiftX:0,shiftY:0};
 let currentMode='full';
@@ -3100,7 +3148,7 @@ Object.entries(extraFields).forEach(([key,el])=>el.addEventListener('input',()=>
     localQuality.className='quality-box show warn';
     localQuality.innerHTML='<strong>Подтверждённые данные изменены</strong>Для текста рекомендуется повторный анализ. Изображения обновляются только если изменилось содержимое, которое могло попасть на карточки.';
   }
-  renderYuvionExport();renderProductCockpit();saveHistoryDebounced();
+  renderYuvionExport();renderProductCockpit();renderMarketplacePreview();saveHistoryDebounced();
 }));
 let skuCheckTimer;
 extraFields.sku.addEventListener('input',()=>{
@@ -3141,6 +3189,9 @@ v7PhotoSource.onclick=()=>fileInput.click();
 v7UrlSource.onclick=()=>{productUrlInput.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>productUrlInput.focus(),300)};
 v7ExcelSource.onclick=()=>{const box=document.getElementById('excelAutopilot');if(box){box.open=true;box.scrollIntoView({behavior:'smooth',block:'start'})}};
 designStyleGrid.addEventListener('click',e=>{const btn=e.target.closest('[data-style]');if(btn)chooseDesignStyle(btn.dataset.style)});
+saveDesignSnapshotBtn.onclick=()=>captureDesignSnapshot('Сохранённый вариант');
+designHistoryList.addEventListener('click',e=>{const btn=e.target.closest('[data-design-snapshot]');if(btn)applyDesignSnapshot(btn.dataset.designSnapshot)});
+
 designIntensity.addEventListener('click',e=>{const btn=e.target.closest('[data-intensity]');if(!btn)return;currentDesignIntensity=btn.dataset.intensity;designIntensity.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced()});
 designSubstyle.onchange=()=>{currentDesignSubstyle=designSubstyle.value;designSubstyle.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced()};
 designVariantBtn.onclick=()=>{currentDesignVariant=(currentDesignVariant+1)%4;currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();if(currentCards.length===4)generateAll.click()};
@@ -3168,7 +3219,7 @@ function renderCoverVariants(){
   coverVariantGrid.innerHTML=currentCoverVariants.map((item,index)=>'<button type="button" class="cover-variant '+(item.variant===currentDesignVariant&&item.intensity===currentDesignIntensity?'selected':'')+'" data-cover-index="'+index+'"><img alt="'+esc(item.label||'Вариант')+'" src="data:image/png;base64,'+item.card.base64+'"><b>'+esc(item.label||('Вариант '+(index+1)))+'</b><small>'+esc(item.intensity==='bold'?'Максимально заметная':item.intensity==='calm'?'Спокойная':'Сбалансированная')+'</small></button>').join('');
 }
 coverVariantsBtn.onclick=loadCoverVariants;
-coverVariantGrid.addEventListener('click',async e=>{const btn=e.target.closest('[data-cover-index]');if(!btn)return;const item=currentCoverVariants[Number(btn.dataset.coverIndex)];if(!item)return;currentDesignVariant=item.variant;currentDesignIntensity=item.intensity;designIntensity.dataset.userChanged='1';if(currentCards.length===4){currentCards[0]=item.card;currentScenes[0]=item.scene;cardsStale=false;currentStaleCards=[];currentQuality=null;renderCards();await saveHistory()}renderDesignStudio();renderCoverVariants()});
+coverVariantGrid.addEventListener('click',async e=>{const btn=e.target.closest('[data-cover-index]');if(!btn)return;const item=currentCoverVariants[Number(btn.dataset.coverIndex)];if(!item)return;currentDesignVariant=item.variant;currentDesignIntensity=item.intensity;designIntensity.dataset.userChanged='1';if(currentCards.length===4){currentCards[0]=item.card;currentScenes[0]=item.scene;cardsStale=false;currentStaleCards=[];currentQuality=null;renderCards();captureDesignSnapshot('Выбранная обложка',true);await saveHistory()}renderDesignStudio();renderCoverVariants()});
 
 function syncCompositionFromControls(){
   currentComposition={
@@ -3487,6 +3538,84 @@ async function refreshDesignPalette(){
   }catch{}
   renderDesignStudio();
 }
+
+function liveFallbackPalette(){
+  const byStyle={
+    bright:['#F03E4A','#FF9A7B'],kids:['#6B32D9','#FFB800'],premium:['#9A3148','#D9A7B2'],tech:['#30343B','#A9B2BC'],
+    home:['#9A7769','#D8C2B5'],beauty:['#C74A7D','#E9B6CB'],sport:['#146C5B','#85C9B9'],tools:['#E06A13','#5B626A'],food:['#A54D21','#AFC180'],minimal:['#B7BCC3','#ECEEF1']
+  };
+  return byStyle[styleSelect.value]||byStyle.bright;
+}
+function currentPreviewImage(){
+  if(sourceDataUrl)return sourceDataUrl;
+  const src=preview?.src||'';
+  return /^(data:|blob:)/.test(src)?src:'';
+}
+function renderLiveDesignPreview(){
+  if(!liveCover)return;
+  const d=currentData?collectEdits():{seoTitle:'Название товара',category:'Товар',benefits:[]};
+  const colors=currentPalette.length?currentPalette:liveFallbackPalette();
+  const a=colors[0]||'#F03E4A',b=colors[1]||colors[0]||'#FFD8DC';
+  liveCover.style.setProperty('--live-a',a);liveCover.style.setProperty('--live-b',b);
+  liveCover.classList.toggle('live-bold',currentDesignIntensity==='bold');
+  const img=currentPreviewImage();liveCoverProduct.src=img||'';liveCoverProduct.style.display=img?'block':'none';
+  liveCoverCategory.textContent=(d.category||'Товар').split('/').pop().trim().slice(0,42).toUpperCase();
+  liveCoverTitle.textContent=d.seoTitle||'Название товара';
+  const max=currentDesignIntensity==='calm'?2:3;
+  liveCoverBenefits.innerHTML=(d.benefits||[]).slice(0,max).map(x=>'<span>'+esc(String(x).slice(0,38))+'</span>').join('');
+  renderMarketplacePreview();
+  renderDesignHistory();
+}
+function renderMarketplacePreview(){
+  if(!marketPreview)return;
+  const d=currentData?collectEdits():{seoTitle:'Ваш товар'};
+  const price=typeof collectExtraData==='function'?collectExtraData().price1:'';
+  const actual=currentCards?.[0]?.base64?'data:image/png;base64,'+currentCards[0].base64:'';
+  const source=currentPreviewImage();
+  const currentImage=actual||source;
+  const names=['Соседний товар','Популярный товар',d.seoTitle||'Ваш товар','Похожий товар','Ещё товар'];
+  marketPreview.innerHTML='<div class="market-preview-label">Проверка читаемости и заметности в уменьшенном размере</div><div class="market-row">'+names.map((name,i)=>{
+    const current=i===2;
+    const visual=current&&currentImage?'<img src="'+esc(currentImage)+'" alt="">':'<div class="market-placeholder"></div>';
+    return '<div class="market-item '+(current?'current':'')+'"><div class="market-thumb">'+visual+'</div><div class="market-name">'+esc(name)+'</div><div class="market-price">'+(current&&price?esc(price)+' ₽':'—')+'</div></div>';
+  }).join('')+'</div>';
+}
+function designSnapshotFingerprint(state){
+  return JSON.stringify([state.style,state.intensity,state.substyle,state.variant,state.composition,state.palette]);
+}
+function captureDesignSnapshot(label='Вариант дизайна',silent=false){
+  if(!currentData)return;
+  const state={
+    id:(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)),
+    at:Date.now(),label,
+    style:styleSelect.value,intensity:currentDesignIntensity,substyle:currentDesignSubstyle,variant:currentDesignVariant,
+    composition:{...currentComposition},palette:[...currentPalette]
+  };
+  const fp=designSnapshotFingerprint(state);
+  currentDesignSnapshots=currentDesignSnapshots.filter(x=>designSnapshotFingerprint(x)!==fp);
+  currentDesignSnapshots=[state,...currentDesignSnapshots].slice(0,8);
+  renderDesignHistory();
+  if(!silent)saveHistoryDebounced();
+}
+function renderDesignHistory(){
+  if(!designHistoryList)return;
+  if(!currentDesignSnapshots.length){designHistoryList.innerHTML='<div class="design-history-empty">Сохранённых визуальных вариантов пока нет.</div>';return}
+  designHistoryList.innerHTML=currentDesignSnapshots.map((x,index)=>{
+    const colors=Array.isArray(x.palette)&&x.palette.length?x.palette:['#F03E4A','#FFD8DC'];
+    const detail=(x.intensity==='bold'?'Максимум':x.intensity==='calm'?'Спокойный':'Продающий')+' · '+(x.substyle||'auto');
+    return '<button type="button" class="design-snapshot" data-design-snapshot="'+index+'"><div class="design-snapshot-top"><i class="design-snapshot-swatch" style="--snap-a:'+esc(colors[0])+';--snap-b:'+esc(colors[1]||colors[0])+'"></i><b>'+esc(x.label||'Вариант')+'</b></div><small>'+esc(detail)+' · композиция '+(Number(x.variant||0)+1)+'</small></button>';
+  }).join('');
+}
+function applyDesignSnapshot(index){
+  const x=currentDesignSnapshots[Number(index)];if(!x)return;
+  if(styleSelect.querySelector('option[value="'+x.style+'"]'))styleSelect.value=x.style;
+  currentDesignIntensity=x.intensity||'selling';currentDesignSubstyle=x.substyle||'auto';currentDesignVariant=Number.isInteger(x.variant)?x.variant:0;
+  currentComposition={scale:Number(x.composition?.scale)||1,shiftX:Number(x.composition?.shiftX)||0,shiftY:Number(x.composition?.shiftY)||0};
+  currentPalette=Array.isArray(x.palette)?x.palette.slice(0,4):currentPalette;
+  designIntensity.dataset.userChanged='1';designSubstyle.dataset.userChanged='1';styleSelect.dataset.userChanged='1';
+  currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced();
+}
+
 function renderDesignStudio(){
   if(!designStyleGrid)return;
   designStyleGrid.querySelectorAll('[data-style]').forEach(btn=>btn.classList.toggle('active',btn.dataset.style===styleSelect.value));
@@ -3499,6 +3628,7 @@ function renderDesignStudio(){
   if(productScale){productScale.value=String(Math.round((currentComposition.scale||1)*100));productScaleValue.textContent=productScale.value+'%'}
   if(productShiftX){productShiftX.value=String(currentComposition.shiftX||0);productShiftXValue.textContent=productShiftX.value+' px'}
   if(productShiftY){productShiftY.value=String(currentComposition.shiftY||0);productShiftYValue.textContent=productShiftY.value+' px'}
+  renderLiveDesignPreview();
 }
 function chooseDesignStyle(style){
   if(!styleSelect.querySelector('option[value="'+style+'"]'))return;
@@ -3632,6 +3762,7 @@ Object.entries(editor).forEach(([key,el])=>el.addEventListener('input',()=>{
   currentData=collectEdits();updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
   const affected=EDITOR_CARD_DEPENDENCIES[key]||[];
   if(affected.length)markCardsStale(affected);
+  renderLiveDesignPreview();
   saveHistoryDebounced();
 }));
 editor.category.addEventListener('input',()=>{renderCategoryValidation();renderSpecTemplateHint()});
@@ -3790,6 +3921,7 @@ generateAll.onclick=async()=>{
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       addCurrentActivity(renderModeSelect.value==='free'?'Создан бесплатный комплект':'Создан AI-комплект','4 карточки + чистые сцены');
+      captureDesignSnapshot('Готовый комплект',true);
     }
     cardsStale=false;currentStaleCards=[];renderCards();renderProductCockpit();
     zipImages.disabled=false;zipFull.disabled=false;
@@ -3922,7 +4054,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentPalette=[];currentDesignVariant=0;currentDesignIntensity='selling';currentDesignSubstyle='auto';currentDesignSnapshots=[];currentComposition={scale:1,shiftX:0,shiftY:0};currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
@@ -3942,6 +4074,8 @@ function migrateStoredItem(raw){
   if(!Array.isArray(item.activity))item.activity=[];
   if(!Array.isArray(item.labelSuggestions))item.labelSuggestions=[];
   if(!Array.isArray(item.staleCardIndexes))item.staleCardIndexes=[];
+  if(!Array.isArray(item.designSnapshots))item.designSnapshots=[];
+  if(!item.designState||typeof item.designState!=='object')item.designState={};
   item.schemaVersion=ITEM_SCHEMA_VERSION;
   return item;
 }
@@ -4128,6 +4262,8 @@ async function savePhotoDraft(file){
       mode:currentMode,
       style:styleSelect.value,
       renderMode:renderModeSelect.value,
+      designState:{intensity:currentDesignIntensity,substyle:currentDesignSubstyle,variant:currentDesignVariant,composition:{...currentComposition},palette:[...currentPalette]},
+      designSnapshots:currentDesignSnapshots,
       published:false
     });
     await trimCatalog();
@@ -6155,6 +6291,12 @@ async function restoreHistory(item){
   currentMode=item.mode||'full';
   styleSelect.value=item.style||'minimal';
   renderModeSelect.value=item.renderMode||'free';
+  currentDesignIntensity=item.designState?.intensity||'selling';
+  currentDesignSubstyle=item.designState?.substyle||'auto';
+  currentDesignVariant=Number.isInteger(item.designState?.variant)?item.designState.variant:0;
+  currentComposition={scale:Number(item.designState?.composition?.scale)||1,shiftX:Number(item.designState?.composition?.shiftX)||0,shiftY:Number(item.designState?.composition?.shiftY)||0};
+  currentPalette=Array.isArray(item.designState?.palette)?item.designState.palette.slice(0,4):[];
+  currentDesignSnapshots=Array.isArray(item.designSnapshots)?item.designSnapshots.slice(0,8):[];
   fillExtraData(item.extraData||item.data?.confirmedData||{});
   fillPrivateData(item.privateData||{});
   duplicateSkuId=null;
@@ -6186,6 +6328,7 @@ async function restoreHistory(item){
   confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');
   workspace.classList.add('show');
   syncModeUi();
+  renderDesignStudio();
 
   if(currentCards.length===4){
     renderCards();
