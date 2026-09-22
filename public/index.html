@@ -300,6 +300,9 @@
     .simple-ui .editor{border-radius:24px}.simple-ui .creative{border-radius:24px}.simple-ui .yuvion-export{border-radius:24px}
     @media(max-width:900px){.design-style-grid{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:600px){.design-studio-head{padding:16px 16px 11px}.design-studio-body{padding:0 16px 16px}.design-style-grid{grid-template-columns:repeat(2,1fr)}.design-style-card{min-height:78px}.design-controls{align-items:flex-start}.design-actions{width:100%}.design-action{flex:1}.v7-source-quick{grid-template-columns:1fr}}
+
+    .design-tune{margin-top:12px;border:1px solid #ECEEF1;border-radius:15px;background:#FAFBFC;overflow:hidden}.design-tune summary{cursor:pointer;list-style:none;padding:11px 13px;font-size:11px;font-weight:850;color:#50565F}.design-tune summary::-webkit-details-marker{display:none}.design-tune-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 13px 13px}.design-tune-field{display:grid;gap:6px}.design-tune-field label{font-size:10px;font-weight:800;color:#6D737B}.design-tune-field input[type="range"]{width:100%;accent-color:var(--brand)}.design-tune-value{font-size:10px;color:#444A52;font-weight:800}.design-tune-reset{border:0;background:#EEF0F3;border-radius:9px;padding:7px 9px;font-size:10px;font-weight:800;cursor:pointer}
+    @media(max-width:600px){.design-tune-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body class="simple-ui">
@@ -611,6 +614,14 @@
             <button type="button" class="design-action primary" id="applyDesign">Пересобрать 4 карточки</button>
           </div>
         </div>
+        <details class="design-tune">
+          <summary>Точная настройка товара на карточке</summary>
+          <div class="design-tune-grid">
+            <div class="design-tune-field"><label>Размер товара</label><input id="productScale" type="range" min="78" max="122" value="100"><span class="design-tune-value" id="productScaleValue">100%</span></div>
+            <div class="design-tune-field"><label>Сдвиг по горизонтали</label><input id="productShiftX" type="range" min="-110" max="110" value="0"><span class="design-tune-value" id="productShiftXValue">0 px</span></div>
+            <div class="design-tune-field"><label>Сдвиг по вертикали</label><input id="productShiftY" type="range" min="-110" max="110" value="0"><span class="design-tune-value" id="productShiftYValue">0 px</span><button type="button" class="design-tune-reset" id="resetComposition">Сбросить положение</button></div>
+          </div>
+        </details>
       </div>
     </section>
     <div class="source-reference" id="sourceReference"></div>
@@ -985,6 +996,13 @@ const designPalette=document.getElementById('designPalette');
 const designVariantBtn=document.getElementById('designVariant');
 const mobilePreviewBtn=document.getElementById('mobilePreview');
 const applyDesignBtn=document.getElementById('applyDesign');
+const productScale=document.getElementById('productScale');
+const productShiftX=document.getElementById('productShiftX');
+const productShiftY=document.getElementById('productShiftY');
+const productScaleValue=document.getElementById('productScaleValue');
+const productShiftXValue=document.getElementById('productShiftXValue');
+const productShiftYValue=document.getElementById('productShiftYValue');
+const resetComposition=document.getElementById('resetComposition');
 const v7PhotoSource=document.getElementById('v7PhotoSource');
 const v7UrlSource=document.getElementById('v7UrlSource');
 const v7ExcelSource=document.getElementById('v7ExcelSource');
@@ -1269,6 +1287,7 @@ let currentCards=[];
 let currentScenes=[];
 let currentPalette=[];
 let currentDesignVariant=0;
+let currentComposition={scale:1,shiftX:0,shiftY:0};
 let currentMode='full';
 let currentHistoryId=null;
 let busy=false;
@@ -3079,6 +3098,19 @@ designStyleGrid.addEventListener('click',e=>{const btn=e.target.closest('[data-s
 designVariantBtn.onclick=()=>{currentDesignVariant=(currentDesignVariant+1)%4;currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();if(currentCards.length===4)generateAll.click()};
 mobilePreviewBtn.onclick=()=>{cardsPreview.classList.toggle('mobile-preview');renderDesignStudio()};
 applyDesignBtn.onclick=()=>{if(currentData){currentScenes=[];markCardsStale([0,1,2,3]);generateAll.click()}else analyzeBtn.click()};
+function syncCompositionFromControls(){
+  currentComposition={
+    scale:Math.max(.78,Math.min(1.22,Number(productScale.value||100)/100)),
+    shiftX:Math.max(-110,Math.min(110,Number(productShiftX.value||0))),
+    shiftY:Math.max(-110,Math.min(110,Number(productShiftY.value||0)))
+  };
+  productScaleValue.textContent=Math.round(currentComposition.scale*100)+'%';
+  productShiftXValue.textContent=Math.round(currentComposition.shiftX)+' px';
+  productShiftYValue.textContent=Math.round(currentComposition.shiftY)+' px';
+  currentScenes=[];markCardsStale([0,1,2,3]);saveHistoryDebounced();
+}
+[productScale,productShiftX,productShiftY].forEach(el=>el.addEventListener('input',syncCompositionFromControls));
+resetComposition.onclick=()=>{currentComposition={scale:1,shiftX:0,shiftY:0};renderDesignStudio();currentScenes=[];markCardsStale([0,1,2,3]);saveHistoryDebounced()};
 autoCards.addEventListener('change',()=>{syncModeUi();saveHistoryDebounced()});
 importProductUrl.onclick=()=>importFromProductUrl();
 productUrlInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();importFromProductUrl()}});
@@ -3390,6 +3422,9 @@ function renderDesignStudio(){
   designPalette.innerHTML=colors.slice(0,4).map(color=>'<i class="palette-dot" title="'+esc(color)+'" style="background:'+esc(color)+'"></i>').join('');
   designVariantBtn.textContent='Другой вариант · '+(currentDesignVariant+1)+'/4';
   mobilePreviewBtn.textContent=cardsPreview.classList.contains('mobile-preview')?'Обычный вид':'Мобильный вид';
+  if(productScale){productScale.value=String(Math.round((currentComposition.scale||1)*100));productScaleValue.textContent=productScale.value+'%'}
+  if(productShiftX){productShiftX.value=String(currentComposition.shiftX||0);productShiftXValue.textContent=productShiftX.value+' px'}
+  if(productShiftY){productShiftY.value=String(currentComposition.shiftY||0);productShiftYValue.textContent=productShiftY.value+' px'}
 }
 function chooseDesignStyle(style){
   if(!styleSelect.querySelector('option[value="'+style+'"]'))return;
@@ -3599,12 +3634,13 @@ async function checkQualityAndAutofix(autoFix=true){
 async function regenerateCardApi(index,src,cardData,styleValue){
   const response=await fetch('/api/regenerate-card',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant})
+    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,composition:currentComposition})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку №'+(index+1)+'.');
   if(Array.isArray(data.palette)&&data.palette.length)currentPalette=data.palette;
   if(Number.isInteger(data.designVariant))currentDesignVariant=data.designVariant;
+  if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
   renderDesignStudio();
   if(data.scene){
     currentScenes=Array.isArray(currentScenes)?currentScenes:[];
@@ -3617,7 +3653,7 @@ async function renderOverlayCardsApi(indexes,cardData,styleValue){
   if(!Array.isArray(currentScenes)||currentScenes.length!==4)throw new Error('Чистые сцены недоступны.');
   const response=await fetch('/api/render-card-overlays',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({scenes:currentScenes,card:cardData,style:styleValue,indexes,palette:currentPalette,designVariant:currentDesignVariant})
+    body:JSON.stringify({scenes:currentScenes,card:cardData,style:styleValue,indexes,palette:currentPalette,designVariant:currentDesignVariant,composition:currentComposition})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось пересобрать инфографику.');
@@ -3650,13 +3686,14 @@ generateAll.onclick=async()=>{
       addCurrentActivity('Точечная AI-перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
     }else{
       const src=await getSource();
-      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant})});
+      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,composition:currentComposition})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
       currentCards=data.cards||[];
       currentScenes=data.scenes||[];
       if(Array.isArray(data.palette)&&data.palette.length)currentPalette=data.palette;
       if(Number.isInteger(data.designVariant))currentDesignVariant=data.designVariant;
+      if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       addCurrentActivity(renderModeSelect.value==='free'?'Создан бесплатный комплект':'Создан AI-комплект','4 карточки + чистые сцены');
     }
