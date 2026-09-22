@@ -1553,15 +1553,24 @@ app.get("/m/admin", (_req,res) => {
       await loadExtras();await loadStats();
     }
     async function loadExtras(){
-      const q=await api("/api/admin/queue");
+      const [q,privacy]=await Promise.all([
+        api("/api/admin/queue"),
+        api("/api/admin/privacy-requests").catch(()=>[])
+      ]);
       const comments=q.comments||[],claims=q.claims||[],reports=q.reports||[],corr=q.corrections||[];
       const blocks=[];
       for(const x of comments)blocks.push('<div class="card"><b>Комментарий</b><div>'+esc(x.body||"")+'</div><div class="row" style="margin-top:8px"><button class="btn" data-extra-kind="comment" data-extra-id="'+x.id+'" data-extra-act="approve">Одобрить</button><button class="btn secondary" data-extra-kind="comment" data-extra-id="'+x.id+'" data-extra-act="reject">Отклонить</button></div></div>');
       for(const x of claims)blocks.push('<div class="card"><b>Подтверждение родственника</b><div>'+esc(x.claimant_name||"")+' · '+esc(x.relation_type||"")+'</div><div class="muted">'+esc(x.contact||"")+'</div><div class="row" style="margin-top:8px"><button class="btn" data-extra-kind="claim" data-extra-id="'+x.id+'" data-extra-act="approve">Подтвердить семью</button><button class="btn secondary" data-extra-kind="claim" data-extra-id="'+x.id+'" data-extra-act="reject">Отклонить</button></div></div>');
       for(const x of reports)blocks.push('<div class="card"><b>Жалоба / ошибка</b><div>'+esc(x.reason||"")+'</div><div class="muted">'+esc(x.details||"")+'</div><div class="row" style="margin-top:8px"><button class="btn secondary" data-extra-kind="report" data-extra-id="'+x.id+'" data-extra-act="close">Закрыть</button></div></div>');
       for(const x of corr)blocks.push('<div class="card"><b>Исправление данных</b><div>'+esc(x.field_name||"")+'</div><div><s>'+esc(x.current_value||"")+'</s> → '+esc(x.proposed_value||"")+'</div><div class="row" style="margin-top:8px"><button class="btn" data-extra-kind="correction" data-extra-id="'+x.id+'" data-extra-act="approve">Принять</button><button class="btn secondary" data-extra-kind="correction" data-extra-id="'+x.id+'" data-extra-act="reject">Отклонить</button></div></div>');
+      for(const x of privacy||[])blocks.push('<div class="card"><b>Запрос на удаление персональных данных</b><div>'+esc(x.full_name||"")+'</div><div class="muted">'+esc(x.requester_name||"")+' · '+esc(x.requester_contact||"")+'</div><div>'+esc(x.details||"")+'</div><div class="row" style="margin-top:8px"><button class="btn" data-privacy-id="'+esc(x.id)+'" data-privacy-act="approve">Удалить контакты</button><button class="btn secondary" data-privacy-id="'+esc(x.id)+'" data-privacy-act="reject">Отклонить</button></div></div>');
       qs("#mAdminExtras").innerHTML=blocks.join("")||'<div class="card muted">Нет заявок на дополнительную модерацию.</div>';
       qs("#mAdminExtras").querySelectorAll("[data-extra-kind]").forEach(b=>b.onclick=()=>extraAction(b.dataset.extraKind,b.dataset.extraId,b.dataset.extraAct).catch(e=>alert(e.message)));
+      qs("#mAdminExtras").querySelectorAll("[data-privacy-id]").forEach(b=>b.onclick=async()=>{
+        if(b.dataset.privacyAct==="approve"&&!confirm("Удалить контактные персональные данные по этому запросу?"))return;
+        await api("/api/admin/privacy-requests/"+encodeURIComponent(b.dataset.privacyId)+"/"+b.dataset.privacyAct,{method:"POST"});
+        await loadExtras();await loadStats();
+      });
     }
     async function loadDelivery(){
       const d=await api("/api/admin/notifications?limit=40"),s=d.summary||{},by=s.by_channel||{};
@@ -1674,10 +1683,48 @@ app.get("/m/admin", (_req,res) => {
       };
     }
 
+    async function loadSystemStatus(){
+      try{
+        const d=await api("/api/admin/system-status"),p=d.providers||{},warnings=d.warnings||[];
+        const chips=[
+          ["База",d.ok],["Push",p.push],["Email",p.email],["Telegram",p.telegram],["WhatsApp",p.whatsapp],["SMS",p.sms],
+          ["Внешний backup",d.offsite_backup]
+        ].map(([k,v])=>'<span class="tag" style="'+(v?'':'background:#f5e2e2')+'">'+esc(k)+': '+(v?'OK':'внимание')+'</span>').join("");
+        qs("#adminSystemStatus").innerHTML='<div class="row">'+chips+'</div>'+
+          '<div class="muted" style="margin-top:8px">Ошибок доставки: '+Number(d.failed_notifications||0)+' · Uptime: '+Number(d.uptime_seconds||0)+' сек.'+
+          (d.last_snapshot?' · Последний снимок: '+esc(d.last_snapshot.snapshot_date):'')+'</div>'+
+          (warnings.length?'<div class="err" style="margin-top:8px">'+warnings.map(esc).join("<br>")+'</div>':'<div class="ok" style="margin-top:8px">Критических предупреждений нет.</div>');
+      }catch(e){qs("#adminSystemStatus").innerHTML='<div class="err">Диагностика недоступна: '+esc(e.message)+'</div>'}
+    }
+    async function loadSnapshots(){
+      if(me?.role!=="owner")return;
+      const rows=await api("/api/admin/snapshots");
+      qs("#snapshotList").innerHTML=(rows||[]).map(x=>'<div class="card"><b>'+esc(x.snapshot_date)+'</b><div class="muted">'+esc(fmt(x.created_at))+' · событий: '+Number(x.events||0)+'</div><button class="btn secondary" data-restore-snapshot="'+esc(x.snapshot_date)+'" style="margin-top:8px">Восстановить к этой дате</button></div>').join("")||'<div class="muted">Снимков пока нет.</div>';
+      qs("#snapshotList").querySelectorAll("[data-restore-snapshot]").forEach(b=>b.onclick=async()=>{
+        if(!confirm("Восстановить данные к снимку "+b.dataset.restoreSnapshot+"? Новые записи после этой даты будут скрыты."))return;
+        const phrase=prompt("Для подтверждения введите RESTORE");if(phrase!=="RESTORE")return;
+        await api("/api/admin/snapshots/"+encodeURIComponent(b.dataset.restoreSnapshot)+"/restore",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({confirm:"RESTORE"})});
+        alert("Восстановление выполнено.");await load();await loadSnapshots();
+      });
+    }
+    async function createDraft(){
+      const body={
+        full_name:qs("#draftFullName").value.trim(),death_date:qs("#draftDeathDate").value,
+        event_type:qs("#draftEventType").value.trim(),event_date:qs("#draftEventDate").value,event_time:qs("#draftEventTime").value,
+        publish_at:qs("#draftPublishAt").value?new Date(qs("#draftPublishAt").value).toISOString():null,
+        visibility:qs("#draftVisibility").value,city:qs("#draftCity").value.trim(),place:qs("#draftPlace").value.trim(),note:qs("#draftNote").value.trim()
+      };
+      if(!body.full_name)throw new Error("Укажите ФИО");
+      const dup=await fetch("/api/duplicates?"+new URLSearchParams({full_name:body.full_name,death_date:body.death_date||"",city:body.city||""}),{cache:"no-store"}).then(r=>r.json()).catch(()=>[]);
+      if(dup.length&&!confirm("Найдены похожие записи: "+dup.slice(0,3).map(x=>x.full_name+" ("+(x.death_date||"без даты")+")").join(", ")+". Всё равно создать черновик?"))return;
+      const d=await api("/api/admin/drafts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+      qs("#draftStatus").innerHTML='<div class="ok">'+(d.status==="scheduled"?"Публикация запланирована.":"Черновик сохранён.")+'</div>';
+      qs("#draftFullName").value="";qs("#draftNote").value="";await load();
+    }
     async function load(){
       const q=qs("#mAdminSearch").value.trim(),status=qs("#mAdminStatus").value;
       const data=await api("/api/admin/events/list?"+new URLSearchParams({status,q,limit:"300"}));
-      render(data); await Promise.all([loadStats(),loadDelivery(),loadExtras(),loadAdminGroups()]);
+      render(data); await Promise.all([loadStats(),loadDelivery(),loadExtras(),loadAdminGroups(),loadSystemStatus()]);
     }
     async function showApp(){
       me=await api("/api/admin/auth/status");
@@ -1686,8 +1733,9 @@ app.get("/m/admin", (_req,res) => {
       qs("#adminWho").textContent=(me.display_name||me.email||"")+" · "+(me.role||"");
       const owner=me.role==="owner";
       qs("#ownerUsersCard").style.display=owner?"block":"none";
+      qs("#snapshotCard").style.display=owner?"block":"none";
       qs("#backupTest").style.display=owner?"inline-block":"none";
-      if(owner)await loadUsers();
+      if(owner)await Promise.all([loadUsers(),loadSnapshots()]);
       await Promise.all([loadTrash(),loadSessions()]);
       await load();
     }
@@ -1884,6 +1932,14 @@ app.get("/m/admin", (_req,res) => {
     }
 
     qs("#backupTest").onclick=async()=>{try{const r=await api("/api/admin/backup/test",{method:"POST"});alert(r.ok?"Внешняя резервная копия отправлена.":"Внешний backup ещё не настроен.")}catch(e){alert("Backup: "+e.message)}};
+    qs("#refreshSystemStatus").onclick=()=>loadSystemStatus();
+    qs("#retryFailedNotifications").onclick=async()=>{
+      if(!confirm("Повторить только последние неудачные отправки? Успешные получатели повторно сообщение не получат."))return;
+      const r=await api("/api/admin/notifications/retry-failed",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({limit:100})});
+      alert("Повтор: отправлено "+Number(r.sent||0)+", ошибок "+Number(r.failed||0)+".");await loadDelivery();await loadSystemStatus();
+    };
+    qs("#createDraft").onclick=()=>createDraft().catch(e=>{qs("#draftStatus").innerHTML='<div class="err">'+esc(e.message)+'</div>'});
+    qs("#createSnapshot").onclick=async()=>{const r=await api("/api/admin/snapshots",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({})});alert("Снимок создан: "+(r.snapshot_date||"сегодня"));await loadSnapshots()};
     qs("#mAdminPasswordLogin").onclick=passwordLogin;
     qs("#mAdminShowPassword").onchange=e=>{qs("#mAdminPassword").type=e.target.checked?"text":"password"};
     qs("#mAdminPassword").addEventListener("keydown",e=>{if(e.key==="Enter")passwordLogin()});
