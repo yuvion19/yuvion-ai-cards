@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.2.0
+// Production release marker: v10.3.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1404,7 +1404,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.2.0",
+    version: "10.3.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1457,6 +1457,9 @@ app.get("/api/health", (_req, res) => {
       compactDefaultInterface: true,
       hiddenAdvancedPanels: true,
       zeroCreditTextFallback: true,
+      browserVisionFallback: true,
+      smolVlmWebGpu: true,
+      uniqueMultiAngleRouting: true,
       fullSceneRefreshAfterAnalysis: true,
       proceduralStudioLighting: true,
       depthOfFieldBackdrop: true,
@@ -1659,6 +1662,95 @@ app.post("/api/analyze", async (req, res) => {
 });
 
 
+
+function cleanVisionList(value, max = 8) {
+  const arr = Array.isArray(value) ? value : value ? [value] : [];
+  return arr.map((x) => compact(String(x || ""), 120)).filter(Boolean).slice(0, max);
+}
+
+function safeVisionValue(value, max = 140) {
+  return compact(String(value || "").replace(/[{}\[\]"]/g, " ").replace(/\s+/g, " ").trim(), max);
+}
+
+function normalizeBrowserVisionCard(visionRaw, extraRaw = {}) {
+  const vision = visionRaw && typeof visionRaw === "object" ? visionRaw : {};
+  const extra = normalizeExtraData(extraRaw);
+  const productName = safeVisionValue(vision.productName || vision.product || vision.object || vision.item || "");
+  const categoryHint = safeVisionValue(vision.category || vision.possibleCategory || "");
+  const colors = cleanVisionList(vision.colors || vision.colours, 4);
+  const features = cleanVisionList(vision.visibleFeatures || vision.features, 6);
+  const visibleText = cleanVisionList(vision.visibleText || vision.textOnProduct || vision.text, 5);
+  const packageType = safeVisionValue(vision.packageType || vision.packaging || "");
+  const title = compact(extra.name || productName || categoryHint || "Товар", 180);
+  const category = compact(categoryHint || productName || "Товар", 80);
+
+  const characteristics = [];
+  const push = (name, value, source = "Фото") => {
+    const v = compact(value || "", 120);
+    if (v && !characteristics.some((x) => x.name.toLowerCase() === name.toLowerCase())) characteristics.push({ name, value: v, source });
+  };
+  if (colors.length) push("Цвет", colors.join(", "));
+  if (packageType) push("Упаковка", packageType);
+  if (features.length) push("Видимые особенности", features.slice(0, 3).join("; "));
+  if (visibleText.length) push("Маркировка на фото", visibleText.slice(0, 3).join("; "));
+  if (extra.brand) push("Бренд", extra.brand, "Продавец");
+  if (extra.sku) push("Артикул", extra.sku, "Продавец");
+  if (extra.barcode) push("Штрихкод/EAN", extra.barcode, "Продавец");
+  if (extra.size) push("Размеры", extra.size, "Продавец");
+  if (extra.material) push("Материал", extra.material, "Продавец");
+
+  const factBits = [];
+  if (colors.length) factBits.push("цвет: " + colors.join(", "));
+  if (packageType) factBits.push("упаковка: " + packageType);
+  if (features.length) factBits.push(features.slice(0, 3).join(", "));
+  const shortDescription = compact(
+    title + (factBits.length ? ". " + factBits.join(". ") + "." : ". Товар распознан локально по фотографии."),
+    500
+  );
+  const fullDescription = compact(
+    shortDescription +
+    " Описание сформировано локально по видимым признакам фотографии. " +
+    "Размеры, материал, мощность, состав и другие точные параметры не добавляются без подтверждения.",
+    2000
+  );
+  const needs = [];
+  if (!extra.size) needs.push("Размеры не предоставлены.");
+  if (!extra.material) needs.push("Материал не подтверждён.");
+  if (!extra.brand && !visibleText.length) needs.push("Бренд не подтверждён.");
+  return {
+    seoTitle: title,
+    category,
+    shortDescription,
+    fullDescription,
+    characteristics: characteristics.slice(0, 12),
+    keywords: [title, category, ...colors].join(" ").split(/\s+/).filter(Boolean).slice(0, 24),
+    benefits: features.slice(0, 5),
+    usage: [],
+    needsClarification: needs,
+    confidence: productName || categoryHint ? "Средняя" : "Низкая",
+    photoQuality: { score: 0, issues: [] },
+    confirmedData: extra,
+    analysisMode: "browser-vision",
+    analysisNotice: "Бесплатное локальное распознавание SmolVLM в браузере"
+  };
+}
+
+app.post("/api/local-vision-normalize", async (req, res) => {
+  try {
+    const { vision = {}, extraData = {}, image = "", mimeType = "" } = req.body ?? {};
+    const card = normalizeBrowserVisionCard(vision, extraData);
+    if (image && typeof image === "string" && ALLOWED_TYPES.has(String(mimeType || ""))) {
+      try {
+        const audit = await assessSourcePhoto(Buffer.from(image, "base64"));
+        card.photoQuality = { score: audit.score, issues: audit.issues };
+      } catch {}
+    }
+    return res.json(card);
+  } catch (error) {
+    console.error("Local vision normalize error:", { message: error?.message });
+    return res.status(400).json({ error: "Не удалось обработать локальное распознавание." });
+  }
+});
 
 const labelOcrSchema = {
   type: "object",
@@ -2429,10 +2521,27 @@ function normalizeRenderAdditionalImages(raw) {
 }
 
 function pickRenderSource(index,mainBuffer,additional,mainMimeType="image/jpeg",mainQuality=70,mainAudit=null){
+  const extras=Array.isArray(additional)?additional:[];
   const priorities=[["angle"],["detail","angle","package"],["package","detail","angle","label"],["angle","detail","package"]][index]||[];
   const main={buffer:mainBuffer,mimeType:mainMimeType,role:"main",source:"main",qualityScore:mainQuality,audit:mainAudit};
-  if(index===0){const best=(additional||[]).filter(x=>x.role==="angle").sort((a,b)=>Number(b.qualityScore||0)-Number(a.qualityScore||0))[0];return best&&Number(best.qualityScore||0)>=mainQuality+6?{...best,source:"extra"}:main}
-  for(const role of priorities){const list=(additional||[]).filter(x=>x.role===role).sort((a,b)=>Number(b.qualityScore||0)-Number(a.qualityScore||0));if(list.length)return{...list[0],source:"extra"}}
+  if(index===0){
+    const best=extras.filter(x=>x.role==="angle").sort((a,b)=>Number(b.qualityScore||0)-Number(a.qualityScore||0))[0];
+    return best&&Number(best.qualityScore||0)>=mainQuality+10?{...best,source:"extra"}:main;
+  }
+  // Important: do not keep selecting the same highest-scoring "angle" for cards 2–4.
+  // Route different uploaded views across different cards whenever possible.
+  const ranked=extras
+    .filter(x=>priorities.includes(x.role))
+    .sort((a,b)=>{
+      const roleA=priorities.indexOf(a.role),roleB=priorities.indexOf(b.role);
+      if(roleA!==roleB)return roleA-roleB;
+      return Number(b.qualityScore||0)-Number(a.qualityScore||0);
+    });
+  if(ranked.length){
+    const slot=Math.min(ranked.length-1,Math.max(0,index-1));
+    const unused=ranked[slot]||ranked[(index-1)%ranked.length];
+    return{...unused,source:"extra"};
+  }
   return main;
 }
 
@@ -3739,5 +3848,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.2.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.3.0 listening on port ${port}`);
 });

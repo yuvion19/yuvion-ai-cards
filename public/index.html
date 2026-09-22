@@ -3990,6 +3990,87 @@ function prepareAutomaticCardStyle(){
 }
 
 
+let localVisionWorker=null;
+let localVisionReady=false;
+let localVisionLoading=null;
+
+function parseLocalVisionJson(text){
+  const raw=String(text||'').trim();
+  const first=raw.indexOf('{'),last=raw.lastIndexOf('}');
+  if(first<0||last<=first)return null;
+  try{return JSON.parse(raw.slice(first,last+1))}catch{return null}
+}
+
+function ensureLocalVisionWorker(){
+  if(localVisionWorker)return localVisionWorker;
+  if(!('gpu' in navigator))throw new Error('WebGPU недоступен');
+  localVisionWorker=new Worker('/local-vision-worker.js',{type:'module'});
+  return localVisionWorker;
+}
+
+async function ensureLocalVisionReady(){
+  if(localVisionReady)return true;
+  if(localVisionLoading)return localVisionLoading;
+  localVisionLoading=new Promise((resolve,reject)=>{
+    const worker=ensureLocalVisionWorker();
+    const timer=setTimeout(()=>{cleanup();reject(new Error('Локальная модель не загрузилась вовремя'))},180000);
+    const onMessage=(event)=>{
+      const m=event.data||{};
+      if(m.status==='progress'&&Number.isFinite(Number(m.progress))){
+        loadingText.textContent='Загружаем бесплатную локальную vision-модель: '+Math.round(Number(m.progress))+'%';
+      }else if(m.status==='loading'){
+        loadingText.textContent='Подготавливаем бесплатное локальное распознавание товара…';
+      }else if(m.status==='ready'){
+        localVisionReady=true;cleanup();resolve(true);
+      }else if(m.status==='error'){
+        cleanup();reject(new Error(m.data||'Ошибка локальной vision-модели'));
+      }
+    };
+    const cleanup=()=>{clearTimeout(timer);worker.removeEventListener('message',onMessage);localVisionLoading=null};
+    worker.addEventListener('message',onMessage);
+    worker.postMessage({type:'load'});
+  });
+  return localVisionLoading;
+}
+
+async function runLocalVisionAnalysis(src){
+  await ensureLocalVisionReady();
+  const worker=ensureLocalVisionWorker();
+  const dataUrl='data:'+src.mimeType+';base64,'+src.image;
+  loadingTitle.textContent='Распознаём товар локально';
+  loadingText.textContent='SmolVLM анализирует само фото в браузере без платного API.';
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{cleanup();reject(new Error('Локальное распознавание заняло слишком много времени'))},120000);
+    const onMessage=(event)=>{
+      const m=event.data||{};
+      if(m.status==='complete'){
+        cleanup();
+        const parsed=parseLocalVisionJson(m.output);
+        if(parsed)resolve(parsed);else reject(new Error('Локальная модель вернула неполный ответ'));
+      }else if(m.status==='error'){cleanup();reject(new Error(m.data||'Ошибка локального распознавания'))}
+    };
+    const cleanup=()=>{clearTimeout(timer);worker.removeEventListener('message',onMessage)};
+    worker.addEventListener('message',onMessage);
+    worker.postMessage({type:'analyze',image:dataUrl});
+  });
+}
+
+async function upgradeFallbackWithBrowserVision(data,src){
+  if(data?.analysisMode!=='local-fallback'||!('gpu' in navigator))return data;
+  try{
+    const vision=await runLocalVisionAnalysis(src);
+    const response=await fetch('/api/local-vision-normalize',{
+      method:'POST',headers:apiHeaders(),
+      body:JSON.stringify({vision,extraData:collectExtraData(),image:src.image,mimeType:src.mimeType})
+    });
+    const local=await response.json().catch(()=>({}));
+    if(response.ok&&local?.seoTitle)return local;
+  }catch(e){
+    addCurrentActivity('Локальное распознавание недоступно',e.message||'Использован базовый fallback');
+  }
+  return data;
+}
+
 function provisionalCardFromFile(file){
   const raw=String(file?.name||'').replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
   const generic=/^(img|image|photo|dsc|pxl|screenshot|screen shot)\s*\d*$/i.test(raw);
@@ -4082,8 +4163,9 @@ analyzeBtn.onclick=async()=>{
     try{
       response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
     }finally{clearTimeout(timeoutId)}
-    const data=await response.json().catch(()=>({}));
+    let data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
+    data=await upgradeFallbackWithBrowserVision(data,src);
     const hadImmediateCards=currentCards.length===4&&currentScenes.length===4;
     currentData=data;
     if(hadImmediateCards){cardsStale=true;currentStaleCards=[0,1,2,3];currentScenes=[];}
@@ -4103,9 +4185,11 @@ analyzeBtn.onclick=async()=>{
     if(!hadImmediateCards){creative.classList.remove('show');cardsPreview.innerHTML='';}
     else{creative.classList.add('show');renderCards();}
     if(pendingSimilarTemplate){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
-    confidence.textContent=data.analysisMode==='local-fallback'
-      ?'Локальный режим: описание собрано без платного AI · '+(data.analysisNotice||'')
-      :'Уверенность распознавания: '+(data.confidence||'не указана');
+    confidence.textContent=data.analysisMode==='browser-vision'
+      ?'Бесплатное локальное распознавание фото · '+(data.analysisNotice||'SmolVLM')
+      :data.analysisMode==='local-fallback'
+        ?'Базовый локальный режим · '+(data.analysisNotice||'')
+        :'Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
     await saveHistory();
     if(hadImmediateCards){
@@ -4198,7 +4282,7 @@ styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPe
 function syncRenderModeUi(){
   renderModeSelect.value='free';
   generateAll.textContent='Создать 4 Studio-карточки бесплатно';
-  generateAll.title='Studio Director v10.2: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
+  generateAll.title='Studio Director v10.3: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4386,7 +4470,7 @@ generateAll.onclick=async()=>{
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       const renderDetail=/studio-(local|director)-/i.test(String(data.renderEngine||''))
-        ?('Studio Director v10.2 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+        ?('Studio Director v10.3 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
