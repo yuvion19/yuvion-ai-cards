@@ -460,26 +460,39 @@ app.get("/m/admin/auth/callback", (_req,res) => {
   </script>`}));
 });
 
+
 app.get("/m/admin", (_req,res) => {
   res.setHeader("Cache-Control","no-store, no-cache, must-revalidate");
   res.send(mobileShell("Модерация", `
     <h1>Модерация</h1>
-    <p class="muted">Мобильная очередь заявок. Токен хранится только до закрытия текущей вкладки.</p>
+    <p class="muted">Очередь заявок, статистика и контроль доставки уведомлений.</p>
 
     <div class="card" id="adminLoginCard">
-      <label>Админ-токен</label>
-      <input id="mAdminToken" class="field" type="password" autocomplete="current-password" placeholder="Введите токен">
-      <button class="btn" id="mAdminLogin" style="width:100%;margin-top:10px">Войти</button>
+      <h3 style="margin-top:0">Вход по email</h3>
+      <label>Email администратора</label>
+      <input id="mAdminEmail" class="field" type="email" autocomplete="email" placeholder="name@example.com">
+      <button class="btn" id="mAdminMagic" style="width:100%;margin-top:10px">Прислать ссылку входа</button>
+      <details style="margin-top:12px">
+        <summary>Первичная настройка / резервный вход</summary>
+        <label>Админ-токен</label>
+        <input id="mAdminToken" class="field" type="password" autocomplete="current-password" placeholder="Токен">
+        <button class="btn secondary" id="mAdminLogin" style="width:100%;margin-top:8px">Войти по токену</button>
+        <button class="btn secondary" id="mAdminBindEmail" style="width:100%;margin-top:8px">Разрешить email выше для будущих входов</button>
+      </details>
       <div id="mAdminLoginStatus" style="margin-top:8px"></div>
     </div>
 
     <div id="mAdminApp" style="display:none">
       <div class="card">
         <div class="row" style="justify-content:space-between">
-          <b>Очередь</b>
+          <b>Панель администратора</b>
           <button class="btn secondary" id="mAdminLogout" style="padding:8px 11px">Выйти</button>
         </div>
-        <div class="row" style="margin-top:10px">
+        <div id="adminStats" class="row" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <div class="row">
           <span class="tag" id="cntAll">Все: —</span>
           <span class="tag" id="cntPending">На проверке: —</span>
           <span class="tag" id="cntApproved">Одобрено: —</span>
@@ -498,14 +511,18 @@ app.get("/m/admin", (_req,res) => {
         <button class="btn secondary" id="mAdminReload" style="width:100%;margin-top:10px">Обновить</button>
       </div>
 
-      <div id="mAdminRecentWrap">
-        <h2 style="font-size:20px;margin:20px 0 8px">Последние 10 заявок</h2>
-        <div id="mAdminRecent"></div>
+      <div id="groupWrap">
+        <h2 style="font-size:20px;margin:20px 0 8px">Связанные события</h2>
+        <p class="muted">7 дней, 40 дней, год, годовщина и йорцайт одного человека можно одобрить одной кнопкой.</p>
+        <div id="mAdminGroups"></div>
       </div>
 
-      <h2 style="font-size:20px;margin:20px 0 8px">Результаты</h2>
+      <h2 style="font-size:20px;margin:20px 0 8px">Заявки</h2>
       <div id="mAdminList"></div>
       <div id="mAdminDetail"></div>
+
+      <h2 style="font-size:20px;margin:22px 0 8px">Доставка уведомлений</h2>
+      <div id="mAdminDelivery"></div>
     </div>
   `, { scripts: `<script>
   (()=>{
@@ -514,21 +531,23 @@ app.get("/m/admin", (_req,res) => {
     const fmt=v=>v?new Date(v).toLocaleString("ru-RU"):"—";
     const statusText={pending:"На проверке",approved:"Одобрено",rejected:"Отклонено",hidden:"Скрыто"};
     const tokenKey="pamyat_admin_session_token";
-    let timer=null;
+    let timer=null,lastRows=[];
 
-    function token(){ return sessionStorage.getItem(tokenKey)||""; }
+    function token(){return sessionStorage.getItem(tokenKey)||""}
     async function api(url,opts={}){
-      const headers=Object.assign({},opts.headers||{},{"x-admin-token":token()});
+      const headers=Object.assign({},opts.headers||{});
+      if(token())headers["x-admin-token"]=token();
       const r=await fetch(url,Object.assign({},opts,{headers,cache:"no-store"}));
-      let data=null; try{data=await r.json()}catch{}
-      if(r.status===401){ throw new Error("Неверный или устаревший токен"); }
-      if(!r.ok){ throw new Error((data&&data.error)||("HTTP "+r.status)); }
+      let data=null;try{data=await r.json()}catch{}
+      if(r.status===401)throw new Error("admin_required");
+      if(!r.ok)throw new Error((data&&data.error)||("HTTP "+r.status));
       return data;
     }
-    function isTest(e){ return /тест|test/i.test([e.full_name,e.note,e.place,e.city].filter(Boolean).join(" ")); }
+    function isTest(e){return /тест|test/i.test([e.full_name,e.note,e.place,e.city].filter(Boolean).join(" "))}
     function badge(e){
       return '<span class="tag">'+esc(statusText[e.status]||e.status||"—")+'</span>'+
-        (isTest(e)?'<span class="tag" style="background:#f6ecd5">Тестовая запись</span>':"")+
+        (e.urgent?'<span class="tag" style="background:#f5e2e2">Срочно</span>':"")+
+        (isTest(e)?'<span class="tag" style="background:#f6ecd5">Тест</span>':"")+
         (e.family_verified?'<span class="tag">Семья ✓</span>':"");
     }
     function buttons(e){
@@ -536,99 +555,114 @@ app.get("/m/admin", (_req,res) => {
       out+='<button class="btn secondary" style="padding:8px 10px" data-detail="'+esc(e.id)+'">Детали</button>';
       if(e.status!=="approved")out+='<button class="btn" style="padding:8px 10px" data-action="approve" data-id="'+esc(e.id)+'">Одобрить</button>';
       if(e.status!=="rejected")out+='<button class="btn secondary" style="padding:8px 10px;background:#f5e2e2" data-action="reject" data-id="'+esc(e.id)+'">Отклонить</button>';
-      if(e.status==="approved")out+='<a class="btn secondary" style="padding:8px 10px" target="_blank" rel="noopener" href="/pamyat-juhuro/#event='+encodeURIComponent(e.id)+'">Публичная карточка</a>';
-      out+='</div>'; return out;
+      if(e.status==="approved")out+='<a class="btn secondary" style="padding:8px 10px" target="_blank" rel="noopener" href="/m/memorial/'+encodeURIComponent(e.id)+'">Публичная страница</a>';
+      return out+'</div>';
     }
-    function card(e,compact=false){
-      return '<div class="card">'+badge(e)+
-        '<h3 style="margin:8px 0 4px">'+esc(e.full_name||"Без имени")+'</h3>'+
+    function card(e){
+      return '<div class="card">'+badge(e)+'<h3 style="margin:8px 0 4px">'+esc(e.full_name||"Без имени")+'</h3>'+
         '<div><b>'+esc(e.event_type||"Событие")+'</b> · '+esc(e.event_date||"без даты")+'</div>'+
         '<div class="muted">'+esc([e.city,e.place].filter(Boolean).join(" · "))+'</div>'+
-        '<div class="muted">Создано: '+esc(fmt(e.created_at))+'</div>'+
-        (compact?"":buttons(e))+'</div>';
+        '<div class="muted">Создано: '+esc(fmt(e.created_at))+'</div>'+buttons(e)+'</div>';
     }
     function bind(container){
       container.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>detail(b.dataset.detail));
       container.querySelectorAll("[data-action]").forEach(b=>b.onclick=()=>action(b.dataset.id,b.dataset.action));
+      container.querySelectorAll("[data-group-action]").forEach(b=>b.onclick=()=>groupAction(b.dataset.ids.split(","),b.dataset.groupAction));
+    }
+    function renderGroups(rows){
+      const pending=rows.filter(x=>x.status==="pending");
+      const map=new Map();
+      for(const e of pending){
+        const k=[String(e.full_name||"").toLowerCase(),e.death_date||"",e.submitter_contact||""].join("|");
+        if(!map.has(k))map.set(k,[]);map.get(k).push(e);
+      }
+      const groups=[...map.values()].filter(g=>g.length>1);
+      qs("#groupWrap").style.display=groups.length?"block":"none";
+      qs("#mAdminGroups").innerHTML=groups.map(g=>{
+        const ids=g.map(x=>x.id).join(",");
+        return '<div class="card"><b>'+esc(g[0].full_name)+'</b><div class="muted">'+esc(g.map(x=>x.event_type+" · "+x.event_date).join(" / "))+'</div>'+
+          '<div class="row" style="margin-top:10px"><button class="btn" data-group-action="approve" data-ids="'+esc(ids)+'">Одобрить все ('+g.length+')</button>'+
+          '<button class="btn secondary" data-group-action="reject" data-ids="'+esc(ids)+'">Отклонить все</button></div></div>';
+      }).join("");
+      bind(qs("#mAdminGroups"));
     }
     function render(data){
-      const rows=data.rows||[],counts=data.counts||{};
+      const rows=data.rows||[],counts=data.counts||{}; lastRows=rows;
       qs("#cntAll").textContent="Все: "+(counts.all??0);
       qs("#cntPending").textContent="На проверке: "+(counts.pending??0);
       qs("#cntApproved").textContent="Одобрено: "+(counts.approved??0);
       qs("#cntRejected").textContent="Отклонено: "+(counts.rejected??0);
-      qs("#mAdminList").innerHTML=rows.length?rows.map(e=>card(e,false)).join(""):'<div class="card muted">Ничего не найдено.</div>';
-      bind(qs("#mAdminList"));
+      qs("#mAdminList").innerHTML=rows.length?rows.map(card).join(""):'<div class="card muted">Ничего не найдено.</div>';
+      bind(qs("#mAdminList"));renderGroups(rows);
+    }
+    async function loadStats(){
+      const s=await api("/api/admin/stats");
+      qs("#adminStats").innerHTML=
+        '<span class="tag">Событий: '+s.events_total+'</span><span class="tag">Pending: '+s.pending+'</span>'+
+        '<span class="tag">Подписки: '+s.active_subscriptions+'</span><span class="tag">Свечи: '+s.candles+'</span>'+
+        '<span class="tag">Доставки 24ч: '+s.deliveries_24h+'</span><span class="tag">Ошибки 24ч: '+s.failed_attempts_24h+'</span>';
+    }
+    async function loadDelivery(){
+      const d=await api("/api/admin/notifications?limit=40");
+      const rows=(d.attempts||[]).slice(0,40);
+      qs("#mAdminDelivery").innerHTML=rows.length?rows.map(x=>'<div class="card"><b>'+esc(x.channel.toUpperCase())+' · '+esc(x.full_name)+'</b>'+
+        '<div>'+esc(x.event_type||"")+' · '+esc(x.event_date||"")+'</div><div class="muted">'+esc(fmt(x.attempted_at))+' · '+(x.success?"успешно":"ошибка")+
+        (x.detail?' · '+esc(x.detail):"")+'</div></div>').join(""):'<div class="card muted">Попыток доставки пока нет.</div>';
     }
     async function load(){
       const q=qs("#mAdminSearch").value.trim(),status=qs("#mAdminStatus").value;
-      const p=new URLSearchParams({status,q,limit:"300"});
-      const data=await api("/api/admin/events/list?"+p.toString());
-      render(data);
-      if(!q && status==="pending"){
-        const recent=await api("/api/admin/events/list?status=all&limit=10");
-        qs("#mAdminRecentWrap").style.display="block";
-        qs("#mAdminRecent").innerHTML=(recent.rows||[]).map(e=>card(e,true)).join("")||'<div class="card muted">Заявок пока нет.</div>';
-        qs("#mAdminRecent").querySelectorAll(".card").forEach((el,i)=>{el.onclick=()=>{const e=(recent.rows||[])[i];if(e)detail(e.id)};el.style.cursor="pointer"});
-      } else {
-        qs("#mAdminRecentWrap").style.display="none";
-      }
+      const data=await api("/api/admin/events/list?"+new URLSearchParams({status,q,limit:"300"}));
+      render(data); await Promise.all([loadStats(),loadDelivery()]);
     }
-    async function login(){
-      const v=qs("#mAdminToken").value.trim();
-      if(v)sessionStorage.setItem(tokenKey,v);
-      qs("#mAdminLoginStatus").innerHTML='<div class="muted">Проверка…</div>';
+    async function showApp(){
+      qs("#adminLoginCard").style.display="none";qs("#mAdminApp").style.display="block";await load();
+    }
+    async function tokenLogin(){
+      const v=qs("#mAdminToken").value.trim();if(v)sessionStorage.setItem(tokenKey,v);
+      try{await api("/api/admin/auth/status");qs("#mAdminToken").value="";await showApp()}
+      catch(e){sessionStorage.removeItem(tokenKey);qs("#mAdminLoginStatus").innerHTML='<div class="err">Неверный токен.</div>'}
+    }
+    async function magic(){
+      const email=qs("#mAdminEmail").value.trim();
+      if(!email)return;
+      const r=await fetch("/api/admin/auth/request",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email})});
+      const d=await r.json();
+      qs("#mAdminLoginStatus").innerHTML=r.ok?'<div class="ok">'+esc(d.message||"Ссылка отправлена.")+'</div>':'<div class="err">'+esc(d.error||"Ошибка")+'</div>';
+    }
+    async function bindEmail(){
+      const email=qs("#mAdminEmail").value.trim(),v=qs("#mAdminToken").value.trim();
+      if(!email||!v){qs("#mAdminLoginStatus").innerHTML='<div class="err">Введите email и токен.</div>';return}
+      sessionStorage.setItem(tokenKey,v);
       try{
-        await api("/api/admin/events/list?status=pending&limit=1");
-        qs("#mAdminToken").value="";
-        qs("#adminLoginCard").style.display="none";
-        qs("#mAdminApp").style.display="block";
-        qs("#mAdminLoginStatus").innerHTML="";
-        await load();
-      }catch(e){
-        sessionStorage.removeItem(tokenKey);
-        qs("#mAdminLoginStatus").innerHTML='<div class="err">'+esc(e.message)+'</div>';
-      }
+        await api("/api/admin/setup-email",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,role:"admin"})});
+        qs("#mAdminLoginStatus").innerHTML='<div class="ok">Email разрешён. Теперь можно входить по ссылке.</div>';
+      }catch(e){qs("#mAdminLoginStatus").innerHTML='<div class="err">'+esc(e.message)+'</div>'}
     }
     async function action(id,act){
-      if((act==="reject"||act==="hide")&&!confirm(act==="reject"?"Отклонить эту заявку?":"Скрыть эту запись?"))return;
-      try{
-        await api("/api/admin/events/"+encodeURIComponent(id)+"/"+act,{method:"POST"});
-        await load();
-        await detail(id);
-      }catch(e){alert(e.message)}
+      if(act==="reject"&&!confirm("Отклонить эту заявку?"))return;
+      await api("/api/admin/events/"+encodeURIComponent(id)+"/"+act,{method:"POST"});await load();
+    }
+    async function groupAction(ids,act){
+      if(act==="reject"&&!confirm("Отклонить все связанные события?"))return;
+      await api("/api/admin/events/group/"+act,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ids})});await load();
     }
     async function detail(id){
-      try{
-        const d=await api("/api/admin/events/"+encodeURIComponent(id)+"/details");
-        const e=d.event||{};
-        const history=(d.history||[]).map(h=>'<div class="card"><b>'+esc(h.operation||"изменение")+'</b><div class="muted">'+esc(fmt(h.created_at))+'</div></div>').join("");
-        const actions=(d.actions||[]).map(a=>'<div class="card"><b>'+esc(a.action||"действие")+'</b><div class="muted">'+esc(fmt(a.created_at))+'</div></div>').join("");
-        qs("#mAdminDetail").innerHTML=
-          '<div class="card" style="margin-top:18px;border-width:2px">'+badge(e)+
-          '<h2 style="font-size:23px">'+esc(e.full_name||"Без имени")+'</h2>'+
-          '<div><b>'+esc(e.event_type||"")+'</b> · '+esc(e.event_date||"")+'</div>'+
-          '<div class="muted">'+esc([e.city,e.place].filter(Boolean).join(" · "))+'</div>'+
-          (e.death_date?'<p><b>Дата смерти:</b> '+esc(e.death_date)+'</p>':"")+
-          (e.note?'<p><b>Комментарий:</b><br>'+esc(e.note)+'</p>':"")+
-          '<p><b>Заявитель:</b> '+esc(e.submitter_name||"—")+'<br><b>Контакт:</b> '+esc(e.submitter_contact||"—")+'</p>'+
-          buttons(e)+
-          '<button class="btn secondary" id="mAdminCloseDetail" style="width:100%;margin-top:10px">Закрыть детали</button></div>'+
-          '<h3>История действий</h3>'+(actions||'<div class="muted">Действий пока нет.</div>')+
-          '<h3>История изменений</h3>'+(history||'<div class="muted">Изменений пока нет.</div>');
-        bind(qs("#mAdminDetail"));
-        qs("#mAdminCloseDetail").onclick=()=>{qs("#mAdminDetail").innerHTML="";scrollTo({top:0,behavior:"smooth"})};
-        qs("#mAdminDetail").scrollIntoView({behavior:"smooth",block:"start"});
-      }catch(e){alert(e.message)}
+      const d=await api("/api/admin/events/"+encodeURIComponent(id)+"/details"),e=d.event||{};
+      const history=(d.history||[]).map(h=>'<div class="card"><b>'+esc(h.operation||"изменение")+'</b><div class="muted">'+esc(fmt(h.created_at))+'</div></div>').join("");
+      qs("#mAdminDetail").innerHTML='<div class="card" style="border-width:2px">'+badge(e)+'<h2>'+esc(e.full_name||"Без имени")+'</h2>'+
+        '<div><b>'+esc(e.event_type||"")+'</b> · '+esc(e.event_date||"")+'</div>'+
+        '<p><b>Дата смерти:</b> '+esc(e.death_date||"—")+'<br><b>Заявитель:</b> '+esc(e.submitter_name||"—")+
+        '<br><b>Контакт:</b> '+esc(e.submitter_contact||"—")+'</p>'+(e.note?'<p>'+esc(e.note)+'</p>':"")+buttons(e)+'</div>'+
+        '<h3>История</h3>'+(history||'<div class="muted">Изменений пока нет.</div>');
+      bind(qs("#mAdminDetail"));qs("#mAdminDetail").scrollIntoView({behavior:"smooth"});
     }
 
-    qs("#mAdminLogin").onclick=login;
-    qs("#mAdminToken").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+    qs("#mAdminMagic").onclick=magic;qs("#mAdminLogin").onclick=tokenLogin;qs("#mAdminBindEmail").onclick=bindEmail;
     qs("#mAdminReload").onclick=()=>load().catch(e=>alert(e.message));
-    qs("#mAdminStatus").onchange=()=>load().catch(e=>alert(e.message));
+    qs("#mAdminStatus").onchange=()=>load().catch(()=>{});
     qs("#mAdminSearch").oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>load().catch(()=>{}),300)};
-    qs("#mAdminLogout").onclick=()=>{sessionStorage.removeItem(tokenKey);location.reload()};
-    if(token())login();
+    qs("#mAdminLogout").onclick=async()=>{sessionStorage.removeItem(tokenKey);await fetch("/api/admin/auth/logout",{method:"POST"});location.reload()};
+    (async()=>{try{await api("/api/admin/auth/status");await showApp()}catch{}})();
   })();
   </script>` }));
 });
