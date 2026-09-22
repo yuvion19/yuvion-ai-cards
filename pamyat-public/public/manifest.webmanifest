@@ -1,13 +1,22 @@
 {
-  "name": "Память — календарь и семейная история",
+  "id": "/",
+  "name": "Память Джуури",
   "short_name": "Память",
   "lang": "ru",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "background_color": "#f5f1e8",
   "theme_color": "#4c3e2d",
-  "description": "Общественный календарь памяти, каталог кладбища Кубы и родословная.",
+  "description": "Календарь памяти, каталог кладбища Кубы и семейная история горских евреев.",
+  "categories": [
+    "lifestyle",
+    "reference"
+  ],
   "icons": [
     {
       "src": "/icon.svg",
