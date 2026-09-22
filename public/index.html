@@ -197,6 +197,7 @@
     .queue-resume-note{margin-top:8px;padding:8px 9px;border-radius:9px;background:#FFF8E8;color:#7D5700;font-size:9px;display:none}.queue-resume-note.show{display:block}
     .unmatched-manager{display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}.unmatched-manager.show{display:block}.unmatched-manager h4{margin:0 0 7px;font-size:11px}.unmatched-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,1fr) auto;gap:7px;align-items:center;padding:7px;border:1px solid var(--line);border-radius:9px;margin-top:6px}.unmatched-row b{font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unmatched-row select{border:1px solid var(--line);border-radius:8px;padding:6px;font-size:9px;background:#fff}
     .ops-budget{display:grid;grid-template-columns:minmax(220px,320px) minmax(0,1fr);gap:10px;align-items:end;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#FBFAFA}.ops-budget label span{display:block;font-size:9px;font-weight:850;margin-bottom:5px}.ops-budget input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 9px;background:#fff}.ops-budget>div{font-size:9px;color:var(--muted);line-height:1.4;padding-bottom:3px}@media(max-width:680px){.ops-budget{grid-template-columns:1fr}}
+    .confirmation-center{max-width:1100px;margin:16px auto;border:1px solid var(--line);border-radius:22px;background:#fff;overflow:hidden}.confirmation-body{padding:14px 18px 18px}.confirmation-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;color:var(--muted)}.confirmation-list{display:grid;gap:7px;margin-top:10px}.confirmation-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:11px;background:#FCFAFA}.confirmation-row b{font-size:11px}.confirmation-row small{display:block;font-size:9px;color:var(--muted);margin-top:2px}.confirmation-pills{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}.confirmation-pill{font-size:8px;font-weight:850;padding:4px 6px;border-radius:999px;background:#EEF4FA;color:#315F84}@media(max-width:700px){.confirmation-toolbar{align-items:flex-start;flex-direction:column}.confirmation-row{grid-template-columns:1fr}.confirmation-row .btn{justify-self:start}}
     .storage-manager{display:none;margin-top:10px;padding:11px;border:1px solid var(--line);border-radius:12px;background:#FCFAFA}.storage-manager.show{display:block}.storage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.storage-cell{padding:9px;border:1px solid var(--line);border-radius:10px;background:#fff}.storage-cell b{display:block;font-size:13px}.storage-cell span{display:block;font-size:8px;color:var(--muted);margin-top:2px}@media(max-width:700px){.storage-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:760px){.ops-v64-grid{grid-template-columns:repeat(2,1fr)}}
 
@@ -290,6 +291,14 @@
     <div class="publish-center-body">
       <div class="publish-stats"><div class="publish-stat"><b id="publishReadyCount">0</b><span>ГОТОВЫ</span></div><div class="publish-stat"><b id="publishProblemCount">0</b><span>ТРЕБУЮТ ВНИМАНИЯ</span></div><div class="publish-stat"><b id="publishNoPhotoCount">0</b><span>БЕЗ ФОТО</span></div><div class="publish-stat"><b id="publishDoneCount">0</b><span>ОПУБЛИКОВАНЫ</span></div></div>
       <div class="publish-list" id="publishCenterList"></div>
+    </div>
+  </details>
+
+  <details class="confirmation-center" id="confirmationCenter">
+    <summary class="v63-panel-summary"><span><b>Центр подтверждений</b><small>OCR-факты, которые требуют решения продавца</small></span><span id="confirmationSummary">0 ожидают</span></summary>
+    <div class="confirmation-body">
+      <div class="confirmation-toolbar"><span>AI ничего не подтверждает сам. Откройте товар и примите или исправьте найденные значения.</span><button class="btn btn-ghost btn-small" id="runBulkLabelOcr">OCR маркировок очереди</button></div>
+      <div class="confirmation-list" id="confirmationList"></div>
     </div>
   </details>
 
@@ -985,6 +994,10 @@ const publishProblemCount=document.getElementById('publishProblemCount');
 const publishNoPhotoCount=document.getElementById('publishNoPhotoCount');
 const publishDoneCount=document.getElementById('publishDoneCount');
 const publishNextProblem=document.getElementById('publishNextProblem');
+const confirmationCenter=document.getElementById('confirmationCenter');
+const confirmationSummary=document.getElementById('confirmationSummary');
+const confirmationList=document.getElementById('confirmationList');
+const runBulkLabelOcr=document.getElementById('runBulkLabelOcr');
 const factSourcesPanel=document.getElementById('factSourcesPanel');
 const factSourceList=document.getElementById('factSourceList');
 const factBlockerNote=document.getElementById('factBlockerNote');
@@ -5084,6 +5097,49 @@ function saveLargeQueueState(patch={}){
   return next;
 }
 
+function labelPhotoForStoredItem(item){
+  return (item?.additionalPhotos||[]).find(x=>['label','barcode','package'].includes(x?.role)&&x?.dataUrl)||null;
+}
+function renderConfirmationCenter(allItems=[]){
+  if(!confirmationList)return;
+  const pending=(allItems||[]).filter(item=>Array.isArray(item.labelSuggestions)&&item.labelSuggestions.length);
+  const total=pending.reduce((sum,item)=>sum+item.labelSuggestions.length,0);
+  confirmationSummary.textContent=total+' '+(total===1?'ожидает':'ожидают');
+  confirmationList.innerHTML=pending.length?pending.slice(0,30).map(item=>{
+    const fields=item.labelSuggestions.slice(0,5);
+    return '<div class="confirmation-row"><div><b>'+esc(item.title||item.data?.seoTitle||'Товар')+'</b><small>'+esc(skuOfStoredItem(item)||'без SKU')+' · найдено '+item.labelSuggestions.length+'</small><div class="confirmation-pills">'+fields.map(x=>'<span class="confirmation-pill">'+esc(x.name)+': '+esc(x.value)+'</span>').join('')+'</div></div><button class="btn btn-primary btn-small" data-confirm-open="'+esc(item.id)+'">Проверить</button></div>';
+  }).join(''):'<div class="muted" style="font-size:10px">Неподтверждённых OCR-фактов нет.</div>';
+  confirmationList.querySelectorAll('[data-confirm-open]').forEach(btn=>btn.onclick=async()=>{
+    const item=(allItems||[]).find(x=>x.id===btn.dataset.confirmOpen);if(item)await restoreHistory(item);
+  });
+}
+async function runBulkLabelOcrNow(){
+  if(excelAutopilotBusy)return;
+  const all=await dbAll();
+  const candidates=all.filter(item=>labelPhotoForStoredItem(item)&&!(item.labelSuggestions||[]).length).slice(0,10);
+  if(!candidates.length){alert('Нет товаров с фото маркировки, ожидающих OCR. Назначьте снимку роль «Маркировка», «Штрихкод» или «Упаковка».');return}
+  runBulkLabelOcr.disabled=true;runBulkLabelOcr.textContent='OCR работает…';
+  let done=0,found=0;
+  try{
+    for(const item of candidates){
+      const photo=labelPhotoForStoredItem(item);const parts=dataUrlParts(photo.dataUrl);if(!parts)continue;
+      const {response,data}=await fetchJsonRetry('/api/label-ocr',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:parts.base64,mimeType:parts.mime})},2);
+      if(response.status===429){break}
+      if(response.ok){
+        item.labelSuggestions=(data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||''}));
+        item.activity=[{at:Date.now(),type:'Массовый OCR маркировки',detail:'Найдено полей: '+item.labelSuggestions.length},...(item.activity||[])].slice(0,80);
+        item.updatedAt=Date.now();await dbPut(item);found+=item.labelSuggestions.length;
+      }
+      done++;
+    }
+  }finally{
+    runBulkLabelOcr.disabled=false;runBulkLabelOcr.textContent='OCR маркировок очереди';
+    const refreshed=await dbAll();renderConfirmationCenter(refreshed);await renderHistory();
+    confirmationCenter.open=true;confirmationCenter.scrollIntoView({behavior:'smooth',block:'start'});
+    if(done)confirmationSummary.textContent=found+' найдено в '+done+' товарах';
+  }
+}
+
 function renderDashboard(allItems){
   const all=Array.isArray(allItems)?allItems:[];
   const skuCounts=new Map();
@@ -5124,6 +5180,7 @@ async function renderHistory(){
     renderDashboard(all);
     renderExcelAutopilot(all);
     renderPublishCenter(all);
+    renderConfirmationCenter(all);
     if(unmatchedPhotoPool.length)renderUnmatchedPhotoManager(excelImportedItems(all));
     refreshDiagnosticsNow(all);
     await renderV6Panels(all);
@@ -5886,6 +5943,7 @@ pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueue
 exportCatalogReport.onclick=()=>exportCatalogReportNow();
 projectArchive.onclick=()=>createEncryptedBackup();
 refreshDiagnostics.onclick=()=>refreshDiagnosticsNow();
+runBulkLabelOcr.onclick=()=>runBulkLabelOcrNow();
 storageManagerToggle.onclick=async()=>{storageManager.classList.toggle('show');if(storageManager.classList.contains('show'))await renderStorageManager()};
 compactStorage.onclick=()=>compactStorageNow();
 clearSceneCache.onclick=()=>clearAllSceneCacheNow();
