@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.4.1
+// Production release marker: v10.5.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -756,6 +756,20 @@ function mergeConfirmedData(cardRaw, extraRaw) {
   return { ...card, confirmedData: extra };
 }
 
+function fallbackColorName(hex) {
+  const value=String(hex||"").replace("#","");
+  if(!/^[0-9a-f]{6}$/i.test(value))return "";
+  const r=parseInt(value.slice(0,2),16),g=parseInt(value.slice(2,4),16),b=parseInt(value.slice(4,6),16);
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),avg=(r+g+b)/3;
+  if(max-min<22)return avg>225?"белый":avg<48?"чёрный":avg<115?"тёмно-серый":avg<195?"серый":"светло-серый";
+  if(r>g*1.35&&r>b*1.35)return r>185&&g>90?"красный / тёплый":"красный";
+  if(g>r*1.25&&g>b*1.18)return "зелёный";
+  if(b>r*1.25&&b>g*1.18)return "синий";
+  if(r>165&&g>120&&b<95)return "жёлтый / оранжевый";
+  if(r>145&&b>125&&g<125)return "фиолетовый / розовый";
+  return "смешанный";
+}
+
 async function localFallbackCard(extraRaw, sourceBuffer, reason = "AI недоступен") {
   const extra = normalizeExtraData(extraRaw);
   const title = compact(
@@ -764,13 +778,17 @@ async function localFallbackCard(extraRaw, sourceBuffer, reason = "AI недос
     "Товар",
     180
   );
+  let palette=[];
+  try{if(sourceBuffer)palette=await extractProductPalette(sourceBuffer)}catch{}
+  const visibleColor=fallbackColorName(palette?.[0]||"");
   const characteristics = [
-    ["Бренд", extra.brand],
-    ["Артикул", extra.sku],
-    ["Штрихкод/EAN", extra.barcode],
-    ["Размеры", extra.size],
-    ["Материал", extra.material]
-  ].filter(([, value]) => value).map(([name, value]) => ({ name, value, source: "Продавец" }));
+    ["Бренд", extra.brand, "Продавец"],
+    ["Артикул", extra.sku, "Продавец"],
+    ["Штрихкод/EAN", extra.barcode, "Продавец"],
+    ["Размеры", extra.size, "Продавец"],
+    ["Материал", extra.material, "Продавец"],
+    ["Преобладающий цвет на фото", visibleColor, "Фото"]
+  ].filter(([, value]) => value).map(([name, value, source]) => ({ name, value, source }));
   const known = [];
   if (extra.brand) known.push("бренд " + extra.brand);
   if (extra.material) known.push("материал: " + extra.material);
@@ -788,7 +806,7 @@ async function localFallbackCard(extraRaw, sourceBuffer, reason = "AI недос
   if (!extra.brand) missing.push("Бренд не предоставлен.");
   if (!extra.material) missing.push("Материал не предоставлен.");
   if (!extra.size) missing.push("Размеры не предоставлены.");
-  if (!characteristics.length) missing.push("Точные характеристики не предоставлены; система не угадывает их по фото.");
+  if (!extra.brand && !extra.sku && !extra.barcode && !extra.size && !extra.material) missing.push("Точные технические характеристики не предоставлены; система не угадывает их по фото.");
   let photoQuality = { score: 0, issues: [] };
   try { if (sourceBuffer) photoQuality = await assessSourcePhoto(sourceBuffer); } catch {}
   return {
@@ -1412,7 +1430,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.4.1",
+    version: "10.5.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -2956,7 +2974,7 @@ async function makeProductReflection(productBuffer, targetWidth, targetHeight, o
 }
 
 async function transformProductForScene(productBuffer,index=0){
-  const angles=[0,-4,3,-2];
+  const angles=[0,-7,7,-4];
   const angle=angles[Math.max(0,Math.min(3,Number(index)||0))]||0;
   if(!angle)return productBuffer;
   try{
@@ -2996,8 +3014,8 @@ async function renderFreeScene(
   let visual = await prepareProductVisual(sourceBuffer, layout, intensity, primaryRole);
   if (visual.cutout) {
     try { visual = { ...visual, product: await relightProductVisual(visual.product, studioProfile, index) }; } catch {}
-    try { visual = { ...visual, product: await transformProductForScene(visual.product,index) }; } catch {}
   }
+  try { visual = { ...visual, product: await transformProductForScene(visual.product,index) }; } catch {}
   const composites = [];
 
   if (secondarySourceBuffer && ["package", "detail", "angle"].includes(secondaryRole)) {
@@ -3887,5 +3905,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.4.1 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.5.0 listening on port ${port}`);
 });

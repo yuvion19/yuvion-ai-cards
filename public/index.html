@@ -4003,7 +4003,7 @@ function parseLocalVisionJson(text){
 
 function ensureLocalVisionWorker(){
   if(localVisionWorker)return localVisionWorker;
-  localVisionWorker=new Worker('/local-vision-worker.js?v=10.4.1',{type:'module'});
+  localVisionWorker=new Worker('/local-vision-worker.js?v=10.5.0',{type:'module'});
   return localVisionWorker;
 }
 
@@ -4072,6 +4072,31 @@ async function upgradeFallbackWithBrowserVision(data,src){
   return data;
 }
 
+async function improveProductWithLocalVisionInBackground(src,productId,baseData){
+  try{
+    const improved=await upgradeFallbackWithBrowserVision(baseData,src);
+    if(productId!==currentHistoryId||!improved||improved===baseData||improved.analysisMode!=='browser-vision')return;
+    currentData=improved;
+    fillEditor(improved);
+    applyCategoryRule({applyTemplate:true});
+    currentData=collectEdits();
+    renderAiQuality(currentData);updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
+    confidence.textContent='Бесплатное локальное распознавание фото · '+(improved.analysisNotice||'SmolVLM');
+    currentScenes=[];
+    if(currentCards.length===4){cardsStale=true;currentStaleCards=[0,1,2,3];renderCards();}
+    addCurrentActivity('Локальное распознавание завершено','Описание и видимые характеристики обновлены');
+    await saveHistory();
+    const refresh=()=>{
+      if(productId!==currentHistoryId)return;
+      if(!cardsBusy&&!busy&&currentData&&cardsStale)generateAll.click();
+      else window.setTimeout(refresh,500);
+    };
+    window.setTimeout(refresh,150);
+  }catch(e){
+    addCurrentActivity('Локальное распознавание недоступно',e.message||'Базовое описание уже сохранено');
+  }
+}
+
 function provisionalCardFromFile(file){
   const raw=String(file?.name||'').replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
   const generic=/^(img|image|photo|dsc|pxl|screenshot|screen shot)\s*\d*$/i.test(raw);
@@ -4130,7 +4155,7 @@ async function createImmediateFreeCards(file){
     renderCards();renderDesignStudio();renderProductCockpit();
     zipImages.disabled=true;zipFull.disabled=true;
     creativeStatus.className='creative-status show done';
-    creativeStatus.textContent='4 изображения уже готовы. Анализируем товар в фоне и затем обновим только текстовую инфографику.';
+    creativeStatus.textContent='4 изображения уже готовы. Описание появится сразу, затем локальное распознавание улучшит данные и полностью пересоберёт сцены.';
     addCurrentActivity('Быстрый бесплатный комплект','4 карточки созданы до завершения AI-анализа');
     await saveHistory();
     await checkQualityAndAutofix(false);
@@ -4162,11 +4187,15 @@ analyzeBtn.onclick=async()=>{
     const timeoutId=setTimeout(()=>controller.abort(),75000);
     let response;
     try{
-      response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
+      {
+        const extra=collectExtraData();
+        const fallbackName=String(extra.name||currentData?.seoTitle||'').trim();
+        response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})});
+      }
     }finally{clearTimeout(timeoutId)}
     let data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
-    data=await upgradeFallbackWithBrowserVision(data,src);
+    const needsVisionUpgrade=data?.analysisMode==='local-fallback';
     const hadImmediateCards=currentCards.length===4&&currentScenes.length===4;
     currentData=data;
     if(hadImmediateCards){cardsStale=true;currentStaleCards=[0,1,2,3];currentScenes=[];}
@@ -4189,7 +4218,7 @@ analyzeBtn.onclick=async()=>{
     confidence.textContent=data.analysisMode==='browser-vision'
       ?'Бесплатное локальное распознавание фото · '+(data.analysisNotice||'SmolVLM')
       :data.analysisMode==='local-fallback'
-        ?'Базовый локальный режим · '+(data.analysisNotice||'')
+        ?'Описание готово сразу · локальное распознавание улучшит его автоматически · '+(data.analysisNotice||'')
         :'Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
     await saveHistory();
@@ -4199,6 +4228,11 @@ analyzeBtn.onclick=async()=>{
       creativeStatus.textContent='Описание и характеристики получены. Обновляем инфографику на четырёх карточках.';
     }
     autoCreateCardsIfEnabled();
+    if(needsVisionUpgrade){
+      const productId=currentHistoryId;
+      const baseData=currentData;
+      window.setTimeout(()=>improveProductWithLocalVisionInBackground(src,productId,baseData),250);
+    }
   }catch(e){
     if(currentCards.length===4){
       creative.classList.add('show');
@@ -7716,7 +7750,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=17',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=19',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
