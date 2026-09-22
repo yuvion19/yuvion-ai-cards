@@ -34,6 +34,8 @@ const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || "";
 const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER || "";
 const BACKUP_WEBHOOK_URL = process.env.BACKUP_WEBHOOK_URL || "";
 const BACKUP_WEBHOOK_TOKEN = process.env.BACKUP_WEBHOOK_TOKEN || "";
+const TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY || "";
+const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || "";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const identifyUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 900000 }, fileFilter: (_req,file,cb)=>cb(null,/^image\//.test(file.mimetype)) });
 const photoUpload = multer({
@@ -59,8 +61,8 @@ app.use((req, res, next) => {
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
   res.setHeader("Content-Security-Policy",
     "default-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org; " +
-    "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; " +
-    "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; " +
+    "connect-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   next();
 });
 app.use(express.json({ limit: "2mb" }));
@@ -94,6 +96,22 @@ app.use("/vendor/leaflet", express.static(path.join(__dirname, "node_modules", "
 function htmlEsc(v) {
   return String(v ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 }
+function spamTrap(body){
+  const b=body||{};
+  return Boolean(clean(b.website,200)||clean(b.company_website,200)||clean(b.fax_number,100));
+}
+async function verifyTurnstileToken(token){
+  if(!TURNSTILE_SECRET_KEY)return true;
+  if(!token)return false;
+  try{
+    const form=new URLSearchParams({secret:TURNSTILE_SECRET_KEY,response:String(token)});
+    const r=await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify",{
+      method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:form.toString()
+    });
+    const d=await r.json();return Boolean(d.success);
+  }catch{return false}
+}
+
 function safeSourceLink(v){
   const raw=String(v||"").trim();if(!raw)return null;
   try{
@@ -805,6 +823,8 @@ app.get("/m/reminders", (_req,res) => {
 app.get("/m/add", async (req,res) => {
   res.setHeader("Cache-Control","no-store");
   const funeral=String(req.query.funeral||"")==="1";
+  const humanWidget=TURNSTILE_SITE_KEY?'<div class="cf-turnstile" data-sitekey="'+htmlEsc(TURNSTILE_SITE_KEY)+'" style="margin-top:12px"></div>':"";
+  const extraHead=TURNSTILE_SITE_KEY?'<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>':"";
   res.send(mobileShell(funeral?"Похоронное объявление":"Добавить событие", `
     ${funeral?'<div class="err"><b>Срочное похоронное объявление</b><br><span class="muted">После отправки запись всё равно проходит модерацию перед публичной публикацией.</span></div>':""}
     <h1>${funeral?"Похоронное объявление":"Добавить событие"}</h1>
@@ -850,14 +870,18 @@ app.get("/m/add", async (req,res) => {
       <label>Ваше имя</label><input class="field" name="submitter_name">
       <label>Контакт модератору (не публикуется)</label><input class="field" name="submitter_contact">
       <div class="check"><input type="checkbox" name="relation_confirmed" value="1" required><span>У меня есть право или согласие семьи на публикацию.</span></div>
+      <input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+      ${humanWidget}
       <button class="btn" style="width:100%;margin-top:12px">Отправить на модерацию</button>
     </form>
-  `));
+  `,{extraHead}));
 });
 
 app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
   try {
     const b=req.body||{};
+    if(spamTrap(b))return res.status(201).send(mobileShell("Отправлено",'<div class="ok">Заявка принята.</div>'));
+    if(TURNSTILE_SECRET_KEY && !(await verifyTurnstileToken(b["cf-turnstile-response"])))return res.status(400).send(mobileShell("Ошибка",'<div class="err">Проверка защиты от спама не пройдена.</div>'));
     const fullName=clean(b.full_name,180), deathDate=clean(b.death_date,10);
     if(!fullName||!validDate(deathDate)||!b.relation_confirmed) {
       return res.status(400).send(mobileShell("Ошибка",'<div class="err">Заполните ФИО, дату смерти и согласие семьи.</div><p><a class="btn" href="/m/add">Вернуться</a></p>'));
@@ -2013,6 +2037,7 @@ app.post("/api/events/check-duplicate", async (req, res) => {
 app.post("/api/events", rateLimit("events", 5, 15 * 60 * 1000), async (req, res) => {
   try {
     const b = req.body || {};
+    if(spamTrap(b))return res.status(201).json({ok:true,status:"pending"});
     const fullName = clean(b.full_name, 180);
     const deathDate = clean(b.death_date, 10);
     const eventType = clean(b.event_type || "Памятная дата", 80);
@@ -2102,6 +2127,7 @@ app.post("/api/events/:eventId/candle", rateLimit("candles", 30, 60 * 60 * 1000)
 
 app.post("/api/events/:eventId/comments", rateLimit("comments", 10, 15 * 60 * 1000), async (req, res) => {
   try {
+    if(spamTrap(req.body))return res.status(201).json({ok:true,status:"pending"});
     const body = clean(req.body?.body, 1000);
     if (!body) return res.status(400).json({ error: "body_required" });
     await sb("memorial_comments", {
@@ -2132,6 +2158,7 @@ app.post("/api/events/:eventId/report", rateLimit("reports", 10, 15 * 60 * 1000)
 
 app.post("/api/events/:eventId/relative-claim", rateLimit("claims", 5, 60 * 60 * 1000), async (req, res) => {
   try {
+    if(spamTrap(req.body))return res.status(201).json({ok:true,status:"pending"});
     const claimantName = clean(req.body?.claimant_name, 120);
     if (!claimantName) return res.status(400).json({ error: "claimant_name_required" });
     await sb("memorial_claims", {
@@ -2154,6 +2181,7 @@ app.post("/api/events/:eventId/relative-claim", rateLimit("claims", 5, 60 * 60 *
 app.post("/api/corrections", rateLimit("corrections", 10, 60 * 60 * 1000), async (req, res) => {
   try {
     const b = req.body || {};
+    if(spamTrap(b))return res.status(201).json({ok:true,status:"pending"});
     const result = await sb("rpc/memorial_submit_correction", {
       method: "POST",
       body: {
