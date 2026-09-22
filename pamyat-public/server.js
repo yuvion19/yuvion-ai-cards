@@ -16,6 +16,24 @@ app.use(express.static(path.join(__dirname, "public")));
 const clean = (v, n = 1000) => String(v ?? "").trim().slice(0, n);
 const validDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ""));
 const id = () => crypto.randomUUID();
+const rateBuckets = new Map();
+function rateLimit(scope, limit, windowMs) {
+  return (req, res, next) => {
+    const key = scope + ":" + req.ip;
+    const t = Date.now();
+    const current = rateBuckets.get(key);
+    if (!current || current.reset <= t) {
+      rateBuckets.set(key, { count: 1, reset: t + windowMs });
+      return next();
+    }
+    if (current.count >= limit) {
+      res.setHeader("Retry-After", String(Math.max(1, Math.ceil((current.reset - t) / 1000))));
+      return res.status(429).json({ error: "rate_limited" });
+    }
+    current.count += 1;
+    next();
+  };
+}
 
 function addDays(dateStr, days) {
   const d = new Date(dateStr + "T12:00:00Z");
@@ -137,7 +155,7 @@ app.post("/api/events/check-duplicate", async (req, res) => {
   }
 });
 
-app.post("/api/events", async (req, res) => {
+app.post("/api/events", rateLimit("events", 5, 15 * 60 * 1000), async (req, res) => {
   try {
     const b = req.body || {};
     const fullName = clean(b.full_name, 180);
@@ -197,7 +215,7 @@ app.post("/api/events", async (req, res) => {
   }
 });
 
-app.post("/api/events/:eventId/candle", async (req, res) => {
+app.post("/api/events/:eventId/candle", rateLimit("candles", 30, 60 * 60 * 1000), async (req, res) => {
   try {
     const count = await sb("rpc/memorial_light_candle", { method: "POST", body: { p_event_id: req.params.eventId } });
     res.json({ count });
@@ -207,7 +225,7 @@ app.post("/api/events/:eventId/candle", async (req, res) => {
   }
 });
 
-app.post("/api/events/:eventId/comments", async (req, res) => {
+app.post("/api/events/:eventId/comments", rateLimit("comments", 10, 15 * 60 * 1000), async (req, res) => {
   try {
     const body = clean(req.body?.body, 1000);
     if (!body) return res.status(400).json({ error: "body_required" });
@@ -223,7 +241,7 @@ app.post("/api/events/:eventId/comments", async (req, res) => {
   }
 });
 
-app.post("/api/events/:eventId/report", async (req, res) => {
+app.post("/api/events/:eventId/report", rateLimit("reports", 10, 15 * 60 * 1000), async (req, res) => {
   try {
     const reason = clean(req.body?.reason, 120);
     if (!reason) return res.status(400).json({ error: "reason_required" });
@@ -239,7 +257,7 @@ app.post("/api/events/:eventId/report", async (req, res) => {
   }
 });
 
-app.post("/api/events/:eventId/relative-claim", async (req, res) => {
+app.post("/api/events/:eventId/relative-claim", rateLimit("claims", 5, 60 * 60 * 1000), async (req, res) => {
   try {
     const claimantName = clean(req.body?.claimant_name, 120);
     if (!claimantName) return res.status(400).json({ error: "claimant_name_required" });
