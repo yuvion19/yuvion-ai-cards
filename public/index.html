@@ -4006,7 +4006,7 @@ analyzeBtn.onclick=async()=>{
   try{
     const src=await getSource();
     const controller=new AbortController();
-    const timeoutId=setTimeout(()=>controller.abort(),50000);
+    const timeoutId=setTimeout(()=>controller.abort(),75000);
     let response;
     try{
       response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
