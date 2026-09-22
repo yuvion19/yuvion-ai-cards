@@ -487,17 +487,20 @@ async function loadAdmin(){
 }
 async function loadAdminExtras(){
   const token=$("#adminToken").value;
-  const [dr,ir]=await Promise.all([
+  const [dr,ir,sr]=await Promise.all([
     fetch("/api/admin/duplicates",{headers:{"x-admin-token":token}}),
-    fetch("/api/admin/identification",{headers:{"x-admin-token":token}})
+    fetch("/api/admin/identification",{headers:{"x-admin-token":token}}),
+    fetch("/api/admin/identification-suggestions",{headers:{"x-admin-token":token}})
   ]);
-  const dup=dr.ok?await dr.json():[], ids=ir.ok?await ir.json():[];
+  const dup=dr.ok?await dr.json():[], ids=ir.ok?await ir.json():[], sug=sr.ok?await sr.json():[];
   const wrap=document.createElement("div");
   wrap.className="grid";wrap.style.marginTop="14px";
   wrap.innerHTML='<div class="panel"><h3>Возможные дубли ('+dup.length+')</h3>'+
     (dup.map(x=>'<div class="notice" style="margin:7px 0"><b>'+esc(x.a_name)+'</b> ↔ <b>'+esc(x.b_name)+'</b><br><span class="muted">'+esc(x.a_date||"")+' / '+esc(x.b_date||"")+' · similarity '+Number(x.similarity||0).toFixed(2)+'</span><div class="card-actions"><button class="secondary small" onclick="adminMergeDuplicate(\''+x.a_id+'\',\''+x.b_id+'\')">Оставить первую, скрыть вторую</button><button class="secondary small" onclick="adminMergeDuplicate(\''+x.b_id+'\',\''+x.a_id+'\')">Оставить вторую</button></div></div>').join("")||'<div class="muted">Нет</div>')+
     '</div><div class="panel"><h3>Опознание могил ('+ids.length+')</h3>'+
     (ids.map(x=>'<div class="notice" style="margin:7px 0"><b>'+esc(x.approximate_name||"Без имени")+'</b><br><span class="muted">'+esc(x.approximate_year||"")+' '+esc(x.sector_note||"")+'</span><div class="card-actions"><button class="secondary small" onclick="adminOpenIdentification(\''+x.id+'\')">Открыть</button></div></div>').join("")||'<div class="muted">Нет</div>')+
+    '</div><div class="panel"><h3>Предложения по опознанию ('+sug.length+')</h3>'+
+    (sug.map(x=>'<div class="notice" style="margin:7px 0"><b>'+esc(x.suggested_name||"Без имени")+'</b><br><span class="muted">'+esc(x.suggested_year||"")+'</span><p>'+esc(x.details||"")+'</p><div class="card-actions"><button class="primary small" onclick="adminSuggestionAction(\''+x.id+'\',\'approve\')">Одобрить</button><button class="danger small" onclick="adminSuggestionAction(\''+x.id+'\',\'reject\')">Отклонить</button></div></div>').join("")||'<div class="muted">Нет</div>')+
     '</div>';
   $("#adminQueue").appendChild(wrap);
 }
@@ -512,8 +515,16 @@ async function adminOpenIdentification(id){
   const x=await r.json();
   $("#simpleModal").innerHTML='<div class="modalhead"><h2>Опознание могилы</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div>'+
     (x.image_data?'<img src="'+x.image_data+'" alt="" style="max-width:100%;border-radius:12px">':'')+
-    '<p><b>'+esc(x.approximate_name||"Без имени")+'</b> '+esc(x.approximate_year||"")+'</p><p>'+esc(x.details||"")+'</p><input id="identifyResolveKey" class="field" placeholder="QBA record key, например QBA0062:1"><div class="card-actions"><button class="primary" onclick="adminResolveIdentification(\''+id+'\')">Связать и закрыть</button><button class="danger" onclick="adminRejectIdentification(\''+id+'\')">Отклонить</button></div>';
+    '<p><b>'+esc(x.approximate_name||"Без имени")+'</b> '+esc(x.approximate_year||"")+'</p><p>'+esc(x.details||"")+'</p><input id="identifyResolveKey" class="field" placeholder="QBA record key, например QBA0062:1"><div class="card-actions"><button class="secondary" onclick="adminPublishIdentification(\''+id+'\')">Опубликовать для помощи общины</button><button class="primary" onclick="adminResolveIdentification(\''+id+'\')">Связать и закрыть</button><button class="danger" onclick="adminRejectIdentification(\''+id+'\')">Отклонить</button></div>';
   simpleDialog.showModal();
+}
+async function adminPublishIdentification(id){
+  const r=await fetch("/api/admin/identification/"+id+"/publish",{method:"POST",headers:{"content-type":"application/json","x-admin-token":$("#adminToken").value},body:"{}"});
+  if(r.ok){simpleDialog.close();loadAdmin()}
+}
+async function adminSuggestionAction(id,action){
+  const r=await fetch("/api/admin/identification-suggestions/"+id+"/"+action,{method:"POST",headers:{"content-type":"application/json","x-admin-token":$("#adminToken").value},body:"{}"});
+  if(r.ok)loadAdmin();
 }
 async function adminResolveIdentification(id){
   const r=await fetch("/api/admin/identification/"+id+"/resolve",{method:"POST",headers:{"content-type":"application/json","x-admin-token":$("#adminToken").value},body:JSON.stringify({record_key:$("#identifyResolveKey").value})});
