@@ -286,6 +286,15 @@ app.get("/m/reminders", (_req,res) => {
       if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToUint(k.key)});
       return sub.toJSON();
     }
+    function normPhone(v){
+      let s=String(v||"").trim().replace(/[^\\d+]/g,"");
+      if(s.startsWith("00"))s="+"+s.slice(2);
+      if(/^8\\d{10}$/.test(s))s="+7"+s.slice(1);
+      else if(/^7\\d{10}$/.test(s))s="+"+s;
+      else if(/^\\d{10}$/.test(s))s="+7"+s;
+      else if(/^\\d{8,15}$/.test(s))s="+"+s;
+      return s;
+    }
     function read(){
       const days=[...document.querySelectorAll(".remDay:checked")].map(x=>Number(x.value));
       return {
@@ -297,8 +306,8 @@ app.get("/m/reminders", (_req,res) => {
         sms:document.getElementById("chSms").checked,
         email_value:document.getElementById("remEmail").value.trim(),
         telegram_value:document.getElementById("remTelegram").value.trim(),
-        whatsapp_value:document.getElementById("remWhatsapp").value.trim(),
-        sms_value:document.getElementById("remSms").value.trim()
+        whatsapp_value:normPhone(document.getElementById("remWhatsapp").value),
+        sms_value:normPhone(document.getElementById("remSms").value)
       };
     }
     function restore(){
@@ -323,6 +332,8 @@ app.get("/m/reminders", (_req,res) => {
         if(!x.days.length)throw new Error("Выберите хотя бы один срок");
         if(!x.push&&!x.email&&!x.telegram&&!x.whatsapp&&!x.sms)throw new Error("Выберите хотя бы один канал");
         const subscription=await getPushSubscription();
+        document.getElementById("remWhatsapp").value=x.whatsapp_value||"";
+        document.getElementById("remSms").value=x.sms_value||"";
         const body={
           device_token:localStorage.getItem(tokenKey)||null,
           subscription,
@@ -1522,8 +1533,8 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
 
     const email=clean(b.email,180);
     const telegramChat=clean(b.telegram_chat_id,100);
-    const whatsappPhone=clean(b.whatsapp_phone,40);
-    const smsPhone=clean(b.sms_phone,40);
+    const whatsappPhone=normalizePhone(clean(b.whatsapp_phone,40));
+    const smsPhone=normalizePhone(clean(b.sms_phone,40));
     if(pushEnabled && (!s.endpoint || !s.keys?.p256dh || !s.keys?.auth))return res.status(400).json({error:"push_permission_required"});
     if(emailEnabled && !validReminderEmail(email))return res.status(400).json({error:"valid_email_required"});
     if(telegramEnabled && !validTelegramChat(telegramChat))return res.status(400).json({error:"telegram_chat_id_required"});
