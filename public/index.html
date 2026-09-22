@@ -4003,7 +4003,7 @@ function parseLocalVisionJson(text){
 
 function ensureLocalVisionWorker(){
   if(localVisionWorker)return localVisionWorker;
-  localVisionWorker=new Worker('/local-vision-worker.js?v=10.5.0',{type:'module'});
+  localVisionWorker=new Worker('/local-vision-worker.js?v=10.6.0',{type:'module'});
   return localVisionWorker;
 }
 
@@ -4119,10 +4119,27 @@ function provisionalCardFromFile(file){
   };
 }
 
+async function requestImmediateLocalCard(src,file){
+  const fallback=provisionalCardFromFile(file);
+  try{
+    const extra=collectExtraData();
+    const fallbackName=String(extra.name||fallback.seoTitle||'').trim();
+    const response=await fetch('/api/analyze',{
+      method:'POST',headers:apiHeaders(),
+      body:JSON.stringify({...src,mode:currentMode,preferLocal:true,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(response.ok&&data?.shortDescription&&data?.fullDescription)return data;
+  }catch(e){
+    addCurrentActivity('Быстрый локальный анализ недоступен',e.message||'Используем безопасное базовое описание');
+  }
+  return fallback;
+}
+
 async function createImmediateFreeCards(file){
   if(!file||currentMode!=='full'||!autoCards?.checked||cardsBusy)return false;
   const productId=currentHistoryId;
-  const provisional=provisionalCardFromFile(file);
+  let provisional=provisionalCardFromFile(file);
   currentData=provisional;
   fillEditor(provisional);
   workspace.classList.add('show');
@@ -4137,6 +4154,18 @@ async function createImmediateFreeCards(file){
   creativeStatus.textContent='Фото загружено. Сразу создаём 4 бесплатные карточки — анализ текста не блокирует изображения.';
   try{
     const src=await getSource();
+    const fastLocal=await requestImmediateLocalCard(src,file);
+    if(productId!==currentHistoryId)return false;
+    if(fastLocal){
+      provisional=fastLocal;
+      currentData=fastLocal;
+      fillEditor(fastLocal);
+      applyCategoryRule({applyTemplate:true});
+      currentData=collectEdits();
+      renderAiQuality(currentData);updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
+      confidence.textContent='Базовое описание готово · локальное распознавание улучшит его автоматически';
+      creativeStatus.textContent='Базовое описание готово. Создаём 4 разные Studio-карточки с инфографикой.';
+    }
     const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({
       ...src,card:provisional,style:styleSelect.value,renderMode:'free',palette:currentPalette,
       designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,
@@ -4155,7 +4184,7 @@ async function createImmediateFreeCards(file){
     renderCards();renderDesignStudio();renderProductCockpit();
     zipImages.disabled=true;zipFull.disabled=true;
     creativeStatus.className='creative-status show done';
-    creativeStatus.textContent='4 изображения уже готовы. Описание появится сразу, затем локальное распознавание улучшит данные и полностью пересоберёт сцены.';
+    creativeStatus.textContent='4 изображения готовы с базовым описанием. Локальное распознавание улучшит название, характеристики и затем полностью пересоберёт сцены.';
     addCurrentActivity('Быстрый бесплатный комплект','4 карточки созданы до завершения AI-анализа');
     await saveHistory();
     await checkQualityAndAutofix(false);
@@ -4190,7 +4219,7 @@ analyzeBtn.onclick=async()=>{
       {
         const extra=collectExtraData();
         const fallbackName=String(extra.name||currentData?.seoTitle||'').trim();
-        response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})});
+        response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,preferLocal:true,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})});
       }
     }finally{clearTimeout(timeoutId)}
     let data=await response.json().catch(()=>({}));
@@ -4317,7 +4346,7 @@ styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPe
 function syncRenderModeUi(){
   renderModeSelect.value='free';
   generateAll.textContent='Создать 4 Studio-карточки бесплатно';
-  generateAll.title='Studio Director v10.4.1: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
+  generateAll.title='Studio Director v10.6.0: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4505,7 +4534,7 @@ generateAll.onclick=async()=>{
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       const renderDetail=/studio-(local|director)-/i.test(String(data.renderEngine||''))
-        ?('Studio Director v10.4.1 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+        ?('Studio Director v10.6.0 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
@@ -7750,7 +7779,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=19',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=20',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
