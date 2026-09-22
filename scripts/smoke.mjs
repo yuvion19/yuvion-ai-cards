@@ -267,3 +267,13 @@ if(!server.includes('aiMode: false'))fail('health must report image AI disabled'
 if(!server.includes('aiImageCalls: 0'))fail('image responses must report zero image-AI calls');else ok('image responses report zero image-AI calls');
 if(!html.includes('Studio Local · бесплатно · 0 image-AI'))fail('Studio Local free UI label missing');else ok('Studio Local free UI label present');
 if(!server.includes('filter id="studioBlur"'))fail('studio lighting filter missing');else ok('studio lighting filter present');
+
+if(!server.includes('regenerativeQaRepair: true'))fail('regenerative QA repair metadata missing');else ok('regenerative QA repair metadata present');
+if(!server.includes('repairAttempt = 0'))fail('repair attempt input missing');else ok('repair attempt input present');
+if(!server.includes('studioProfile = buildStudioProfile'))fail('single-card Studio Director integration missing');else ok('single-card Studio Director integration present');
+if(!html.includes("repairAttempt:round"))fail('batch QA must vary repair scene');else ok('batch QA varies repair scene');
+if(!html.includes("repairAttempt,designIntensity"))fail('interactive QA must vary repair scene');else ok('interactive QA varies repair scene');
+if(!html.includes("show-excel"))fail('compact UI Excel reveal missing');else ok('compact UI Excel reveal present');
+if(!html.includes("show-editor"))fail('compact UI editor reveal missing');else ok('compact UI editor reveal present');
+if(!html.includes("Quality Score"))fail('Quality Score UI missing');else ok('Quality Score UI present');
+if(!html.includes('Авто · арт-директор'))fail('batch art director selector missing');else ok('batch art director selector present');

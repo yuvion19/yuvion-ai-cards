@@ -187,7 +187,17 @@
     .excel-auto-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}.excel-auto-controls select{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff}.excel-auto-note{font-size:10px;color:var(--muted);line-height:1.45;margin-top:9px}
     .excel-auto-progress{display:none;margin-top:12px}.excel-auto-progress.show{display:block}.excel-auto-progress .progress-track{height:8px}.excel-auto-queue{margin-top:12px;display:grid;gap:7px}.excel-queue-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:11px}.excel-queue-item b{font-size:11px}.excel-queue-item small{display:block;color:var(--muted);font-size:9px;margin-top:2px}.excel-queue-badge{font-size:9px;font-weight:900;padding:5px 7px;border-radius:999px;background:#F1F2F3;color:#52606A}.excel-queue-badge.ready{background:#E9F7ED;color:#226B38}.excel-queue-badge.work{background:#FFF4DF;color:#865C00}.excel-queue-badge.bad{background:#FFF0F0;color:#9A3039}
     .publish-center-body{padding:16px 22px 20px}.publish-filter{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff}.publish-list{display:grid;gap:7px;margin-top:12px}.publish-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:12px;background:#fff}.publish-row img{width:42px;height:54px;border-radius:8px;object-fit:cover;background:#F2F2F2}.publish-row b{font-size:11px}.publish-row small{display:block;font-size:9px;color:var(--muted);margin-top:2px}.publish-row-actions{display:flex;align-items:center;gap:7px}.publish-status{font-size:9px;font-weight:900;padding:5px 7px;border-radius:999px;background:#F1F2F3}.publish-status.ready{background:#E9F7ED;color:#226B38}.publish-status.problem{background:#FFF0F0;color:#9A3039}.publish-status.photo{background:#FFF4DF;color:#865C00}.publish-status.published{background:#EEF2F7;color:#4A5C70}
-    .simple-ui #excelAutopilot,.simple-ui #publishCenter{display:block}.simple-ui #excelAutopilot{max-width:900px}.simple-ui #publishCenter{max-width:900px}
+    .simple-ui #excelAutopilot,.simple-ui #publishCenter{display:none!important}
+    .simple-ui.show-excel #excelAutopilot{display:block!important;max-width:900px}
+    .simple-ui.show-publish #publishCenter{display:block!important;max-width:900px}
+    .simple-ui #jumpTools{display:none!important}
+    .simple-ui .editor{display:none!important}
+    .simple-ui.show-editor .editor{display:block!important}
+    .simple-ui .workspace-head{display:none}
+    .simple-ui .product-cockpit{margin-top:0}
+    .simple-ui .creative-top p{display:none}
+    .simple-ui #qaSummary{font-size:10px;line-height:1.45}
+    .simple-ui #excelAutopilot[open],.simple-ui #publishCenter[open]{margin-top:12px}
     @media(max-width:760px){.excel-auto-head,.publish-center-head{flex-direction:column}.excel-auto-actions{justify-content:flex-start}.excel-auto-steps{grid-template-columns:1fr}.excel-auto-stats,.publish-stats{grid-template-columns:repeat(2,1fr)}.publish-row{grid-template-columns:42px minmax(0,1fr)}.publish-row-actions{grid-column:1/-1;justify-content:flex-end}}
 
   
@@ -427,7 +437,7 @@
         <div class="excel-stat"><b id="excelQueueCount">0</b><span>В ОЧЕРЕДИ</span></div>
         <div class="excel-stat"><b id="excelReadyCount">0</b><span>ГОТОВО К YUVION</span></div>
       </div>
-      <div class="excel-auto-controls"><label style="font-size:10px;font-weight:850">Стиль:</label><select id="excelAutopilotStyle"><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select><span class="muted" id="excelPhotoMatchText" style="font-size:10px">Фото ещё не загружены.</span></div>
+      <div class="excel-auto-controls"><label style="font-size:10px;font-weight:850">Стиль:</label><select id="excelAutopilotStyle"><option value="auto">Авто · арт-директор</option><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select><span class="muted" id="excelPhotoMatchText" style="font-size:10px">Фото ещё не загружены.</span></div>
       <div class="excel-auto-progress" id="excelAutoProgress"><div class="progress-track"><div class="progress-bar" id="excelAutoBar"></div></div><div class="muted" id="excelAutoProgressText" style="margin-top:7px;font-size:11px"></div></div>
       <div class="excel-auto-note">Можно использовать фото по SKU, публичную ссылку в Excel или оба источника сразу. Значения из Excel считаются данными продавца и имеют приоритет над сайтом-источником. Таблица, складские поля и очередь остаются локальными; URL и текущий товар отправляются серверу только при запуске соответствующего импорта/AI-этапа.</div>
       <div class="excel-auto-queue" id="excelAutoQueue"></div>
@@ -960,7 +970,7 @@
     <div class="batch-controls">
       <div class="batch-field"><label>Фотографии товаров</label><input class="batch-file" id="batchFiles" type="file" multiple accept="image/jpeg,image/png,image/webp"></div>
       <div class="batch-field"><label>Режим</label><select id="batchMode"><option value="fast">Быстро</option><option value="full">Полный комплект</option></select></div>
-      <div class="batch-field"><label>Стиль карточек</label><select id="batchStyle"><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select></div>
+      <div class="batch-field"><label>Стиль карточек</label><select id="batchStyle"><option value="auto">Авто · арт-директор</option><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select></div>
       <button class="btn btn-primary" id="startBatch" disabled>Запустить очередь</button>
     </div>
     <div class="batch-help">Мастер пакета: после выбора фото можно сразу указать бренд, SKU, розничную цену и категорию для каждого товара. Эти значения считаются подтверждёнными и имеют приоритет над распознаванием AI.</div>
@@ -2981,6 +2991,7 @@ function renderReadiness(){
       const item=info.checks[Number(el.dataset.readyIndex)];
       if(!item||item.ok)return;
       if(item.extra)extraDataBox.open=true;
+      if(isSimpleUi())document.body.classList.add('show-editor');
       const target=document.getElementById(item.target);
       if(target){
         if(target.tagName==='DETAILS')target.open=true;
@@ -3007,13 +3018,14 @@ function applyUiMode(mode,{save=true}={}){
   const simple=mode!=='advanced';
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
   document.body.classList.toggle('simple-ui',simple);
-  if(!simple){document.body.classList.remove('show-catalog','export-details-open')}
-  if(uiModeToggle)uiModeToggle.textContent=simple?'Профессиональный режим':'Простой режим';
+  if(!simple){document.body.classList.remove('show-catalog','show-excel','show-publish','show-editor','export-details-open')}
+  if(simple){document.body.classList.remove('show-tools')}
+  if(uiModeToggle)uiModeToggle.textContent=simple?'Расширенный режим':'Простой режим';
   if(stepExportNumber)stepExportNumber.textContent=simple?'3':'4';
   const strong=document.querySelector('.smart-strip>div:first-child strong');
   const note=document.querySelector('.smart-strip>div:first-child span');
   if(strong)strong.textContent=simple?'Простой режим':'Профессиональный режим';
-  if(note)note.textContent=simple?'Показываем только действия, необходимые для текущего товара.':'Профессиональный режим: все инструменты дизайна, каталога, склада, batch, правил и версий доступны на экране.';
+  if(note)note.textContent=simple?'Только фото, результат, QA и готовность к Yuvion. Остальное открывается по кнопке.':'Расширенный режим: дизайн, каталог, склад, Batch Factory, диагностика, правила и версии.';
   if(save)localStorage.setItem(UI_MODE_KEY,simple?'simple':'advanced');
   renderFocusPanel();
   updateWorkflow();
@@ -4184,7 +4196,7 @@ styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPe
 function syncRenderModeUi(){
   renderModeSelect.value='free';
   generateAll.textContent='Создать 4 Studio-карточки бесплатно';
-  generateAll.title='Studio Local v6: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
+  generateAll.title='Studio Director v10: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4212,11 +4224,14 @@ function qualitySummaryHtml(data,prefix='Проверка'){
   const scores=(data?.cards||[]).map(x=>Number(x.qualityScore)).filter(Number.isFinite);
   const avgScore=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null;
   const closest=Number(data?.seriesSimilarity?.maxSimilarity);
-  const seriesNote=Number.isFinite(closest)?'<br>Максимальное сходство пары: '+Math.round(closest*1000)/10+'%.':'';
-  const scoreNote=avgScore!==null?'<br>Средняя локальная оценка: '+avgScore+'/100.':'';
+  const dims=(data?.cards||[]).map(x=>x.qualityDimensions).filter(Boolean);
+  const avg=(key)=>dims.length?Math.round(dims.reduce((sum,x)=>sum+Number(x?.[key]||0),0)/dims.length):null;
+  const dimensionNote=dims.length?'<br><span class="muted">Товар '+avg('product')+' · Композиция '+avg('composition')+' · Текст '+avg('text')+' · Контраст '+avg('contrast')+' · Серия '+avg('series')+' · Marketplace '+avg('marketplace')+'</span>':'';
+  const seriesNote=Number.isFinite(closest)?'<br>Макс. сходство пары: '+Math.round(closest*1000)/10+'%.':'';
+  const scoreNote=avgScore!==null?'<br><b>Quality Score '+avgScore+'/100</b>':'';
   return '<b>'+esc(prefix+': '+(data?.overall||'готово'))+'</b>'+
-    (notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.')+
-    scoreNote+seriesNote;
+    (notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Критических проблем не обнаружено.')+
+    scoreNote+dimensionNote+seriesNote;
 }
 
 async function requestCardQuality(qaSource){
@@ -4266,7 +4281,7 @@ async function checkQualityAndAutofix(autoFix=true){
         creativeStatus.textContent='QA-блокеры: автоматически исправляем карточки №'+bad.map(x=>x+1).join(', ')+' · проход '+(round+1)+'/2.';
         const src=await getSource();
         for(const index of bad){
-          const updated=await regenerateCardApi(index,src,collectEdits(),styleSelect.value);
+          const updated=await regenerateCardApi(index,src,collectEdits(),styleSelect.value,round+1);
           currentCards[index]=updated;
           repaired.add(index);
         }
@@ -4294,10 +4309,10 @@ async function checkQualityAndAutofix(autoFix=true){
   }
 }
 
-async function regenerateCardApi(index,src,cardData,styleValue){
+async function regenerateCardApi(index,src,cardData,styleValue,repairAttempt=0){
   const response=await fetch('/api/regenerate-card',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,composition:currentComposition,additionalImages:additionalPhotosForRender()})
+    body:JSON.stringify({...src,card:cardData,style:styleValue,index,renderMode:'free',palette:currentPalette,designVariant:currentDesignVariant,repairAttempt,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,composition:currentComposition,additionalImages:additionalPhotosForRender()})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Не удалось переделать карточку №'+(index+1)+'.');
@@ -4369,7 +4384,7 @@ generateAll.onclick=async()=>{
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       const renderDetail=String(data.renderEngine||'').startsWith('studio-local-')
-        ?('Studio Local v6 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+        ?('Studio Director v10 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
@@ -4386,7 +4401,7 @@ generateAll.onclick=async()=>{
       creativeStatus.textContent='Комплект создан, но QA не пропустила его в выгрузку. Исправьте отмеченные карточки — PNG и ZIP разблокируются автоматически.';
     }else{
       creativeStatus.className='creative-status show done';
-      creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена и QA пройдена.':(renderModeSelect.value==='free'?'Комплект готов бесплатно и прошёл QA v3.':'AI-комплект готов и прошёл QA v3.');
+      creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена и QA пройдена.':(renderModeSelect.value==='free'?'Комплект готов бесплатно и прошёл QA v4.':'AI-комплект готов и прошёл QA v4.');
       await downloadPackage(false,true);
     }
   }catch(e){
@@ -6327,8 +6342,9 @@ async function processExcelAutopilotItem(item,style){
     if(!analyze.ok)throw new Error(analyzed.error||'Не удалось проанализировать товар.');
   }
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
+  const directedStyle=style==='auto'?recommendedStyleForProduct(analyzed):style;
 
-  const generationFp=await generationFingerprintForItem(item,analyzed,style);
+  const generationFp=await generationFingerprintForItem(item,analyzed,directedStyle);
   const reusableCards=item.cardRenderSchema===CARD_RENDER_SCHEMA&&item.generationFingerprint===generationFp&&Array.isArray(item.cards)&&item.cards.length===4&&!item.cardsStale;
 
   if(reusableCards&&batchQaPassed(item.quality)){
@@ -6336,7 +6352,7 @@ async function processExcelAutopilotItem(item,style){
     item.analysisCache={fingerprint:analysisFp,data:analyzed,at:Date.now()};
     item.updatedAt=Date.now();
     item.excelAutopilot={state:'done',error:'',completedAt:Date.now(),cacheHit:true};
-    item.activity=[{at:Date.now(),type:'Автопилот · кэш',detail:'Анализ, изображения и QA v3 уже актуальны'},...(item.activity||[])].slice(0,80);
+    item.activity=[{at:Date.now(),type:'Автопилот · кэш',detail:'Анализ, изображения и QA v4 уже актуальны'},...(item.activity||[])].slice(0,80);
     await dbPut(item);
     return item;
   }
@@ -6346,7 +6362,7 @@ async function processExcelAutopilotItem(item,style){
     cards=item.cards.slice();
     scenes=Array.isArray(item.scenes)?item.scenes.slice():[];
   }else{
-    const {response:gen,data:generated}=await fetchJsonRetry('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,renderMode:'free',additionalImages})},1);
+    const {response:gen,data:generated}=await fetchJsonRetry('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style:directedStyle,renderMode:'free',additionalImages})},1);
     if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
     cards=generated.cards||[];
     scenes=generated.scenes||[];
@@ -6355,7 +6371,7 @@ async function processExcelAutopilotItem(item,style){
   }
 
   const repaired=await repairBatchCardsToQa({
-    cards,scenes,card:analyzed,src:{base64:src.base64,mime:src.mime},style,maxRounds:2
+    cards,scenes,card:analyzed,src:{base64:src.base64,mime:src.mime},style:directedStyle,maxRounds:2
   });
   cards=repaired.cards;
   scenes=repaired.scenes;
@@ -6379,7 +6395,7 @@ async function processExcelAutopilotItem(item,style){
     regenerations:Number(item.aiLocal?.regenerations||0)+repaired.regenerated
   };
   item.mode='full';
-  item.style=style;
+  item.style=directedStyle;
   item.renderMode='free';
   item.cardRenderSchema=CARD_RENDER_SCHEMA;
   item.updatedAt=Date.now();
@@ -6388,11 +6404,11 @@ async function processExcelAutopilotItem(item,style){
     type:qaBlocked?'Автопилот · QA карантин':'Автопилот завершён',
     detail:(analysisFromCache?'Анализ из кэша · ':'')+
       (generatedFresh?'4 карточки · ':'существующие карточки · ')+
-      'QA v3 · проверок '+repaired.qualityChecks+' · перегенераций '+repaired.regenerated+
+      'QA v4 · проверок '+repaired.qualityChecks+' · перегенераций '+repaired.regenerated+
       (qaBlocked?' · блокеров '+repaired.blockers.length:'')
   },...(item.activity||[])].slice(0,80);
   item.excelAutopilot=qaBlocked
-    ?{state:'qa_blocked',error:'QA v3 не пройдена после автоматического исправления.',completedAt:Date.now()}
+    ?{state:'qa_blocked',error:'QA v4 не пройдена после автоматического исправления.',completedAt:Date.now()}
     :{state:'done',error:'',completedAt:Date.now()};
   await dbPut(item);
   return item;
@@ -6466,6 +6482,7 @@ async function runExcelAutopilotQueue(){
     return;
   }
   if(!remaining&&!haltedByLimit){
+    document.body.classList.add('show-publish');
     document.getElementById('publishCenter').open=true;
     publishCenterFilter.value='all';
     renderPublishCenter(await dbAll());
@@ -7016,7 +7033,7 @@ async function repairBatchCardsToQa({cards,scenes,card,src,style,onStatus=()=>{}
       .slice(0,2);
     if(!bad.length)break;
 
-    onStatus('QA v3 · исправление '+round+'/'+maxRounds+': №'+bad.map(x=>x+1).join(', '));
+    onStatus('QA v4 · исправление '+round+'/'+maxRounds+': №'+bad.map(x=>x+1).join(', '));
     for(const index of bad){
       attempted.add(index);
       const {response:regen,data:payload}=await fetchJsonRetry('/api/regenerate-card',{
@@ -7024,7 +7041,7 @@ async function repairBatchCardsToQa({cards,scenes,card,src,style,onStatus=()=>{}
         body:JSON.stringify({
           image:src.image||src.base64||'',
           mimeType:src.mimeType||src.mime||'',
-          card,style,index,renderMode:'free'
+          card,style,index,renderMode:'free',repairAttempt:round
         })
       },1);
       if(!regen.ok||!payload.card)throw new Error(payload.error||'Не удалось автоматически исправить карточку №'+(index+1)+'.');
@@ -7032,7 +7049,7 @@ async function repairBatchCardsToQa({cards,scenes,card,src,style,onStatus=()=>{}
       if(payload.scene)workingScenes[index]=payload.scene;
       regenerated+=1;
     }
-    onStatus('QA v3 · повторная проверка…');
+    onStatus('QA v4 · повторная проверка…');
     quality=await batchQuality(workingCards,card,{image:src.image||src.base64||'',mimeType:src.mimeType||src.mime||''});
     qualityChecks+=1;
   }
@@ -7078,7 +7095,7 @@ async function saveBatchHistory({data,dataUrl,cards,scenes=[],quality=null,mode,
     data,extraData:{...extraData},privateData:{cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''},
     sourceDataUrl:dataUrl,photoHash,additionalPhotos:[],cards:cards||[],scenes:scenes||[],quality,
     cardsStale:Boolean(qaBlocked),staleCardIndexes:qaBlocked?batchQaBlockers(quality).map(x=>x.index):[],variations:[],revisions:[],moderation:{status:'none',reason:'',log:[]},
-    activity:[{at:Date.now(),type:qaBlocked?'Batch Factory · QA карантин':'Batch Factory',detail:mode==='full'?(qaBlocked?'4 карточки сохранены локально · QA v3 не пройдена':'Анализ · 4 карточки · QA v3 пройдена'):'Текстовый анализ сохранён'}],
+    activity:[{at:Date.now(),type:qaBlocked?'Batch Factory · QA карантин':'Batch Factory',detail:mode==='full'?(qaBlocked?'4 карточки сохранены локально · QA v4 не пройдена':'Анализ · 4 карточки · QA v4 пройдена'):'Текстовый анализ сохранён'}],
     mode,style,renderMode:'free',cardRenderSchema:CARD_RENDER_SCHEMA,published:false
   };
   await dbPut(item);
@@ -7105,21 +7122,22 @@ startBatch.onclick=async()=>{
 
     try{
       const analyzed=await batchAnalyze(item.file,mode,item.extraData||{},item.category||'');
+      const directedStyle=style==='auto'?recommendedStyleForProduct(analyzed.data):style;
       let cards=[],scenes=[],quality=null;
       if(mode==='full'){
         item.label='4 карточки…';batchRender();
         const gen=await fetch('/api/generate-cards',{
           method:'POST',headers:apiHeaders(),
-          body:JSON.stringify({...analyzed.src,card:analyzed.data,style,renderMode:'free'})
+          body:JSON.stringify({...analyzed.src,card:analyzed.data,style:directedStyle,renderMode:'free'})
         });
         const genData=await gen.json().catch(()=>({}));
         if(!gen.ok)throw new Error(genData.error||'Не удалось создать карточки.');
         cards=genData.cards||[];
         scenes=genData.scenes||[];
 
-        item.label='QA v3…';batchRender();
+        item.label='QA v4…';batchRender();
         const repaired=await repairBatchCardsToQa({
-          cards,scenes,card:analyzed.data,src:analyzed.src,style,
+          cards,scenes,card:analyzed.data,src:analyzed.src,style:directedStyle,
           onStatus:(label)=>{item.label=label;batchRender()}
         });
         cards=repaired.cards;
@@ -7129,16 +7147,16 @@ startBatch.onclick=async()=>{
           item.label='QA карантин';batchRender();
           const quarantinedSource=await compressFileToDataUrl(item.file);
           await saveBatchHistory({
-            data:analyzed.data,dataUrl:quarantinedSource,cards,scenes,quality,mode,style,
+            data:analyzed.data,dataUrl:quarantinedSource,cards,scenes,quality,mode,style:directedStyle,
             extraData:item.extraData||{},qaBlocked:true
           });
-          throw new Error('QA v3 не пройдена после автоисправления. Товар сохранён локально в карантин и не добавлен в общий ZIP.');
+          throw new Error('QA v4 не пройдена после автоисправления. Товар сохранён локально в карантин и не добавлен в общий ZIP.');
         }
       }
 
       item.label='Сохраняем…';batchRender();
       const storedSource=await compressFileToDataUrl(item.file);
-      await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,scenes,quality,mode,style,extraData:item.extraData||{},qaBlocked:false});
+      await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,scenes,quality,mode,style:directedStyle,extraData:item.extraData||{},qaBlocked:false});
 
       if(masterZip){
         const base=(String(index+1).padStart(2,'0')+'_'+safeFileBase(analyzed.data.seoTitle||('product_'+(index+1))));
@@ -7162,7 +7180,7 @@ startBatch.onclick=async()=>{
 
       success++;
       item.state='ok';
-      item.label=mode==='full'?'Готово · QA v3':'Текст готов';
+      item.label=mode==='full'?'Готово · QA v4':'Текст готов';
     }catch(e){
       item.state='fail';item.label=e.message||'Ошибка';
     }
@@ -7637,7 +7655,11 @@ bulkDraft.onclick=()=>bulkSetPublished(false);
 bulkDelete.onclick=()=>bulkDeleteSelected();
 
 document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
-jumpExcel.onclick=()=>{document.getElementById('excelAutopilot').open=true;document.getElementById('excelAutopilot').scrollIntoView({behavior:'smooth',block:'start'})};
+jumpExcel.onclick=()=>{
+  document.body.classList.toggle('show-excel');
+  const box=document.getElementById('excelAutopilot');
+  if(document.body.classList.contains('show-excel')){box.open=true;box.scrollIntoView({behavior:'smooth',block:'start'})}
+};
 jumpTools.onclick=()=>{
   document.body.classList.toggle('show-tools');
   const open=document.body.classList.contains('show-tools');
@@ -7689,7 +7711,10 @@ dockCards.onclick=()=>document.getElementById('generateAll')?.scrollIntoView({be
 dockNext.onclick=()=>focusAction.click();
 dockYuvion.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepPhoto.onclick=()=>document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
-stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepData.onclick=()=>{
+  if(isSimpleUi())document.body.classList.add('show-editor');
+  document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
+};
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 

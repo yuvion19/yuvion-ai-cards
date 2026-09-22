@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.0.0
+// Production release marker: v10.1.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1351,7 +1351,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.0.0",
+    version: "10.1.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1400,6 +1400,9 @@ app.get("/api/health", (_req, res) => {
       catalogSeriesDiversity: true,
       batchArtDirector: true,
       brandSeriesDNA: true,
+      regenerativeQaRepair: true,
+      compactDefaultInterface: true,
+      hiddenAdvancedPanels: true,
       proceduralStudioLighting: true,
       depthOfFieldBackdrop: true,
       acrylicStageSets: true,
@@ -3338,7 +3341,7 @@ app.post("/api/regenerate-card", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = regenRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", index, palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", index, palette = [], designVariant = 0, repairAttempt = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
     const mode = "free";
     requestLimitMap = freeRegenRequestsByIp;
     if (limitMap(freeRegenRequestsByIp, ip, MAX_FREE_REGENERATIONS_PER_WINDOW)) {
@@ -3356,23 +3359,35 @@ app.post("/api/regenerate-card", async (req, res) => {
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
     const sourceBuffer = Buffer.from(image, "base64");
-    const additionalSources = normalizeRenderAdditionalImages(additionalImages);
-    const selectedSource = pickRenderSource(cardIndex, sourceBuffer, additionalSources, mimeType);
+    const sourceQuality = await assessSourcePhoto(sourceBuffer);
+    const additionalSources = await enrichRenderSources(normalizeRenderAdditionalImages(additionalImages));
+    const baseVariant = normalizeDesignVariant(designVariant, normalized);
+    const attempt = Math.max(0, Math.min(6, Math.round(Number(repairAttempt) || 0)));
+    const variant = (baseVariant + attempt + (attempt ? cardIndex + 1 : 0)) % 4;
+    const selectedSource = pickRenderSource(cardIndex, sourceBuffer, additionalSources, mimeType, sourceQuality.score, sourceQuality);
     const insetSource = pickInsetSource(cardIndex, selectedSource, additionalSources);
     const suppliedPalette = normalizePalette(palette);
     const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
-    const variant = normalizeDesignVariant(designVariant, normalized);
     const renderComposition = normalizeComposition(composition);
     const intensity = normalizeDesignIntensity(designIntensity);
     const substyle = normalizeDesignSubstyle(designSubstyle);
     const visual = normalizeVisualOptions(visualOptions);
-    let scene;
-
-    scene = await renderFreeScene(selectedSource.buffer, cardIndex, styleKey, renderPalette, variant, renderComposition, intensity, substyle, visual, insetSource?.buffer || null, selectedSource.role, insetSource?.role || "");
+    const sourceAspect = Number(selectedSource?.audit?.aspect || sourceQuality.aspect || 1);
+    const studioProfile = buildStudioProfile(normalized, styleKey, variant, sourceAspect);
+    if (attempt) {
+      const sceneTune = studioProfile.scenes[cardIndex] || {};
+      sceneTune.shiftX = Number(sceneTune.shiftX || 0) + (attempt % 2 ? 22 : -24);
+      sceneTune.shiftY = Number(sceneTune.shiftY || 0) + (attempt % 3 === 0 ? 18 : -10);
+      sceneTune.scale = Math.max(.90, Math.min(1.08, Number(sceneTune.scale || 1) * (attempt % 2 ? .97 : 1.035)));
+    }
+    const scene = await renderFreeScene(
+      selectedSource.buffer, cardIndex, styleKey, renderPalette, variant, renderComposition,
+      intensity, substyle, visual, insetSource?.buffer || null, selectedSource.role, insetSource?.role || "", studioProfile
+    );
     stats.freeSceneRenders += 1;
 
     const cachedScene = await normalizeSceneForCache(scene);
-    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey, renderPalette, intensity, substyle, visual));
+    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey, renderPalette, intensity, substyle, visual, studioProfile));
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
 
@@ -3397,7 +3412,11 @@ app.post("/api/regenerate-card", async (req, res) => {
       designIntensity: intensity,
       designSubstyle: substyle,
       visualOptions: visual,
-      composition: renderComposition
+      composition: renderComposition,
+      repairAttempt: attempt,
+      sourceQuality,
+      studioProfile,
+      renderEngine: "studio-director-v10"
     });
   } catch (error) {
     console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
@@ -3421,6 +3440,7 @@ app.post("/api/render-card-overlays", async (req, res) => {
     const intensity = normalizeDesignIntensity(designIntensity);
     const substyle = normalizeDesignSubstyle(designSubstyle);
     const visual = normalizeVisualOptions(visualOptions);
+    const studioProfile = buildStudioProfile(normalized, styleKey, 0, 1);
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
     const cards = [];
@@ -3434,7 +3454,7 @@ app.post("/api/render-card-overlays", async (req, res) => {
         return res.status(413).json({ error: "Сохранённая сцена слишком большая." });
       }
       const sceneBuffer = Buffer.from(scene.base64, "base64");
-      const buffer = await composeCard(sceneBuffer, overlayForCard(index, normalized, styleKey, renderPalette, intensity, substyle, visual));
+      const buffer = await composeCard(sceneBuffer, overlayForCard(index, normalized, styleKey, renderPalette, intensity, substyle, visual, studioProfile));
       cards.push({ index, filename: names[index], title: titles[index], base64: buffer.toString("base64") });
     }
 
@@ -3657,5 +3677,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.0.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.1.0 listening on port ${port}`);
 });
