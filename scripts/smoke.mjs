@@ -309,9 +309,9 @@ if(!worker.includes('sequences[0].slice(inputLength)'))fail('generated-only visi
 if(!sw.includes("url.pathname==='/local-vision-worker.js'"))fail('service worker vision bypass missing');else ok('service worker vision bypass present');
 
 if(!server.includes('Преобладающий цвет на фото'))fail('guaranteed visible fallback characteristic missing');else ok('guaranteed visible fallback characteristic present');
-if(!html.includes('needsVisionUpgrade'))fail('nonblocking local vision flag missing');else ok('nonblocking local vision flag present');
-if(!html.includes('improveProductWithLocalVisionInBackground'))fail('background local vision upgrade missing');else ok('background local vision upgrade present');
-if(html.includes('data=await upgradeFallbackWithBrowserVision(data,src)'))fail('local vision still blocks base analysis');else ok('base analysis is not blocked by local vision');
+if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
+if(!html.includes('improveProductWithLocalVisionInBackground'))fail('legacy recovery helper missing');else ok('legacy recovery helper retained');
+if(!html.includes("const improved=await upgradeFallbackWithBrowserVision(provisional,src)"))fail('final local vision before first render missing');else ok('final local vision before first render present');
 if(!html.includes("register('/sw.js?v=22'"))fail('service worker v22 registration missing');else ok('service worker v22 registration present');
 if(!sw.includes("yuvion-ai-shell-v22"))fail('service worker v22 cache missing');else ok('service worker v22 cache present');
 if(!server.includes('freeTextLocalFirst: true'))fail('local-first text analysis metadata missing');else ok('local-first text analysis metadata present');
