@@ -2022,6 +2022,7 @@ function moderationChecks(){
     {label:'Старая цена выше текущей или пустая',ok:!x.oldPrice||old>p1,target:'extraOldPrice',extra:true},
     {label:'Характеристики без дублей',ok:dupes.length===0,target:'edSpecs'},
     {label:'Технические факты подтверждены',ok:factBlockers(d).length===0,target:'factSourcesPanel'},
+    {label:'Изображения соответствуют текущим данным',ok:!cardsStale,target:'generateAll'},
     {label:'Нет известных критических ошибок изображений',ok:knownQaBlockers().length===0,target:'creative'},
     ...(variationValidation().enabled?[
       {label:'Вариации заполнены',ok:variationValidation().complete,target:'variationsBox'},
@@ -3050,6 +3051,7 @@ async function savePhotoDraft(file){
       additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
       quality:currentQuality,
+      cardsStale:Boolean(cardsStale),
       variations:variationsForExport(),
       revisions:currentRevisions,
       moderation:currentModeration,
@@ -4116,10 +4118,10 @@ async function restoreHistory(item){
   currentAdditionalPhotos=Array.isArray(item.additionalPhotos)?item.additionalPhotos.slice(0,4):[];
   currentRevisions=Array.isArray(item.revisions)?item.revisions.slice(0,12):[];
   currentModeration=normalizeModeration(item.moderation||{});
+  cardsStale=Boolean(item.cardsStale);
   renderVariations();renderExtraPhotos();renderRevisionList();renderModeration();
   currentMode=item.mode||'full';
   styleSelect.value=item.style||'minimal';
-  cardsStale=false;
   fillExtraData(item.extraData||item.data?.confirmedData||{});
   fillPrivateData(item.privateData||{});
   duplicateSkuId=null;
