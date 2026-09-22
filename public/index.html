@@ -1144,6 +1144,7 @@ function confirmLabelSuggestion(index){
     currentData=collectEdits();
     const spec=(currentData.characteristics||[]).find(x=>normalizedFactText(x.name)===key&&normalizedFactText(x.value)===normalizedFactText(field.value));
     if(spec)spec.source='Маркировка';
+    currentData.factProvenance={...(currentData.factProvenance||{}),[key]:'Маркировка'};
     currentData.confirmedData=collectExtraData();
   }
   currentLabelSuggestions.splice(index,1);
@@ -2169,6 +2170,8 @@ function normalizedFactText(value){return String(value||'').trim().toLocaleLower
 function confirmedSourceForSpec(spec,data=currentData){
   const x=data?.confirmedData||collectExtraData();
   const n=normalizedFactText(spec?.name),v=normalizedFactText(spec?.value);
+  const explicit=data?.factProvenance?.[n];
+  if(['Продавец','Маркировка','Фото'].includes(explicit))return explicit;
   const known=[
     ['бренд',x?.brand],['артикул',x?.sku],['штрихкод/ean',x?.barcode],['размеры',x?.size],['материал',x?.material]
   ];
@@ -2603,6 +2606,8 @@ Object.entries(extraFields).forEach(([key,el])=>el.addEventListener('input',()=>
   if(!currentData)return;
   const priceOnly=['price1','price2','price3','oldPrice'].includes(key);
   currentData.confirmedData=collectExtraData();
+  const provenanceNames={brand:'бренд',sku:'артикул',barcode:'штрихкод/ean',size:'размеры',material:'материал'};
+  if(provenanceNames[key])currentData.factProvenance={...(currentData.factProvenance||{}),[provenanceNames[key]]:'Продавец'};
   if(!priceOnly){
     currentAnalysisCache=null;
     if(['name','brand','size','material'].includes(key))markCardsStale(key==='name'?[0]:[0,1,2]);
