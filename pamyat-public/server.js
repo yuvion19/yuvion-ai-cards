@@ -211,6 +211,17 @@ app.get("/m/reminders", (_req,res) => {
       <div id="remStatus" style="margin-top:10px"></div>
     </div>
 
+    <div class="card" id="iosPushHelp" style="display:none">
+      <b>Push на iPhone</b>
+      <ol style="padding-left:20px;margin-bottom:0">
+        <li>Откройте эту страницу именно в Safari.</li>
+        <li>Нажмите «Поделиться» → «На экран Домой».</li>
+        <li>Откройте «Память» с новой иконки на экране.</li>
+        <li>Вернитесь в «Напоминания» и включите Push.</li>
+      </ol>
+      <p class="muted" style="margin-bottom:0">Во встроенном браузере ChatGPT Push может быть недоступен. Остальные каналы можно использовать без Push.</p>
+    </div>
+
     <div class="card">
       <b>Статус каналов</b>
       <p class="muted" style="margin-bottom:0">Если канал отмечен как «нужна настройка», предпочтение можно сохранить заранее, но сообщения начнут отправляться только после подключения провайдера.</p>
@@ -228,19 +239,45 @@ app.get("/m/reminders", (_req,res) => {
       const raw=atob(base);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
     };
     const state=(id,ok)=>document.getElementById(id).textContent=ok?"подключено":"нужна настройка провайдера";
+    function browserPushCapable(){
+      return ("Notification" in window)&&("PushManager" in window)&&("serviceWorker" in navigator);
+    }
+    function isIOS(){
+      return /iPhone|iPad|iPod/i.test(navigator.userAgent||"") || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+    }
+    function isStandalone(){
+      return window.matchMedia?.("(display-mode: standalone)")?.matches || navigator.standalone===true;
+    }
     async function loadStatus(){
       try{
         provider=await fetch("/api/reminders/status",{cache:"no-store"}).then(r=>r.json());
-        state("stPush",provider.push); state("stEmail",provider.email); state("stTelegram",provider.telegram);
+        const ch=document.getElementById("chPush");
+        const localCap=browserPushCapable();
+        if(!localCap){
+          ch.checked=false;
+          ch.disabled=true;
+          document.getElementById("stPush").textContent=isIOS()
+            ?"недоступно здесь — добавьте сайт на экран «Домой» через Safari"
+            :"не поддерживается этим браузером";
+          if(isIOS())document.getElementById("iosPushHelp").style.display="block";
+        }else if(isIOS() && !isStandalone()){
+          ch.checked=false;
+          document.getElementById("stPush").textContent="на iPhone включается после добавления сайта на экран «Домой»";
+          document.getElementById("iosPushHelp").style.display="block";
+        }else{
+          state("stPush",provider.push);
+        }
+        state("stEmail",provider.email); state("stTelegram",provider.telegram);
         state("stWhatsapp",provider.whatsapp); state("stSms",provider.sms);
       }catch{
-        ["stPush","stEmail","stTelegram","stWhatsapp","stSms"].forEach(x=>document.getElementById(x).textContent="статус недоступен");
+        ["stEmail","stTelegram","stWhatsapp","stSms"].forEach(x=>document.getElementById(x).textContent="статус недоступен");
       }
     }
     async function getPushSubscription(){
       if(!document.getElementById("chPush").checked)return null;
       if(!provider.push)throw new Error("Push на сервере пока не настроен");
-      if(!("Notification" in window)||!("PushManager" in window)||!("serviceWorker" in navigator))throw new Error("Этот браузер не поддерживает Push");
+      if(!browserPushCapable())throw new Error("Push недоступен в этом браузере. На iPhone откройте Safari и добавьте сайт на экран «Домой».");
+      if(isIOS() && !isStandalone())throw new Error("На iPhone Push включается из версии сайта, добавленной на экран «Домой».");
       const perm=await Notification.requestPermission();
       if(perm!=="granted")throw new Error("Разрешение на Push не выдано");
       const reg=await navigator.serviceWorker.register("/sw.js").then(()=>navigator.serviceWorker.ready);
@@ -268,7 +305,8 @@ app.get("/m/reminders", (_req,res) => {
       try{
         const x=JSON.parse(localStorage.getItem(cfgKey)||"null"); if(!x)return;
         if(Array.isArray(x.days))document.querySelectorAll(".remDay").forEach(i=>i.checked=x.days.includes(Number(i.value)));
-        document.getElementById("chPush").checked=Boolean(x.push);
+        const pushBox=document.getElementById("chPush");
+        if(!pushBox.disabled)pushBox.checked=Boolean(x.push);
         document.getElementById("chEmail").checked=Boolean(x.email);
         document.getElementById("chTelegram").checked=Boolean(x.telegram);
         document.getElementById("chWhatsapp").checked=Boolean(x.whatsapp);
@@ -321,8 +359,13 @@ app.get("/m/reminders", (_req,res) => {
     }
     document.getElementById("saveReminders").onclick=save;
     document.getElementById("disableReminders").onclick=disable;
-    restore(); loadStatus();
-    if(localStorage.getItem(tokenKey))say("На этом устройстве уже есть сохранённая подписка.");
+    (async()=>{
+      await loadStatus();
+      restore();
+      const pushBox=document.getElementById("chPush");
+      if(pushBox.disabled)pushBox.checked=false;
+      if(localStorage.getItem(tokenKey))say("На этом устройстве уже есть сохранённая подписка.");
+    })();
   })();
   </script>`}));
 });
