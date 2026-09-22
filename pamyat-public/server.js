@@ -49,6 +49,8 @@ app.use((req,res,next)=>{
     p.startsWith("/api/admin/cemetery/") ||
     p.startsWith("/api/admin/identification") ||
     p.startsWith("/api/family/") ||
+    p.startsWith("/api/admin/family/person/") ||
+    p.startsWith("/api/admin/family/relation/") ||
     p.startsWith("/qr/cemetery/") ||
     p==="/m/catalog" ||
     p==="/m/map" ||
@@ -1228,7 +1230,7 @@ app.get("/api/admin/queue", requireAdmin, async (_req, res) => {
   try {
     const data = await sb("rpc/memorial_admin_extended_queue", { method: "POST", body: { p_token: ADMIN_TOKEN } });
     const base = data.base || {};
-    res.json({ ...base, family_people: data.family_people || [], family_relations: data.family_relations || [], corrections: data.corrections || [] });
+    res.json({ ...base, corrections: data.corrections || [] });
   } catch (e) {
     console.error("admin queue", e.data || e);
     res.status(500).json({ error: "admin_failed" });
