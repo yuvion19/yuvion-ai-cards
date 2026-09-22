@@ -91,6 +91,7 @@ app.get("/m", (_req,res) => {
     <div class="nav">
       <a class="btn" href="/m/add">+ Добавить событие</a>
       <a class="btn" href="/m/calendar">Календарь</a>
+      <a class="btn" href="/m/reminders">Напоминания</a>
       <a class="btn" href="/api/selftest">Проверка системы</a>
       <a class="btn secondary" href="/m/admin">Модерация</a>
     </div>
@@ -160,6 +161,101 @@ app.get("/m/calendar", async (_req,res) => {
   } catch(e) {
     res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить календарь.</div>'));
   }
+});
+
+
+app.get("/m/reminders", (_req,res) => {
+  res.setHeader("Cache-Control","no-store, no-cache, must-revalidate");
+  res.send(mobileShell("Напоминания", `
+    <h1>Напоминания</h1>
+    <p class="muted">Разрешите уведомления один раз. После этого система сможет напоминать о ближайших памятных датах на этом устройстве.</p>
+
+    <div class="card">
+      <h3 style="margin-top:0">Когда напоминать</h3>
+      <div class="check"><input type="checkbox" class="remDay" value="30"><span>За 30 дней</span></div>
+      <div class="check"><input type="checkbox" class="remDay" value="14"><span>За 14 дней</span></div>
+      <div class="check"><input type="checkbox" class="remDay" value="7" checked><span>За 7 дней</span></div>
+      <div class="check"><input type="checkbox" class="remDay" value="3"><span>За 3 дня</span></div>
+      <div class="check"><input type="checkbox" class="remDay" value="1" checked><span>За 1 день</span></div>
+      <div class="check"><input type="checkbox" class="remDay" value="0" checked><span>В день события</span></div>
+
+      <label>Email (необязательно)</label>
+      <input id="remEmail" class="field" type="email" autocomplete="email" placeholder="name@example.com">
+      <div class="check"><input id="remEmailEnabled" type="checkbox"><span>Также отправлять на email, если почтовый канал включён</span></div>
+
+      <button id="enableReminders" class="btn" style="width:100%;margin-top:12px">Включить напоминания</button>
+      <button id="disableReminders" class="btn secondary" style="width:100%;margin-top:8px">Отключить на этом устройстве</button>
+      <div id="remStatus" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <b>Как это работает</b>
+      <p class="muted" style="margin-bottom:0">Сервер проверяет приближающиеся даты регулярно. Уведомления не включаются автоматически: браузер сначала попросит ваше разрешение.</p>
+    </div>
+  `, {scripts:`<script>
+  (()=>{
+    const status=document.getElementById("remStatus");
+    const tokenKey="pamyat_device_token";
+    const b64ToUint=s=>{
+      const pad="=".repeat((4-s.length%4)%4),base=(s+pad).replace(/-/g,"+").replace(/_/g,"/");
+      const raw=atob(base);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+    };
+    const say=(msg,ok=true)=>status.innerHTML='<div class="'+(ok?"ok":"err")+'">'+msg+'</div>';
+    async function sw(){
+      if(!("serviceWorker" in navigator))throw new Error("Этот браузер не поддерживает service worker");
+      return navigator.serviceWorker.register("/sw.js").then(()=>navigator.serviceWorker.ready);
+    }
+    async function enable(){
+      try{
+        if(!("Notification" in window)||!("PushManager" in window))throw new Error("Push-уведомления не поддерживаются этим браузером");
+        const perm=await Notification.requestPermission();
+        if(perm!=="granted")throw new Error("Разрешение на уведомления не выдано");
+        const reg=await sw();
+        const k=await fetch("/api/push/public-key",{cache:"no-store"}).then(r=>r.json());
+        if(!k.configured||!k.key)throw new Error("Сервер push пока не настроен");
+        let sub=await reg.pushManager.getSubscription();
+        if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToUint(k.key)});
+        const days=[...document.querySelectorAll(".remDay:checked")].map(x=>Number(x.value));
+        if(!days.length)throw new Error("Выберите хотя бы один срок");
+        const email=document.getElementById("remEmail").value.trim();
+        const body={
+          subscription:sub.toJSON(),
+          timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC",
+          locale:navigator.language||"ru",
+          reminder_days:days,
+          email:email||null,
+          email_enabled:Boolean(email&&document.getElementById("remEmailEnabled").checked)
+        };
+        const r=await fetch("/api/push/subscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        const data=await r.json();
+        if(!r.ok)throw new Error(data.error||("HTTP "+r.status));
+        if(data.device_token)localStorage.setItem(tokenKey,data.device_token);
+        localStorage.setItem("pamyat_reminder_days",JSON.stringify(days));
+        localStorage.setItem("pamyat_reminder_email",email);
+        say("Напоминания включены на этом устройстве.");
+      }catch(e){say(e.message||"Не удалось включить уведомления",false)}
+    }
+    async function disable(){
+      try{
+        const t=localStorage.getItem(tokenKey);
+        if(t)await fetch("/api/push/unsubscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({device_token:t})});
+        const reg=("serviceWorker" in navigator)?await navigator.serviceWorker.ready:null;
+        const sub=reg?await reg.pushManager.getSubscription():null;
+        if(sub)await sub.unsubscribe();
+        localStorage.removeItem(tokenKey);
+        say("Напоминания отключены на этом устройстве.");
+      }catch(e){say(e.message||"Не удалось отключить",false)}
+    }
+    document.getElementById("enableReminders").onclick=enable;
+    document.getElementById("disableReminders").onclick=disable;
+    try{
+      const saved=JSON.parse(localStorage.getItem("pamyat_reminder_days")||"[]");
+      if(saved.length)document.querySelectorAll(".remDay").forEach(x=>x.checked=saved.includes(Number(x.value)));
+      document.getElementById("remEmail").value=localStorage.getItem("pamyat_reminder_email")||"";
+      if(localStorage.getItem(tokenKey))say("На этом устройстве уже есть активная подписка.");
+    }catch{}
+  })();
+  </script>`}));
 });
 
 app.get("/m/add", async (_req,res) => {
@@ -409,7 +505,7 @@ app.get("/api/selftest", async (_req,res)=>{
   try{
     const db=await sb("rpc/memorial_selftest",{method:"POST",body:{}});
     const ok=Boolean(db?.ok);
-    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/add","/m/calendar","/m/admin"],release:"memory-calendar"});
+    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/add","/m/calendar","/m/reminders","/m/admin"],release:"memory-calendar"});
   }catch(e){res.status(503).json({ok:false,error:"selftest_failed",detail:e.data||e.message})}
 });
 
