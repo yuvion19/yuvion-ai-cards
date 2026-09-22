@@ -2671,7 +2671,7 @@ app.get("/api/events/:eventId.ics", async (req, res) => {
       "SUMMARY:" + escIcs(e.event_type + " — " + e.full_name),
       "LOCATION:" + escIcs([e.place,e.city].filter(Boolean).join(", ")),
       "DESCRIPTION:" + escIcs(e.note || ""),
-      "URL:" + escIcs((APP_PUBLIC_URL || "").replace(/\/$/,"") + "/m/memorial/" + e.id + suffix),
+      "URL:" + escIcs((PUBLIC_BASE_URL || APP_PUBLIC_URL || "").replace(/\/$/,"") + "/m/memorial/" + e.id + suffix),
       "END:VEVENT","END:VCALENDAR"
     );
     const ics=lines.join("\r\n");
@@ -3471,13 +3471,15 @@ function notificationText(item) {
     he:{urgent:"הודעה דחופה",today:"היום",tomorrow:"מחר",days:n=>"בעוד "+n+" ימים",open:"פתיחת דף הזיכרון",
       types:{"Памятная дата":"יום זיכרון","Похороны":"לוויה","Йорцайт":"יארצייט","Годовщина":"יום שנה"}},
     az:{urgent:"təcili elan",today:"bu gün",tomorrow:"sabah",days:n=>n+" gün sonra",open:"Xatirə səhifəsini aç",
-      types:{"Памятная дата":"Xatirə tarixi","Похороны":"Dəfn","Йорцайт":"Yortsayt","Годовщина":"İldönümü"}}
+      types:{"Памятная дата":"Xatirə tarixi","Похороны":"Dəfn","Йорцайт":"Yortsayt","Годовщина":"İldönümü"}},
+    juuri:{urgent:"Срочное объявление",today:"Имуруз",tomorrow:"Себэхь",days:n=>n+" руз",open:"Открыть страницу ёр",
+      types:{"Памятная дата":"Ёр","Похороны":"Похороны","Йорцайт":"Йорцайт","Годовщина":"Годовщина"}}
   };
   const d=dict[lang]||dict.ru;
   const when=item.reminder_days===-1?d.urgent:item.reminder_days===0?d.today:item.reminder_days===1?d.tomorrow:d.days(item.reminder_days);
   const eventType=d.types[item.event_type]||item.event_type||d.types["Памятная дата"];
   const privateKey=/^[0-9a-f-]{36}$/i.test(String(item.share_token||""))?String(item.share_token):"";
-  const url=(APP_PUBLIC_URL||PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(item.event_id)+(privateKey?"?key="+encodeURIComponent(privateKey):"");
+  const url=(PUBLIC_BASE_URL||APP_PUBLIC_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(item.event_id)+(privateKey?"?key="+encodeURIComponent(privateKey):"");
   return { title: eventType + " — " + when, body: item.full_name + " · " + item.event_date + (item.place ? " · " + item.place : ""), url, openLabel:d.open };
 }
 async function sendEmailAddress(address, text) {
@@ -4025,14 +4027,15 @@ app.get("/api/admin/stats", requireAdmin, async (_req,res) => {
 
 function adminBroadcastText(e,mode,locale="ru"){
   const privateKey=/^[0-9a-f-]{36}$/i.test(String(e.share_token||""))?String(e.share_token):"";
-  const url=(APP_PUBLIC_URL||PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(e.id)+(e.visibility==="public"?"":privateKey?"?key="+encodeURIComponent(privateKey):"");
+  const url=(PUBLIC_BASE_URL||APP_PUBLIC_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(e.id)+(e.visibility==="public"?"":privateKey?"?key="+encodeURIComponent(privateKey):"");
   const when=[e.event_date,e.event_time].filter(Boolean).join(" "),where=[e.place,e.city].filter(Boolean).join(" · "),current=[e.full_name,when,where].filter(Boolean).join(" · ");
   const lang=String(locale||"ru").toLowerCase().split(/[-_]/)[0];
   const dict={
     ru:{update:"Изменение события",announce:"Напоминание",correction:"Исправление уведомления",wrong:"Предыдущее сообщение было отправлено ошибочно. Актуальная информация:"},
     en:{update:"Event update",announce:"Reminder",correction:"Notification correction",wrong:"The previous notification was sent in error. Current information:"},
     he:{update:"עדכון אירוע",announce:"תזכורת",correction:"תיקון הודעה",wrong:"ההודעה הקודמת נשלחה בטעות. המידע העדכני:"},
-    az:{update:"Hadisə yeniləməsi",announce:"Xatırlatma",correction:"Bildiriş düzəlişi",wrong:"Əvvəlki bildiriş səhvən göndərilmişdi. Aktual məlumat:"}
+    az:{update:"Hadisə yeniləməsi",announce:"Xatırlatma",correction:"Bildiriş düzəlişi",wrong:"Əvvəlki bildiriş səhvən göndərilmişdi. Aktual məlumat:"},
+    juuri:{update:"Ёр — изменение",announce:"Ёр",correction:"Ёр — исправление",wrong:"Актуальная информация:"}
   };
   const d=dict[lang]||dict.ru,eventType=e.event_type||"Памятная дата";
   if(mode==="correction")return {title:d.correction+" — "+eventType,body:d.wrong+" "+current,url};
@@ -4253,7 +4256,7 @@ app.post("/api/admin/events/draft", requireAdminRole, async (req,res)=>{
 app.post("/api/admin/test-notification", requireAdminRole, rateLimit("admin-test-notification",20,60*60*1000), async (req,res)=>{
   try{
     const channel=clean(req.body?.channel,20),destination=clean(req.body?.destination,180);
-    const text={title:"Память — тест администратора",body:"Тестовое сообщение перед общей рассылкой.",url:(APP_PUBLIC_URL||PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m"};
+    const text={title:"Память — тест администратора",body:"Тестовое сообщение перед общей рассылкой.",url:(PUBLIC_BASE_URL||APP_PUBLIC_URL||"").replace(/\/$/,"")+"/m"};
     if(channel==="email"){
       const address=destination||req.adminIdentity?.email||"";
       if(!validReminderEmail(address))return res.status(400).json({error:"valid_email_required"});
