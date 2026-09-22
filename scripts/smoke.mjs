@@ -25,7 +25,8 @@ if(openDetails!==closeDetails)fail('details tags unbalanced '+openDetails+'/'+cl
 
 const required=[
   'excelAutopilot','publishCenter','confirmationCenter','operationsV64',
-  'queueBudgetUsd','storageManager','labelOcrBox','networkPill'
+  'queueBudgetUsd','storageManager','labelOcrBox','networkPill',
+  'productUrlInput','importProductUrl','urlImportStatus','sourceReference'
 ];
 const missing=required.filter(id=>!ids.includes(id));
 if(missing.length)fail('required v6.5 UI ids missing: '+missing.join(', '));else ok('required v6.5 UI present');
@@ -37,11 +38,27 @@ const features=[
   ['previewMappedImportDiff','Excel diff'],
   ['restoreLastImportSnapshot','Excel rollback'],
   ['fetchJsonRetry','safe retry'],
-  ['Yuvion Helper 3.0','Helper 3.0']
+  ['Yuvion Helper 3.0','Helper 3.0'],
+  ['/api/import-url','public product URL import'],
+  ['validatePublicHttpUrl','URL SSRF validation'],
+  ['isBlockedIp','private IP protection'],
+  ['Сайт-источник','URL provenance marker'],
+  ['hydrateExcelItemFromUrl','Excel URL hydration'],
+  ["key:'sourceUrl'",'Excel URL column mapping'],
+  ['urlImportPending','resumable URL import state'],
+  ['safeRasterTypes','remote SVG rejection'],
+  ['embeddedPublicJson','modern storefront embedded JSON fallback']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
 }
+
+const urlSecurity=[
+  'MAX_REMOTE_HTML_BYTES','MAX_REMOTE_IMAGE_BYTES','REMOTE_FETCH_TIMEOUT_MS',
+  'localhost','169 && b === 254','192 && b === 168','redirect: "manual"','safeRasterTypes'
+];
+const missingUrlSecurity=urlSecurity.filter(needle=>!server.includes(needle));
+if(missingUrlSecurity.length)fail('URL import security guard missing: '+missingUrlSecurity.join(', '));else ok('URL import security guards present');
 
 const oldDomain='yuvioncards.online';
 if(html.includes(oldDomain)||server.includes(oldDomain))fail('retired domain is referenced');else ok('retired domain absent');
