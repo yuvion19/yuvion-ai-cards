@@ -1796,6 +1796,32 @@ function csvCell(v) {
   const s = String(v ?? "");
   return /[",\n]/.test(s) ? '"' + s.replaceAll('"', '""') + '"' : s;
 }
+function xmlEscape(v){
+  return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[m]));
+}
+
+app.get("/robots.txt", (_req,res) => {
+  const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
+  res.type("text/plain; charset=utf-8").send([
+    "User-agent: *","Allow: /m","Disallow: /m/admin","Disallow: /api/admin/","Disallow: /api/",
+    "Sitemap: "+base+"/sitemap.xml"
+  ].join("\n"));
+});
+
+app.get("/sitemap.xml", async (_req,res) => {
+  try{
+    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
+    const rows=await sb("rpc/memorial_event_search",{method:"POST",body:{p_query:"",p_city:"",p_type:"",p_limit:500}});
+    const staticPaths=["/m","/m/today","/m/calendar","/m/archive","/m/search","/m/wall"];
+    const urls=staticPaths.map(p=>({loc:base+p,priority:p==="/m"?"1.0":"0.7"}));
+    for(const e of rows||[])urls.push({loc:base+"/m/memorial/"+encodeURIComponent(e.id),lastmod:String(e.created_at||"").slice(0,10),priority:"0.6"});
+    const xml='<?xml version="1.0" encoding="UTF-8"?>'+
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+
+      urls.map(x=>'<url><loc>'+xmlEscape(x.loc)+'</loc>'+(x.lastmod?'<lastmod>'+xmlEscape(x.lastmod)+'</lastmod>':'')+'<priority>'+x.priority+'</priority></url>').join("")+
+      '</urlset>';
+    res.type("application/xml; charset=utf-8").send(xml);
+  }catch(e){console.error("sitemap",e.data||e);res.status(500).send("Failed")}
+});
 
 app.get("/health", async (_req, res) => {
   try {
