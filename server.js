@@ -11,6 +11,26 @@ import net from "node:net";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const AI_ANALYZE_TIMEOUT_MS = 45_000;
+
+async function withTimeout(promise, ms, message = "Операция заняла слишком много времени.") {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          const error = new Error(message);
+          error.code = "operation_timeout";
+          reject(error);
+        }, ms);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 const app = express();
 // Production release marker: v7.5.0
 app.set("trust proxy", 1);
@@ -1239,6 +1259,7 @@ app.get("/api/health", (_req, res) => {
     imagesEnabled,
     freeImageMode: true,
     freeImageAiCalls: 0,
+    analyzeTimeoutSeconds: AI_ANALYZE_TIMEOUT_MS / 1000,
     designEngine: {
       paletteFromProduct: true,
       categoryThemes: Object.keys(styleProfiles).length,
@@ -1325,7 +1346,7 @@ app.post("/api/analyze", async (req, res) => {
       analyzeContent.push({ type: "input_image", image_url: `data:${view.mimeType};base64,${view.image}`, detail: "high" });
     });
 
-    const response = await client.responses.create({
+    const response = await withTimeout(client.responses.create({
       model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
       instructions,
       input: [{
@@ -1341,7 +1362,7 @@ app.post("/api/analyze", async (req, res) => {
         }
       },
       max_output_tokens: 2600
-    });
+    }), AI_ANALYZE_TIMEOUT_MS, "AI-анализ превысил 45 секунд.");
 
     recordTextUsage(response);
     const raw = response.output_text;
@@ -1363,6 +1384,7 @@ app.post("/api/analyze", async (req, res) => {
     stats.analysisErrors += 1;
     recordError("analysis", error);
     console.error("AI analyze error:", { message: error?.message, status: error?.status, code: error?.code });
+    if (error?.code === "operation_timeout") return res.status(504).json({ error: "AI-анализ занял слишком много времени. Бесплатные изображения можно создавать без ожидания анализа." });
     if (error?.code === "credit_balance_exhausted") return res.status(402).json({ error: "На балансе OpenAI API закончились кредиты." });
     if (error?.status === 401) return res.status(503).json({ error: "AI-ключ недействителен." });
     if (error?.status === 429) return res.status(429).json({ error: "Достигнут лимит OpenAI API. Попробуйте немного позже." });
