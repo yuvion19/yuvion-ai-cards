@@ -135,7 +135,8 @@
     .simple-ui .smart-strip{max-width:900px;background:#132637;padding:10px 12px}.simple-ui .smart-strip>div:first-child{max-width:460px}.simple-ui .smart-strip-actions{justify-content:flex-end}
     .simple-ui #tenantProfile,.simple-ui #workDashboard,.simple-ui #operationsPanels,.simple-ui #batch{display:none!important}
     .simple-ui #history{display:none}.simple-ui.show-catalog #history{display:block}
-    .simple-ui .workspace.show{display:flex;flex-direction:column}.simple-ui .workspace-head{order:1}.simple-ui .revision-box{display:none!important}.simple-ui .product-cockpit{order:2;margin-top:12px}.simple-ui .editor{order:3}.simple-ui #creative{order:4}.simple-ui #yuvionExport{order:5}
+    .simple-ui .workspace.show{display:flex;flex-direction:column}.simple-ui .workspace-head{order:1}.simple-ui .revision-box{display:none!important}
+.simple-ui #designStudio{display:none!important}.simple-ui .product-cockpit{order:2;margin-top:12px}.simple-ui .editor{order:3}.simple-ui #creative{order:4}.simple-ui #yuvionExport{order:5}
     .simple-ui .cockpit-tabs,.simple-ui .private-work,.simple-ui .plan,.simple-ui .variations,.simple-ui .mode-row{display:none!important}
     .simple-ui .cockpit-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.simple-ui .cockpit-grid .cockpit-stat:nth-child(n+4){display:none}
     .simple-ui #moderationFix,.simple-ui #exportSecureProduct,.simple-ui #saveRevision{display:none!important}
@@ -1489,6 +1490,7 @@ let lastVisibleDraftIds=[];
 let pendingSimilarTemplate=null;
 let duplicateSkuId=null;
 let duplicateBarcodeId=null;
+let duplicatePhotoId=null;
 let currentBarcodeValid=true;
 let deferredInstallPrompt=null;
 let currentVariations=[];
@@ -2641,6 +2643,7 @@ function renderProductCockpit(){
   let action=nextActionForItem(pseudo,[]);
   if(duplicateSkuId)action={key:'sku',label:'Исправить дублирующийся SKU'};
   else if(duplicateBarcodeId)action={key:'sku',label:'Исправить дублирующийся штрихкод'};
+  else if(duplicatePhotoId)action={key:'photo',label:'Проверить дублирующееся главное фото'};
   cockpitName.textContent=d.seoTitle||'Товар';
   cockpitNext.textContent='Следующее действие: '+action.label+'.';
   cockpitReady.textContent=readiness.percent+'%';
@@ -2913,7 +2916,9 @@ function moderationChecks(){
     {label:'Технические факты подтверждены',ok:factBlockers(d).length===0,target:'factSourcesPanel'},
     {label:'Обязательные поля категории заполнены',ok:missingCategoryRequiredSpecs(d).length===0,target:'edSpecs'},
     {label:'Изображения соответствуют текущим данным',ok:!cardsStale,target:'generateAll'},
-    {label:'Нет известных критических ошибок изображений',ok:knownQaBlockers().length===0,target:'creative'},
+    {label:'Комплект прошёл QA',ok:currentCards.length===4&&Boolean(currentQuality),target:'creative'},
+    {label:'Нет известных критических ошибок изображений',ok:Boolean(currentQuality)&&knownQaBlockers().length===0,target:'creative'},
+    ...(currentPhotoHash?[{label:'Главное фото не дублирует другой товар',ok:!duplicatePhotoId,target:'photoHashWarning'}]:[]),
     ...(variationValidation().enabled?[
       {label:'Вариации заполнены',ok:variationValidation().complete,target:'variationsBox'},
       {label:'SKU вариаций уникальны',ok:variationValidation().unique,target:'variationsBox'},
@@ -2982,12 +2987,12 @@ function applyUiMode(mode,{save=true}={}){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
   document.body.classList.toggle('simple-ui',simple);
   if(!simple){document.body.classList.remove('show-catalog','export-details-open')}
-  if(uiModeToggle)uiModeToggle.textContent=simple?'Расширенный режим':'Простой режим';
+  if(uiModeToggle)uiModeToggle.textContent=simple?'Профессиональный режим':'Простой режим';
   if(stepExportNumber)stepExportNumber.textContent=simple?'3':'4';
   const strong=document.querySelector('.smart-strip>div:first-child strong');
   const note=document.querySelector('.smart-strip>div:first-child span');
-  if(strong)strong.textContent=simple?'Простой режим':'Расширенный режим';
-  if(note)note.textContent=simple?'Показываем только действия, необходимые для текущего товара.':'Все инструменты каталога, склада, batch, правил и версий доступны на экране.';
+  if(strong)strong.textContent=simple?'Простой режим':'Профессиональный режим';
+  if(note)note.textContent=simple?'Показываем только действия, необходимые для текущего товара.':'Профессиональный режим: все инструменты дизайна, каталога, склада, batch, правил и версий доступны на экране.';
   if(save)localStorage.setItem(UI_MODE_KEY,simple?'simple':'advanced');
   renderFocusPanel();
   updateWorkflow();
@@ -3019,6 +3024,7 @@ function renderFocusPanel(){
   let action=nextActionForItem(pseudo,[]);
   if(duplicateSkuId)action={key:'sku',label:'Исправить SKU'};
   else if(duplicateBarcodeId)action={key:'sku',label:'Исправить штрихкод'};
+  else if(duplicatePhotoId)action={key:'photo',label:'Проверить дубль главного фото'};
   if(info.percent===100){
     focusTitle.textContent='Товар готов к Yuvion';
     focusText.textContent='Проверка готовности завершена. Можно открыть кабинет или перенести данные через Helper.';
@@ -3474,9 +3480,10 @@ function hammingHex(a,b){
 }
 
 async function checkPhotoDuplicate(hash=currentPhotoHash){
+  duplicatePhotoId=null;
   photoHashWarning.className='photo-hash-warning';
   photoHashWarning.textContent='';
-  if(!hash)return null;
+  if(!hash){if(currentData)renderReadiness();return null}
   try{
     const all=await dbAll();
     let best=null,bestDistance=99;
@@ -3485,14 +3492,23 @@ async function checkPhotoDuplicate(hash=currentPhotoHash){
       const distance=hammingHex(hash,item.photoHash);
       if(distance<bestDistance){bestDistance=distance;best=item}
     }
+    if(best&&bestDistance===0){
+      duplicatePhotoId=best.id;
+      photoHashWarning.className='photo-hash-warning warn';
+      photoHashWarning.textContent='Это же главное фото уже используется у товара «'+String(best.title||'другой товар')+'». Публикация заблокирована до замены фото или проверки дубля.';
+      if(currentData)renderReadiness();
+      return best;
+    }
     if(best&&bestDistance<=5){
       photoHashWarning.className='photo-hash-warning warn';
-      photoHashWarning.textContent='Похоже, это фото уже использовалось у товара «'+String(best.title||'другой товар')+'»'+(bestDistance===0?' (совпадение изображения).':' (очень похожее изображение).');
+      photoHashWarning.textContent='Найдено очень похожее фото у товара «'+String(best.title||'другой товар')+'». Это предупреждение: проверьте, не создаёте ли вы дубль.';
+      if(currentData)renderReadiness();
       return best;
     }
     photoHashWarning.className='photo-hash-warning ok';
     photoHashWarning.textContent='Похожих исходных фотографий в локальном каталоге не найдено.';
   }catch{}
+  if(currentData)renderReadiness();
   return null;
 }
 
@@ -3982,6 +3998,8 @@ async function createImmediateFreeCards(file){
     creativeStatus.textContent='4 изображения уже готовы. Анализируем товар в фоне и затем обновим только текстовую инфографику.';
     addCurrentActivity('Быстрый бесплатный комплект','4 карточки созданы до завершения AI-анализа');
     await saveHistory();
+    await checkQualityAndAutofix(false);
+    addCurrentActivity('Быстрый бесплатный QA','4 карточки проверены локально до завершения текстового анализа');
     return currentCards.length===4;
   }catch(e){
     creativeStatus.className='creative-status show fail';
@@ -4408,7 +4426,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentPalette=[];currentDesignVariant=0;currentDesignIntensity='selling';currentDesignSubstyle='auto';currentDesignSnapshots=[];currentVisualOptions={showBrand:true,showTitle:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,showPrice:false,coverTitle:'',season:'none',safeZone:false};currentComposition={scale:1,shiftX:0,shiftY:0};currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentPalette=[];currentDesignVariant=0;currentDesignIntensity='selling';currentDesignSubstyle='auto';currentDesignSnapshots=[];currentVisualOptions={showBrand:true,showTitle:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,showPrice:false,coverTitle:'',season:'none',safeZone:false};currentComposition={scale:1,shiftX:0,shiftY:0};currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;duplicatePhotoId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
@@ -4564,6 +4582,7 @@ function storedReadiness(item){
     duplicateCharacteristicNames(d).length===0,
     storedFactBlockers(item).length===0,
     missingCategoryRequiredSpecs(d).length===0,
+    Boolean(item?.quality),
     storedQaBlockers(item).length===0,
     !item?.cardsStale,
     Array.isArray(item?.cards)&&item.cards.length===4
@@ -4821,6 +4840,12 @@ function duplicateBarcodeInCatalog(item,allItems){
   return (allItems||[]).find(other=>other?.id!==item?.id&&barcodeOfStoredItem(other)===barcode)||null;
 }
 
+function duplicatePhotoInCatalog(item,allItems){
+  const hash=String(item?.photoHash||'');
+  if(!hash)return null;
+  return (allItems||[]).find(other=>other?.id!==item?.id&&String(other?.photoHash||'')===hash)||null;
+}
+
 
 async function togglePublished(id){
   const item=await dbGet(id);
@@ -4839,6 +4864,11 @@ async function togglePublished(id){
     const barcodeDuplicate=duplicateBarcodeInCatalog(item,all);
     if(barcodeDuplicate){
       alert('Нельзя отметить товар опубликованным: штрихкод уже используется в товаре «'+String(barcodeDuplicate.title||'другой товар')+'».');
+      return;
+    }
+    const photoDuplicate=duplicatePhotoInCatalog(item,all);
+    if(photoDuplicate){
+      alert('Нельзя отметить товар опубликованным: главное фото полностью совпадает с товаром «'+String(photoDuplicate.title||'другой товар')+'».');
       return;
     }
   }
@@ -6654,7 +6684,7 @@ async function restoreHistory(item){
   currentDesignSnapshots=Array.isArray(item.designSnapshots)?item.designSnapshots.slice(0,8):[];
   fillExtraData(item.extraData||item.data?.confirmedData||{});
   fillPrivateData(item.privateData||{});
-  duplicateSkuId=null;
+  duplicateSkuId=null;duplicatePhotoId=null;
   checkDuplicateSku();checkBarcodeState('product');checkPhotoDuplicate(currentPhotoHash);
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   preview.src=sourceDataUrl||'';

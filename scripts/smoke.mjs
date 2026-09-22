@@ -124,7 +124,15 @@ const features=[
   ['renderSelections = [0, 1, 2, 3]','card-specific source routing'],
   ['powerLocalRenderer: true','power renderer health metadata'],
   ['multiPhotoScenes: true','multi-photo health metadata'],
-  ['additionalPhotosForRender','client render-photo payload']
+  ['additionalPhotosForRender','client render-photo payload'],
+  ['duplicatePhotoId','exact duplicate-photo guard'],
+  ['Комплект прошёл QA','QA readiness gate'],
+  ['Быстрый бесплатный QA','immediate free-card QA'],
+  ['.simple-ui #designStudio{display:none!important}','simple mode hides professional design studio'],
+  ['Профессиональный режим','professional UI mode naming'],
+  ['autopilotQa: true','autopilot QA health metadata'],
+  ['duplicatePhotoGuard: true','duplicate photo health metadata'],
+  ['simpleProfessionalModes: true','simple/professional health metadata']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
