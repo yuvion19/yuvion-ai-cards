@@ -249,6 +249,15 @@ app.get("/m/memorial/:id", async (req,res) => {
         <button class="btn secondary" id="sendClaim" style="width:100%;margin-top:8px">Отправить подтверждение</button>
       </div>
 
+      <div class="card">
+        <h3>Сообщить об ошибке</h3>
+        <select id="corrField" class="field"><option value="full_name">ФИО</option><option value="event_date">Дата</option><option value="place">Место</option><option value="note">Описание</option></select>
+        <input id="corrCurrent" class="field" placeholder="Сейчас указано" style="margin-top:8px">
+        <input id="corrProposed" class="field" placeholder="Предлагаемое исправление" style="margin-top:8px">
+        <input id="corrName" class="field" placeholder="Ваше имя" style="margin-top:8px">
+        <input id="corrContact" class="field" placeholder="Контакт модератору" style="margin-top:8px">
+        <button class="btn secondary" id="sendCorrection" style="width:100%;margin-top:8px">Отправить исправление</button>
+      </div>
       <h3>Добрые слова</h3>
       ${comments||'<div class="card muted">Пока нет опубликованных сообщений.</div>'}
       <div class="card">
@@ -269,6 +278,11 @@ app.get("/m/memorial/:id", async (req,res) => {
         const body={claimant_name:document.getElementById("claimName").value,relation_type:document.getElementById("claimRelation").value,contact:document.getElementById("claimContact").value,evidence_note:document.getElementById("claimEvidence").value};
         const r=await fetch("/api/events/${req.params.id}/relative-claim",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
         say(r.ok?"Отправлено на проверку.":"Не удалось отправить.",r.ok)
+      };
+      document.getElementById("sendCorrection").onclick=async()=>{
+        const body={event_id:"${req.params.id}",field_name:document.getElementById("corrField").value,current_value:document.getElementById("corrCurrent").value,proposed_value:document.getElementById("corrProposed").value,requester_name:document.getElementById("corrName").value,requester_contact:document.getElementById("corrContact").value};
+        const r=await fetch("/api/corrections",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        say(r.ok?"Исправление отправлено на модерацию.":"Не удалось отправить исправление.",r.ok)
       };
       document.getElementById("sendComment").onclick=async()=>{
         const body={author:document.getElementById("commentAuthor").value,body:document.getElementById("commentBody").value};
@@ -695,6 +709,8 @@ app.get("/m/admin", (_req,res) => {
       <div id="mAdminList"></div>
       <div id="mAdminDetail"></div>
 
+      <h2 style="font-size:20px;margin:22px 0 8px">Дополнительная модерация</h2>
+      <div id="mAdminExtras"></div>
       <h2 style="font-size:20px;margin:22px 0 8px">Доставка уведомлений</h2>
       <div id="mAdminDelivery"></div>
     </div>
@@ -776,6 +792,21 @@ app.get("/m/admin", (_req,res) => {
         '<span class="tag">Подписки: '+s.active_subscriptions+'</span><span class="tag">Свечи: '+s.candles+'</span>'+
         '<span class="tag">Доставки 24ч: '+s.deliveries_24h+'</span><span class="tag">Ошибки 24ч: '+s.failed_attempts_24h+'</span>';
     }
+    async function extraAction(kind,id,act){
+      await api("/api/admin/moderation/"+encodeURIComponent(kind)+"/"+encodeURIComponent(id)+"/"+encodeURIComponent(act),{method:"POST"});
+      await loadExtras();await loadStats();
+    }
+    async function loadExtras(){
+      const q=await api("/api/admin/queue");
+      const comments=q.comments||[],claims=q.claims||[],reports=q.reports||[],corr=q.corrections||[];
+      const blocks=[];
+      for(const x of comments)blocks.push('<div class="card"><b>Комментарий</b><div>'+esc(x.body||"")+'</div><div class="row" style="margin-top:8px"><button class="btn" data-extra-kind="comment" data-extra-id="'+x.id+'" data-extra-act="approve">Одобрить</button><button class="btn secondary" data-extra-kind="comment" data-extra-id="'+x.id+'" data-extra-act="reject">Отклонить</button></div></div>');
+      for(const x of claims)blocks.push('<div class="card"><b>Подтверждение родственника</b><div>'+esc(x.claimant_name||"")+' · '+esc(x.relation_type||"")+'</div><div class="muted">'+esc(x.contact||"")+'</div><div class="row" style="margin-top:8px"><button class="btn" data-extra-kind="claim" data-extra-id="'+x.id+'" data-extra-act="approve">Подтвердить семью</button><button class="btn secondary" data-extra-kind="claim" data-extra-id="'+x.id+'" data-extra-act="reject">Отклонить</button></div></div>');
+      for(const x of reports)blocks.push('<div class="card"><b>Жалоба / ошибка</b><div>'+esc(x.reason||"")+'</div><div class="muted">'+esc(x.details||"")+'</div><div class="row" style="margin-top:8px"><button class="btn secondary" data-extra-kind="report" data-extra-id="'+x.id+'" data-extra-act="close">Закрыть</button></div></div>');
+      for(const x of corr)blocks.push('<div class="card"><b>Исправление данных</b><div>'+esc(x.field_name||"")+'</div><div><s>'+esc(x.current_value||"")+'</s> → '+esc(x.proposed_value||"")+'</div><div class="row" style="margin-top:8px"><button class="btn" data-extra-kind="correction" data-extra-id="'+x.id+'" data-extra-act="approve">Принять</button><button class="btn secondary" data-extra-kind="correction" data-extra-id="'+x.id+'" data-extra-act="reject">Отклонить</button></div></div>');
+      qs("#mAdminExtras").innerHTML=blocks.join("")||'<div class="card muted">Нет заявок на дополнительную модерацию.</div>';
+      qs("#mAdminExtras").querySelectorAll("[data-extra-kind]").forEach(b=>b.onclick=()=>extraAction(b.dataset.extraKind,b.dataset.extraId,b.dataset.extraAct).catch(e=>alert(e.message)));
+    }
     async function loadDelivery(){
       const d=await api("/api/admin/notifications?limit=40");
       const rows=(d.attempts||[]).slice(0,40);
@@ -786,7 +817,7 @@ app.get("/m/admin", (_req,res) => {
     async function load(){
       const q=qs("#mAdminSearch").value.trim(),status=qs("#mAdminStatus").value;
       const data=await api("/api/admin/events/list?"+new URLSearchParams({status,q,limit:"300"}));
-      render(data); await Promise.all([loadStats(),loadDelivery()]);
+      render(data); await Promise.all([loadStats(),loadDelivery(),loadExtras()]);
     }
     async function showApp(){
       qs("#adminLoginCard").style.display="none";qs("#mAdminApp").style.display="block";await load();
@@ -2126,6 +2157,13 @@ app.post("/api/admin/auth/logout", (_req,res) => {
   res.json({ok:true});
 });
 
+
+app.post("/api/admin/moderation/:kind/:id/:action", requireAdmin, async (req,res)=>{
+  try{
+    const data=await sb("rpc/memorial_admin_moderation_action",{method:"POST",body:{p_token:ADMIN_TOKEN,p_kind:clean(req.params.kind,30),p_id:req.params.id,p_action:clean(req.params.action,30)}});
+    res.json(data);
+  }catch(e){console.error("moderation action",e.data||e);res.status(400).json({error:"moderation_failed"})}
+});
 
 app.get("/api/admin/stats", requireAdmin, async (_req,res) => {
   try{res.json(await sb("rpc/memorial_admin_stats",{method:"POST",body:{p_token:ADMIN_TOKEN}}))}
