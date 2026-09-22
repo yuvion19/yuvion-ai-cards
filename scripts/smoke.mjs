@@ -251,7 +251,7 @@ if(!server.includes('textPixels < 80'))fail('text overlay pixel threshold missin
 
 if(!server.includes('fontRenderState.ready && textOverlayGuardState.ready'))fail('health must gate on font and overlay guard');else ok('health gates on font and overlay guard');
 
-if(!server.includes('visualQaVersion: 3'))fail('local QA v3 response marker missing');else ok('local QA v3 response marker present');
+if(!server.includes('visualQaVersion: 4'))fail('local QA v4 response marker missing');else ok('local QA v4 response marker present');
 if(!html.includes('syncQualityDownloadState'))fail('QA download gate missing');else ok('QA download gate present');
 if(!html.includes('Скачивание заблокировано: QA нашла карточки'))fail('blocked package messaging missing');else ok('blocked package messaging present');
 if(!html.includes('for(let round=0;round<2;round+=1)'))fail('bounded multi-round auto-fix missing');else ok('bounded multi-round auto-fix present');
