@@ -761,8 +761,11 @@ app.get("/m/admin/auth/callback", (_req,res) => {
     const box=document.getElementById("authState");
     try{
       const loginToken=new URLSearchParams(location.search).get("token");
-      if(!loginToken)throw new Error("В ссылке нет действующего токена.");
-      const r=await fetch("/api/admin/auth/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({login_token:loginToken})});
+      const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+      const accessToken=hash.get("access_token");
+      if(!loginToken&&!accessToken)throw new Error("В ссылке нет действующей авторизации.");
+      const payload=loginToken?{login_token:loginToken}:{access_token:accessToken};
+      const r=await fetch("/api/admin/auth/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
       const d=await r.json();
       if(!r.ok)throw new Error(d.error||"Не удалось войти");
       box.innerHTML='<div class="ok">Вход выполнен. Перенаправление…</div>';
@@ -984,9 +987,21 @@ app.get("/m/admin", (_req,res) => {
       qs("#mAdminDetail").innerHTML='<div class="card" style="border-width:2px">'+badge(e)+'<h2>'+esc(e.full_name||"Без имени")+'</h2>'+
         '<div><b>'+esc(e.event_type||"")+'</b> · '+esc(e.event_date||"")+'</div>'+
         '<p><b>Дата смерти:</b> '+esc(e.death_date||"—")+'<br><b>Заявитель:</b> '+esc(e.submitter_name||"—")+
-        '<br><b>Контакт:</b> '+esc(e.submitter_contact||"—")+'</p>'+(e.note?'<p>'+esc(e.note)+'</p>':"")+buttons(e)+'</div>'+
+        '<br><b>Контакт:</b> '+esc(e.submitter_contact||"—")+'</p>'+(e.note?'<p>'+esc(e.note)+'</p>':"")+buttons(e)+
+        '<button class="btn secondary" id="deletePerson" style="width:100%;margin-top:10px;background:#f5e2e2">Удалить человека</button>'+
+        '<div class="muted" style="margin-top:6px">Будут убраны все связанные памятные даты этого человека. Записи останутся в разделе «Скрыто» и смогут быть восстановлены.</div></div>'+
         '<h3>История</h3>'+(history||'<div class="muted">Изменений пока нет.</div>');
-      bind(qs("#mAdminDetail"));qs("#mAdminDetail").scrollIntoView({behavior:"smooth"});
+      bind(qs("#mAdminDetail"));
+      qs("#deletePerson").onclick=async()=>{
+        if(!confirm("Удалить человека «"+(e.full_name||"")+"» и убрать все связанные памятные даты из публичной части?"))return;
+        try{
+          const r=await api("/api/admin/events/"+encodeURIComponent(id)+"/delete-person",{method:"POST"});
+          alert("Удалено из публичной части событий: "+(r.hidden_events??0));
+          qs("#mAdminDetail").innerHTML="";
+          await load();
+        }catch(err){alert(err.message)}
+      };
+      qs("#mAdminDetail").scrollIntoView({behavior:"smooth"});
     }
 
     qs("#backupTest").onclick=async()=>{try{const r=await api("/api/admin/backup/test",{method:"POST"});alert(r.ok?"Внешняя резервная копия отправлена.":"Внешний backup ещё не настроен.")}catch(e){alert("Backup: "+e.message)}};
@@ -2277,25 +2292,53 @@ app.post("/api/admin/setup-email", requireAdmin, rateLimit("admin-setup-email",8
 });
 
 app.post("/api/admin/auth/request", rateLimit("admin-auth-request",6,15*60*1000), async (req,res) => {
-  const generic={ok:true,message:"Если адрес разрешён для админ-панели, ссылка входа отправлена."};
+  const generic={ok:true,message:"Ссылка входа отправлена на разрешённый email. Проверьте также папку «Спам»."};
   try{
     const email=clean(req.body?.email,180).toLowerCase();
     if(!validReminderEmail(email))return res.json(generic);
     const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
     if(!allowed?.allowed)return res.json(generic);
+
+    const redirect=(PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/admin/auth/callback";
+
+    // Primary path: Supabase Auth's email delivery, so admin login does not depend on a verified Resend domain.
+    try{
+      const otp=await fetch(SUPABASE_URL+"/auth/v1/otp?redirect_to="+encodeURIComponent(redirect),{
+        method:"POST",
+        headers:{apikey:SUPABASE_ANON_KEY,"content-type":"application/json"},
+        body:JSON.stringify({email,create_user:true})
+      });
+      if(otp.ok)return res.json({...generic,provider:"supabase"});
+      console.error("admin supabase otp",otp.status,await otp.text());
+    }catch(e){console.error("admin supabase otp",e.message)}
+
+    // Fallback: custom one-time link through Resend when a verified sender is configured.
     if(!RESEND_API_KEY||!RESEND_FROM)return res.status(503).json({error:"email_login_unavailable"});
     const raw=crypto.randomBytes(32).toString("base64url");
     const hash=crypto.createHash("sha256").update(raw).digest("hex");
     const expires=new Date(Date.now()+15*60*1000).toISOString();
     await sb("rpc/memorial_admin_login_token_create",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email,p_hash:hash,p_expires_at:expires}});
-    const link=(PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/admin/auth/callback?token="+encodeURIComponent(raw);
+    const link=redirect+"?token="+encodeURIComponent(raw);
     await sendEmailAddress(email,{title:"Вход в админ-панель «Память»",body:"Ссылка действует 15 минут: "+link});
-    res.json(generic);
+    res.json({...generic,provider:"resend"});
   }catch(e){console.error("admin auth request",e.data||e);res.status(500).json({error:"auth_request_failed"})}
 });
 
 app.post("/api/admin/auth/session", rateLimit("admin-auth-session",12,15*60*1000), async (req,res) => {
   try{
+    const access=clean(req.body?.access_token,5000);
+    if(access){
+      const ur=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:{apikey:SUPABASE_ANON_KEY,authorization:"Bearer "+access}});
+      if(!ur.ok)return res.status(401).json({error:"invalid_login"});
+      const user=await ur.json();
+      const email=String(user.email||"").toLowerCase();
+      const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
+      if(!allowed?.allowed)return res.status(403).json({error:"admin_not_allowed"});
+      const cookie=adminSessionSign(email,allowed.role||"admin");
+      res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
+      return res.json({ok:true,email,role:allowed.role||"admin",provider:"supabase"});
+    }
+
     const raw=clean(req.body?.login_token,500);
     if(!raw)return res.status(400).json({error:"login_token_required"});
     const hash=crypto.createHash("sha256").update(raw).digest("hex");
@@ -2303,7 +2346,7 @@ app.post("/api/admin/auth/session", rateLimit("admin-auth-session",12,15*60*1000
     if(!data?.ok)return res.status(401).json({error:"invalid_or_expired_login"});
     const cookie=adminSessionSign(data.email,data.role||"admin");
     res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
-    res.json({ok:true,email:data.email,role:data.role||"admin"});
+    res.json({ok:true,email:data.email,role:data.role||"admin",provider:"resend"});
   }catch(e){console.error("admin session",e.data||e);res.status(500).json({error:"session_failed"})}
 });
 
@@ -2384,6 +2427,16 @@ app.get("/api/admin/queue", requireAdmin, async (_req, res) => {
     res.status(500).json({ error: "admin_failed" });
   }
 });
+app.post("/api/admin/events/:eventId/delete-person", requireAdmin, async (req,res) => {
+  try{
+    const data=await sb("rpc/memorial_admin_hide_person",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}});
+    res.json(data);
+  }catch(e){
+    console.error("admin delete person",e.data||e);
+    res.status(400).json({error:"delete_person_failed"});
+  }
+});
+
 app.post("/api/admin/events/:eventId/:action", requireAdmin, async (req, res) => {
   try {
     const data = await sb("rpc/memorial_admin_event_action", { method: "POST", body: { p_token: ADMIN_TOKEN, p_event_id: req.params.eventId, p_action: req.params.action } });
