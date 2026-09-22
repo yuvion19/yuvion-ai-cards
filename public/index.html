@@ -333,7 +333,7 @@
       </div>
       <div class="excel-auto-controls"><label style="font-size:10px;font-weight:850">Стиль:</label><select id="excelAutopilotStyle"><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select><span class="muted" id="excelPhotoMatchText" style="font-size:10px">Фото ещё не загружены.</span></div>
       <div class="excel-auto-progress" id="excelAutoProgress"><div class="progress-track"><div class="progress-bar" id="excelAutoBar"></div></div><div class="muted" id="excelAutoProgressText" style="margin-top:7px;font-size:11px"></div></div>
-      <div class="excel-auto-note">Для точной автоматической привязки у товара должен быть SKU/артикул. Если одинаковый SKU используется у нескольких товаров, фото к нему автоматически не привязывается. Все таблицы, фото и очередь каталога остаются локальными; на сервер отправляется только текущий товар во время AI-обработки.</div>
+      <div class="excel-auto-note">Можно использовать фото по SKU, публичную ссылку в Excel или оба источника сразу. Значения из Excel считаются данными продавца и имеют приоритет над сайтом-источником. Таблица, складские поля и очередь остаются локальными; URL и текущий товар отправляются серверу только при запуске соответствующего импорта/AI-этапа.</div>
       <div class="excel-auto-queue" id="excelAutoQueue"></div>
       <div class="unmatched-manager" id="unmatchedPhotoManager"><h4>Фото без уверенного совпадения</h4><div class="muted" style="font-size:9px">Назначьте товар вручную. Файл остаётся только в памяти этой вкладки, пока не будет назначен.</div><div id="unmatchedPhotoList"></div></div>
     </div>
