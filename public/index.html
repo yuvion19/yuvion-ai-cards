@@ -3117,6 +3117,8 @@ async function moveCard(from,to){
   currentCards.splice(to,0,card);
   normalizeCardFilenames();
   currentQuality=null;
+  if(cardsStale)currentStaleCards=[0,1,2,3];
+  addCurrentActivity('Порядок карточек изменён','Позиция '+(from+1)+' → '+(to+1));
   renderCards();
   await saveHistory();
 }
@@ -3169,7 +3171,11 @@ async function regenerateOne(index,el){
   try{
     const src=await getSource();
     currentCards[index]=await regenerateCardApi(index,src,currentData,styleSelect.value);
-    cardsStale=false;currentQuality=null;renderCards();
+    currentStaleCards=currentStaleCards.filter(x=>x!==index);
+    cardsStale=currentStaleCards.length>0;
+    currentQuality=null;
+    addCurrentActivity('Карточка перегенерирована','№'+(index+1));
+    renderCards();
     creativeStatus.className='creative-status show';creativeStatus.textContent='Карточка №'+(index+1)+' обновлена. Повторно проверяем комплект.';
     await saveHistory();
     await checkQualityAndAutofix(false);
