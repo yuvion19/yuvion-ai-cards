@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.5.0
+// Production release marker: v10.6.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -793,6 +793,7 @@ async function localFallbackCard(extraRaw, sourceBuffer, reason = "AI недос
   if (extra.brand) known.push("бренд " + extra.brand);
   if (extra.material) known.push("материал: " + extra.material);
   if (extra.size) known.push("размеры: " + extra.size);
+  if (visibleColor) known.push("цвет на фото: " + visibleColor);
   const shortDescription = known.length
     ? compact(title + ". " + known.join(", ") + ".", 500)
     : compact(title + ". Карточка сформирована локально по загруженному фото и подтверждённым данным без выдуманных характеристик.", 500);
@@ -1430,7 +1431,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.5.0",
+    version: "10.6.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1444,6 +1445,7 @@ app.get("/api/health", (_req, res) => {
     analyzeTimeoutSeconds: AI_ANALYZE_TIMEOUT_MS / 1000,
     analyzeRetryTimeoutSeconds: AI_ANALYZE_RETRY_TIMEOUT_MS / 1000,
     analyzeFastVision: true,
+    freeTextLocalFirst: true,
     designEngine: {
       paletteFromProduct: true,
       categoryThemes: Object.keys(styleProfiles).length,
@@ -1567,7 +1569,7 @@ app.post("/api/analyze", async (req, res) => {
       return res.status(429).json({ error: "Слишком много запросов. Попробуйте немного позже." });
     }
 
-    const { image, mimeType, mode = "full", extraData = {}, additionalImages = [] } = req.body ?? {};
+    const { image, mimeType, mode = "full", preferLocal = false, extraData = {}, additionalImages = [] } = req.body ?? {};
     if (typeof image !== "string" || typeof mimeType !== "string") {
       return res.status(400).json({ error: "Изображение не передано." });
     }
@@ -1589,6 +1591,12 @@ app.post("/api/analyze", async (req, res) => {
     }
 
     const sourceBuffer = Buffer.from(image, "base64");
+    if (preferLocal === true) {
+      stats.analyses += 1;
+      if (mode === "fast") stats.fastMode += 1;
+      else stats.fullMode += 1;
+      return res.json(await localFallbackCard(extraData, sourceBuffer, "Бесплатный локальный анализ готов — расширенное распознавание продолжится в браузере."));
+    }
     if (!process.env.OPENAI_API_KEY) {
       return res.json(await localFallbackCard(extraData, sourceBuffer, "AI API не настроен — использован локальный режим."));
     }
@@ -2974,7 +2982,7 @@ async function makeProductReflection(productBuffer, targetWidth, targetHeight, o
 }
 
 async function transformProductForScene(productBuffer,index=0){
-  const angles=[0,-7,7,-4];
+  const angles=[0,-3,3,-2];
   const angle=angles[Math.max(0,Math.min(3,Number(index)||0))]||0;
   if(!angle)return productBuffer;
   try{
@@ -3014,8 +3022,8 @@ async function renderFreeScene(
   let visual = await prepareProductVisual(sourceBuffer, layout, intensity, primaryRole);
   if (visual.cutout) {
     try { visual = { ...visual, product: await relightProductVisual(visual.product, studioProfile, index) }; } catch {}
+    try { visual = { ...visual, product: await transformProductForScene(visual.product,index) }; } catch {}
   }
-  try { visual = { ...visual, product: await transformProductForScene(visual.product,index) }; } catch {}
   const composites = [];
 
   if (secondarySourceBuffer && ["package", "detail", "angle"].includes(secondaryRole)) {
@@ -3905,5 +3913,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.5.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.6.0 listening on port ${port}`);
 });
