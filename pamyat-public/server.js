@@ -696,6 +696,7 @@ app.get("/m/admin", (_req,res) => {
           <button class="btn secondary" id="mAdminLogout" style="padding:8px 11px">Выйти</button>
         </div>
         <div id="adminStats" class="row" style="margin-top:10px"></div>
+        <button class="btn secondary" id="backupTest" style="width:100%;margin-top:10px">Проверить внешнюю резервную копию</button>
       </div>
 
       <div class="card">
@@ -805,11 +806,12 @@ app.get("/m/admin", (_req,res) => {
       bind(qs("#mAdminList"));renderGroups(rows);
     }
     async function loadStats(){
-      const s=await api("/api/admin/stats");
+      const [s,h]=await Promise.all([api("/api/admin/stats"),fetch("/health",{cache:"no-store"}).then(r=>r.json()).catch(()=>({}))]);
       qs("#adminStats").innerHTML=
         '<span class="tag">Событий: '+s.events_total+'</span><span class="tag">Pending: '+s.pending+'</span>'+
         '<span class="tag">Подписки: '+s.active_subscriptions+'</span><span class="tag">Свечи: '+s.candles+'</span>'+
-        '<span class="tag">Доставки 24ч: '+s.deliveries_24h+'</span><span class="tag">Ошибки 24ч: '+s.failed_attempts_24h+'</span>';
+        '<span class="tag">Доставки 24ч: '+s.deliveries_24h+'</span><span class="tag">Ошибки 24ч: '+s.failed_attempts_24h+'</span>'+
+        '<span class="tag">Off-site backup: '+(h.offsite_backup_configured?"подключён":"нужен внешний storage")+'</span>';
     }
     async function extraAction(kind,id,act){
       await api("/api/admin/moderation/"+encodeURIComponent(kind)+"/"+encodeURIComponent(id)+"/"+encodeURIComponent(act),{method:"POST"});
@@ -881,6 +883,7 @@ app.get("/m/admin", (_req,res) => {
       bind(qs("#mAdminDetail"));qs("#mAdminDetail").scrollIntoView({behavior:"smooth"});
     }
 
+    qs("#backupTest").onclick=async()=>{try{const r=await api("/api/admin/backup/test",{method:"POST"});alert(r.ok?"Внешняя резервная копия отправлена.":"Внешний backup ещё не настроен.")}catch(e){alert("Backup: "+e.message)}};
     qs("#mAdminMagic").onclick=magic;qs("#mAdminLogin").onclick=tokenLogin;qs("#mAdminBindEmail").onclick=bindEmail;
     qs("#mAdminReload").onclick=()=>load().catch(e=>alert(e.message));
     qs("#mAdminStatus").onchange=()=>load().catch(()=>{});
