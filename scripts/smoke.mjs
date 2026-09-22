@@ -198,7 +198,7 @@ const features=[
   ['textOverlayGuardReady','text overlay health readiness field'],
   ['rasterizeOverlayWithTextGuard','rasterized text-layer verification'],
   ['textOverlayChecks','text overlay runtime counters'],
-  ['CARD_RENDER_SCHEMA=2','card render cache schema'],
+  ['CARD_RENDER_SCHEMA=3','card render cache schema'],
   ['legacyCardCacheMigration: true','legacy card cache migration metadata'],
   ['automaticTextOverlayRepair: true','automatic text overlay repair metadata'],
   ['Старый комплект создан до исправления текстовых оверлеев','old-card auto repair UI'],
@@ -293,3 +293,5 @@ if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
 if(!html.includes("register('/sw.js?v=17',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+
+if(!html.includes('CARD_RENDER_SCHEMA=3'))fail('Studio Director v10.3 old-card invalidation missing');else ok('Studio Director v10.3 old-card invalidation present');

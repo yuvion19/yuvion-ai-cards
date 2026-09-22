@@ -4637,7 +4637,7 @@ function resetProduct(keepSimilar=false){
 
 /* IndexedDB history */
 const DB_NAME='YuvionCardsHistoryV1',STORE='items',SNAPSHOT_STORE='snapshots';
-const CATALOG_LIMIT=500,ITEM_SCHEMA_VERSION=2,CARD_RENDER_SCHEMA=2;
+const CATALOG_LIMIT=500,ITEM_SCHEMA_VERSION=2,CARD_RENDER_SCHEMA=3;
 function migrateStoredItem(raw){
   const item=raw&&typeof raw==='object'?raw:{};
   if(!Array.isArray(item.cards))item.cards=[];
