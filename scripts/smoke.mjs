@@ -145,7 +145,7 @@ const features=[
   ['provenanceExport: true','provenance export metadata'],
   ['const EXCEL_AUTOPILOT_LIMIT=25','larger Excel autopilot chunks'],
   ['Продолжаем автоматически','automatic Excel queue chaining'],
-  ['quality=await batchQuality(cards,analyzed.data)','batch quality persistence pipeline'],
+  ['const repaired=await repairBatchCardsToQa','batch QA v3 persistence pipeline'],
   ['duplicatePhotoInCatalog(item,allItems)','duplicate photo catalog guard'],
   ['QA пройден','catalog QA report column'],
   ['3 серии','full design series selector UI'],
