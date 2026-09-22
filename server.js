@@ -5,6 +5,8 @@ import sharp from "sharp";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import dns from "node:dns/promises";
+import net from "node:net";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,10 +26,15 @@ const WINDOW_MS = 60 * 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 30;
 const MAX_CARD_BATCHES_PER_WINDOW = 12;
 const MAX_REGENERATIONS_PER_WINDOW = 12;
+const MAX_URL_IMPORTS_PER_WINDOW = 20;
+const MAX_REMOTE_HTML_BYTES = 2500000;
+const MAX_REMOTE_IMAGE_BYTES = 12 * 1024 * 1024;
+const REMOTE_FETCH_TIMEOUT_MS = 12000;
 
 const requestsByIp = new Map();
 const cardRequestsByIp = new Map();
 const regenRequestsByIp = new Map();
+const urlImportRequestsByIp = new Map();
 let imagesEnabled = true;
 
 const stats = {
@@ -54,6 +61,8 @@ const stats = {
   batchProducts: 0,
   labelOcrChecks: 0,
   labelOcrFindings: 0,
+  urlImports: 0,
+  urlImportErrors: 0,
   recentErrors: []
 };
 
@@ -200,7 +209,7 @@ const productCardSchema = {
         properties: {
           name: { type: "string" },
           value: { type: "string" },
-          source: { type: "string", enum: ["Продавец", "Маркировка", "Фото"] }
+          source: { type: "string", enum: ["Продавец", "Маркировка", "Фото", "Сайт-источник"] }
         }
       }
     },
@@ -387,7 +396,7 @@ function mergeConfirmedData(cardRaw, extraRaw) {
 }
 
 function normalizeCharacteristicSource(value) {
-  return ["Продавец", "Маркировка", "Фото"].includes(value) ? value : "Фото";
+  return ["Продавец", "Маркировка", "Фото", "Сайт-источник"].includes(value) ? value : "Фото";
 }
 
 function normalizeCard(raw) {
