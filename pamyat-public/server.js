@@ -3644,7 +3644,9 @@ app.post("/api/admin/events/:eventId/edit", requireAdminRole, async (req,res) =>
       yahrzeit_rule:["standard","adar_i","adar_ii","family_custom","manual"].includes(p.yahrzeit_rule)?p.yahrzeit_rule:"standard",
       family_verified:Boolean(p.family_verified),
       source_verified:Boolean(p.source_verified),
-      urgent:Boolean(p.urgent)
+      urgent:Boolean(p.urgent),
+      public_contact:clean(p.public_contact,180),
+      public_contact_allowed:Boolean(p.public_contact_allowed)
     };
     if(patch.death_date&&!validDate(patch.death_date))return res.status(400).json({error:"bad_death_date"});
     if(patch.event_date&&!validDate(patch.event_date))return res.status(400).json({error:"bad_event_date"});
@@ -3810,15 +3812,17 @@ app.get("/api/admin/stats", requireAdmin, async (_req,res) => {
 
 function adminBroadcastText(e,mode){
   const privateKey=/^[0-9a-f-]{36}$/i.test(String(e.share_token||""))?String(e.share_token):"";
-  const url=(APP_PUBLIC_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(e.id)+(e.visibility==="public"?"":privateKey?"?key="+encodeURIComponent(privateKey):"");
+  const url=(APP_PUBLIC_URL||PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(e.id)+(e.visibility==="public"?"":privateKey?"?key="+encodeURIComponent(privateKey):"");
   const when=[e.event_date,e.event_time].filter(Boolean).join(" ");
   const where=[e.place,e.city].filter(Boolean).join(" · ");
-  return mode==="update"
-    ?{title:"Изменение события — "+(e.event_type||"Памятная дата"),body:[e.full_name,when,where].filter(Boolean).join(" · "),url}
-    :{title:"Напоминание — "+(e.event_type||"Памятная дата"),body:[e.full_name,when,where].filter(Boolean).join(" · "),url};
+  const current=[e.full_name,when,where].filter(Boolean).join(" · ");
+  if(mode==="correction")return {title:"Исправление уведомления — "+(e.event_type||"Памятная дата"),body:"Предыдущее сообщение было отправлено ошибочно. Актуальная информация: "+current,url};
+  if(mode==="update")return {title:"Изменение события — "+(e.event_type||"Памятная дата"),body:current,url};
+  return {title:"Напоминание — "+(e.event_type||"Памятная дата"),body:current,url};
 }
 async function deliverAdminBroadcast(target,e,text,marker){
-  const item={...target,event_id:e.id,reminder_days:marker,timezone:target.timezone||"UTC"};
+  const item={...target,event_id:e.id,reminder_days:marker,timezone:target.timezone||"UTC",notification_revision:e.notification_revision||0};
+  await ensureInboxItem(item,text);
   let sent=0,failed=0;
   const run=async(channel,fn)=>{
     try{const result=await fn();if(result){sent++;await logAttempt(item,channel,true,result);await logDelivery(item,channel,result)}}
@@ -3937,8 +3941,9 @@ app.get("/api/admin/events/:eventId/rsvp", requireAdmin, async (req,res)=>{
 app.get("/api/admin/events/:eventId/broadcast-preview", requireAdmin, async (req,res)=>{
   try{
     const groups=String(req.query.groups||"").split(",").map(x=>clean(x,64).toLowerCase()).filter(x=>/^[a-z0-9][a-z0-9-]{0,63}$/.test(x)).slice(0,30);
-    const mode=String(req.query.mode||"update")==="announcement"?"announcement":"update";
-    const onlyPrevious=String(req.query.only_previous??(mode==="update"?"1":"0"))!=="0";
+    const rawMode=String(req.query.mode||"update");
+    const mode=["announcement","update","correction"].includes(rawMode)?rawMode:"update";
+    const onlyPrevious=String(req.query.only_previous??(mode==="announcement"?"0":"1"))!=="0";
     const d=await sb("rpc/memorial_admin_broadcast_preview",{method:"POST",body:{
       p_token:ADMIN_TOKEN,p_event_id:req.params.eventId,p_groups:groups.length?groups:null,p_only_previously_reached:onlyPrevious
     }});
@@ -3947,14 +3952,17 @@ app.get("/api/admin/events/:eventId/broadcast-preview", requireAdmin, async (req
 });
 app.post("/api/admin/events/:eventId/broadcast", requireAdminRole, async (req,res)=>{
   try{
-    const mode=req.body?.mode==="announcement"?"announcement":"update";
+    const rawMode=clean(req.body?.mode,20);
+    const mode=["announcement","update","correction"].includes(rawMode)?rawMode:"update";
     const groups=(Array.isArray(req.body?.groups)?req.body.groups:[]).map(x=>clean(x,64).toLowerCase()).filter(x=>/^[a-z0-9][a-z0-9-]{0,63}$/.test(x)).slice(0,30);
-    const onlyPrevious=req.body?.only_previous===undefined?(mode==="update"):Boolean(req.body.only_previous);
+    const onlyPrevious=req.body?.only_previous===undefined?(mode!=="announcement"):Boolean(req.body.only_previous);
     const d=await sb("rpc/memorial_admin_broadcast_targets",{method:"POST",body:{
       p_token:ADMIN_TOKEN,p_event_id:req.params.eventId,p_groups:groups.length?groups:null,p_only_previously_reached:onlyPrevious
     }});
     const e=d?.event||{},targets=d?.targets||[],text=adminBroadcastText(e,mode);
-    const rev=Math.max(0,Number(e.notification_revision||0)),marker=(mode==="update"?-1000:-2000)-rev;
+    const confirmCount=Number(req.body?.confirm_count);
+    if(!Number.isFinite(confirmCount)||confirmCount!==targets.length)return res.status(409).json({error:"confirm_count_mismatch",expected:targets.length});
+    const rev=Math.max(0,Number(e.notification_revision||0)),marker=(mode==="update"?-1000:mode==="correction"?-3000:-2000)-rev;
     let sent=0,failed=0;
     for(const target of targets){const x=await deliverAdminBroadcast(target,e,text,marker);sent+=x.sent;failed+=x.failed}
     res.json({ok:true,subscriptions:targets.length,sent,failed,groups:d?.groups||groups,mode,only_previous:onlyPrevious});
@@ -4004,6 +4012,111 @@ app.post("/api/admin/notifications/retry-failed", requireAdminRole, async (req,r
     }
     res.json({ok:true,targets:rows.length,sent,failed});
   }catch(e){console.error("retry failed",e.data||e);res.status(500).json({error:"retry_failed"})}
+});
+
+app.post("/api/admin/events/draft", requireAdminRole, async (req,res)=>{
+  try{
+    const p=req.body||{},fullName=clean(p.full_name,180),deathDate=clean(p.death_date,10),eventDate=clean(p.event_date,10);
+    if(!fullName)return res.status(400).json({error:"full_name_required"});
+    if(deathDate&&!validDate(deathDate))return res.status(400).json({error:"bad_death_date"});
+    if(eventDate&&!validDate(eventDate))return res.status(400).json({error:"bad_event_date"});
+    let publishAt=null;
+    if(p.publish_at){const dt=new Date(p.publish_at);if(Number.isNaN(dt.getTime()))return res.status(400).json({error:"bad_publish_at"});publishAt=dt.toISOString()}
+    const data=await sb("rpc/memorial_admin_create_draft",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_full_name:fullName,p_death_date:deathDate||null,p_event_type:clean(p.event_type,80)||"Памятная дата",
+      p_event_date:eventDate||null,p_event_time:clean(p.event_time,20)||null,p_city:clean(p.city,120)||null,p_place:clean(p.place,180)||null,
+      p_note:clean(p.note,1500)||null,p_visibility:["public","link","invited"].includes(p.visibility)?p.visibility:"public",p_publish_at:publishAt
+    }});
+    res.status(201).json(data);
+  }catch(e){console.error("admin draft",e.data||e);res.status(500).json({error:"draft_failed"})}
+});
+
+app.post("/api/admin/events/:eventId/redact-personal", requireAdminRole, async (req,res)=>{
+  try{res.json(await sb("rpc/memorial_admin_redact_personal_data",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}}))}
+  catch(e){console.error("redact personal",e.data||e);res.status(500).json({error:"redact_failed"})}
+});
+
+app.get("/api/admin/system-status", requireAdmin, async (_req,res)=>{
+  try{
+    const [events,log,snapshots]=await Promise.all([
+      sb("rpc/memorial_event_search",{method:"POST",body:{p_query:"",p_city:"",p_type:"",p_limit:1}}),
+      sb("rpc/memorial_admin_notification_log",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:20}}),
+      sb("rpc/memorial_admin_snapshots_list",{method:"POST",body:{p_token:ADMIN_TOKEN}})
+    ]);
+    const attempts=log?.attempts||[],deliveries=log?.deliveries||[];
+    res.json({
+      ok:true,database:Array.isArray(events)?"ok":"error",
+      providers:reminderProviderStatus(),
+      offsite_backup:Boolean(BACKUP_WEBHOOK_URL&&BACKUP_WEBHOOK_TOKEN),
+      last_delivery:deliveries[0]||null,
+      last_failure:attempts.find(x=>x.success===false)||null,
+      latest_snapshot:(snapshots||[])[0]||null
+    });
+  }catch(e){res.status(503).json({ok:false,database:"error",error:"system_status_failed"})}
+});
+
+app.post("/api/admin/test-notification", requireAdminRole, rateLimit("admin-test-notification",20,60*60*1000), async (req,res)=>{
+  try{
+    const channel=clean(req.body?.channel,20),destination=clean(req.body?.destination,180);
+    const text={title:"Память — тест администратора",body:"Тестовое сообщение перед общей рассылкой.",url:(APP_PUBLIC_URL||PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m"};
+    if(channel==="email"){
+      const address=destination||req.adminIdentity?.email||"";
+      if(!validReminderEmail(address))return res.status(400).json({error:"valid_email_required"});
+      await sendEmailAddress(address,text);
+    }else if(channel==="telegram"){
+      if(!validTelegramChat(destination))return res.status(400).json({error:"telegram_chat_id_required"});
+      await telegramSend(destination,text.title+"\n"+text.body+"\n"+text.url);
+    }else if(channel==="whatsapp"){
+      const phone=normalizePhone(destination);if(!validE164(phone))return res.status(400).json({error:"whatsapp_phone_e164_required"});
+      await whatsappSend(phone,text);
+    }else if(channel==="sms"){
+      const phone=normalizePhone(destination);if(!validE164(phone))return res.status(400).json({error:"sms_phone_e164_required"});
+      await smsSend(phone,text);
+    }else return res.status(400).json({error:"unsupported_test_channel"});
+    res.json({ok:true,channel});
+  }catch(e){res.status(502).json({error:e.message||"test_failed"})}
+});
+
+app.post("/api/admin/notifications/retry-failed", requireAdminRole, async (_req,res)=>{
+  try{
+    const rows=await sb("rpc/memorial_admin_failed_targets",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:120}});
+    let sent=0,failed=0;
+    for(const t of rows||[]){
+      const text={
+        title:"Повторная отправка — "+(t.event_type||"Памятная дата"),
+        body:[t.full_name,t.event_date,t.event_time,t.place,t.city].filter(Boolean).join(" · "),
+        url:(APP_PUBLIC_URL||PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(t.event_id)+(t.share_token?"?key="+encodeURIComponent(t.share_token):"")
+      };
+      const item={...t,reminder_days:Number(t.reminder_days||0)};
+      try{
+        if(t.channel==="push"){
+          if(!t.endpoint||!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)throw new Error("push_not_configured");
+          await webpush.sendNotification({endpoint:t.endpoint,keys:{p256dh:t.p256dh,auth:t.auth}},JSON.stringify({title:text.title,body:text.body,url:text.url,event_id:t.event_id}),{TTL:86400});
+        }else if(t.channel==="email")await sendEmailAddress(t.email,text);
+        else if(t.channel==="telegram")await telegramSend(t.telegram_chat_id,text.title+"\n"+text.body+"\n"+text.url);
+        else if(t.channel==="whatsapp")await whatsappSend(t.whatsapp_phone,text);
+        else if(t.channel==="sms")await smsSend(t.sms_phone,text);
+        else throw new Error("bad_channel");
+        await logAttempt(item,t.channel,true,"retry_sent");await logDelivery(item,t.channel,"retry_sent");sent++;
+      }catch(e){await logAttempt(item,t.channel,false,"retry: "+(e.message||String(e)));failed++}
+    }
+    res.json({ok:true,targets:(rows||[]).length,sent,failed});
+  }catch(e){console.error("retry failed",e.data||e);res.status(500).json({error:"retry_failed"})}
+});
+
+app.get("/api/admin/snapshots", requireAdmin, async (_req,res)=>{
+  try{res.json(await sb("rpc/memorial_admin_snapshots_list",{method:"POST",body:{p_token:ADMIN_TOKEN}})||[])}
+  catch(e){res.status(500).json({error:"snapshots_failed"})}
+});
+app.post("/api/admin/snapshots", requireOwner, async (_req,res)=>{
+  try{res.json(await sb("rpc/memorial_admin_snapshot_create",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:new Date().toISOString().slice(0,10)}}))}
+  catch(e){res.status(500).json({error:"snapshot_failed"})}
+});
+app.post("/api/admin/snapshots/:date/restore", requireOwner, async (req,res)=>{
+  try{
+    const date=clean(req.params.date,10);if(!validDate(date))return res.status(400).json({error:"bad_date"});
+    res.json(await sb("rpc/memorial_admin_snapshot_restore",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:date,p_confirm:String(req.body?.confirm||"")}}));
+  }catch(e){res.status(400).json({error:"snapshot_restore_failed"})}
 });
 
 app.get("/api/admin/notifications", requireAdmin, async (req,res) => {
@@ -4118,8 +4231,8 @@ app.post("/api/admin/backup/test", requireOwner, async (_req,res)=>{
 
 app.post("/api/admin/snapshot", requireAdminRole, async (_req,res) => {
   try {
-    const data = await sb("rpc/memorial_create_daily_snapshot",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:new Date().toISOString().slice(0,10)}});
-    res.json({ok:Boolean(data)});
+    const data = await sb("rpc/memorial_admin_snapshot_create",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:new Date().toISOString().slice(0,10)}});
+    res.json(data);
   } catch { res.status(500).json({error:"snapshot_failed"}); }
 });
 app.get("/api/admin/export.json", requireAdmin, async (_req,res) => {
