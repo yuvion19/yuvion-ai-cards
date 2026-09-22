@@ -3986,7 +3986,7 @@ async function autoCreateCardsIfEnabled(){
   if(!autoCards?.checked||currentMode!=='full'||cardsBusy||!currentData)return;
   prepareAutomaticCardStyle();
   await refreshDesignPalette();
-  window.setTimeout(()=>{ if(!cardsBusy&&currentData&&currentCards.length!==4)generateAll.click(); },80);
+  window.setTimeout(()=>{ if(!cardsBusy&&currentData&&(currentCards.length!==4||cardsStale))generateAll.click(); },80);
 }
 
 analyzeBtn.onclick=async()=>{
@@ -3996,7 +3996,7 @@ analyzeBtn.onclick=async()=>{
   try{
     const src=await getSource();
     const controller=new AbortController();
-    const timeoutId=setTimeout(()=>controller.abort(),45000);
+    const timeoutId=setTimeout(()=>controller.abort(),50000);
     let response;
     try{
       response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,extraData:collectExtraData(),additionalImages:additionalPhotosForAnalyze()})});
@@ -4025,6 +4025,11 @@ analyzeBtn.onclick=async()=>{
     confidence.textContent='Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
     await saveHistory();
+    if(hadImmediateCards){
+      creative.classList.add('show');
+      creativeStatus.className='creative-status show';
+      creativeStatus.textContent='Описание и характеристики получены. Обновляем инфографику на четырёх карточках.';
+    }
     autoCreateCardsIfEnabled();
   }catch(e){
     if(currentCards.length===4){
