@@ -565,6 +565,8 @@ app.get("/m/memorial/:id", async (req,res) => {
         ${e.event_time?'<div id="localEventTime" class="muted" style="margin-top:4px"></div>':""}
         <div><b>Место:</b> ${htmlEsc([e.city,e.place].filter(Boolean).join(" · ")||"—")}</div>
         ${(e.city||e.place)?'<p><a class="btn secondary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([e.place,e.city].filter(Boolean).join(", "))+'">Маршрут к месту</a></p>':""}
+        ${e.public_contact?'<div><b>Контакт семьи:</b> <a href="tel:'+htmlEsc(String(e.public_contact).replace(/[^+\\d]/g,""))+'">'+htmlEsc(e.public_contact)+'</a></div>':""}
+        ${e.updated_at?'<div class="muted" style="margin-top:6px">Последнее обновление: '+htmlEsc(new Date(e.updated_at).toLocaleString("ru-RU"))+'</div>':""}
         ${e.hebrew_death_label?'<div><b>Еврейская дата:</b> '+htmlEsc(e.hebrew_death_label)+(e.hebrew_after_sunset?' · после захода солнца':'')+'</div>':""}
         ${e.yahrzeit_date?'<div><b>Йорцайт:</b> '+htmlEsc(e.yahrzeit_date)+'</div>':""}
         ${e.note?'<p>'+htmlEsc(e.note)+'</p>':""}
@@ -583,8 +585,15 @@ app.get("/m/memorial/:id", async (req,res) => {
       <div class="card prayer-card">
         <h3 style="margin-top:0">Молитвы и тексты памяти</h3>
         <p class="muted">Для каждой строки есть ручная кириллическая транскрипция. Произношение и порядок чтения могут немного отличаться по нусаху и традиции общины; транскрипция помогает читать текст, но не заменяет живую общинную традицию.</p>
+        <label>Традиция / нусах</label>
+        <select id="prayerTradition" class="field">
+          <option value="all">Все доступные тексты</option>
+          <option value="sephardic">Сефардская / восточная традиция</option>
+          <option value="mountain">Горско-еврейская община — базовый проверяемый набор</option>
+        </select>
+        <p class="muted" id="prayerTraditionNote">Тексты, специфичные для общины, публикуются только после редакционной проверки; общие молитвы остаются доступными всегда.</p>
 
-        <details open>
+        <details open data-traditions="all sephardic mountain">
           <summary><b>Кадиш ятом — קדיש יתום</b></summary>
           <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">יִתְגַּדַּל וְיִתְקַדַּשׁ שְׁמֵהּ רַבָּא.</div><div class="prayer-tr">Йитгада́ль ве-йиткада́ш шме́ раба́.</div></div>
           <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">בְּעָלְמָא דִּי בְרָא כִרְעוּתֵהּ.</div><div class="prayer-tr">Бе-альма́ ди вра́ хиръуте́.</div></div>
@@ -600,7 +609,7 @@ app.get("/m/memorial/:id", async (req,res) => {
           <p class="muted">Кадиш традиционно читают в присутствии миньяна; формулировки могут различаться между нусахами.</p>
         </details>
 
-        <details style="margin-top:12px">
+        <details style="margin-top:12px" data-traditions="all sephardic mountain">
           <summary><b>Хашкава — הַשְׁכָּבָה</b></summary>
           <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">מְנוּחָה נְכוֹנָה בִּישִׁיבָה עֶלְיוֹנָה, תַּחַת כַּנְפֵי הַשְּׁכִינָה.</div><div class="prayer-tr">Менуха́ нехона́ би-йешива́ эльйона́, та́хат канфе́ ха-Шхина́.</div></div>
           <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">בְּמַעֲלַת קְדוֹשִׁים וּטְהוֹרִים כְּזֹהַר הָרָקִיעַ מַזְהִירִים.</div><div class="prayer-tr">Бе-маала́т кдоши́м у-тхори́м, ке-зо́хар ха-раки́а мазхири́м.</div></div>
@@ -608,7 +617,7 @@ app.get("/m/memorial/:id", async (req,res) => {
           <p class="muted">Здесь обычно называют еврейское имя усопшего и имя родителя. Точный текст хашкавы зависит от общины.</p>
         </details>
 
-        <details style="margin-top:12px">
+        <details style="margin-top:12px" data-traditions="all">
           <summary><b>Эль мале рахамим — אֵל מָלֵא רַחֲמִים</b></summary>
           <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">אֵל מָלֵא רַחֲמִים, שׁוֹכֵן בַּמְּרוֹמִים.</div><div class="prayer-tr">Эль мале́ рахами́м, шохе́н ба-мероми́м.</div></div>
           <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">הַמְצֵא מְנוּחָה נְכוֹנָה תַּחַת כַּנְפֵי הַשְּׁכִינָה.</div><div class="prayer-tr">Хамце́ менуха́ нехона́ та́хат канфе́ ха-Шхина́.</div></div>
@@ -616,7 +625,7 @@ app.get("/m/memorial/:id", async (req,res) => {
           <p class="muted">Этот текст распространён в ряде общин; в сефардской и восточной традиции используются и другие формы поминальной молитвы.</p>
         </details>
 
-        <details style="margin-top:12px">
+        <details style="margin-top:12px" data-traditions="all sephardic mountain">
           <summary><b>Псалом 23 — תהילים כ״ג</b></summary>
           <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">יְהוָה רֹעִי לֹא אֶחְסָר.</div><div class="prayer-tr">Адона́й ро-и́, ло эхса́р.</div></div>
           <div class="prayer-line"><div class="he-prayer" dir="rtl" lang="he">בִּנְאוֹת דֶּשֶׁא יַרְבִּיצֵנִי, עַל מֵי מְנֻחוֹת יְנַהֲלֵנִי.</div><div class="prayer-tr">Бинъо́т де́ше ярбице́ни, аль ме́й менухо́т йенахале́ни.</div></div>
@@ -641,10 +650,24 @@ app.get("/m/memorial/:id", async (req,res) => {
           <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(google)}">Google Calendar</a>
           <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(outlook)}">Outlook</a>
           <button class="btn secondary" id="shareMemorial">Поделиться ссылкой</button>
-          <button class="btn secondary" id="shareCardPng">PNG-карточка</button>
+          <button class="btn secondary" id="shareCardPng">PNG 4:5</button>
+          <button class="btn secondary" id="shareSquarePng">PNG 1:1</button>
+          <button class="btn secondary" id="shareWidePng">PNG 16:9</button>
           <a class="btn secondary" target="_blank" rel="noopener" href="/api/events/${encodeURIComponent(e.id)}/share-card.svg${accessSuffix}">Открыть SVG</a>
           <a class="btn secondary" href="/m/memorial/${encodeURIComponent(e.id)}/print${accessSuffix}">Печатная карточка</a>
         </div>
+      </div>
+
+      <div class="card memory-hide">
+        <h3 style="margin-top:0">Следить за памятными датами</h3>
+        <p class="muted">Подписка относится только к этому человеку и его будущим памятным датам.</p>
+        <button id="followPerson" class="btn secondary" style="width:100%">Следить за памятными датами</button>
+        <div id="followStatus" class="muted" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card memory-hide">
+        <h3 style="margin-top:0">История обновлений</h3>
+        <div id="publicChangeHistory" class="muted">Загрузка…</div>
       </div>
 
       <div class="card memory-hide">
@@ -718,8 +741,40 @@ app.get("/m/memorial/:id", async (req,res) => {
           localEl.textContent="В вашем часовом поясе ("+localTz+"): "+new Intl.DateTimeFormat("ru-RU",{dateStyle:"medium",timeStyle:"short"}).format(dt);
         }
       }
+      const prayerTradition=document.getElementById("prayerTradition");
+      function applyTradition(){
+        const v=prayerTradition.value;
+        document.querySelectorAll(".prayer-card details[data-traditions]").forEach(d=>{const tags=(d.dataset.traditions||"all").split(" ");d.style.display=(v==="all"||tags.includes(v))?"block":"none"});
+      }
+      prayerTradition.onchange=applyTradition;applyTradition();
+      if("speechSynthesis" in window){
+        document.querySelectorAll(".he-prayer").forEach(line=>{
+          const b=document.createElement("button");b.type="button";b.className="btn secondary";b.style.cssText="padding:6px 9px;margin-top:6px;width:auto";b.textContent="Прослушать";
+          b.onclick=()=>{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(line.textContent);u.lang="he-IL";u.rate=.82;speechSynthesis.speak(u)};
+          line.insertAdjacentElement("afterend",b);
+        });
+      }
       const rsvpTokenKey="pamyat_device_token";
       function ensureRsvpToken(){let t=localStorage.getItem(rsvpTokenKey);if(!/^[0-9a-f-]{36}$/i.test(t||"")){t=crypto.randomUUID();localStorage.setItem(rsvpTokenKey,t)}return t}
+      let following=false;
+      async function loadFollow(){
+        try{
+          const t=ensureRsvpToken(),r=await fetch("/api/events/${req.params.id}/follow?device_token="+encodeURIComponent(t),{cache:"no-store"}),d=await r.json();
+          following=Boolean(d.active);document.getElementById("followPerson").textContent=following?"Не следить":"Следить за памятными датами";
+          document.getElementById("followStatus").textContent=following?"Подписка включена. Каналы и время задаются в разделе «Напоминания».":"";
+        }catch{}
+      }
+      document.getElementById("followPerson").onclick=async()=>{
+        const r=await fetch("/api/events/${req.params.id}/follow",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({device_token:ensureRsvpToken(),active:!following,key:${JSON.stringify(accessKey||"")}})});
+        if(r.ok){following=!following;await loadFollow();say(following?"Подписка включена.":"Подписка отключена.")}else say("Не удалось изменить подписку.",false)
+      };
+      async function loadPublicHistory(){
+        try{
+          const r=await fetch("/api/events/${req.params.id}/history",{cache:"no-store"}),rows=await r.json(),box=document.getElementById("publicChangeHistory");
+          box.innerHTML=(rows||[]).slice(0,8).map(x=>'<div style="margin:5px 0"><b>'+new Date(x.created_at).toLocaleString("ru-RU")+'</b> · изменено: '+(x.changed_fields||[]).join(", ")+'</div>').join("")||"Публичных изменений пока нет.";
+        }catch{document.getElementById("publicChangeHistory").textContent="История временно недоступна."}
+      }
+      loadFollow();loadPublicHistory();
       async function loadRsvp(){
         try{
           const r=await fetch("/api/events/${req.params.id}/rsvp${accessSuffix}",{cache:"no-store"}),d=await r.json();
@@ -735,6 +790,20 @@ app.get("/m/memorial/:id", async (req,res) => {
       });
       loadRsvp();
       document.getElementById("shareMemorial").onclick=async()=>{try{if(navigator.share)await navigator.share({title:${JSON.stringify(e.full_name)},url:location.href});else{await navigator.clipboard.writeText(location.href);say("Ссылка скопирована.")}}catch{}};
+      async function shareSvgFormat(format,width,height,name){
+        try{
+          const join=${JSON.stringify(accessSuffix?accessSuffix+"&":"?")};
+          const img=new Image();img.src="/api/events/${encodeURIComponent(e.id)}/share-card.svg"+join+"format="+encodeURIComponent(format);
+          await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject});
+          const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;canvas.getContext("2d").drawImage(img,0,0,width,height);
+          const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png",0.95));if(!blob)throw new Error("png_failed");
+          const file=new File([blob],name,{type:"image/png"});
+          if(navigator.canShare?.({files:[file]})&&navigator.share)await navigator.share({title:${JSON.stringify(e.full_name)},files:[file]});
+          else{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+        }catch{say("Не удалось подготовить PNG-карточку.",false)}
+      }
+      document.getElementById("shareSquarePng").onclick=()=>shareSvgFormat("square",1080,1080,"pamyat-square-"+${JSON.stringify(e.id)}+".png");
+      document.getElementById("shareWidePng").onclick=()=>shareSvgFormat("wide",1600,900,"pamyat-wide-"+${JSON.stringify(e.id)}+".png");
       document.getElementById("shareCardPng").onclick=async()=>{
         try{
           const canvas=document.createElement("canvas");canvas.width=1080;canvas.height=1350;const ctx=canvas.getContext("2d");
