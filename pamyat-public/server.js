@@ -793,6 +793,7 @@ app.get("/m/admin", (_req,res) => {
       <input id="mAdminUser" class="field" autocomplete="username" placeholder="Email администратора">
       <label>Пароль</label>
       <input id="mAdminPassword" class="field" type="password" autocomplete="current-password" placeholder="Пароль">
+      <div class="check" style="margin-top:8px"><input id="mAdminShowPassword" type="checkbox"><span>Показать пароль</span></div>
       <button class="btn" id="mAdminPasswordLogin" style="width:100%;margin-top:10px">Войти</button>
       <details style="margin-top:12px">
         <summary>Резервные способы входа</summary>
@@ -1027,6 +1028,7 @@ app.get("/m/admin", (_req,res) => {
 
     qs("#backupTest").onclick=async()=>{try{const r=await api("/api/admin/backup/test",{method:"POST"});alert(r.ok?"Внешняя резервная копия отправлена.":"Внешний backup ещё не настроен.")}catch(e){alert("Backup: "+e.message)}};
     qs("#mAdminPasswordLogin").onclick=passwordLogin;
+    qs("#mAdminShowPassword").onchange=e=>{qs("#mAdminPassword").type=e.target.checked?"text":"password"};
     qs("#mAdminPassword").addEventListener("keydown",e=>{if(e.key==="Enter")passwordLogin()});
     qs("#mAdminUser").addEventListener("keydown",e=>{if(e.key==="Enter")passwordLogin()});
     qs("#mAdminMagic").onclick=magic;qs("#mAdminLogin").onclick=tokenLogin;qs("#mAdminBindEmail").onclick=bindEmail;
