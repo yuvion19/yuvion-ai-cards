@@ -1004,6 +1004,7 @@ let currentHistoryId=null;
 let busy=false;
 let cardsBusy=false;
 let cardsStale=false;
+let currentStaleCards=[];
 let currentQuality=null;
 let batchFiles=[];
 let batchBusy=false;
@@ -1147,7 +1148,7 @@ function confirmLabelSuggestion(index){
   }
   currentLabelSuggestions.splice(index,1);
   addCurrentActivity('Подтверждено по маркировке',line);
-  renderLabelSuggestions();renderFactSources();renderYuvionExport();renderProductCockpit();markCardsStale();saveHistoryDebounced();
+  renderLabelSuggestions();renderFactSources();renderYuvionExport();renderProductCockpit();markCardsStale([0,1,2]);saveHistoryDebounced();
 }
 
 function addCurrentActivity(type,detail=''){
@@ -2604,7 +2605,7 @@ Object.entries(extraFields).forEach(([key,el])=>el.addEventListener('input',()=>
   currentData.confirmedData=collectExtraData();
   if(!priceOnly){
     currentAnalysisCache=null;
-    if(['name','brand','size','material'].includes(key))markCardsStale();
+    if(['name','brand','size','material'].includes(key))markCardsStale(key==='name'?[0]:[0,1,2]);
     localQuality.className='quality-box show warn';
     localQuality.innerHTML='<strong>Подтверждённые данные изменены</strong>Для текста рекомендуется повторный анализ. Изображения обновляются только если изменилось содержимое, которое могло попасть на карточки.';
   }
@@ -2952,9 +2953,15 @@ function updatePlan(){
   planGrid.innerHTML=plans.map(x=>'<div class="plan-card"><b>'+esc(x[0])+'</b><p>'+esc(x[1])+'</p></div>').join('');
 }
 
-Object.values(editor).forEach(el=>el.addEventListener('input',()=>{
+const EDITOR_CARD_DEPENDENCIES={
+  title:[0],category:[0,3],keywords:[],short:[3],full:[3],specs:[0,1,2],benefits:[1],usage:[3]
+};
+Object.entries(editor).forEach(([key,el])=>el.addEventListener('input',()=>{
   if(!currentData)return;
-  currentData=collectEdits();updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();markCardsStale();saveHistoryDebounced();
+  currentData=collectEdits();updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
+  const affected=EDITOR_CARD_DEPENDENCIES[key]||[];
+  if(affected.length)markCardsStale(affected);
+  saveHistoryDebounced();
 }));
 editor.category.addEventListener('input',()=>{renderCategoryValidation();renderSpecTemplateHint()});
 editor.category.addEventListener('blur',()=>{
@@ -2962,16 +2969,23 @@ editor.category.addEventListener('blur',()=>{
   const rule=applyCategoryRule({applyTemplate:true});
   if(rule&&currentData){
     currentData=collectEdits();
-    updatePlan();renderSpecTemplateHint();markCardsStale();saveHistoryDebounced();
+    updatePlan();renderSpecTemplateHint();markCardsStale([0,1,2,3]);saveHistoryDebounced();
   }
   renderCategoryValidation();
 });
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
-styleSelect.onchange=()=>{markCardsStale();renderProductCockpit();saveHistoryDebounced()};
+styleSelect.onchange=()=>{markCardsStale([0,1,2,3]);renderProductCockpit();saveHistoryDebounced()};
 
-function markCardsStale(){
+function markCardsStale(indexes=[0,1,2,3]){
   if(currentCards.length){
-    cardsStale=true;currentAnalysisCache=null;creativeStatus.className='creative-status show stale';creativeStatus.textContent='Изменились данные, влияющие на изображения. Существующие карточки сохранены, но считаются устаревшими до обновления.';
+    currentStaleCards=[...new Set([...currentStaleCards,...indexes.filter(x=>[0,1,2,3].includes(Number(x))).map(Number)])].sort();
+    cardsStale=currentStaleCards.length>0;
+    currentAnalysisCache=null;
+    if(cardsStale){
+      const nums=currentStaleCards.map(x=>x+1).join(', ');
+      creativeStatus.className='creative-status show stale';
+      creativeStatus.textContent=currentStaleCards.length<4?'Изменились карточки №'+nums+'. Остальные изображения можно не генерировать заново.':'Изменились данные или стиль, влияющие на весь комплект изображений.';
+    }
   }
 }
 
@@ -3173,7 +3187,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentQuality=null;currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
@@ -3481,6 +3495,7 @@ async function saveHistory(){
       cards:currentCards,
       quality:currentQuality,
       cardsStale:Boolean(cardsStale),
+      staleCardIndexes:currentStaleCards,
       activity:currentActivity,
       labelSuggestions:currentLabelSuggestions,
       analysisCache:currentAnalysisCache,
@@ -4889,6 +4904,7 @@ async function restoreHistory(item){
   currentActivity=Array.isArray(item.activity)?item.activity.slice(0,80):[];
   currentAnalysisCache=item.analysisCache||null;
   cardsStale=Boolean(item.cardsStale);
+  currentStaleCards=Array.isArray(item.staleCardIndexes)?item.staleCardIndexes.filter(x=>[0,1,2,3].includes(Number(x))).map(Number):[];
   renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderModeration();renderActivity();
   currentMode=item.mode||'full';
   styleSelect.value=item.style||'minimal';
@@ -5340,7 +5356,7 @@ function applyAuditRewrite(){
   if(!lastPreflightAudit||!currentData)return;
   if(lastPreflightAudit.rewrittenTitle)editor.title.value=lastPreflightAudit.rewrittenTitle;
   if(lastPreflightAudit.rewrittenDescription)editor.full.value=lastPreflightAudit.rewrittenDescription;
-  currentData=collectEdits();updatePlan();renderYuvionExport();markCardsStale();saveHistoryDebounced();
+  currentData=collectEdits();updatePlan();renderYuvionExport();markCardsStale([0,3]);saveHistoryDebounced();
   renderPreflightAudit({...lastPreflightAudit,issues:lastPreflightAudit.issues||[]},currentRuleHints());
 }
 
