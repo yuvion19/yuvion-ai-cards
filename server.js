@@ -33,7 +33,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v7.6.0
+// Production release marker: v7.6.1
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1255,7 +1255,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "7.6.0",
+    version: "7.6.1",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -2536,10 +2536,9 @@ app.post("/api/generate-cards", async (req, res) => {
       designSubstyle: substyle,
       visualOptions: visual,
       composition: renderComposition,
-      renderEngine: "power-local-v2",
-      primaryRole: selectedSource.role,
-      insetRole: insetSource?.role || "",
-      renderEngine: "power-local-v2",
+      renderEngine: "power-local-v3",
+      primaryRole: renderSelections[0]?.primary?.role || "main",
+      insetRole: renderSelections[0]?.inset?.role || "",
       photoEnhancement: true,
       smartCutout: true,
       usedAdditionalImages: additionalSources.length,
