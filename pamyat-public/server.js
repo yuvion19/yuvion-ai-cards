@@ -1701,6 +1701,37 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
   }
 });
 
+app.post("/api/reminders/test/:channel", rateLimit("reminder-test",10,15*60*1000), async (req,res) => {
+  try{
+    const ch=clean(req.params.channel,20);
+    const text={title:"Память — тест напоминания",body:"Тестовый канал работает. Это сообщение можно удалить."};
+    if(ch==="push"){
+      const s=req.body?.subscription||{};
+      if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)return res.status(503).json({error:"push_not_configured"});
+      if(!s.endpoint||!s.keys?.p256dh||!s.keys?.auth)return res.status(400).json({error:"push_permission_required"});
+      await webpush.sendNotification({endpoint:s.endpoint,keys:{p256dh:s.keys.p256dh,auth:s.keys.auth}},
+        JSON.stringify({title:text.title,body:text.body,url:APP_PUBLIC_URL}),{TTL:3600});
+    } else if(ch==="email"){
+      const email=clean(req.body?.email,180);if(!validReminderEmail(email))return res.status(400).json({error:"valid_email_required"});
+      await sendEmailAddress(email,text);
+    } else if(ch==="telegram"){
+      const chat=clean(req.body?.telegram_chat_id,100);if(!validTelegramChat(chat))return res.status(400).json({error:"telegram_chat_id_required"});
+      await telegramSend(chat,text.title+"\n"+text.body);
+    } else if(ch==="whatsapp"){
+      const phone=normalizePhone(clean(req.body?.whatsapp_phone,40));if(!validE164(phone))return res.status(400).json({error:"whatsapp_phone_e164_required"});
+      await whatsappSend(phone,text);
+    } else if(ch==="sms"){
+      const phone=normalizePhone(clean(req.body?.sms_phone,40));if(!validE164(phone))return res.status(400).json({error:"sms_phone_e164_required"});
+      await smsSend(phone,text);
+    } else return res.status(400).json({error:"bad_channel"});
+    res.json({ok:true,channel:ch});
+  }catch(e){
+    const msg=e.message||"test_failed";
+    const notConfigured=/_not_configured$/.test(msg);
+    res.status(notConfigured?503:502).json({error:msg});
+  }
+});
+
 app.post("/api/push/subscribe", rateLimit("push-subscribe", 10, 60 * 60 * 1000), async (req, res) => {
   try {
     const b = req.body || {}, s = b.subscription || {};
@@ -1747,18 +1778,24 @@ function notificationText(item) {
   const when = item.reminder_days === 0 ? "сегодня" : item.reminder_days === 1 ? "завтра" : "через " + item.reminder_days + " дн.";
   return { title: item.event_type + " — " + when, body: item.full_name + " · " + item.event_date + (item.place ? " · " + item.place : "") };
 }
-async function sendEmail(item, text) {
-  if (!RESEND_API_KEY || !item.email_enabled || !item.email) return null;
+async function sendEmailAddress(address, text) {
+  if (!RESEND_API_KEY || !RESEND_FROM) throw new Error("email_not_configured");
+  const safeBody=String(text.body||"").replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { authorization: "Bearer " + RESEND_API_KEY, "content-type": "application/json" },
-    body: JSON.stringify({ from: RESEND_FROM, to: [item.email], subject: text.title, html: "<p>" + text.body.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])) + "</p><p><a href='" + APP_PUBLIC_URL + "'>Открыть календарь</a></p>" })
+    body: JSON.stringify({ from: RESEND_FROM, to: [address], subject: text.title, html: "<p>" + safeBody + "</p><p><a href='" + APP_PUBLIC_URL + "'>Открыть календарь</a></p>" })
   });
   if (!r.ok) throw new Error("email_" + r.status);
   return "sent";
 }
+async function sendEmail(item, text) {
+  if (!item.email_enabled || !item.email) return null;
+  return sendEmailAddress(item.email,text);
+}
 async function telegramSend(chatId, text) {
-  if (!TELEGRAM_BOT_TOKEN || !chatId) return null;
+  if (!TELEGRAM_BOT_TOKEN) throw new Error("telegram_not_configured");
+  if (!chatId) throw new Error("telegram_chat_required");
   const r = await fetch("https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true })
@@ -1768,7 +1805,8 @@ async function telegramSend(chatId, text) {
 }
 
 async function whatsappSend(phone,text){
-  if(!reminderProviderStatus().whatsapp || !phone)return null;
+  if(!reminderProviderStatus().whatsapp)throw new Error("whatsapp_not_configured");
+  if(!phone)throw new Error("whatsapp_phone_required");
   const to=String(phone).replace(/^\\+/,"");
   const r=await fetch("https://graph.facebook.com/"+encodeURIComponent(WHATSAPP_GRAPH_VERSION)+"/"+encodeURIComponent(WHATSAPP_PHONE_NUMBER_ID)+"/messages",{
     method:"POST",
@@ -1792,7 +1830,8 @@ async function whatsappSend(phone,text){
   return "sent";
 }
 async function smsSend(phone,text){
-  if(!reminderProviderStatus().sms || !phone)return null;
+  if(!reminderProviderStatus().sms)throw new Error("sms_not_configured");
+  if(!phone)throw new Error("sms_phone_required");
   const form=new URLSearchParams({To:phone,From:TWILIO_FROM_NUMBER,Body:text.title+"\\n"+text.body+"\\n"+APP_PUBLIC_URL});
   const r=await fetch("https://api.twilio.com/2010-04-01/Accounts/"+encodeURIComponent(TWILIO_ACCOUNT_SID)+"/Messages.json",{
     method:"POST",
@@ -1803,6 +1842,15 @@ async function smsSend(phone,text){
   return "sent";
 }
 
+async function logAttempt(item,channel,success,detail){
+  try{
+    await sb("rpc/memorial_log_notification_attempt",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_subscription_id:item.subscription_id,p_event_id:item.event_id,
+      p_channel:channel,p_reminder_days:item.reminder_days,p_success:Boolean(success),p_detail:clean(detail,500)
+    }});
+  }catch(e){console.error("attempt log",e.data||e.message)}
+}
+
 let notificationCycleRunning = false;
 async function runNotificationCycle() {
   if (notificationCycleRunning || !ADMIN_TOKEN) return;
@@ -1811,26 +1859,25 @@ async function runNotificationCycle() {
     const due = await sb("rpc/memorial_due_notifications", { method: "POST", body: { p_token: ADMIN_TOKEN, p_now: new Date().toISOString() } });
     for (const item of due || []) {
       const text = notificationText(item);
-      if (item.push_enabled && !item.push_sent && item.endpoint && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-        try {
-          await webpush.sendNotification({ endpoint: item.endpoint, keys: { p256dh: item.p256dh, auth: item.auth } },
-            JSON.stringify({ title: text.title, body: text.body, url: APP_PUBLIC_URL + "/#event=" + item.event_id, event_id: item.event_id }),
-            { TTL: 86400 });
-          await logDelivery(item, "push", "sent");
-        } catch (e) { console.error("push send", e.statusCode || e.message); }
-      }
-      if (item.email_enabled && !item.email_sent && item.email) {
-        try { const r = await sendEmail(item,text); if (r) await logDelivery(item,"email",r); } catch (e) { console.error(e.message); }
-      }
-      if (item.telegram_enabled && !item.telegram_sent && item.telegram_chat_id) {
-        try { const r = await telegramSend(item.telegram_chat_id, text.title + "\n" + text.body + "\n" + APP_PUBLIC_URL); if (r) await logDelivery(item,"telegram",r); } catch (e) { console.error(e.message); }
-      }
-      if (item.whatsapp_enabled && !item.whatsapp_sent && item.whatsapp_phone) {
-        try { const r = await whatsappSend(item.whatsapp_phone,text); if (r) await logDelivery(item,"whatsapp",r); } catch (e) { console.error(e.message); }
-      }
-      if (item.sms_enabled && !item.sms_sent && item.sms_phone) {
-        try { const r = await smsSend(item.sms_phone,text); if (r) await logDelivery(item,"sms",r); } catch (e) { console.error(e.message); }
-      }
+      const run=async(channel,fn)=>{
+        try{
+          const r=await fn();
+          if(r){await logAttempt(item,channel,true,r);await logDelivery(item,channel,r)}
+        }catch(e){
+          await logAttempt(item,channel,false,e.message||String(e));
+          console.error(channel+" send",e.statusCode||e.message);
+        }
+      };
+      if (item.push_enabled && !item.push_sent && item.endpoint) await run("push",async()=>{
+        if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)throw new Error("push_not_configured");
+        await webpush.sendNotification({ endpoint: item.endpoint, keys: { p256dh: item.p256dh, auth: item.auth } },
+          JSON.stringify({ title: text.title, body: text.body, url: APP_PUBLIC_URL + "/#event=" + item.event_id, event_id: item.event_id }),
+          { TTL: 86400 }); return "sent";
+      });
+      if (item.email_enabled && !item.email_sent && item.email) await run("email",()=>sendEmail(item,text));
+      if (item.telegram_enabled && !item.telegram_sent && item.telegram_chat_id) await run("telegram",()=>telegramSend(item.telegram_chat_id,text.title+"\n"+text.body+"\n"+APP_PUBLIC_URL));
+      if (item.whatsapp_enabled && !item.whatsapp_sent && item.whatsapp_phone) await run("whatsapp",()=>whatsappSend(item.whatsapp_phone,text));
+      if (item.sms_enabled && !item.sms_sent && item.sms_phone) await run("sms",()=>smsSend(item.sms_phone,text));
     }
   } catch (e) { console.error("notification cycle", e.data || e); }
   finally { notificationCycleRunning = false; }
