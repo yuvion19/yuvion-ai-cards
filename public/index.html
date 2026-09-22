@@ -3352,6 +3352,12 @@ async function togglePublished(id){
   item.updatedAt=Date.now();
   await dbPut(item);
   await renderHistory();
+  if(!remaining&&!haltedByLimit){
+    document.getElementById('publishCenter').open=true;
+    publishCenterFilter.value='all';
+    renderPublishCenter(await dbAll());
+    document.getElementById('publishCenter').scrollIntoView({behavior:'smooth',block:'start'});
+  }
 }
 
 
@@ -4207,7 +4213,7 @@ async function processExcelAutopilotItem(item,style){
   const analyze=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,mode:'full',extraData,additionalImages})});
   const analyzed=await analyze.json().catch(()=>({}));
   if(!analyze.ok)throw new Error(analyzed.error||'Не удалось проанализировать товар.');
-  if(item.data?.category&&categoryValidity(item.data.category).valid)analyzed.category=item.data.category;
+  if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
   const gen=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style})});
   const generated=await gen.json().catch(()=>({}));
   if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
