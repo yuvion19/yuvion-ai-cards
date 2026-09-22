@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Production release marker: v6.6.0
+// Production release marker: v6.7.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -46,6 +46,8 @@ const stats = {
   cardBatches: 0,
   singleRegenerations: 0,
   localOverlayRenders: 0,
+  freeSceneRenders: 0,
+  aiSceneRenders: 0,
   imagesGenerated: 0,
   imageErrors: 0,
   creditsExhausted: 0,
@@ -1185,11 +1187,12 @@ async function makeQualityPreview(base64) {
 
 app.post("/api/quality-check", async (req, res) => {
   try {
-    const { cards, card, sourceImage = "", sourceMimeType = "" } = req.body ?? {};
+    const { cards, card, sourceImage = "", sourceMimeType = "", renderMode = "ai" } = req.body ?? {};
+    const localOnly = renderMode === "free";
     if (!Array.isArray(cards) || cards.length !== 4) {
       return res.status(400).json({ error: "Для проверки нужны четыре карточки." });
     }
-    if (!process.env.OPENAI_API_KEY) {
+    if (!localOnly && !process.env.OPENAI_API_KEY) {
       return res.status(503).json({ error: "AI для проверки качества не настроен." });
     }
 
@@ -1206,6 +1209,24 @@ app.post("/api/quality-check", async (req, res) => {
       }
       const thumb = await makeQualityPreview(cards[i].base64);
       previews.push("data:image/jpeg;base64," + thumb.toString("base64"));
+    }
+
+    if (localOnly) {
+      const cardsResult = deterministicIssues.map((issues, index) => ({
+        index,
+        status: issues.length ? "Переделать" : "OK",
+        issues,
+        needsRegeneration: issues.length > 0
+      }));
+      const failures = cardsResult.filter((item) => item.needsRegeneration).length;
+      stats.qualityChecks += 1;
+      stats.qualityFailures += failures;
+      return res.json({
+        overall: failures ? "Нужно исправить" : "Отлично",
+        cards: cardsResult,
+        local: true,
+        note: "Бесплатная локальная проверка: размеры, формат и целостность файлов. Генеративная AI-проверка не вызывалась."
+      });
     }
 
     let sourcePreview = "";
@@ -1381,6 +1402,60 @@ const cardScenes = [
   "Товар расположен в верхней половине. Нижняя половина спокойная и свободная под будущие характеристики.",
   "Товар полностью виден, композиция естественная. Нижняя часть кадра остается свободной под будущие сценарии использования."
 ];
+
+const freeSceneLayouts = [
+  { x: 105, y: 118, width: 690, height: 620 },
+  { x: 548, y: 145, width: 300, height: 760 },
+  { x: 105, y: 88, width: 690, height: 520 },
+  { x: 105, y: 90, width: 690, height: 560 }
+];
+
+function freeSceneBackgroundSvg(index, styleKey) {
+  const style = styleProfiles[styleKey] || styleProfiles.minimal;
+  const layout = freeSceneLayouts[index] || freeSceneLayouts[0];
+  const frameX = Math.max(28, layout.x - 24);
+  const frameY = Math.max(28, layout.y - 24);
+  const frameW = Math.min(844, layout.width + 48);
+  const frameH = Math.min(920, layout.height + 48);
+  const accentX = index === 1 ? 690 : index === 2 ? 110 : 700;
+  const accentY = index === 1 ? 980 : index === 2 ? 90 : 115;
+  return `
+    <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#FFFDFD"/>
+          <stop offset="62%" stop-color="${style.panel}"/>
+          <stop offset="100%" stop-color="#F8EFF1"/>
+        </linearGradient>
+        <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#5B2730" flood-opacity="0.12"/>
+        </filter>
+      </defs>
+      <rect width="900" height="1200" fill="url(#bg)"/>
+      <circle cx="${accentX}" cy="${accentY}" r="210" fill="${style.accent}" fill-opacity="0.07"/>
+      <circle cx="${index === 1 ? 760 : 120}" cy="${index === 1 ? 120 : 1040}" r="120" fill="${style.accent2}" fill-opacity="0.05"/>
+      <rect x="${frameX}" y="${frameY}" width="${frameW}" height="${frameH}" rx="38" fill="#FFFFFF" filter="url(#shadow)"/>
+      <rect x="${frameX}" y="${frameY}" width="${frameW}" height="${frameH}" rx="38" fill="none" stroke="${style.accent}" stroke-opacity="0.10" stroke-width="2"/>
+    </svg>`;
+}
+
+async function renderFreeScene(sourceBuffer, index, styleKey) {
+  const layout = freeSceneLayouts[index] || freeSceneLayouts[0];
+  const product = await sharp(sourceBuffer)
+    .rotate()
+    .resize(layout.width, layout.height, {
+      fit: "contain",
+      withoutEnlargement: false,
+      background: { r: 255, g: 255, b: 255, alpha: 1 }
+    })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+
+  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey)))
+    .composite([{ input: product, left: layout.x, top: layout.y }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
 
 async function generateScene(client, sourceBuffer, mimeType, scenePrompt, index, styleKey) {
   const style = styleProfiles[styleKey] || styleProfiles.minimal;
@@ -1625,27 +1700,38 @@ app.post("/api/generate-cards", async (req, res) => {
       return res.status(429).json({ error: "Лимит: не более 12 комплектов карточек в час с одного подключения." });
     }
 
-    const { image, mimeType, card, style = "minimal" } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", renderMode = "free" } = req.body ?? {};
     if (typeof image !== "string" || typeof mimeType !== "string" || !card || typeof card !== "object") {
       return res.status(400).json({ error: "Не хватает исходного фото или данных товара." });
     }
     if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
     if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
-    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI для изображений пока не настроен." });
 
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const mode = renderMode === "ai" ? "ai" : "free";
+    if (mode === "ai" && !process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ error: "AI-фоторежим пока не настроен. Выберите бесплатный режим." });
+    }
+
     const sourceBuffer = Buffer.from(image, "base64");
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
+    let scenes = [];
 
-    const scenes = [];
-    for (let start = 0; start < 4; start += 2) {
-      const pair = await Promise.all(
-        cardScenes.slice(start, start + 2).map((prompt, localIndex) =>
-          generateScene(client, sourceBuffer, mimeType, prompt, start + localIndex + 1, styleKey)
-        )
-      );
-      scenes.push(...pair);
+    if (mode === "ai") {
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      for (let start = 0; start < 4; start += 2) {
+        const pair = await Promise.all(
+          cardScenes.slice(start, start + 2).map((prompt, localIndex) =>
+            generateScene(client, sourceBuffer, mimeType, prompt, start + localIndex + 1, styleKey)
+          )
+        );
+        scenes.push(...pair);
+      }
+      stats.aiSceneRenders += 4;
+      stats.estimatedImageOutputUsd += 4 * IMAGE_OUTPUT_ESTIMATE_USD;
+    } else {
+      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey)));
+      stats.freeSceneRenders += 4;
     }
 
     const cachedScenes = await Promise.all(scenes.map((scene) => normalizeSceneForCache(scene)));
@@ -1661,7 +1747,6 @@ app.post("/api/generate-cards", async (req, res) => {
 
     stats.cardBatches += 1;
     stats.imagesGenerated += 4;
-    stats.estimatedImageOutputUsd += 4 * IMAGE_OUTPUT_ESTIMATE_USD;
 
     return res.json({
       cards,
@@ -1672,6 +1757,8 @@ app.post("/api/generate-cards", async (req, res) => {
       })),
       format: "900x1200",
       style: styleKey,
+      renderMode: mode,
+      aiImageCalls: mode === "ai" ? 4 : 0,
       description: descriptionText(normalized)
     });
   } catch (error) {
@@ -1689,7 +1776,7 @@ app.post("/api/regenerate-card", async (req, res) => {
       return res.status(429).json({ error: "Слишком много повторных генераций. Попробуйте позже." });
     }
 
-    const { image, mimeType, card, style = "minimal", index } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", index, renderMode = "free" } = req.body ?? {};
     const cardIndex = Number(index);
     if (![0, 1, 2, 3].includes(cardIndex)) return res.status(400).json({ error: "Некорректный номер карточки." });
     if (typeof image !== "string" || typeof mimeType !== "string" || !card || typeof card !== "object") {
@@ -1698,11 +1785,26 @@ app.post("/api/regenerate-card", async (req, res) => {
     if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
     if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
 
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const mode = renderMode === "ai" ? "ai" : "free";
+    if (mode === "ai" && !process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ error: "AI-фоторежим пока не настроен. Выберите бесплатный режим." });
+    }
+
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
     const sourceBuffer = Buffer.from(image, "base64");
-    const scene = await generateScene(client, sourceBuffer, mimeType, cardScenes[cardIndex], cardIndex + 1, styleKey);
+    let scene;
+
+    if (mode === "ai") {
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      scene = await generateScene(client, sourceBuffer, mimeType, cardScenes[cardIndex], cardIndex + 1, styleKey);
+      stats.aiSceneRenders += 1;
+      stats.estimatedImageOutputUsd += IMAGE_OUTPUT_ESTIMATE_USD;
+    } else {
+      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey);
+      stats.freeSceneRenders += 1;
+    }
+
     const cachedScene = await normalizeSceneForCache(scene);
     const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey));
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
@@ -1710,7 +1812,6 @@ app.post("/api/regenerate-card", async (req, res) => {
 
     stats.singleRegenerations += 1;
     stats.imagesGenerated += 1;
-    stats.estimatedImageOutputUsd += IMAGE_OUTPUT_ESTIMATE_USD;
 
     return res.json({
       card: {
@@ -1722,7 +1823,9 @@ app.post("/api/regenerate-card", async (req, res) => {
         index: cardIndex,
         mimeType: "image/jpeg",
         base64: cachedScene.toString("base64")
-      }
+      },
+      renderMode: mode,
+      aiImageCalls: mode === "ai" ? 1 : 0
     });
   } catch (error) {
     console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
@@ -1835,7 +1938,7 @@ app.get("/api/admin/stats", requireAdmin, (_req, res) => {
     estimatedTotalUsd: stats.estimatedTextUsd + stats.estimatedImageOutputUsd,
     privacyMode: true,
     privacyNote: "Статистика агрегированная. Идентификаторы арендаторов, сессии, ФИО, контакты и содержимое товаров в админ-панель не передаются.",
-    estimatedCostNote: "Оценка: текст по настроенным токен-тарифам; изображения — приблизительная стоимость output одного medium 1024x1536, без полного учета входных image/text tokens."
+    estimatedCostNote: "Бесплатный режим изображений выполняется локально через Sharp и не использует image-generation API. Оценка image cost относится только к явно выбранному AI-фоторежиму."
   });
 });
 
@@ -1854,6 +1957,9 @@ app.post("/api/admin/reset-stats", requireAdmin, (_req, res) => {
     fullMode: 0,
     cardBatches: 0,
     singleRegenerations: 0,
+    localOverlayRenders: 0,
+    freeSceneRenders: 0,
+    aiSceneRenders: 0,
     imagesGenerated: 0,
     imageErrors: 0,
     creditsExhausted: 0,
@@ -1898,5 +2004,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v6.6.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v6.7.0 listening on port ${port}`);
 });
