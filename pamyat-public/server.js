@@ -314,16 +314,22 @@ function mobileShell(title, body, opts = {}) {
 
 app.get("/m", async (_req,res) => {
   res.setHeader("Cache-Control","no-store");
-  let today=[];
-  try{today=await sb("rpc/memorial_public_upcoming",{method:"POST",body:{p_days:0,p_limit:20}})||[]}catch{}
-  const todayCards=today.map(e=>'<div class="card"><span class="tag">'+htmlEsc(e.event_type||"Памятная дата")+'</span><h3>'+htmlEsc(e.full_name||"")+'</h3><div class="muted">'+htmlEsc([e.city,e.place].filter(Boolean).join(" · "))+'</div><p><a class="btn secondary" href="/m/memorial/'+encodeURIComponent(e.id)+'">Почтить память</a></p></div>').join("");
+  let upcoming=[];
+  try{upcoming=await sb("rpc/memorial_public_upcoming",{method:"POST",body:{p_days:30,p_limit:120}})||[]}catch{}
+  const todayIso=new Date().toISOString().slice(0,10);
+  const inDays=(date,n)=>{if(!date)return false;const d=new Date(date+"T00:00:00Z"),t=new Date(todayIso+"T00:00:00Z");const diff=Math.round((d-t)/86400000);return diff>=0&&diff<=n};
+  const today=upcoming.filter(x=>x.event_date===todayIso);
+  const week=upcoming.filter(x=>x.event_date!==todayIso&&inDays(x.event_date,7));
+  const month=upcoming.filter(x=>x.event_date!==todayIso&&inDays(x.event_date,30)).slice(0,12);
+  const mini=rows=>(rows||[]).map(e=>'<div class="card"><span class="tag">'+htmlEsc(e.event_type||"Памятная дата")+'</span><b style="display:block;margin-top:6px">'+htmlEsc(e.full_name||"")+'</b><div>'+htmlEsc(e.event_date||"")+'</div><div class="muted">'+htmlEsc([e.city,e.place].filter(Boolean).join(" · "))+'</div><a class="btn secondary" style="margin-top:8px" href="/m/memorial/'+encodeURIComponent(e.id)+'">Открыть</a></div>').join("");
   res.send(mobileShell("Главная", `
-    <h1>Мобильная версия</h1>
-    <p class="muted">Простая версия без большого интерфейса. Критические функции работают отдельными страницами.</p>
-    <section>
-      <h2>Сегодня вспоминаем</h2>
-      ${todayCards||'<div class="card muted">На сегодня публичных памятных дат нет.</div>'}
-    </section>
+    <h1>Память Джуури</h1>
+    <p class="muted">Памятные даты, йорцайт, объявления и воспоминания общины.</p>
+    <h2>Сегодня вспоминаем</h2>
+    ${mini(today)||'<div class="card muted">На сегодня публичных памятных дат нет.</div>'}
+    <h2>Ближайшие 7 дней</h2>
+    ${mini(week)||'<div class="card muted">В ближайшие 7 дней дат нет.</div>'}
+    <details class="card"><summary><b>Ближайшие 30 дней</b></summary><div style="margin-top:10px">${mini(month)||'<div class="muted">Ближайших дат нет.</div>'}</div></details>
     <div class="nav">
       <a class="btn" href="/m/add">+ Добавить событие</a>
       <a class="btn" href="/m/add?funeral=1">Срочное похоронное объявление</a>
@@ -348,7 +354,6 @@ app.get("/m", async (_req,res) => {
     btn.onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;btn.style.display="none"};
   </script>`}));
 });
-
 app.get("/m/status", async (_req,res)=>{
   try{
     const db=await sb("rpc/memorial_selftest",{method:"POST",body:{}}).catch(()=>({ok:false}));
