@@ -175,6 +175,9 @@ const features=[
   ['fontRenderingReady','font rendering health flag'],
   ['svgTextSelfTest: true','SVG text self-test health metadata'],
   ['textOverlayHealthGate: true','text overlay health gate metadata'],
+  ['textOverlayPixelGuard: true','per-card text overlay pixel guard metadata'],
+  ['rasterizeOverlayWithTextGuard','rasterized text-layer verification'],
+  ['textOverlayChecks','text overlay runtime counters'],
   ['CARD_RENDER_SCHEMA=2','card render cache schema'],
   ['legacyCardCacheMigration: true','legacy card cache migration metadata'],
   ['automaticTextOverlayRepair: true','automatic text overlay repair metadata'],
@@ -220,3 +223,6 @@ if(!server.includes('makeProductHalo'))fail('product halo enhancement missing');
 
 if(!dockerfile.includes('fonts-dejavu-core'))fail('Dockerfile must install DejaVu fonts');else ok('Dockerfile installs DejaVu fonts');
 if(!dockerfile.includes('fontconfig'))fail('Dockerfile must install fontconfig');else ok('Dockerfile installs fontconfig');
+
+if(!server.includes('error.code = "text_overlay_render_failed"'))fail('text overlay guard failure code missing');else ok('text overlay guard failure code present');
+if(!server.includes('textPixels < 80'))fail('text overlay pixel threshold missing');else ok('text overlay pixel threshold present');

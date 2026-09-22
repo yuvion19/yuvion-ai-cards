@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v8.4.1
+// Production release marker: v8.5.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -90,6 +90,8 @@ const stats = {
   estimatedImageOutputUsd: 0,
   qualityChecks: 0,
   qualityFailures: 0,
+  textOverlayChecks: 0,
+  textOverlayFailures: 0,
   preflightChecks: 0,
   preflightFindings: 0,
   batchProducts: 0,
@@ -1348,7 +1350,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "8.4.1",
+    version: "8.5.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1412,6 +1414,7 @@ app.get("/api/health", (_req, res) => {
       embeddedSystemFonts: true,
       svgTextSelfTest: true,
       textOverlayHealthGate: true,
+      textOverlayPixelGuard: true,
       legacyCardCacheMigration: true,
       automaticTextOverlayRepair: true,
       darkWorkbench: true,
@@ -2713,6 +2716,59 @@ async function normalizeSceneForCache(sceneBuffer) {
     .toBuffer();
 }
 
+function stripSvgTextNodes(svg) {
+  return String(svg || "").replace(/<text\\b[^>]*>[\\s\\S]*?<\\/text>/gi, "");
+}
+
+async function rasterizeOverlayWithTextGuard(overlaySvg) {
+  const svg = String(overlaySvg || "");
+  const overlayBuffer = await sharp(Buffer.from(svg))
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+
+  if (!/<text\\b/i.test(svg)) {
+    return { buffer: overlayBuffer, textPixels: 0, checked: false };
+  }
+
+  const noTextSvg = stripSvgTextNodes(svg);
+  const [withText, withoutText] = await Promise.all([
+    sharp(overlayBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true }),
+    sharp(Buffer.from(noTextSvg)).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  ]);
+
+  if (
+    withText.info.width !== withoutText.info.width ||
+    withText.info.height !== withoutText.info.height ||
+    withText.info.channels !== withoutText.info.channels
+  ) {
+    stats.textOverlayFailures += 1;
+    const error = new Error("Text overlay raster dimensions do not match");
+    error.code = "text_overlay_render_failed";
+    throw error;
+  }
+
+  const channels = withText.info.channels;
+  let textPixels = 0;
+  for (let p = 0; p < withText.data.length; p += channels) {
+    let delta = 0;
+    for (let c = 0; c < channels; c += 1) {
+      delta += Math.abs(withText.data[p + c] - withoutText.data[p + c]);
+    }
+    if (delta > 28) textPixels += 1;
+  }
+
+  stats.textOverlayChecks += 1;
+  if (textPixels < 80) {
+    stats.textOverlayFailures += 1;
+    const error = new Error("Text overlay produced too few rasterized text pixels");
+    error.code = "text_overlay_render_failed";
+    error.textPixels = textPixels;
+    throw error;
+  }
+
+  return { buffer: overlayBuffer, textPixels, checked: true };
+}
+
 async function composeCard(sceneBuffer, overlaySvg) {
   const meta = await sharp(sceneBuffer).metadata();
   const base = Number(meta.width) === 900 && Number(meta.height) === 1200
@@ -2725,8 +2781,9 @@ async function composeCard(sceneBuffer, overlaySvg) {
       .png({ compressionLevel: 9 })
       .toBuffer();
 
+  const overlay = await rasterizeOverlayWithTextGuard(overlaySvg);
   return sharp(base)
-    .composite([{ input: Buffer.from(overlaySvg) }])
+    .composite([{ input: overlay.buffer }])
     .png({ compressionLevel: 9 })
     .toBuffer();
 }
@@ -2798,6 +2855,10 @@ function imageErrorResponse(req, res, error, map, type) {
   if (error?.code === "credit_balance_exhausted") {
     rollbackLimit(map, ip);
     return res.status(402).json({ error: "На балансе OpenAI API закончились кредиты. Пополните API-баланс и повторите генерацию." });
+  }
+  if (error?.code === "text_overlay_render_failed") {
+    rollbackLimit(map, ip);
+    return res.status(503).json({ error: "Сервер не подтвердил прорисовку текстового слоя. Карточка не выдана; повторите генерацию." });
   }
   if (error?.code === "moderation_blocked") {
     rollbackLimit(map, ip);
@@ -3242,6 +3303,8 @@ app.post("/api/admin/reset-stats", requireAdmin, (_req, res) => {
     estimatedImageOutputUsd: 0,
     qualityChecks: 0,
     qualityFailures: 0,
+    textOverlayChecks: 0,
+    textOverlayFailures: 0,
     preflightChecks: 0,
     preflightFindings: 0,
     batchProducts: 0,
@@ -3282,5 +3345,5 @@ if (!fontRenderState.ready) {
   console.log("SVG font render self-test OK:", fontRenderState.paintedPixels, "painted pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v8.4.1 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v8.5.0 listening on port ${port}`);
 });
