@@ -4,11 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#4c3e2d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Память Джуури">
+  <meta name="application-name" content="Память Джуури">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="/icon.svg">
   <meta name="description" content="Общественный календарь памяти, каталог кладбища Кубы, родословная и уведомления.">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <title>Память — календарь и семейная история</title>
+  <title>Память Джуури</title>
   <style>
     :root{--bg:#f5f1e8;--paper:#fffdf8;--ink:#27231e;--muted:#746d63;--line:#ded6c8;--accent:#5b4934;--accent2:#8c7556;--soft:#eee6d9;--ok:#4f6c52;--warn:#8c6c34;--danger:#8a4b4b;--shadow:0 14px 38px rgba(47,38,27,.09);--radius:18px}
     *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font:15px/1.45 Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink)}
@@ -370,6 +377,8 @@ async function adminDownload(url){const r=await fetch(url,{headers:{"x-admin-tok
 async function showHistory(id){const r=await fetch("/api/admin/events/"+id+"/history",{headers:{"x-admin-token":$("#adminToken").value}}),h=await r.json();$("#simpleModal").innerHTML='<div class="modalhead"><h2>История изменений</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div>'+((h||[]).map(x=>'<div class="notice" style="margin:7px 0"><b>'+esc(x.operation)+' · '+new Date(x.created_at).toLocaleString()+'</b><div class="card-actions"><button class="secondary small" onclick="rollbackHistory('+x.id+')">Вернуть эту версию</button></div></div>').join("")||'<div class="muted">История пуста.</div>');simpleDialog.showModal()}
 async function rollbackHistory(id){const r=await fetch("/api/admin/history/"+id+"/rollback",{method:"POST",headers:{"x-admin-token":$("#adminToken").value}});if(r.ok){simpleDialog.close();loadAdmin();loadEvents()}}
 
+function isStandalonePwa(){return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone===true}
+if(isStandalonePwa()) document.documentElement.classList.add("standalone-pwa");
 registerSW().catch(()=>{});loadEvents().then(()=>{const m=location.hash.match(/event=([0-9a-f-]+)/i);if(m)openDetail(m[1])});loadChannelStatus();loadInternalNotifications();
 </script>
 </body>
