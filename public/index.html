@@ -4065,7 +4065,12 @@ function excelImportedItems(all){
   return (all||[]).filter(item=>Boolean(item?.importedFrom));
 }
 function excelQueueItems(all){
-  return excelImportedItems(all).filter(item=>item.sourceDataUrl&&(!Array.isArray(item.cards)||item.cards.length!==4||item.cardsStale||!storedReadiness(item).ready));
+  return excelImportedItems(all).filter(item=>{
+    if(!item.sourceDataUrl)return false;
+    const needsAnalyze=!item.data||item.data.confidence==='импорт из таблицы';
+    const needsCards=!Array.isArray(item.cards)||item.cards.length!==4||Boolean(item.cardsStale);
+    return needsAnalyze||needsCards;
+  });
 }
 function photoMatchCandidates(item){
   const sku=skuOfStoredItem(item),barcode=barcodeOfStoredItem(item);
