@@ -821,11 +821,45 @@ app.get("/m/admin", (_req,res) => {
     <div id="mAdminApp" style="display:none">
       <div class="card">
         <div class="row" style="justify-content:space-between">
-          <b>Панель администратора</b>
+          <div><b>Панель администратора</b><div id="adminWho" class="muted"></div></div>
           <button class="btn secondary" id="mAdminLogout" style="padding:8px 11px">Выйти</button>
         </div>
         <div id="adminStats" class="row" style="margin-top:10px"></div>
-        <button class="btn secondary" id="backupTest" style="width:100%;margin-top:10px">Проверить внешнюю резервную копию</button>
+        <div class="row" style="margin-top:10px">
+          <button class="btn secondary" id="revokeAllSessions">Выйти на всех устройствах</button>
+          <button class="btn secondary" id="backupTest">Проверить внешний backup</button>
+        </div>
+      </div>
+
+      <div class="card" id="adminDataTools">
+        <h3 style="margin-top:0">Данные</h3>
+        <div class="row">
+          <button class="btn secondary" data-export="/api/admin/export.json" data-name="pamyat-export.json">JSON</button>
+          <button class="btn secondary" data-export="/api/admin/export.csv" data-name="pamyat-events.csv">CSV</button>
+          <button class="btn secondary" data-export="/api/admin/export.xls" data-name="pamyat-events.xls">Excel</button>
+        </div>
+        <label>Импорт CSV</label>
+        <input id="adminImportFile" class="field" type="file" accept=".csv,text/csv">
+        <button class="btn secondary" id="adminImportPreview" style="width:100%;margin-top:8px">Проверить файл</button>
+        <div id="adminImportResult" class="muted" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card" id="ownerUsersCard" style="display:none">
+        <h3 style="margin-top:0">Администраторы и роли</h3>
+        <p class="muted">Владелец управляет ролями и паролями. Модератор работает только с очередью контента.</p>
+        <div id="adminUsersList"></div>
+        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+        <label>Email</label><input id="newAdminEmail" class="field" type="email">
+        <label>Имя</label><input id="newAdminName" class="field">
+        <label>Роль</label><select id="newAdminRole" class="field"><option value="moderator">Модератор</option><option value="admin">Админ</option><option value="owner">Владелец</option></select>
+        <label>Пароль (не менее 12 символов)</label><input id="newAdminPassword" class="field" type="password">
+        <button class="btn" id="saveAdminUser" style="width:100%;margin-top:8px">Сохранить пользователя</button>
+      </div>
+
+      <div class="card" id="trashCard">
+        <h3 style="margin-top:0">Корзина</h3>
+        <p class="muted">Удалённые люди скрываются из публичной части и могут быть восстановлены.</p>
+        <div id="adminTrashList"></div>
       </div>
 
       <div class="card">
@@ -870,7 +904,7 @@ app.get("/m/admin", (_req,res) => {
     const fmt=v=>v?new Date(v).toLocaleString("ru-RU"):"—";
     const statusText={pending:"На проверке",approved:"Одобрено",rejected:"Отклонено",hidden:"Скрыто"};
     const tokenKey="pamyat_admin_session_token";
-    let timer=null,lastRows=[];
+    let timer=null,lastRows=[],me=null,importRows=[];
 
     function token(){return sessionStorage.getItem(tokenKey)||""}
     async function api(url,opts={}){
@@ -964,13 +998,78 @@ app.get("/m/admin", (_req,res) => {
         '<div>'+esc(x.event_type||"")+' · '+esc(x.event_date||"")+'</div><div class="muted">'+esc(fmt(x.attempted_at))+' · '+(x.success?"успешно":"ошибка")+
         (x.detail?' · '+esc(x.detail):"")+'</div></div>').join(""):'<div class="card muted">Попыток доставки пока нет.</div>';
     }
+    async function downloadAdmin(url,name){
+      const headers={};if(token())headers["x-admin-token"]=token();
+      const r=await fetch(url,{headers,cache:"no-store"});
+      if(!r.ok)throw new Error("download_failed");
+      const blob=await r.blob(),a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    }
+    async function loadUsers(){
+      if(me?.role!=="owner")return;
+      const rows=await api("/api/admin/users");
+      qs("#adminUsersList").innerHTML=rows.map(x=>
+        '<div class="card"><b>'+esc(x.display_name||x.email)+'</b><div class="muted">'+esc(x.email)+' · '+esc(x.role)+' · '+(x.active?"активен":"отключён")+'</div>'+
+        '<div class="row" style="margin-top:8px"><button class="btn secondary" data-user-edit="'+esc(x.email)+'" data-role="'+esc(x.role)+'" data-name="'+esc(x.display_name||"")+'" data-active="'+(x.active?"1":"0")+'">Изменить</button></div></div>'
+      ).join("")||'<div class="muted">Нет пользователей.</div>';
+      qs("#adminUsersList").querySelectorAll("[data-user-edit]").forEach(b=>b.onclick=()=>{
+        qs("#newAdminEmail").value=b.dataset.userEdit;
+        qs("#newAdminRole").value=b.dataset.role;
+        qs("#newAdminName").value=b.dataset.name||"";
+        qs("#newAdminPassword").value="";
+        qs("#newAdminEmail").scrollIntoView({behavior:"smooth"});
+      });
+    }
+    async function saveAdminUser(){
+      const email=qs("#newAdminEmail").value.trim(),role=qs("#newAdminRole").value,display_name=qs("#newAdminName").value.trim(),password=qs("#newAdminPassword").value;
+      await api("/api/admin/users",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,role,display_name,active:true})});
+      if(password)await api("/api/admin/users/password",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,password})});
+      qs("#newAdminPassword").value="";await loadUsers();
+    }
+    async function loadTrash(){
+      if(me?.role==="moderator"){qs("#trashCard").style.display="none";return}
+      qs("#trashCard").style.display="block";
+      const rows=await api("/api/admin/trash");
+      qs("#adminTrashList").innerHTML=rows.length?rows.map(x=>
+        '<div class="card"><b>'+esc(x.full_name||"Удалено")+'</b><div class="muted">'+esc(x.death_date||"")+' · событий: '+Number(x.events||0)+' · '+esc(fmt(x.trashed_at))+'</div>'+
+        (!x.purge_marker?'<button class="btn secondary" data-restore-trash="'+esc(x.id)+'" style="margin-top:8px">Восстановить</button>':'<span class="tag">Удалено окончательно</span>')+'</div>'
+      ).join(""):'<div class="muted">Корзина пуста.</div>';
+      qs("#adminTrashList").querySelectorAll("[data-restore-trash]").forEach(b=>b.onclick=async()=>{
+        await api("/api/admin/events/"+encodeURIComponent(b.dataset.restoreTrash)+"/restore",{method:"POST"});await loadTrash();await load();
+      });
+    }
+    async function previewImport(){
+      const file=qs("#adminImportFile").files[0];if(!file)return alert("Выберите CSV.");
+      const fd=new FormData();fd.append("file",file);
+      const d=await api("/api/admin/import/preview",{method:"POST",body:fd});
+      importRows=d.rows||[];
+      qs("#adminImportResult").innerHTML='Строк: '+d.total+' · корректных: '+d.valid+
+        '<br><button class="btn" id="adminImportCommit" style="width:100%;margin-top:8px">Импортировать корректные строки</button>';
+      qs("#adminImportCommit").onclick=async()=>{
+        if(!confirm("Импортировать данные на модерацию?"))return;
+        const r=await api("/api/admin/import/commit",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({rows:importRows,allow_duplicates:false})});
+        qs("#adminImportResult").textContent='Создано: '+r.created+' · дубли пропущены: '+r.skipped_duplicates+' · ошибок: '+r.invalid;
+        await load();
+      };
+    }
+
     async function load(){
       const q=qs("#mAdminSearch").value.trim(),status=qs("#mAdminStatus").value;
       const data=await api("/api/admin/events/list?"+new URLSearchParams({status,q,limit:"300"}));
       render(data); await Promise.all([loadStats(),loadDelivery(),loadExtras()]);
     }
     async function showApp(){
-      qs("#adminLoginCard").style.display="none";qs("#mAdminApp").style.display="block";await load();
+      me=await api("/api/admin/auth/status");
+      qs("#adminLoginCard").style.display="none";
+      qs("#mAdminApp").style.display="block";
+      qs("#adminWho").textContent=(me.display_name||me.email||"")+" · "+(me.role||"");
+      const owner=me.role==="owner";
+      qs("#ownerUsersCard").style.display=owner?"block":"none";
+      qs("#backupTest").style.display=owner?"inline-block":"none";
+      if(owner)await loadUsers();
+      await loadTrash();
+      await load();
     }
     async function passwordLogin(){
       const user=qs("#mAdminUser").value.trim(),password=qs("#mAdminPassword").value;
@@ -1016,22 +1115,89 @@ app.get("/m/admin", (_req,res) => {
     async function detail(id){
       const d=await api("/api/admin/events/"+encodeURIComponent(id)+"/details"),e=d.event||{};
       const history=(d.history||[]).map(h=>'<div class="card"><b>'+esc(h.operation||"изменение")+'</b><div class="muted">'+esc(fmt(h.created_at))+'</div></div>').join("");
-      qs("#mAdminDetail").innerHTML='<div class="card" style="border-width:2px">'+badge(e)+'<h2>'+esc(e.full_name||"Без имени")+'</h2>'+
-        '<div><b>'+esc(e.event_type||"")+'</b> · '+esc(e.event_date||"")+'</div>'+
-        '<p><b>Дата смерти:</b> '+esc(e.death_date||"—")+'<br><b>Заявитель:</b> '+esc(e.submitter_name||"—")+
-        '<br><b>Контакт:</b> '+esc(e.submitter_contact||"—")+'</p>'+(e.note?'<p>'+esc(e.note)+'</p>':"")+buttons(e)+
-        '<button class="btn secondary" id="deletePerson" style="width:100%;margin-top:10px;background:#f5e2e2">Удалить человека</button>'+
-        '<div class="muted" style="margin-top:6px">Будут убраны все связанные памятные даты этого человека. Записи останутся в разделе «Скрыто» и смогут быть восстановлены.</div></div>'+
-        '<h3>История</h3>'+(history||'<div class="muted">Изменений пока нет.</div>');
+      const hidden=Boolean(e.trashed_at);
+      qs("#mAdminDetail").innerHTML=
+        '<div class="card" style="border-width:2px">'+badge(e)+
+        '<h2>'+esc(e.full_name||"Без имени")+'</h2>'+
+        '<img id="detailPhotoPreview" src="/api/events/'+encodeURIComponent(id)+'/photo?v='+Date.now()+'" alt="Фото" style="width:160px;max-height:200px;object-fit:cover;border-radius:14px;display:block;margin:10px 0" onerror="this.style.display=\'none\'">'+
+        '<label>Фото человека</label><input id="detailPhoto" class="field" type="file" accept="image/jpeg,image/png,image/webp">'+
+        '<div class="row" style="margin-top:8px"><button class="btn secondary" id="uploadDetailPhoto">Загрузить фото</button><button class="btn secondary" id="removeDetailPhoto">Удалить фото</button></div>'+
+        '<h3>Редактирование</h3>'+
+        '<label>ФИО</label><input id="editFullName" class="field" value="'+esc(e.full_name||"")+'">'+
+        '<label>Дата смерти</label><input id="editDeathDate" class="field" type="date" value="'+esc(e.death_date||"")+'">'+
+        '<label>Тип события</label><input id="editEventType" class="field" value="'+esc(e.event_type||"")+'">'+
+        '<label>Дата события</label><input id="editEventDate" class="field" type="date" value="'+esc(e.event_date||"")+'">'+
+        '<label>Время</label><input id="editEventTime" class="field" type="time" value="'+esc(e.event_time||"")+'">'+
+        '<label>Город</label><input id="editCity" class="field" value="'+esc(e.city||"")+'">'+
+        '<label>Место</label><input id="editPlace" class="field" value="'+esc(e.place||"")+'">'+
+        '<label>Комментарий</label><textarea id="editNote" class="field" rows="4">'+esc(e.note||"")+'</textarea>'+
+        '<label>Еврейская дата</label><input id="editHebrewDate" class="field" value="'+esc(e.hebrew_death_label||"")+'">'+
+        '<label>Ближайший йорцайт</label><input id="editYahrzeit" class="field" type="date" value="'+esc(e.yahrzeit_date||"")+'">'+
+        '<div class="check"><input id="editFamilyVerified" type="checkbox" '+(e.family_verified?"checked":"")+'><span>Подтверждено семьёй</span></div>'+
+        '<div class="check"><input id="editSourceVerified" type="checkbox" '+(e.source_verified?"checked":"")+'><span>Подтверждено источником</span></div>'+
+        '<div class="check"><input id="editUrgent" type="checkbox" '+(e.urgent?"checked":"")+'><span>Срочное событие</span></div>'+
+        '<button class="btn" id="saveEventEdit" style="width:100%;margin-top:10px">Сохранить изменения</button>'+
+        buttons(e)+
+        '<h3>Дубликаты</h3><p class="muted">Укажите ID дублирующего события. Свечи, комментарии и подтверждения будут перенесены в эту запись.</p>'+
+        '<input id="mergeDuplicateId" class="field" placeholder="UUID дубликата"><button class="btn secondary" id="mergeDuplicate" style="width:100%;margin-top:8px">Объединить дубликат</button>'+
+        (hidden?
+          '<button class="btn" id="restorePerson" style="width:100%;margin-top:12px">Восстановить из корзины</button>'+
+          (me?.role==="owner"?'<button class="btn secondary" id="purgePerson" style="width:100%;margin-top:8px;background:#f5e2e2">Удалить окончательно</button>':"")
+          :
+          '<button class="btn secondary" id="trashPerson" style="width:100%;margin-top:12px;background:#f5e2e2">Переместить человека в корзину</button>'
+        )+
+        '</div><h3>История</h3>'+(history||'<div class="muted">Изменений пока нет.</div>');
+
       bind(qs("#mAdminDetail"));
-      qs("#deletePerson").onclick=async()=>{
-        if(!confirm("Удалить человека «"+(e.full_name||"")+"» и убрать все связанные памятные даты из публичной части?"))return;
-        try{
-          const r=await api("/api/admin/events/"+encodeURIComponent(id)+"/delete-person",{method:"POST"});
-          alert("Удалено из публичной части событий: "+(r.hidden_events??0));
-          qs("#mAdminDetail").innerHTML="";
-          await load();
-        }catch(err){alert(err.message)}
+
+      qs("#saveEventEdit").onclick=async()=>{
+        const body={
+          full_name:qs("#editFullName").value,death_date:qs("#editDeathDate").value,event_type:qs("#editEventType").value,
+          event_date:qs("#editEventDate").value,event_time:qs("#editEventTime").value,city:qs("#editCity").value,place:qs("#editPlace").value,
+          note:qs("#editNote").value,hebrew_death_label:qs("#editHebrewDate").value,yahrzeit_date:qs("#editYahrzeit").value,
+          yahrzeit_rule:e.yahrzeit_rule||"standard",family_verified:qs("#editFamilyVerified").checked,
+          source_verified:qs("#editSourceVerified").checked,urgent:qs("#editUrgent").checked
+        };
+        await api("/api/admin/events/"+encodeURIComponent(id)+"/edit",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        await load();await detail(id);
+      };
+
+      qs("#uploadDetailPhoto").onclick=async()=>{
+        const file=qs("#detailPhoto").files[0];if(!file)return alert("Выберите фото.");
+        const fd=new FormData();fd.append("photo",file);
+        await api("/api/admin/events/"+encodeURIComponent(id)+"/photo",{method:"POST",body:fd});
+        const img=qs("#detailPhotoPreview");img.src="/api/events/"+encodeURIComponent(id)+"/photo?v="+Date.now();img.style.display="block";
+      };
+      qs("#removeDetailPhoto").onclick=async()=>{
+        if(!confirm("Удалить фото?"))return;
+        await api("/api/admin/events/"+encodeURIComponent(id)+"/photo",{method:"DELETE"});
+        qs("#detailPhotoPreview").style.display="none";
+      };
+      qs("#mergeDuplicate").onclick=async()=>{
+        const duplicate_id=qs("#mergeDuplicateId").value.trim();
+        if(!duplicate_id)return;
+        if(!confirm("Объединить дубликат с этой записью?"))return;
+        await api("/api/admin/events/"+encodeURIComponent(id)+"/merge",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({duplicate_id})});
+        await load();await detail(id);
+      };
+
+      if(qs("#trashPerson"))qs("#trashPerson").onclick=async()=>{
+        if(!confirm("Переместить человека и все его памятные даты в корзину?"))return;
+        const r=await api("/api/admin/events/"+encodeURIComponent(id)+"/trash",{method:"POST"});
+        alert("В корзину перемещено событий: "+(r.trashed_events??0));
+        qs("#mAdminDetail").innerHTML="";await loadTrash();await load();
+      };
+      if(qs("#restorePerson"))qs("#restorePerson").onclick=async()=>{
+        const r=await api("/api/admin/events/"+encodeURIComponent(id)+"/restore",{method:"POST"});
+        alert("Восстановлено событий: "+(r.restored_events??0));
+        qs("#mAdminDetail").innerHTML="";await loadTrash();await load();
+      };
+      if(qs("#purgePerson"))qs("#purgePerson").onclick=async()=>{
+        if(!confirm("Окончательно удалить персональные данные этого человека? Это действие необратимо."))return;
+        const phrase=prompt('Для подтверждения введите PURGE');
+        if(phrase!=="PURGE")return;
+        await api("/api/admin/events/"+encodeURIComponent(id)+"/purge",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({confirm:"PURGE"})});
+        qs("#mAdminDetail").innerHTML="";await loadTrash();await load();
       };
       qs("#mAdminDetail").scrollIntoView({behavior:"smooth"});
     }
@@ -1043,6 +1209,13 @@ app.get("/m/admin", (_req,res) => {
     qs("#mAdminUser").addEventListener("keydown",e=>{if(e.key==="Enter")passwordLogin()});
     qs("#mAdminMagic").onclick=magic;qs("#mAdminLogin").onclick=tokenLogin;qs("#mAdminBindEmail").onclick=bindEmail;
     qs("#mAdminReload").onclick=()=>load().catch(e=>alert(e.message));
+    qs("#saveAdminUser").onclick=()=>saveAdminUser().catch(e=>alert(e.message));
+    qs("#adminImportPreview").onclick=()=>previewImport().catch(e=>alert(e.message));
+    document.querySelectorAll("[data-export]").forEach(b=>b.onclick=()=>downloadAdmin(b.dataset.export,b.dataset.name).catch(e=>alert(e.message)));
+    qs("#revokeAllSessions").onclick=async()=>{
+      if(!confirm("Завершить все ваши админ-сессии на всех устройствах?"))return;
+      await api("/api/admin/auth/revoke-all",{method:"POST"});sessionStorage.removeItem(tokenKey);location.reload();
+    };
     qs("#mAdminStatus").onchange=()=>load().catch(()=>{});
     qs("#mAdminSearch").oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>load().catch(()=>{}),300)};
     qs("#mAdminLogout").onclick=async()=>{sessionStorage.removeItem(tokenKey);await fetch("/api/admin/auth/logout",{method:"POST"});location.reload()};
