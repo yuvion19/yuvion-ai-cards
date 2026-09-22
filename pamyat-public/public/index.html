@@ -40,7 +40,7 @@
     dialog{border:0;border-radius:18px;max-width:720px;width:calc(100% - 24px);padding:0;box-shadow:0 24px 70px rgba(0,0,0,.25)}dialog::backdrop{background:rgba(25,22,18,.48)}.modal{padding:22px}.modalhead{display:flex;justify-content:space-between;gap:12px}
     footer{margin-top:40px;padding:24px 0;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
     .adminbar{display:grid;grid-template-columns:2fr auto auto auto;gap:8px}.badge{display:inline-flex;padding:4px 7px;border-radius:999px;background:var(--soft);font-size:12px}.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-    @media(max-width:900px){.hero,.split{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.derived{grid-template-columns:repeat(2,1fr)}nav{display:none}.toolbar,.adminbar{grid-template-columns:1fr}.head .brand{flex:1}}
+    @media(max-width:900px){.hero,.split{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.derived{grid-template-columns:repeat(2,1fr)}.head{flex-wrap:wrap}.head .brand{flex:1}.head nav{display:flex;order:3;width:100%;overflow-x:auto;padding-top:4px}.toolbar,.adminbar{grid-template-columns:1fr}}
     @media(max-width:580px){.wrap{padding-left:12px;padding-right:12px}.head{padding-left:12px;padding-right:12px}.grid{grid-template-columns:1fr}.checks{grid-template-columns:1fr}.derived{grid-template-columns:1fr}.hero>div{padding:20px}.cal-row{grid-template-columns:80px 1fr}.cal-row button{grid-column:2}.lang{max-width:100px}#qubaMap{height:420px}}
   </style>
 </head>
@@ -127,8 +127,14 @@
           <input id="cemeterySearch" class="field" data-ph="graveSearch" placeholder="Например: Юсуф, Йосеф, QBA0505" onkeydown="if(event.key==='Enter')searchCemetery()">
           <button class="primary" onclick="searchCemetery()" data-i18n="search">Найти</button>
         </div>
-        <div class="help" data-i18n="catalogDisclaimer">Показываем только индексные данные и ссылку на оригинал. Фото и эпитафии остаются у источника.</div>
+        <div class="card-actions" style="margin-bottom:10px">
+          <button class="secondary" onclick="cemeteryPage=1;loadCemeteryCatalog()">Каталогизация кладбища</button>
+          <button class="secondary" onclick="suggestCemeteryEntry()">+ Предложить запись</button>
+          <a class="secondary" style="text-decoration:none" target="_blank" rel="noopener" href="https://matzevalog.github.io/matzevalog/cemeteries/QBA.html">Оригинал «Мацевалог» ↗</a>
+        </div>
+        <div class="help" data-i18n="catalogDisclaimer">Показываем индексные данные и ссылку на оригинал. Фото и эпитафии остаются у источника.</div>
         <div id="cemeteryResults" class="search-results" style="margin-top:12px"></div>
+        <div id="cemeteryPager" class="card-actions" style="justify-content:space-between"></div>
       </div>
       <div class="panel">
         <div class="mapwrap">
@@ -287,7 +293,7 @@ az:{brand:"Xatirə",home:"Ana səhifə",calendar:"Təqvim",quba:"Quba qəbirista
 he:{brand:"זיכרון",home:"ראשי",calendar:"לוח שנה",quba:"בית העלמין בקובה",family:"עץ משפחה",notifications:"התראות",add:"הוספה",archive:"ארכיון",addShort:"+ הוספה",publicHub:"מרכז זיכרון קהילתי",heroTitle:"זיכרון, תאריכים והיסטוריה משפחתית במקום אחד",reportDate:"הוספת תאריך זיכרון",enableAlerts:"הגדרת תזכורות",findGrave:"חיפוש קבר",search:"חיפוש",today:"היום",tomorrow:"מחר",all:"הכול",deathDate:"תאריך פטירה",yourName:"שמך",city:"עיר",place:"מקום",submitModeration:"שליחה לבדיקה"},
 juuri:{brand:"Ёр",home:"Сер",calendar:"Луьвэхь",quba:"Гъоврегьо Куба",family:"Кифлет",notifications:"Хэбер",add:"Артмиш",archive:"Архив",addShort:"+ Артмиш",publicHub:"Маркази ёр",heroTitle:"Ёр, торих ва кифлет — е жой",reportDate:"Торихи ёр артмиш",enableAlerts:"Хэбер сохде",disableAlerts:"Хэбер нис",findGrave:"Гъовре гешде",search:"Гешд",today:"Имбуруз",tomorrow:"Себэхь",all:"Гьемише",deathDate:"Торихи мурде",yourName:"Номи шумо",city:"Шегьер",place:"Жой",relative:"Гъовум",submitModeration:"Ба санжиш фиристед"}
 };
-let lang=localStorage.getItem("pamyatLang")||"ru",events=[],activeType="Все",calendarMode="today",qubaMap,mapLoaded=false,mapMarkers=[];
+let lang=localStorage.getItem("pamyatLang")||"ru",events=[],activeType="Все",calendarMode="today",qubaMap,mapLoaded=false,mapMarkers=[],cemeteryPage=1;
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
 const fmt=d=>d?new Date(d+"T12:00:00").toLocaleDateString(lang==="he"?"he-IL":lang==="az"?"az-AZ":"ru-RU",{day:"numeric",month:"long",year:"numeric"}):"—";
@@ -295,7 +301,7 @@ function tr(k){return T[lang]?.[k]||T.ru[k]||k}
 function applyLang(){document.documentElement.lang=lang;document.body.classList.toggle("rtl",lang==="he");$$("[data-i18n]").forEach(e=>{e.textContent=tr(e.dataset.i18n)});$$("[data-ph]").forEach(e=>{e.placeholder=tr(e.dataset.ph)});$("#langSelect").value=lang;localStorage.setItem("pamyatLang",lang)}
 $("#langSelect").onchange=e=>{lang=e.target.value;applyLang();renderEvents();renderCalendar()};applyLang();
 
-function showPage(id){$(".section").forEach(x=>x.classList.toggle("active",x.id===id));$(".navbtn[data-page]").forEach(x=>x.classList.toggle("active",x.dataset.page===id));if(id==="calendar")renderCalendar();if(id==="archive")renderArchive();if(id==="quba"){setTimeout(initMap,100);searchCemetery()}if(id==="family")loadFamilyGraph();if(id==="notifications"){loadChannelStatus();loadInternalNotifications()}scrollTo({top:0,behavior:"smooth"})}
+function showPage(id){$(".section").forEach(x=>x.classList.toggle("active",x.id===id));$(".navbtn[data-page]").forEach(x=>x.classList.toggle("active",x.dataset.page===id));if(id==="calendar")renderCalendar();if(id==="archive")renderArchive();if(id==="quba"){setTimeout(initMap,100);loadCemeteryCatalog()}if(id==="family")loadFamilyGraph();if(id==="notifications"){loadChannelStatus();loadInternalNotifications()}scrollTo({top:0,behavior:"smooth"})}
 $$(".navbtn[data-page]").forEach(b=>b.onclick=()=>showPage(b.dataset.page));
 
 const TYPES=["Все","Похороны","Посещение кладбища","7 дней","40 дней","1 год","Годовщина","Йорцайт","Памятная дата"];
@@ -333,7 +339,42 @@ async function submitClaim(id){const r=await fetch("/api/events/"+id+"/relative-
 function openCorrection(eventId,current){$("#simpleModal").innerHTML='<div class="modalhead"><h2>Исправить данные</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div><select id="corrField" class="field"><option value="full_name">ФИО</option><option value="death_date">Дата смерти</option><option value="event_date">Дата события</option><option value="place">Место</option><option value="note">Информация</option><option value="other">Другое</option></select><input id="corrValue" class="field" placeholder="Правильное значение"><input id="corrName" class="field" placeholder="Ваше имя"><input id="corrContact" class="field" placeholder="Контакт модератору"><input id="corrRelation" class="field" placeholder="Кем приходитесь"><div class="check"><input id="corrFamily" type="checkbox"><label>Я член семьи</label></div><textarea id="corrEvidence" class="field" rows="3" placeholder="Пояснение"></textarea><button class="primary" onclick="submitCorrection(\''+eventId+'\',\''+current.replace(/'/g,"&#39;")+'\')">Отправить</button>';simpleDialog.showModal()}
 async function submitCorrection(eventId,current){const b={event_id:eventId,field_name:$("#corrField").value,current_value:current,proposed_value:$("#corrValue").value,requester_name:$("#corrName").value,requester_contact:$("#corrContact").value,relation_to_person:$("#corrRelation").value,family_claim:$("#corrFamily").checked,evidence_note:$("#corrEvidence").value};const r=await fetch("/api/corrections",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});if(r.ok){simpleDialog.close();alert("Исправление отправлено на проверку.")}}
 
-async function searchCemetery(){const q=$("#cemeterySearch").value.trim();$("#cemeteryResults").innerHTML='<div class="muted">Поиск…</div>';try{const r=await fetch("/api/cemetery/search?q="+encodeURIComponent(q)+"&limit=80"),rows=await r.json();$("#cemeteryResults").innerHTML=rows.length?rows.map(x=>'<div class="result"><div class="meta"><span class="tag">'+esc(x.external_id)+'</span>'+(x.death_gr?'<span class="tag">'+esc(x.death_gr)+'</span>':'')+'</div><b>'+esc(x.name_ru||"Без имени")+'</b>'+(x.name_he?'<div class="hebrew">'+esc(x.name_he)+'</div>':'')+'<div class="card-actions"><a class="secondary small" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(x.source_url)+'">Источник ↗</a>'+(x.latitude?'<button class="secondary small" onclick="focusMap('+Number(x.latitude)+','+Number(x.longitude)+',\''+esc(x.name_ru||x.external_id).replace(/'/g,"&#39;")+'\')">На карте</button>':'')+'<button class="secondary small" onclick="useCemeteryRecord(\''+esc(x.record_key)+'\',\''+esc(x.source_url)+'\')">Использовать в форме</button></div></div>').join(""):'<div class="empty">Ничего не найдено.</div>'}catch{$("#cemeteryResults").innerHTML='<div class="notice err">Ошибка поиска.</div>'}}
+
+function cemeteryRow(x){
+  return '<div class="result"><div class="meta"><span class="tag">'+esc(x.external_id)+'</span>'+(x.death_gr?'<span class="tag">'+esc(x.death_gr)+'</span>':'')+'</div><b>'+esc(x.name_ru||"Без имени")+'</b>'+(x.name_he?'<div class="hebrew">'+esc(x.name_he)+'</div>':'')+'<div class="card-actions"><a class="secondary small" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(x.source_url)+'">Источник ↗</a>'+(x.latitude?'<button class="secondary small" onclick="focusMap('+Number(x.latitude)+','+Number(x.longitude)+',\''+esc(x.name_ru||x.external_id).replace(/'/g,"&#39;")+'\')">На карте</button>':'')+'<button class="secondary small" onclick="useCemeteryRecord(\''+esc(x.record_key)+'\',\''+esc(x.source_url)+'\')">Использовать в форме</button><button class="secondary small" onclick="openCemeteryCorrection(\''+esc(x.record_key)+'\',\''+esc(x.name_ru||x.external_id).replace(/'/g,"&#39;")+'\')">Исправить</button></div></div>'
+}
+async function loadCemeteryCatalog(){
+  $("#cemeterySearch").value="";
+  $("#cemeteryResults").innerHTML='<div class="muted">Загрузка каталога…</div>';
+  try{
+    const r=await fetch("/api/cemetery/catalog?page="+cemeteryPage+"&limit=100"),j=await r.json();
+    const rows=j.rows||[];
+    $("#cemeteryResults").innerHTML=rows.length?rows.map(cemeteryRow).join(""):'<div class="empty">Записей нет.</div>';
+    $("#cemeteryPager").innerHTML='<button class="secondary" '+(cemeteryPage<=1?'disabled':'')+' onclick="if(cemeteryPage>1){cemeteryPage--;loadCemeteryCatalog()}">← Назад</button><span class="muted">Страница '+cemeteryPage+' · по 100 записей</span><button class="secondary" '+(!j.has_more?'disabled':'')+' onclick="if('+Boolean(j.has_more)+'){cemeteryPage++;loadCemeteryCatalog()}">Далее →</button>';
+  }catch{
+    $("#cemeteryResults").innerHTML='<div class="notice err">Не удалось открыть каталог.</div>';
+  }
+}
+function suggestCemeteryEntry(){
+  $("#simpleModal").innerHTML='<div class="modalhead"><h2>Предложить запись кладбища</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div><p class="muted">Новая запись не публикуется автоматически — она попадёт модератору.</p><input id="newCemName" class="field" placeholder="ФИО"><input id="newCemQba" class="field" placeholder="Номер QBA, если известен"><input id="newCemDeath" class="field" placeholder="Дата или год смерти"><input id="newCemContact" class="field" placeholder="Контакт модератору"><textarea id="newCemNote" class="field" rows="4" placeholder="Дополнительная информация / источник"></textarea><button class="primary" onclick="submitCemeterySuggestion()">Отправить на модерацию</button>';
+  simpleDialog.showModal();
+}
+async function submitCemeterySuggestion(){
+  const name=$("#newCemName").value.trim();
+  if(!name)return alert("Укажите имя.");
+  const proposed=[name,$("#newCemQba").value.trim(),$("#newCemDeath").value.trim(),$("#newCemNote").value.trim()].filter(Boolean).join(" | ");
+  const r=await fetch("/api/corrections",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({field_name:"new_cemetery_record",proposed_value:proposed,requester_contact:$("#newCemContact").value,evidence_note:$("#newCemNote").value})});
+  if(r.ok){simpleDialog.close();alert("Запись отправлена на модерацию.");}else alert("Не удалось отправить.");
+}
+function openCemeteryCorrection(key,current){
+  $("#simpleModal").innerHTML='<div class="modalhead"><h2>Исправить запись кладбища</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div><input id="cemCorrField" class="field" placeholder="Что исправить: имя, дата, место…"><input id="cemCorrValue" class="field" placeholder="Правильное значение"><input id="cemCorrContact" class="field" placeholder="Контакт модератору"><textarea id="cemCorrEvidence" class="field" rows="3" placeholder="Комментарий / источник"></textarea><button class="primary" onclick="submitCemeteryCorrection(\''+key+'\',\''+current.replace(/'/g,"&#39;")+'\')">Отправить</button>';
+  simpleDialog.showModal();
+}
+async function submitCemeteryCorrection(key,current){
+  const r=await fetch("/api/corrections",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({cemetery_record_key:key,field_name:$("#cemCorrField").value,current_value:current,proposed_value:$("#cemCorrValue").value,requester_contact:$("#cemCorrContact").value,evidence_note:$("#cemCorrEvidence").value})});
+  if(r.ok){simpleDialog.close();alert("Исправление отправлено на модерацию.");}else alert("Не удалось отправить.");
+}
+async function searchCemetery(){const q=$("#cemeterySearch").value.trim();$("#cemeteryResults").innerHTML='<div class="muted">Поиск…</div>';try{const r=await fetch("/api/cemetery/search?q="+encodeURIComponent(q)+"&limit=80"),rows=await r.json();$("#cemeteryResults").innerHTML=rows.length?rows.map(cemeteryRow).join(""):'<div class="empty">Ничего не найдено.</div>';$("#cemeteryPager").innerHTML=""}catch{$("#cemeteryResults").innerHTML='<div class="notice err">Ошибка поиска.</div>'}}
 function initMap(){if(qubaMap||!window.L)return;qubaMap=L.map("qubaMap").setView([41.3697,48.5063],16);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap"}).addTo(qubaMap);loadMapPoints()}
 async function loadMapPoints(){if(mapLoaded||!qubaMap)return;mapLoaded=true;try{const r=await fetch("/api/cemetery/map?limit=2200"),rows=await r.json();for(const x of rows){const m=L.circleMarker([x.latitude,x.longitude],{radius:4,weight:1,fillOpacity:.75}).addTo(qubaMap);m.bindPopup('<b>'+esc(x.name_ru||x.external_id)+'</b><br>'+esc(x.external_id)+'<br><a target="_blank" rel="noopener" href="'+esc(x.source_url)+'">Мацевалог ↗</a>');mapMarkers.push(m)}}catch{}}
 function focusMap(lat,lon,name){showPage("quba");setTimeout(()=>{initMap();qubaMap?.setView([lat,lon],19);L.popup().setLatLng([lat,lon]).setContent('<b>'+esc(name)+'</b>').openOn(qubaMap)},200)}
