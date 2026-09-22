@@ -1,0 +1,41 @@
+name: Pamyat smoke tests
+
+on:
+  push:
+    branches: [pamyat-public]
+    paths:
+      - "pamyat-public/**"
+      - ".github/workflows/pamyat-smoke.yml"
+  workflow_dispatch:
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Server syntax
+        run: node --check pamyat-public/server.js
+      - name: Frontend and route checks
+        run: node pamyat-public/tests/check-static.mjs
+
+  production-smoke:
+    runs-on: ubuntu-latest
+    needs: static-checks
+    steps:
+      - name: Allow deployment window
+        run: sleep 35
+      - name: Health
+        run: curl --fail --silent --show-error https://yuvion-ai-cards-ags2-production.up.railway.app/health
+      - name: Mobile home
+        run: curl --fail --silent --show-error https://yuvion-ai-cards-ags2-production.up.railway.app/m | grep -q "Мобильная версия"
+      - name: Mobile add form
+        run: curl --fail --silent --show-error https://yuvion-ai-cards-ags2-production.up.railway.app/m/add | grep -q "Добавить событие"
+      - name: Cemetery catalog
+        run: curl --fail --silent --show-error "https://yuvion-ai-cards-ags2-production.up.railway.app/api/cemetery/search?q=QBA&limit=2" | grep -q "record_key"
+      - name: Cemetery map data
+        run: curl --fail --silent --show-error "https://yuvion-ai-cards-ags2-production.up.railway.app/api/cemetery/map?limit=2" | grep -q "latitude"
+      - name: Database mutation selftest
+        run: curl --fail --silent --show-error https://yuvion-ai-cards-ags2-production.up.railway.app/api/selftest | grep -q '"ok":true'
