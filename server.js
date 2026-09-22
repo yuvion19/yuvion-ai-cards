@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Production release marker: v6.7.1
+// Production release marker: v7.0.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -337,10 +337,141 @@ const styleProfiles = {
     accent2: "#FFB800",
     text: "#17131F",
     panel: "#FFFDF2",
-    scene: "Яркая дружелюбная предметная съемка для детского товара: энергичный желто-фиолетовый фон, крупный товар, мягкие игровые формы, без неподтвержденных надписей."
+    scene: "Яркая дружелюбная предметная съемка для детского товара: энергичный фон, крупный товар, мягкие игровые формы, без неподтвержденных надписей."
+  },
+  beauty: {
+    name: "Красота и уход",
+    accent: "#C74A7D",
+    accent2: "#7A3154",
+    text: "#2A1921",
+    panel: "#FFF8FB",
+    scene: "Чистая премиальная beauty-композиция, нежный светлый фон, мягкие блики, аккуратные формы, крупный продукт, без лишнего декора."
+  },
+  sport: {
+    name: "Спорт и активность",
+    accent: "#146C5B",
+    accent2: "#0C4138",
+    text: "#13201D",
+    panel: "#F7FFFC",
+    scene: "Энергичная спортивная предметная съемка, чистая геометрия, ощущение движения, контрастный свет, товар остается главным."
+  },
+  tools: {
+    name: "Инструменты и ремонт",
+    accent: "#E06A13",
+    accent2: "#343A40",
+    text: "#17191B",
+    panel: "#FFF9F4",
+    scene: "Практичная техническая предметная съемка, контрастная индустриальная геометрия, четкие детали, без выдуманных характеристик."
+  },
+  food: {
+    name: "Еда и напитки",
+    accent: "#A54D21",
+    accent2: "#4F6B2D",
+    text: "#2A201A",
+    panel: "#FFFCF7",
+    scene: "Аппетитная чистая товарная съемка упаковки, теплый свет, натуральные спокойные акценты, без добавления несуществующих ингредиентов."
   }
 };
 
+
+
+function normalizeHexColor(value) {
+  const text = String(value || "").trim().toUpperCase();
+  if (/^#[0-9A-F]{6}$/.test(text)) return text;
+  return "";
+}
+
+function normalizePalette(raw) {
+  const list = Array.isArray(raw) ? raw : [];
+  return [...new Set(list.map(normalizeHexColor).filter(Boolean))].slice(0, 4);
+}
+
+function hexRgb(hex) {
+  const clean = normalizeHexColor(hex) || "#777777";
+  return {
+    r: parseInt(clean.slice(1, 3), 16),
+    g: parseInt(clean.slice(3, 5), 16),
+    b: parseInt(clean.slice(5, 7), 16)
+  };
+}
+
+function rgbHex(r, g, b) {
+  const clamp = (x) => Math.max(0, Math.min(255, Math.round(x)));
+  return "#" + [clamp(r), clamp(g), clamp(b)].map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
+function mixHex(a, b, amount = 0.5) {
+  const x = hexRgb(a), y = hexRgb(b);
+  const t = Math.max(0, Math.min(1, Number(amount) || 0));
+  return rgbHex(x.r + (y.r - x.r) * t, x.g + (y.g - x.g) * t, x.b + (y.b - x.b) * t);
+}
+
+function colorDistance(a, b) {
+  const x = hexRgb(a), y = hexRgb(b);
+  return Math.hypot(x.r - y.r, x.g - y.g, x.b - y.b);
+}
+
+function resolveRenderStyle(styleKey, palette = []) {
+  const base = styleProfiles[styleKey] || styleProfiles.minimal;
+  const colors = normalizePalette(palette);
+  if (!colors.length) return { ...base };
+  const accent = colors[0];
+  let accent2 = colors.find((color) => colorDistance(color, accent) >= 70) || colors[1] || base.accent2;
+  if (colorDistance(accent, accent2) < 45) accent2 = mixHex(accent, base.accent2, 0.62);
+  return {
+    ...base,
+    accent,
+    accent2,
+    panel: mixHex("#FFFFFF", colors[2] || accent, 0.055)
+  };
+}
+
+async function extractProductPalette(sourceBuffer) {
+  try {
+    const prepared = await sharp(sourceBuffer)
+      .rotate()
+      .resize(72, 72, { fit: "inside", withoutEnlargement: false })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const { data, info } = prepared;
+    const buckets = new Map();
+
+    for (let i = 0; i < data.length; i += info.channels) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const hi = Math.max(r, g, b), lo = Math.min(r, g, b);
+      const light = (hi + lo) / 2;
+      const saturation = hi - lo;
+      if (light > 242 || light < 18) continue;
+      if (saturation < 16 && light > 205) continue;
+      const qr = Math.round(r / 32) * 32;
+      const qg = Math.round(g / 32) * 32;
+      const qb = Math.round(b / 32) * 32;
+      const key = rgbHex(qr, qg, qb);
+      const weight = 1 + Math.min(2.6, saturation / 70);
+      buckets.set(key, (buckets.get(key) || 0) + weight);
+    }
+
+    const ranked = [...buckets.entries()].sort((a, b) => b[1] - a[1]).map(([color]) => color);
+    const chosen = [];
+    for (const color of ranked) {
+      if (chosen.every((existing) => colorDistance(existing, color) >= 52)) chosen.push(color);
+      if (chosen.length >= 4) break;
+    }
+    return chosen;
+  } catch {
+    return [];
+  }
+}
+
+function normalizeDesignVariant(value, card) {
+  const n = Number(value);
+  if (Number.isInteger(n) && n >= 0 && n <= 3) return n;
+  const seed = String(card?.seoTitle || card?.category || "Yuvion");
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
+  return Math.abs(hash) % 4;
+}
 
 function normalizeExtraData(raw) {
   const data = raw && typeof raw === "object" ? raw : {};
@@ -987,11 +1118,16 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "6.8.1",
+    version: "7.0.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
     freeImageAiCalls: 0,
+    designEngine: {
+      paletteFromProduct: true,
+      categoryThemes: Object.keys(styleProfiles).length,
+      layoutVariants: 4
+    },
     imageRendering: {
       defaultMode: "free",
       freeMode: true,
@@ -1448,38 +1584,60 @@ const freeSceneLayouts = [
   { x: 105, y: 105, width: 690, height: 535 }
 ];
 
-function freeSceneBackgroundSvg(index, styleKey) {
-  const style = styleProfiles[styleKey] || styleProfiles.minimal;
+function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0) {
+  const style = resolveRenderStyle(styleKey, palette);
   const playful = styleKey === "kids";
-  const bright = styleKey === "bright" || playful;
-  const bgA = playful ? "#FFF000" : bright ? "#FFF7F2" : "#FFFDFD";
-  const bgB = playful ? "#FFB800" : bright ? "#FFE4DE" : style.panel;
-  const bgC = playful ? "#7B3FE4" : style.accent;
-  const burst = index === 0 || index === 3;
-  const dots = Array.from({ length: 12 }, (_, n) => {
-    const cx = 65 + (n % 4) * 58;
-    const cy = 76 + Math.floor(n / 4) * 58;
-    return `<circle cx="${cx}" cy="${cy}" r="${6 + (n % 3) * 3}" fill="${bgC}" fill-opacity="${playful ? 0.55 : 0.12}"/>`;
+  const technical = styleKey === "tech" || styleKey === "tools";
+  const premium = styleKey === "premium" || styleKey === "beauty";
+  const variant = Math.max(0, Math.min(3, Number(designVariant) || 0));
+  const bgA = mixHex("#FFFFFF", style.accent, playful ? 0.10 : premium ? 0.025 : 0.045);
+  const bgB = mixHex("#FFFFFF", style.accent2, playful ? 0.18 : technical ? 0.075 : 0.095);
+  const bgC = style.accent;
+  const shiftX = [0, 62, -48, 34][variant];
+  const shiftY = [0, -35, 55, 28][variant];
+  const tilt = [-5, 7, -9, 4][variant];
+  const dots = Array.from({ length: 14 }, (_, n) => {
+    const cx = 62 + (n % 5) * 52 + (variant % 2 ? 18 : 0);
+    const cy = 72 + Math.floor(n / 5) * 54;
+    return `<circle cx="${cx}" cy="${cy}" r="${5 + (n % 3) * 3}" fill="${style.accent2}" fill-opacity="${playful ? 0.44 : 0.10}"/>`;
   }).join("");
+  const technicalLines = technical ? `
+    <g opacity="0.13" stroke="${style.accent2}" stroke-width="3">
+      <path d="M40 240 H310 L370 180 H610"/>
+      <path d="M590 90 V280 L750 440 H880"/>
+      <path d="M35 980 H240 L310 910 H520"/>
+    </g>` : "";
+  const premiumGlow = premium ? `
+    <ellipse cx="690" cy="190" rx="260" ry="175" fill="${style.accent}" fill-opacity="0.055"/>
+    <ellipse cx="125" cy="1020" rx="210" ry="160" fill="${style.accent2}" fill-opacity="0.04"/>` : "";
   return `
     <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stop-color="${bgA}"/>
-          <stop offset="68%" stop-color="${bgB}"/>
-          <stop offset="100%" stop-color="${playful ? "#FF8A00" : "#F8EFF1"}"/>
+          <stop offset="67%" stop-color="${bgB}"/>
+          <stop offset="100%" stop-color="${mixHex(bgB, style.accent, playful ? 0.22 : 0.08)}"/>
         </linearGradient>
         <radialGradient id="glow">
-          <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+          <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.96"/>
           <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
         </radialGradient>
+        <filter id="softShadow" x="-40%" y="-80%" width="180%" height="220%">
+          <feGaussianBlur stdDeviation="18"/>
+        </filter>
       </defs>
       <rect width="900" height="1200" fill="url(#bg)"/>
-      ${burst ? `<path d="M450 90 L505 500 L760 180 L570 550 L890 420 L590 625 L900 760 L555 700 L710 1040 L480 760 L330 1120 L365 740 L60 970 L315 665 L0 610 L330 590 L70 305 L380 520 Z" fill="${bgC}" fill-opacity="${playful ? 0.10 : 0.055}"/>` : ""}
-      <circle cx="${index === 1 ? 750 : 665}" cy="${index === 1 ? 220 : 180}" r="${playful ? 250 : 205}" fill="${bgC}" fill-opacity="${playful ? 0.12 : 0.07}"/>
-      <ellipse cx="450" cy="560" rx="390" ry="330" fill="url(#glow)"/>
+      <g transform="translate(${shiftX} ${shiftY}) rotate(${tilt} 450 520)">
+        <path d="M450 76 L505 438 L752 156 L580 506 L882 386 L604 586 L888 712 L565 664 L714 1004 L486 734 L338 1080 L370 724 L64 930 L320 642 L4 598 L335 566 L78 286 L382 492 Z"
+          fill="${bgC}" fill-opacity="${playful ? 0.105 : 0.042}"/>
+      </g>
+      <circle cx="${690 + shiftX}" cy="${185 + shiftY}" r="${playful ? 250 : 210}" fill="${style.accent2}" fill-opacity="${playful ? 0.13 : 0.055}"/>
+      <ellipse cx="450" cy="535" rx="390" ry="325" fill="url(#glow)"/>
+      <ellipse cx="450" cy="${index === 1 ? 815 : 710}" rx="${index === 1 ? 230 : 305}" ry="36" fill="#1E1720" fill-opacity="0.12" filter="url(#softShadow)"/>
       ${playful ? dots : ""}
-      <path d="M0 1090 C190 1015 315 1155 490 1090 C665 1025 765 1055 900 1000 L900 1200 L0 1200 Z" fill="${style.accent}" fill-opacity="${playful ? 0.18 : 0.06}"/>
+      ${technicalLines}
+      ${premiumGlow}
+      <path d="M0 1085 C190 1010 315 1150 490 1088 C665 1022 765 1055 900 998 L900 1200 L0 1200 Z" fill="${style.accent}" fill-opacity="${playful ? 0.16 : 0.052}"/>
     </svg>`;
 }
 
@@ -1550,7 +1708,7 @@ async function edgeWhiteCutout(sourceBuffer, layout) {
     .toBuffer();
 }
 
-async function renderFreeScene(sourceBuffer, index, styleKey) {
+async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], designVariant = 0) {
   const layout = freeSceneLayouts[index] || freeSceneLayouts[0];
   let product;
   try {
@@ -1567,7 +1725,7 @@ async function renderFreeScene(sourceBuffer, index, styleKey) {
       .toBuffer();
   }
 
-  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey)))
+  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, designVariant)))
     .composite([{ input: product, left: layout.x, top: layout.y }])
     .png({ compressionLevel: 9 })
     .toBuffer();
@@ -1624,9 +1782,9 @@ async function generateScene(client, sourceBuffer, mimeType, scenePrompt, index,
   throw lastError;
 }
 
-function overlayForCard(index, cardRaw, styleKey) {
+function overlayForCard(index, cardRaw, styleKey, palette = []) {
   const card = normalizeCard(cardRaw);
-  const style = styleProfiles[styleKey] || styleProfiles.minimal;
+  const style = resolveRenderStyle(styleKey, palette);
   const title = compact(card.seoTitle || card.category || "Товар", 120);
   const category = compact(card.category || "Товар", 50);
   const characteristics = card.characteristics || [];
@@ -1817,7 +1975,7 @@ app.post("/api/generate-cards", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = cardRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", renderMode = "free" } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0 } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? cardRequestsByIp : freeCardRequestsByIp;
 
@@ -1844,6 +2002,9 @@ app.post("/api/generate-cards", async (req, res) => {
     const sourceBuffer = Buffer.from(image, "base64");
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
+    const suppliedPalette = normalizePalette(palette);
+    const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
+    const variant = normalizeDesignVariant(designVariant, normalized);
     let scenes = [];
 
     if (mode === "ai") {
@@ -1859,7 +2020,7 @@ app.post("/api/generate-cards", async (req, res) => {
       stats.aiSceneRenders += 4;
       stats.estimatedImageOutputUsd += 4 * IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey)));
+      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey, renderPalette, variant)));
       stats.freeSceneRenders += 4;
     }
 
@@ -1869,7 +2030,7 @@ app.post("/api/generate-cards", async (req, res) => {
     const cards = [];
 
     for (let index = 0; index < 4; index += 1) {
-      const overlay = overlayForCard(index, normalized, styleKey);
+      const overlay = overlayForCard(index, normalized, styleKey, renderPalette);
       const buffer = await composeCard(cachedScenes[index], overlay);
       cards.push({ filename: fileNames[index], title: titles[index], base64: buffer.toString("base64") });
     }
@@ -1888,6 +2049,8 @@ app.post("/api/generate-cards", async (req, res) => {
       style: styleKey,
       renderMode: mode,
       aiImageCalls: mode === "ai" ? 4 : 0,
+      palette: renderPalette,
+      designVariant: variant,
       description: descriptionText(normalized)
     });
   } catch (error) {
@@ -1900,7 +2063,7 @@ app.post("/api/regenerate-card", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = regenRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", index, renderMode = "free" } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0 } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? regenRequestsByIp : freeRegenRequestsByIp;
 
@@ -1929,6 +2092,9 @@ app.post("/api/regenerate-card", async (req, res) => {
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
     const sourceBuffer = Buffer.from(image, "base64");
+    const suppliedPalette = normalizePalette(palette);
+    const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
+    const variant = normalizeDesignVariant(designVariant, normalized);
     let scene;
 
     if (mode === "ai") {
@@ -1937,12 +2103,12 @@ app.post("/api/regenerate-card", async (req, res) => {
       stats.aiSceneRenders += 1;
       stats.estimatedImageOutputUsd += IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey);
+      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey, renderPalette, variant);
       stats.freeSceneRenders += 1;
     }
 
     const cachedScene = await normalizeSceneForCache(scene);
-    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey));
+    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey, renderPalette));
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
 
@@ -1961,7 +2127,9 @@ app.post("/api/regenerate-card", async (req, res) => {
         base64: cachedScene.toString("base64")
       },
       renderMode: mode,
-      aiImageCalls: mode === "ai" ? 1 : 0
+      aiImageCalls: mode === "ai" ? 1 : 0,
+      palette: renderPalette,
+      designVariant: variant
     });
   } catch (error) {
     console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
@@ -1971,7 +2139,7 @@ app.post("/api/regenerate-card", async (req, res) => {
 
 app.post("/api/render-card-overlays", async (req, res) => {
   try {
-    const { scenes, card, style = "minimal", indexes = [0, 1, 2, 3] } = req.body ?? {};
+    const { scenes, card, style = "minimal", indexes = [0, 1, 2, 3], palette = [] } = req.body ?? {};
     if (!Array.isArray(scenes) || scenes.length !== 4 || !card || typeof card !== "object") {
       return res.status(400).json({ error: "Нужны четыре сохранённые сцены и данные товара." });
     }
@@ -1981,6 +2149,7 @@ app.post("/api/render-card-overlays", async (req, res) => {
 
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
+    const renderPalette = normalizePalette(palette);
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
     const cards = [];
@@ -1994,7 +2163,7 @@ app.post("/api/render-card-overlays", async (req, res) => {
         return res.status(413).json({ error: "Сохранённая сцена слишком большая." });
       }
       const sceneBuffer = Buffer.from(scene.base64, "base64");
-      const buffer = await composeCard(sceneBuffer, overlayForCard(index, normalized, styleKey));
+      const buffer = await composeCard(sceneBuffer, overlayForCard(index, normalized, styleKey, renderPalette));
       cards.push({ index, filename: names[index], title: titles[index], base64: buffer.toString("base64") });
     }
 
@@ -2140,5 +2309,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v6.8.1 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v7.0.0 listening on port ${port}`);
 });
