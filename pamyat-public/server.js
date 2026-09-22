@@ -865,8 +865,37 @@ setInterval(() => {
   for (const [k, v] of rateBuckets) if (v.reset <= t) rateBuckets.delete(k);
 }, 30 * 60 * 1000).unref();
 
+function parseCookies(req) {
+  const out={};
+  for(const part of String(req.headers.cookie||"").split(";")){
+    const i=part.indexOf("="); if(i<1)continue;
+    out[decodeURIComponent(part.slice(0,i).trim())]=decodeURIComponent(part.slice(i+1).trim());
+  }
+  return out;
+}
+function adminSessionSign(email,role="admin",ttlMs=8*60*60*1000){
+  const payload=Buffer.from(JSON.stringify({email:String(email||"").toLowerCase(),role,exp:Date.now()+ttlMs})).toString("base64url");
+  const sig=crypto.createHmac("sha256",ADMIN_TOKEN).update(payload).digest("base64url");
+  return payload+"."+sig;
+}
+function adminSessionVerify(raw){
+  if(!ADMIN_TOKEN||!raw||!raw.includes("."))return null;
+  const [payload,sig]=raw.split(".");
+  const expected=crypto.createHmac("sha256",ADMIN_TOKEN).update(payload).digest("base64url");
+  if(sig.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))return null;
+  try{
+    const data=JSON.parse(Buffer.from(payload,"base64url").toString("utf8"));
+    if(!data.email||!data.exp||Date.now()>Number(data.exp))return null;
+    return data;
+  }catch{return null}
+}
 function isAdmin(req) {
-  return Boolean(ADMIN_TOKEN) && req.headers["x-admin-token"] === ADMIN_TOKEN;
+  if(Boolean(ADMIN_TOKEN) && req.headers["x-admin-token"] === ADMIN_TOKEN){
+    req.adminIdentity={email:"token-admin",role:"admin",legacy:true}; return true;
+  }
+  const s=adminSessionVerify(parseCookies(req).pamyat_admin_session);
+  if(s){req.adminIdentity=s;return true}
+  return false;
 }
 function requireAdmin(req, res, next) {
   if (!isAdmin(req)) return res.status(401).json({ error: "admin_required" });
