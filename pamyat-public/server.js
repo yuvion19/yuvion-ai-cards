@@ -110,6 +110,9 @@ app.get("/m", (_req,res) => {
     <p class="muted">Простая версия без большого интерфейса. Критические функции работают отдельными страницами.</p>
     <div class="nav">
       <a class="btn" href="/m/add">+ Добавить событие</a>
+      <a class="btn" href="/m/add?funeral=1">Срочное похоронное объявление</a>
+      <a class="btn" href="/m/search">Поиск по памяти</a>
+      <a class="btn" href="/m/wall">Стена памяти</a>
       <a class="btn" href="/m/calendar">Календарь</a>
       <a class="btn" href="/m/today">Сегодня вспоминаем</a>
       <a class="btn" href="/m/reminders">Напоминания</a>
@@ -174,6 +177,75 @@ app.get("/m/map", (_req,res) => {
   res.send(mobileShell("Карта кладбища",`<h1>Карта кладбища Кубы</h1><p id="mapStatus" class="muted">Загрузка точек…</p><div id="mobileMap"></div><p><a class="btn secondary" href="/m/catalog">Открыть каталог</a></p>`,{extraHead,scripts}));
 });
 
+
+app.get("/m/search", async (req,res) => {
+  try{
+    const q=clean(req.query.q,180);
+    let rows=[];
+    if(q){
+      rows=await sb("rpc/memorial_event_search",{method:"POST",body:{p_query:q,p_city:"",p_type:"",p_limit:100}});
+    }
+    const grouped=[];
+    const seen=new Set();
+    for(const e of rows||[]){
+      const key=(String(e.full_name||"").toLowerCase()+"|"+String(e.death_date||""));
+      if(seen.has(key))continue;
+      seen.add(key);grouped.push(e);
+    }
+    const cards=grouped.map(e=>`<div class="card">
+      <div class="row"><span class="tag">${htmlEsc(e.event_type||"Памятная дата")}</span>${e.family_verified?'<span class="tag">Семья ✓</span>':""}</div>
+      <h3>${htmlEsc(e.full_name||"Без имени")}</h3>
+      <div>${htmlEsc(e.event_date||"")}</div>
+      <div class="muted">${htmlEsc([e.city,e.place].filter(Boolean).join(" · "))}</div>
+      <p><a class="btn secondary" href="/m/memorial/${encodeURIComponent(e.id)}">Открыть памятную страницу</a></p>
+    </div>`).join("");
+    res.send(mobileShell("Поиск",`
+      <h1>Поиск по памяти</h1>
+      <form method="get" action="/m/search" class="card">
+        <label>ФИО или вариант имени</label>
+        <input class="field" name="q" value="${htmlEsc(q)}" placeholder="Например: Юсуф, Йосеф, фамилия">
+        <button class="btn" style="width:100%;margin-top:10px">Найти</button>
+      </form>
+      ${q?('<p class="muted">Найдено: '+grouped.length+'</p>'+ (cards||'<div class="card">Ничего не найдено.</div>')):'<div class="card muted">Введите имя. Поиск учитывает сохранённые варианты имён и неточные совпадения.</div>'}
+    `));
+  }catch(e){console.error("mobile search",e.data||e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось выполнить поиск.</div>'))}
+});
+
+app.get("/m/wall", async (_req,res) => {
+  try{
+    const rows=await sb("rpc/memorial_event_search",{method:"POST",body:{p_query:"",p_city:"",p_type:"",p_limit:300}});
+    const people=new Map();
+    for(const e of rows||[]){
+      const key=String(e.full_name||"").toLowerCase()+"|"+String(e.death_date||"");
+      if(!people.has(key))people.set(key,{...e,dates:[]});
+      people.get(key).dates.push({type:e.event_type,date:e.event_date});
+    }
+    const list=[...people.values()].slice(0,120);
+    const ids=list.map(x=>x.id).filter(Boolean);
+    let counts={};
+    if(ids.length){
+      const params=new URLSearchParams();
+      params.set("select","event_id,count");
+      params.set("event_id","in.("+ids.join(",")+")");
+      const rows2=await sb("memorial_candles?"+params.toString()).catch(()=>[]);
+      counts=Object.fromEntries((rows2||[]).map(x=>[x.event_id,x.count]));
+    }
+    const cards=list.map(e=>`<div class="card" style="text-align:center">
+      <div style="font-size:30px">✡</div>
+      <h3 style="margin:6px 0">${htmlEsc(e.full_name||"Без имени")}</h3>
+      ${e.death_date?'<div class="muted">Дата смерти: '+htmlEsc(e.death_date)+'</div>':""}
+      ${e.family_verified?'<span class="tag">Подтверждено семьёй ✓</span>':""}
+      <div class="muted" style="margin-top:6px">Свечей: ${Number(counts[e.id]||0)}</div>
+      <p><a class="btn secondary" href="/m/memorial/${encodeURIComponent(e.id)}">Почтить память</a></p>
+    </div>`).join("");
+    res.send(mobileShell("Стена памяти",`
+      <h1>Стена памяти</h1>
+      <p class="muted">Публичные записи сообщества. Один человек показывается один раз, даже если у него несколько памятных дат.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">${cards||'<div class="card">Публичных записей пока нет.</div>'}</div>
+    `));
+  }catch(e){console.error("memory wall",e.data||e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить стену памяти.</div>'))}
+});
+
 app.get("/m/calendar", async (_req,res) => {
   try {
     const rows=await sb("rpc/memorial_public_upcoming",{method:"POST",body:{p_days:60,p_limit:200}});
@@ -231,6 +303,7 @@ app.get("/m/memorial/:id", async (req,res) => {
           <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(google)}">Google Calendar</a>
           <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(outlook)}">Outlook</a>
           <button class="btn secondary" id="shareMemorial">Поделиться</button>
+          <a class="btn secondary" href="/m/memorial/${encodeURIComponent(e.id)}/print">Печатная карточка</a>
         </div>
       </div>
 
@@ -291,6 +364,37 @@ app.get("/m/memorial/:id", async (req,res) => {
       };
     </script>`}));
   }catch(e){console.error("memorial page",e.data||e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось открыть памятную страницу.</div>'))}
+});
+
+
+app.get("/m/memorial/:id/print", async (req,res) => {
+  try{
+    const e=await sb("rpc/memorial_public_event_detail",{method:"POST",body:{p_event_id:req.params.id}});
+    if(!e)return res.status(404).send("Not found");
+    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
+    const qr=base+"/qr/event/"+encodeURIComponent(e.id)+".svg";
+    res.setHeader("Cache-Control","no-store");
+    res.send(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>${htmlEsc(e.full_name)} — карточка памяти</title>
+      <style>
+      @page{size:A5 portrait;margin:12mm}*{box-sizing:border-box}body{margin:0;font-family:Georgia,"Times New Roman",serif;color:#211d18;background:#f3efe7}.sheet{width:148mm;min-height:210mm;margin:15px auto;background:#fffdf8;border:1px solid #d9cfbf;padding:16mm;text-align:center;box-shadow:0 10px 30px #0002}.star{font-size:34px}.he{font-size:24px;direction:rtl}.name{font-size:28px;margin:12px 0 8px}.date{font-size:18px;margin:7px}.note{margin:18px auto;max-width:90%;font-size:16px;line-height:1.5}.qr{width:42mm;height:42mm;margin:16px}.actions{margin:15px;text-align:center}.actions button{font:inherit;padding:10px 18px}.line{width:58%;height:1px;background:#cfc2ad;margin:16px auto}.candle{font-size:38px}@media print{body{background:white}.sheet{margin:0;box-shadow:none;border:0}.actions{display:none}}
+      </style></head><body>
+      <div class="actions"><button onclick="print()">Печать / сохранить PDF</button></div>
+      <article class="sheet">
+        <div class="star">✡</div>
+        <div class="he">נר נשמה</div>
+        <div class="line"></div>
+        <div class="name">${htmlEsc(e.full_name)}</div>
+        ${e.death_date?'<div class="date">Дата смерти: '+htmlEsc(e.death_date)+'</div>':""}
+        ${e.hebrew_death_label?'<div class="date">Еврейская дата: '+htmlEsc(e.hebrew_death_label)+'</div>':""}
+        <div class="date">${htmlEsc(e.event_type||"Памятная дата")} · ${htmlEsc(e.event_date||"")}</div>
+        ${e.place||e.city?'<div class="date">'+htmlEsc([e.city,e.place].filter(Boolean).join(" · "))+'</div>':""}
+        <div class="candle">🕯</div>
+        ${e.note?'<div class="note">'+htmlEsc(e.note)+'</div>':""}
+        <img class="qr" src="${htmlEsc(qr)}" alt="QR">
+        <div>Открыть памятную страницу</div>
+      </article></body></html>`);
+  }catch(e){console.error("print memorial",e.data||e);res.status(500).send("Failed")}
 });
 
 app.get("/m/reminders", (_req,res) => {
@@ -552,10 +656,12 @@ app.get("/m/reminders", (_req,res) => {
 });
 
 
-app.get("/m/add", async (_req,res) => {
+app.get("/m/add", async (req,res) => {
   res.setHeader("Cache-Control","no-store");
-  res.send(mobileShell("Добавить событие", `
-    <h1>Добавить событие</h1>
+  const funeral=String(req.query.funeral||"")==="1";
+  res.send(mobileShell(funeral?"Похоронное объявление":"Добавить событие", `
+    ${funeral?'<div class="err"><b>Срочное похоронное объявление</b><br><span class="muted">После отправки запись всё равно проходит модерацию перед публичной публикацией.</span></div>':""}
+    <h1>${funeral?"Похоронное объявление":"Добавить событие"}</h1>
     <form method="post" action="/m/add">
       <label>ФИО *</label><input class="field" name="full_name" required>
       <label>Дата смерти *</label><input class="field" type="date" name="death_date" required>
@@ -587,7 +693,7 @@ app.get("/m/add", async (_req,res) => {
 
       <div class="card">
         <b>Срочное похоронное объявление</b>
-        <div class="check"><input type="checkbox" name="urgent_funeral" value="1"><span>Добавить отдельное срочное событие «Похороны»</span></div>
+        <div class="check"><input type="checkbox" name="urgent_funeral" value="1" ${funeral?"checked":""}><span>Добавить отдельное срочное событие «Похороны»</span></div>
         <label>Дата похорон</label><input class="field" type="date" name="funeral_date">
         <label>Время</label><input class="field" type="time" name="event_time">
       </div>
@@ -913,7 +1019,7 @@ app.get("/api/selftest", async (_req,res)=>{
   try{
     const db=await sb("rpc/memorial_selftest",{method:"POST",body:{}});
     const ok=Boolean(db?.ok);
-    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/today","/m/add","/m/calendar","/m/reminders","/m/admin"],release:"memory-calendar"});
+    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/search","/m/wall","/m/today","/m/add","/m/calendar","/m/reminders","/m/admin"],release:"memory-calendar"});
   }catch(e){res.status(503).json({ok:false,error:"selftest_failed",detail:e.data||e.message})}
 });
 
