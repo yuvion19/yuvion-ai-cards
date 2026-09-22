@@ -1384,7 +1384,7 @@ app.post("/api/analyze", async (req, res) => {
       response = await withTimeout(
         makeAnalyzeRequest(analyzeContent, process.env.OPENAI_MODEL || "gpt-5.6-luna", 1700),
         AI_ANALYZE_TIMEOUT_MS,
-        "Первичный AI-анализ превысил 24 секунды."
+        `Первичный AI-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
       );
     } catch (firstError) {
       const retryable = firstError?.code === "operation_timeout" || Number(firstError?.status || 0) >= 500;
@@ -1402,7 +1402,7 @@ app.post("/api/analyze", async (req, res) => {
       response = await withTimeout(
         makeAnalyzeRequest(retryContent, process.env.OPENAI_FAST_MODEL || "gpt-5.6-luna", 1300),
         AI_ANALYZE_RETRY_TIMEOUT_MS,
-        "Повторный AI-анализ превысил 16 секунд."
+        `Повторный AI-анализ превысил ${Math.round(AI_ANALYZE_RETRY_TIMEOUT_MS / 1000)} секунд.`
       );
     }
 
