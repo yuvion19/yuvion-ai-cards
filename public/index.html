@@ -4003,7 +4003,7 @@ function parseLocalVisionJson(text){
 
 function ensureLocalVisionWorker(){
   if(localVisionWorker)return localVisionWorker;
-  localVisionWorker=new Worker('/local-vision-worker.js?v=10.6.0',{type:'module'});
+  localVisionWorker=new Worker('/local-vision-worker.js?v=10.7.0',{type:'module'});
   return localVisionWorker;
 }
 
@@ -4346,7 +4346,7 @@ styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPe
 function syncRenderModeUi(){
   renderModeSelect.value='free';
   generateAll.textContent='Создать 4 Studio-карточки бесплатно';
-  generateAll.title='Studio Director v10.6.0: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
+  generateAll.title='Studio Director v10.7.0: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4534,7 +4534,7 @@ generateAll.onclick=async()=>{
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       const renderDetail=/studio-(local|director)-/i.test(String(data.renderEngine||''))
-        ?('Studio Director v10.6.0 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+        ?('Studio Director v10.7.0 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
@@ -7531,7 +7531,7 @@ async function runPreflightCheck(){
   const btn=document.getElementById('preflightCheck');
   const box=document.getElementById('preflightResult');
   btn.disabled=true;
-  box.className='audit-box show';box.innerHTML='<b>Проверяем товар…</b><div style="margin-top:5px">Сверяем публичные данные между собой и, если доступно, с исходным фото.</div>';
+  box.className='audit-box show';box.innerHTML='<b>Проверяем товар…</b><div style="margin-top:5px">Проверяем публичные данные локально без платного API.</div>';
   try{
     let src={};
     try{src=await getSource()}catch{}
@@ -7542,10 +7542,10 @@ async function runPreflightCheck(){
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось выполнить проверку.');
     renderPreflightAudit(data,currentRuleHints());
-    addCurrentActivity('AI preflight',data.overall||'Проверка завершена');
+    addCurrentActivity('Локальная проверка',data.overall||'Проверка завершена');
     saveHistoryDebounced();
   }catch(e){
-    box.className='audit-box show warn';box.innerHTML='<b>AI-проверка недоступна</b><div style="margin-top:5px">'+esc(e.message||'Ошибка')+'. Базовая проверка готовности продолжает работать локально.</div>';
+    box.className='audit-box show warn';box.innerHTML='<b>Локальная проверка недоступна</b><div style="margin-top:5px">'+esc(e.message||'Ошибка')+'. Базовая проверка готовности продолжает работать локально.</div>';
   }finally{btn.disabled=false}
 }
 
@@ -7779,7 +7779,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=20',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=21',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
