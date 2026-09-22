@@ -249,8 +249,8 @@ function mobileShell(title, body, opts = {}) {
   const i18nJson=JSON.stringify(MOBILE_I18N).replace(/</g,"\\u003c");
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#4c3e2d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Память"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icon.svg"><title>${htmlEsc(title)} — Память Джуури</title>${extraHead}<style>
   :root{--bg:#f5f1e8;--paper:#fffdf8;--ink:#27231e;--muted:#746d63;--line:#ded6c8;--accent:#5b4934;--soft:#eee6d9}
-  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}.skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;z-index:999;background:#fff;padding:10px;border-radius:8px}.btn:focus,.field:focus,input:focus,select:focus,textarea:focus{outline:3px solid #8b6d45;outline-offset:2px}.prayer-line{border-top:1px solid var(--line);padding:12px 0}.prayer-line:first-of-type{border-top:0}.he-prayer{font-family:Georgia,"Times New Roman",serif;font-size:21px;line-height:1.9;text-align:right}.prayer-tr{margin-top:5px;font-size:16px;font-weight:650;line-height:1.55}.prayer-card details{padding:6px 0}.prayer-card summary{cursor:pointer;padding:8px 0}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}body[data-font="large"]{font-size:19px}body[data-font="xlarge"]{font-size:22px}body.memory-mode{background:#17130f;color:#f8f2e7}body.memory-mode header{display:none}body.memory-mode .wrap{max-width:900px;padding-top:32px}body.memory-mode .memory-hide{display:none!important}body.memory-mode .memory-hero{background:#211b15;border-color:#4d4033;color:#f8f2e7}body.memory-mode .memory-hero .muted{color:#cbbdac}body.memory-mode .memory-exit{display:block!important;position:fixed;right:16px;top:16px;z-index:30}
-  </style></head><body><a class="skip" href="#main">К содержанию</a><header><div class="top"><div class="brand">Память Джуури</div><select id="uiLang" class="field" style="width:auto;padding:8px" aria-label="Язык"><option value="ru">RU</option><option value="juuri">JUURI β</option><option value="he">HE</option><option value="en">EN</option><option value="az">AZ</option></select><button id="fontDown" class="btn secondary" style="padding:8px" aria-label="Уменьшить шрифт">A−</button><button id="fontUp" class="btn secondary" style="padding:8px" aria-label="Увеличить шрифт">A+</button><a class="btn secondary" href="/m">Меню</a></div></header><main id="main" class="wrap">${body}</main><script>
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}.skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;z-index:999;background:#fff;padding:10px;border-radius:8px}.btn:focus,.field:focus,input:focus,select:focus,textarea:focus{outline:3px solid #8b6d45;outline-offset:2px}.prayer-line{border-top:1px solid var(--line);padding:12px 0}.prayer-line:first-of-type{border-top:0}.he-prayer{font-family:Georgia,"Times New Roman",serif;font-size:21px;line-height:1.9;text-align:right}.prayer-tr{margin-top:5px;font-size:16px;font-weight:650;line-height:1.55}.prayer-card details{padding:6px 0}.prayer-card summary{cursor:pointer;padding:8px 0}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}body[data-font="large"]{font-size:19px}body[data-font="xlarge"]{font-size:22px}body[data-contrast="high"]{--bg:#fff;--paper:#fff;--ink:#000;--muted:#222;--line:#000;--accent:#000;--soft:#fff}body[data-contrast="high"] .btn.secondary,body[data-contrast="high"] a.btn.secondary{border:2px solid #000}body[data-contrast="high"] .card{border-width:2px}body.memory-mode{background:#17130f;color:#f8f2e7}body.memory-mode header{display:none}body.memory-mode .wrap{max-width:900px;padding-top:32px}body.memory-mode .memory-hide{display:none!important}body.memory-mode .memory-hero{background:#211b15;border-color:#4d4033;color:#f8f2e7}body.memory-mode .memory-hero .muted{color:#cbbdac}body.memory-mode .memory-exit{display:block!important;position:fixed;right:16px;top:16px;z-index:30}
+  </style></head><body><a class="skip" href="#main">К содержанию</a><header><div class="top"><div class="brand">Память Джуури</div><select id="uiLang" class="field" style="width:auto;padding:8px" aria-label="Язык"><option value="ru">RU</option><option value="juuri">JUURI β</option><option value="he">HE</option><option value="en">EN</option><option value="az">AZ</option></select><button id="fontDown" class="btn secondary" style="padding:8px" aria-label="Уменьшить шрифт">A−</button><button id="fontUp" class="btn secondary" style="padding:8px" aria-label="Увеличить шрифт">A+</button><button id="contrastToggle" class="btn secondary" style="padding:8px" aria-label="Высокая контрастность">◐</button><a class="btn secondary" href="/m/inbox" style="padding:8px" aria-label="Центр уведомлений">🔔</a><a class="btn secondary" href="/m">Меню</a></div></header><main id="main" class="wrap">${body}</main><script>
   (()=>{
     const dictionaries=${i18nJson};
     const params=new URLSearchParams(location.search);
@@ -272,6 +272,8 @@ function mobileShell(title, body, opts = {}) {
     const levels=["","large","xlarge"];let fi=Number(localStorage.getItem("pamyatFont")||0);document.body.dataset.font=levels[fi]||"";
     document.getElementById("fontUp").onclick=()=>{fi=Math.min(2,fi+1);localStorage.setItem("pamyatFont",fi);document.body.dataset.font=levels[fi]};
     document.getElementById("fontDown").onclick=()=>{fi=Math.max(0,fi-1);localStorage.setItem("pamyatFont",fi);document.body.dataset.font=levels[fi]};
+    const contrast=localStorage.getItem("pamyatContrast")==="high";if(contrast)document.body.dataset.contrast="high";
+    document.getElementById("contrastToggle").onclick=()=>{const high=document.body.dataset.contrast!=="high";document.body.dataset.contrast=high?"high":"";localStorage.setItem("pamyatContrast",high?"high":"")};
   })();
   </script>${scripts}</body></html>`;
 }
@@ -289,12 +291,61 @@ app.get("/m", (_req,res) => {
       <a class="btn" href="/m/calendar">Календарь</a>
       <a class="btn" href="/m/archive">Архив</a>
       <a class="btn" href="/m/today">Сегодня вспоминаем</a>
+      <a class="btn" href="/m/feed">Лента памяти</a>
+      <a class="btn" href="/m/book">Книга памяти</a>
+      <a class="btn" href="/m/inbox">Центр уведомлений</a>
       <a class="btn" href="/m/reminders">Напоминания</a>
       <a class="btn" href="/api/selftest">Проверка системы</a>
       <a class="btn secondary" href="/m/admin">Модерация</a>
     </div>
+    <button class="btn secondary" id="installApp" style="width:100%;display:none;margin-bottom:8px">Установить приложение</button>
     <a class="btn secondary" href="/pamyat-juhuro?desktop=1">Открыть полную версию</a>
-  `));
+  `,{scripts:`<script>
+    let installPrompt=null;const btn=document.getElementById("installApp");
+    window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;btn.style.display="block"});
+    btn.onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;btn.style.display="none"};
+  </script>`}));
+});
+
+app.get("/m/feed", async (_req,res)=>{
+  try{
+    const d=await sb("rpc/memorial_memory_feed",{method:"POST",body:{p_limit:40}});
+    const cards=rows=>(rows||[]).map(e=>'<div class="card"><span class="tag">'+htmlEsc(e.event_type||"Памятная дата")+'</span><h3>'+htmlEsc(e.full_name||"")+'</h3><div>'+htmlEsc(e.event_date||"")+'</div><div class="muted">'+htmlEsc([e.city,e.place].filter(Boolean).join(" · "))+'</div><div class="muted">Свечей памяти: '+Number(e.candles||0)+'</div><p><a class="btn secondary" href="/m/memorial/'+encodeURIComponent(e.id)+'">Открыть</a></p></div>').join("");
+    res.send(mobileShell("Лента памяти",'<h1>Лента памяти</h1><p class="muted">Спокойная лента без лайков и рейтингов.</p><h2>Сегодня вспоминаем</h2>'+(cards(d?.today)||'<div class="card muted">На сегодня записей нет.</div>')+'<h2>Ближайшие 30 дней</h2>'+(cards(d?.upcoming)||'<div class="card muted">Ближайших дат нет.</div>')+'<h2>Недавно добавлено</h2>'+(cards(d?.recent)||'<div class="card muted">Пока нет записей.</div>')));
+  }catch(e){res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить ленту памяти.</div>'))}
+});
+
+app.get("/m/book", async (_req,res)=>{
+  try{
+    const rows=await sb("rpc/memorial_memory_book",{method:"POST",body:{p_limit:200}});
+    const cards=(rows||[]).map(x=>'<div class="card"><b>'+htmlEsc(x.author||"Гость")+'</b><div>'+htmlEsc(x.body||"")+'</div><div class="muted">В память о '+htmlEsc(x.full_name||"")+' · '+htmlEsc(String(x.created_at||"").slice(0,10))+'</div><p><a class="btn secondary" href="/m/memorial/'+encodeURIComponent(x.event_id)+'">Открыть памятную страницу</a></p></div>').join("");
+    res.send(mobileShell("Книга памяти",'<h1>Книга памяти</h1><p class="muted">Одобренные добрые слова и воспоминания. Без лайков и рейтингов.</p>'+(cards||'<div class="card muted">Пока нет опубликованных воспоминаний.</div>')));
+  }catch(e){res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить книгу памяти.</div>'))}
+});
+
+app.get("/m/inbox", (_req,res)=>{
+  res.setHeader("Cache-Control","no-store");
+  res.send(mobileShell("Центр уведомлений",`
+    <h1>Центр уведомлений</h1>
+    <p class="muted">Здесь сохраняются важные напоминания даже если внешний канал не доставил сообщение.</p>
+    <button id="markAllInbox" class="btn secondary" style="width:100%;margin-bottom:10px">Отметить всё прочитанным</button>
+    <div id="inboxList"><div class="card muted">Загрузка…</div></div>
+  `,{scripts:`<script>
+  (()=>{
+    const key="pamyat_device_token",box=document.getElementById("inboxList");
+    const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","'":"&#39;"}[m]));
+    function token(){let t=localStorage.getItem(key);if(!/^[0-9a-f-]{36}$/i.test(t||"")){t=crypto.randomUUID();localStorage.setItem(key,t)}return t}
+    async function load(){
+      const r=await fetch("/api/inbox?device_token="+encodeURIComponent(token()),{cache:"no-store"}),d=await r.json();
+      if(!r.ok){box.innerHTML='<div class="err">Не удалось загрузить уведомления.</div>';return}
+      const items=d.items||[];
+      box.innerHTML=(d.unread?'<div class="card"><b>Непрочитанных: '+Number(d.unread)+'</b></div>':'')+(items.map(x=>'<div class="card" style="'+(x.read_at?'opacity:.72':'border-width:2px')+'"><span class="tag">'+esc(x.kind||"")+'</span><h3>'+esc(x.title||"")+'</h3><div>'+esc(x.body||"")+'</div><div class="muted">'+esc(new Date(x.created_at).toLocaleString("ru-RU"))+'</div><div class="row" style="margin-top:8px">'+(x.url?'<a class="btn secondary" href="'+esc(x.url)+'">Открыть</a>':'')+(!x.read_at?'<button class="btn secondary" data-read="'+esc(x.id)+'">Прочитано</button>':'')+'</div></div>').join("")||'<div class="card muted">Уведомлений пока нет.</div>');
+      box.querySelectorAll("[data-read]").forEach(b=>b.onclick=async()=>{await fetch("/api/inbox/read",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({device_token:token(),id:b.dataset.read})});load()});
+    }
+    document.getElementById("markAllInbox").onclick=async()=>{await fetch("/api/inbox/read",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({device_token:token()})});load()};
+    load();
+  })();
+  </script>`}));
 });
 
 app.get("/m/catalog", async (req,res) => {
