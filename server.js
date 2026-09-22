@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v7.8.0
+// Production release marker: v7.9.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1282,7 +1282,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "7.8.0",
+    version: "7.9.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1321,6 +1321,10 @@ app.get("/api/health", (_req, res) => {
       autopilotQa: true,
       duplicatePhotoGuard: true,
       simpleProfessionalModes: true,
+      batchFactoryV2: true,
+      autoQueueContinuation: true,
+      persistedBatchQA: true,
+      provenanceExport: true,
       darkWorkbench: true,
       wideWorkbench: true,
       manualComposition: true
@@ -3038,5 +3042,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v7.8.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v7.9.0 listening on port ${port}`);
 });

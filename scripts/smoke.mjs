@@ -132,7 +132,16 @@ const features=[
   ['Профессиональный режим','professional UI mode naming'],
   ['autopilotQa: true','autopilot QA health metadata'],
   ['duplicatePhotoGuard: true','duplicate photo health metadata'],
-  ['simpleProfessionalModes: true','simple/professional health metadata']
+  ['simpleProfessionalModes: true','simple/professional health metadata'],
+  ['batchFactoryV2: true','Batch Factory v2 health metadata'],
+  ['autoQueueContinuation: true','automatic Excel queue continuation metadata'],
+  ['persistedBatchQA: true','persisted batch QA metadata'],
+  ['provenanceExport: true','provenance export metadata'],
+  ['const EXCEL_AUTOPILOT_LIMIT=25','larger Excel autopilot chunks'],
+  ['Продолжаем автоматически','automatic Excel queue chaining'],
+  ['quality=await batchQuality(cards,analyzed.data)','batch quality persistence pipeline'],
+  ['duplicatePhotoInCatalog(item,allItems)','duplicate photo catalog guard'],
+  ['QA пройден','catalog QA report column']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
