@@ -650,10 +650,9 @@ app.get("/m/admin/auth/callback", (_req,res) => {
   (async()=>{
     const box=document.getElementById("authState");
     try{
-      const hash=new URLSearchParams(location.hash.replace(/^#/,""));
-      const access=hash.get("access_token");
-      if(!access)throw new Error("В ссылке нет действующей сессии.");
-      const r=await fetch("/api/admin/auth/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({access_token:access})});
+      const loginToken=new URLSearchParams(location.search).get("token");
+      if(!loginToken)throw new Error("В ссылке нет действующего токена.");
+      const r=await fetch("/api/admin/auth/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({login_token:loginToken})});
       const d=await r.json();
       if(!r.ok)throw new Error(d.error||"Не удалось войти");
       box.innerHTML='<div class="ok">Вход выполнен. Перенаправление…</div>';
@@ -2167,30 +2166,27 @@ app.post("/api/admin/auth/request", rateLimit("admin-auth-request",6,15*60*1000)
     if(!validReminderEmail(email))return res.json(generic);
     const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
     if(!allowed?.allowed)return res.json(generic);
-    const redirect=(PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/admin/auth/callback";
-    const rr=await fetch(SUPABASE_URL+"/auth/v1/otp",{
-      method:"POST",
-      headers:{apikey:SUPABASE_ANON_KEY,"content-type":"application/json"},
-      body:JSON.stringify({email,options:{emailRedirectTo:redirect,shouldCreateUser:true}})
-    });
-    if(!rr.ok){const t=await rr.text();console.error("admin otp",rr.status,t);return res.status(502).json({error:"email_login_unavailable"})}
+    if(!RESEND_API_KEY||!RESEND_FROM)return res.status(503).json({error:"email_login_unavailable"});
+    const raw=crypto.randomBytes(32).toString("base64url");
+    const hash=crypto.createHash("sha256").update(raw).digest("hex");
+    const expires=new Date(Date.now()+15*60*1000).toISOString();
+    await sb("rpc/memorial_admin_login_token_create",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email,p_hash:hash,p_expires_at:expires}});
+    const link=(PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/admin/auth/callback?token="+encodeURIComponent(raw);
+    await sendEmailAddress(email,{title:"Вход в админ-панель «Память»",body:"Ссылка действует 15 минут: "+link});
     res.json(generic);
   }catch(e){console.error("admin auth request",e.data||e);res.status(500).json({error:"auth_request_failed"})}
 });
 
 app.post("/api/admin/auth/session", rateLimit("admin-auth-session",12,15*60*1000), async (req,res) => {
   try{
-    const access=clean(req.body?.access_token,5000);
-    if(!access)return res.status(400).json({error:"access_token_required"});
-    const ur=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:{apikey:SUPABASE_ANON_KEY,authorization:"Bearer "+access}});
-    if(!ur.ok)return res.status(401).json({error:"invalid_login"});
-    const user=await ur.json();
-    const email=String(user.email||"").toLowerCase();
-    const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
-    if(!allowed?.allowed)return res.status(403).json({error:"admin_not_allowed"});
-    const cookie=adminSessionSign(email,allowed.role||"admin");
+    const raw=clean(req.body?.login_token,500);
+    if(!raw)return res.status(400).json({error:"login_token_required"});
+    const hash=crypto.createHash("sha256").update(raw).digest("hex");
+    const data=await sb("rpc/memorial_admin_login_token_consume",{method:"POST",body:{p_token:ADMIN_TOKEN,p_hash:hash}});
+    if(!data?.ok)return res.status(401).json({error:"invalid_or_expired_login"});
+    const cookie=adminSessionSign(data.email,data.role||"admin");
     res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
-    res.json({ok:true,email,role:allowed.role||"admin"});
+    res.json({ok:true,email:data.email,role:data.role||"admin"});
   }catch(e){console.error("admin session",e.data||e);res.status(500).json({error:"session_failed"})}
 });
 
