@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.6.0
+// Production release marker: v10.7.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1431,7 +1431,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.6.0",
+    version: "10.7.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1446,6 +1446,8 @@ app.get("/api/health", (_req, res) => {
     analyzeRetryTimeoutSeconds: AI_ANALYZE_RETRY_TIMEOUT_MS / 1000,
     analyzeFastVision: true,
     freeTextLocalFirst: true,
+    freeLocalPreflight: true,
+    mobileVisionClassifierFallback: true,
     designEngine: {
       paletteFromProduct: true,
       categoryThemes: Object.keys(styleProfiles).length,
@@ -1710,11 +1712,29 @@ function safeVisionValue(value, max = 140) {
   return compact(String(value || "").replace(/[{}\[\]"]/g, " ").replace(/\s+/g, " ").trim(), max);
 }
 
+function localizeVisionLabel(value){
+  const raw=compact(String(value||"").split(",")[0],80);
+  const s=raw.toLowerCase();
+  const map=[
+    [/water bottle|bottle/,"бутылка"],[/coffee mug|mug/,"кружка"],[/cup/,"чашка"],[/bowl/,"миска"],[/plate/,"тарелка"],
+    [/backpack|rucksack/,"рюкзак"],[/handbag|purse/,"сумка"],[/wallet/,"кошелёк"],[/shoe|sneaker|running shoe/,"обувь"],[/sandal/,"сандалии"],
+    [/watch/,"наручные часы"],[/sunglass|sunglasses/,"очки"],[/keyboard/,"клавиатура"],[/computer mouse|mouse/,"компьютерная мышь"],
+    [/laptop|notebook computer/,"ноутбук"],[/cellular telephone|cell phone|mobile phone/,"смартфон"],[/remote control/,"пульт"],
+    [/table lamp|lampshade|lamp/,"лампа"],[/hair dryer/,"фен"],[/iron/,"утюг"],[/vacuum/,"пылесос"],[/toaster/,"тостер"],
+    [/teapot/,"чайник"],[/coffeepot/,"кофейник"],[/frying pan|pan/,"сковорода"],[/pot/,"кастрюля"],[/knife/,"нож"],[/spoon/,"ложка"],[/fork/,"вилка"],
+    [/teddy/,"мягкая игрушка"],[/toy/,"игрушка"],[/ball/,"мяч"],[/umbrella/,"зонт"],[/book/,"книга"],[/pen/,"ручка"],
+    [/chair/,"стул"],[/desk/,"стол"],[/sofa|couch/,"диван"],[/pillow/,"подушка"],[/blanket/,"плед"],[/clock/,"часы"],
+    [/soap dispenser|lotion/,"флакон"],[/perfume/,"парфюмерный флакон"],[/candle/,"свеча"],[/box|carton/,"товар в коробке"]
+  ];
+  for(const [re,ru] of map)if(re.test(s))return ru;
+  return raw;
+}
+
 function normalizeBrowserVisionCard(visionRaw, extraRaw = {}) {
   const vision = visionRaw && typeof visionRaw === "object" ? visionRaw : {};
   const extra = normalizeExtraData(extraRaw);
-  const productName = safeVisionValue(vision.productName || vision.product || vision.object || vision.item || "");
-  const categoryHint = safeVisionValue(vision.category || vision.possibleCategory || "");
+  const productName = localizeVisionLabel(safeVisionValue(vision.productName || vision.product || vision.object || vision.item || ""));
+  const categoryHint = localizeVisionLabel(safeVisionValue(vision.category || vision.possibleCategory || ""));
   const colors = cleanVisionList(vision.colors || vision.colours, 4);
   const features = cleanVisionList(vision.visibleFeatures || vision.features, 6);
   const visibleText = cleanVisionList(vision.visibleText || vision.textOnProduct || vision.text, 5);
@@ -1769,7 +1789,7 @@ function normalizeBrowserVisionCard(visionRaw, extraRaw = {}) {
     photoQuality: { score: 0, issues: [] },
     confirmedData: extra,
     analysisMode: "browser-vision",
-    analysisNotice: "Бесплатное локальное распознавание SmolVLM в браузере"
+    analysisNotice: vision?.classifierMode ? "Бесплатное локальное распознавание MobileViT в браузере" : "Бесплатное локальное распознавание SmolVLM в браузере"
   };
 }
 
@@ -2213,59 +2233,33 @@ const preflightSchema = {
 
 app.post("/api/preflight", async (req, res) => {
   try {
-    const { card, extraData = {}, image = "", mimeType = "" } = req.body ?? {};
+    const { card, extraData = {} } = req.body ?? {};
     if (!card || typeof card !== "object") return res.status(400).json({ error: "Нет данных товара для проверки." });
-    const hasImage = typeof image === "string" && image.length > 0;
-    if (hasImage) {
-      if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Исходное фото имеет неподдерживаемый формат." });
-      if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Исходная фотография должна быть не больше 10 МБ." });
-    }
-    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI-проверка пока не настроена." });
-
     const publicCard = normalizeCard(card);
     const confirmed = normalizeExtraData(extraData);
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const content = [{
-      type: "input_text",
-      text:
-        "Выполни финальную проверку публичной карточки товара перед переносом в Yuvion. " +
-        "Не придумывай и не добавляй новые характеристики. Проверяй только данные ниже и, если приложено, исходное фото.\n\n" +
-        "Ищи внутренние противоречия; неподтверждённые точные размеры, материал, мощность, состав, вес, бренд, модель и другие технические факты; " +
-        "противоречия между названием, описанием, подтверждёнными данными продавца и видимым товаром; SEO-спам; очевидно некорректные формулировки. " +
-        "Не считай отсутствующий параметр ошибкой, если он не обязателен. Не переноси сведения из изображения в rewrittenTitle или rewrittenDescription, " +
-        "если они не были уже явно подтверждены в переданных текстовых данных.\n\n" +
-        "Если безопасная корректировка нужна, rewrittenTitle и rewrittenDescription могут только удалить или смягчить неподтверждённые утверждения. " +
-        "Они не должны добавлять новые характеристики. Если правка не нужна — верни исходные значения.\n\n" +
-        "Публичные данные товара:\n" + JSON.stringify(publicCard) +
-        "\n\nПодтверждённые продавцом публичные данные:\n" + JSON.stringify(confirmed)
-    }];
-    if (hasImage) content.push({ type: "input_image", image_url: "data:" + mimeType + ";base64," + image, detail: "high" });
-
-    const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
-      input: [{ role: "user", content }],
-      text: { format: { type: "json_schema", name: "yuvion_preflight", strict: true, schema: preflightSchema } },
-      max_output_tokens: 1600
-    });
-
-    recordTextUsage(response);
-    const parsed = JSON.parse(response.output_text || "{}");
-    const issues = Array.isArray(parsed.issues) ? parsed.issues.slice(0, 20) : [];
+    const issues = [];
+    const title=compact(publicCard.seoTitle||"",180);
+    const description=compact(publicCard.fullDescription||publicCard.shortDescription||"",2000);
+    if(!title||/^товар$/i.test(title))issues.push({severity:"warning",field:"Название",message:"Название пока слишком общее; локальное распознавание может уточнить тип товара."});
+    if(!description)issues.push({severity:"warning",field:"Описание",message:"Описание отсутствует."});
+    if(!(publicCard.characteristics||[]).length)issues.push({severity:"warning",field:"Характеристики",message:"Подтверждённые характеристики не указаны."});
+    const exactClaims=(description.match(/\b\d+(?:[.,]\d+)?\s*(?:см|мм|м|кг|г|вт|w|мл|л)\b/gi)||[]);
+    if(exactClaims.length&&!confirmed.size&&!confirmed.material){
+      issues.push({severity:"warning",field:"Описание",message:"Проверьте точные числовые параметры: локальная проверка не подтверждает размеры, вес, мощность или объём без источника."});
+    }
     stats.preflightChecks += 1;
     stats.preflightFindings += issues.length;
     return res.json({
-      overall: ["Готово", "Есть замечания", "Есть блокеры"].includes(parsed.overall) ? parsed.overall : (issues.length ? "Есть замечания" : "Готово"),
+      overall: issues.some(x=>x.severity==="blocker")?"Есть блокеры":issues.length?"Есть замечания":"Готово",
       issues,
-      rewrittenTitle: compact(parsed.rewrittenTitle || publicCard.seoTitle || "", 180),
-      rewrittenDescription: compact(parsed.rewrittenDescription || publicCard.fullDescription || publicCard.shortDescription || "", 2000)
+      rewrittenTitle: compact(title||"Товар",180),
+      rewrittenDescription: compact(sellerNeutralCopy(description,2000),2000)||description,
+      local: true
     });
   } catch (error) {
-    recordError("preflight", error);
-    console.error("Preflight error:", { message: error?.message, status: error?.status, code: error?.code });
-    if (error?.code === "credit_balance_exhausted") return res.status(402).json({ error: "На балансе OpenAI API закончились кредиты." });
-    if (error?.status === 401) return res.status(503).json({ error: "AI-ключ недействителен." });
-    if (error?.status === 429) return res.status(429).json({ error: "Лимит AI временно исчерпан." });
-    return res.status(500).json({ error: "Не удалось выполнить финальную AI-проверку." });
+    recordError("preflight-local", error);
+    console.error("Local preflight error:", { message: error?.message, code: error?.code });
+    return res.status(500).json({ error: "Не удалось выполнить локальную финальную проверку." });
   }
 });
 
@@ -3230,7 +3224,7 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
   }
 
   const usage = visual.showUsage ? (card.usage.length ? card.usage : benefits.slice(0, 3)) : [];
-  const desc = visual.showDescription ? wrapWords(card.shortDescription || card.fullDescription || category, 54, 2) : [];
+  const desc = visual.showDescription ? wrapWords(card.fullDescription || card.shortDescription || category, 46, 3) : [];
   const usageCards = usage.filter(Boolean).slice(0, density.usage || 3).map((item, i) => {
     const y = 836 + i * 82;
     return `<rect x="72" y="${y}" width="756" height="64" rx="22" fill="#FFFFFF" fill-opacity=".70" stroke="${border}" stroke-width="1.2"/>
@@ -3247,7 +3241,7 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
       <text x="74" y="726" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">${escapeXml(plan.kicker || "04 · СЦЕНАРИИ")}</text>
       <text x="74" y="786" font-family="${font}" font-size="44" font-weight="880" fill="${style.text}">${escapeXml(plan.title || "Где пригодится")}</text>
       ${usageCards || textLines(["Сценарии применения", "уточняются по типу товара"], { x: 78, y: 874, size: 28, lineHeight: 40, weight: 700, fill: style.text })}
-      ${desc.length ? textLines(desc, { x: 74, y: 1120, size: 18, lineHeight: 25, weight: 550, fill: softText }) : ""}
+      ${desc.length ? `<rect x="64" y="1034" width="772" height="108" rx="24" fill="#FFFFFF" fill-opacity=".58" stroke="${border}" stroke-width="1"/>${textLines(desc, { x: 88, y: 1068, size: 19, lineHeight: 25, weight: 620, fill: style.text })}` : ""}
     </svg>`;
 }
 async function normalizeSceneForCache(sceneBuffer) {
@@ -3913,5 +3907,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.6.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.7.0 listening on port ${port}`);
 });
