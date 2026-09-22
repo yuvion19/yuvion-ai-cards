@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v7.9.0
+// Production release marker: v8.0.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1282,7 +1282,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "7.9.0",
+    version: "8.0.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1325,6 +1325,9 @@ app.get("/api/health", (_req, res) => {
       autoQueueContinuation: true,
       persistedBatchQA: true,
       provenanceExport: true,
+      designEngineV5: true,
+      fullSeriesChooser: true,
+      autoSeriesRegeneration: true,
       darkWorkbench: true,
       wideWorkbench: true,
       manualComposition: true
@@ -2698,7 +2701,7 @@ app.post("/api/generate-cards", async (req, res) => {
       designSubstyle: substyle,
       visualOptions: visual,
       composition: renderComposition,
-      renderEngine: "power-local-v4",
+      renderEngine: "power-local-v5",
       primaryRole: renderSelections[0]?.primary?.role || "main",
       insetRole: renderSelections[0]?.inset?.role || "",
       photoEnhancement: true,
@@ -2875,9 +2878,9 @@ app.post("/api/cover-variants", async (req, res) => {
     const substyle = normalizeDesignSubstyle(designSubstyle);
     const visual = normalizeVisualOptions(visualOptions);
     const options = [
-      { variant: 0, intensity: "calm", label: "Чистая" },
-      { variant: 1, intensity: "selling", label: "Продающая" },
-      { variant: 3, intensity: "bold", label: "Заметная" }
+      { variant: 0, intensity: "calm", label: "Чистая серия", description: "Воздух, крупный товар, спокойная типографика" },
+      { variant: 1, intensity: "selling", label: "Продающая серия", description: "Баланс товара, преимуществ и коммерческой подачи" },
+      { variant: 3, intensity: "bold", label: "Акцентная серия", description: "Больше динамики, контраста и заметности в каталоге" }
     ];
     const variants = [];
     for (const option of options) {
@@ -2888,6 +2891,7 @@ app.post("/api/cover-variants", async (req, res) => {
         variant: option.variant,
         intensity: option.intensity,
         label: option.label,
+        description: option.description,
         card: { filename: "01_cover.png", title: "Обложка", base64: buffer.toString("base64") },
         scene: { index: 0, mimeType: "image/jpeg", base64: cachedScene.toString("base64") }
       });
@@ -2899,7 +2903,8 @@ app.post("/api/cover-variants", async (req, res) => {
       palette: renderPalette,
       designSubstyle: substyle,
       aiImageCalls: 0,
-      renderEngine: "power-local-v2",
+      seriesMode: "full-set-on-select",
+      renderEngine: "power-local-v5",
       usedAdditionalImages: additionalSources.length,
       coverInsetRole: coverInset?.role || ""
     });
@@ -3042,5 +3047,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v7.9.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v8.0.0 listening on port ${port}`);
 });

@@ -724,7 +724,7 @@
           <div class="design-palette-wrap"><span>Палитра товара</span><div class="design-palette" id="designPalette"><i class="palette-dot" style="background:#F03E4A"></i><i class="palette-dot" style="background:#FFD8DC"></i><i class="palette-dot" style="background:#FFFFFF"></i></div></div>
           <div class="design-actions">
             <button type="button" class="design-action magic" id="beautifyDesign">Сделать красивее</button>
-            <button type="button" class="design-action" id="coverVariants">3 обложки</button>
+            <button type="button" class="design-action" id="coverVariants">3 серии</button>
             <button type="button" class="design-action" id="designVariant">Другой вариант</button>
             <button type="button" class="design-action" id="mobilePreview">Мобильный вид</button>
             <button type="button" class="design-action primary" id="applyDesign">Пересобрать 4 карточки</button>
@@ -756,7 +756,7 @@
           </div>
         </div>
         <div class="cover-lab" id="coverLab">
-          <div class="cover-lab-head"><b>Варианты первой карточки</b><span>Выберите один — остальные карточки сохранят единый стиль.</span></div>
+          <div class="cover-lab-head"><b>Серии дизайна</b><span>Превью показывает обложку. После выбора бесплатно пересобираются все 4 карточки в этом стиле.</span></div>
           <div class="cover-variant-grid" id="coverVariantGrid"></div>
         </div>
         <details class="design-tune">
@@ -3353,20 +3353,37 @@ async function loadCoverVariants(){
     const src=await getSource();
     const response=await fetch('/api/cover-variants',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:collectEdits(),style:styleSelect.value,palette:currentPalette,composition:currentComposition,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,additionalImages:additionalPhotosForRender()})});
     const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'Не удалось создать варианты обложки.');
+    if(!response.ok)throw new Error(data.error||'Не удалось подготовить серии дизайна.');
     currentCoverVariants=Array.isArray(data.variants)?data.variants:[];
     if(Array.isArray(data.palette)&&data.palette.length)currentPalette=data.palette;
     renderCoverVariants();
-  }catch(e){creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось создать варианты обложки.'}
-  finally{coverVariantsBtn.disabled=false;coverVariantsBtn.textContent='3 обложки'}
+  }catch(e){creativeStatus.className='creative-status show fail';creativeStatus.textContent=e.message||'Не удалось подготовить серии дизайна.'}
+  finally{coverVariantsBtn.disabled=false;coverVariantsBtn.textContent='3 серии'}
 }
 function renderCoverVariants(){
   if(!currentCoverVariants.length){coverLab.classList.remove('show');coverVariantGrid.innerHTML='';return}
   coverLab.classList.add('show');
-  coverVariantGrid.innerHTML=currentCoverVariants.map((item,index)=>'<button type="button" class="cover-variant '+(item.variant===currentDesignVariant&&item.intensity===currentDesignIntensity?'selected':'')+'" data-cover-index="'+index+'"><img alt="'+esc(item.label||'Вариант')+'" src="data:image/png;base64,'+item.card.base64+'"><b>'+esc(item.label||('Вариант '+(index+1)))+'</b><small>'+esc(item.intensity==='bold'?'Максимально заметная':item.intensity==='calm'?'Спокойная':'Сбалансированная')+'</small></button>').join('');
+  coverVariantGrid.innerHTML=currentCoverVariants.map((item,index)=>'<button type="button" class="cover-variant '+(item.variant===currentDesignVariant&&item.intensity===currentDesignIntensity?'selected':'')+'" data-cover-index="'+index+'"><img alt="'+esc(item.label||'Серия')+'" src="data:image/png;base64,'+item.card.base64+'"><b>'+esc(item.label||('Серия '+(index+1)))+'</b><small>'+esc(item.description||(item.intensity==='bold'?'Максимально заметная серия':item.intensity==='calm'?'Чистая спокойная серия':'Сбалансированная продающая серия'))+'</small></button>').join('');
 }
 coverVariantsBtn.onclick=loadCoverVariants;
-coverVariantGrid.addEventListener('click',async e=>{const btn=e.target.closest('[data-cover-index]');if(!btn)return;const item=currentCoverVariants[Number(btn.dataset.coverIndex)];if(!item)return;currentDesignVariant=item.variant;currentDesignIntensity=item.intensity;designIntensity.dataset.userChanged='1';if(currentCards.length===4){currentCards[0]=item.card;currentScenes[0]=item.scene;cardsStale=false;currentStaleCards=[];currentQuality=null;renderCards();captureDesignSnapshot('Выбранная обложка',true);await saveHistory()}renderDesignStudio();renderCoverVariants()});
+coverVariantGrid.addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-cover-index]');if(!btn)return;
+  const item=currentCoverVariants[Number(btn.dataset.coverIndex)];if(!item)return;
+  currentDesignVariant=item.variant;
+  currentDesignIntensity=item.intensity;
+  designIntensity.dataset.userChanged='1';
+  currentQuality=null;
+  currentScenes=[];
+  markCardsStale([0,1,2,3]);
+  renderDesignStudio();
+  renderCoverVariants();
+  captureDesignSnapshot('Серия: '+(item.label||'вариант'),true);
+  addCurrentActivity('Выбрана серия дизайна',(item.label||'Серия')+' · пересборка 4 карточек');
+  await saveHistory();
+  creativeStatus.className='creative-status show';
+  creativeStatus.textContent='Серия «'+(item.label||'выбранная')+'» выбрана. Пересобираем все 4 карточки бесплатно.';
+  generateAll.click();
+});
 
 function syncCompositionFromControls(){
   currentComposition={
@@ -4290,8 +4307,8 @@ generateAll.onclick=async()=>{
       if(data.visualOptions)currentVisualOptions=normalizeClientVisualOptions({...currentVisualOptions,...data.visualOptions,safeZone:currentVisualOptions.safeZone});
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
-      const renderDetail=data.renderEngine==='power-local-v2'
-        ?('Power Render · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник'))
+      const renderDetail=String(data.renderEngine||'').startsWith('power-local-')
+        ?('Power Render v5 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);

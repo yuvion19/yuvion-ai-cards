@@ -141,7 +141,15 @@ const features=[
   ['Продолжаем автоматически','automatic Excel queue chaining'],
   ['quality=await batchQuality(cards,analyzed.data)','batch quality persistence pipeline'],
   ['duplicatePhotoInCatalog(item,allItems)','duplicate photo catalog guard'],
-  ['QA пройден','catalog QA report column']
+  ['QA пройден','catalog QA report column'],
+  ['3 серии','full design series selector UI'],
+  ['Серии дизайна','series lab UI'],
+  ['full-set-on-select','series selection server mode'],
+  ['designEngineV5: true','Design Engine v5 health metadata'],
+  ['fullSeriesChooser: true','full series chooser health metadata'],
+  ['autoSeriesRegeneration: true','series auto-regeneration metadata'],
+  ['markCardsStale([0,1,2,3])','series forces full-card refresh'],
+  ['Power Render v5','current renderer UI marker']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
@@ -172,7 +180,7 @@ if(process.exitCode)process.exit(process.exitCode);
 if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
 if(!server.includes('version: "'+pkg.version+'"'))fail('server health version does not match package version');else ok('server health version '+pkg.version);
 if(server.includes('primaryRole: selectedSource.role'))fail('batch renderer references undefined selectedSource');else ok('batch renderer response variables safe');
-if(!server.includes('renderEngine: "power-local-v4"'))fail('power-local-v4 renderer marker missing');else ok('power-local-v4 renderer marker present');
+if(!server.includes('renderEngine: "power-local-v5"'))fail('power-local-v5 renderer marker missing');else ok('power-local-v5 renderer marker present');
 if(!server.includes('categoryAwareLayouts: true'))fail('category-aware layout metadata missing');else ok('category-aware layout metadata present');
 if(!server.includes('marketplaceEditorialOverlays: true'))fail('editorial overlay metadata missing');else ok('editorial overlay metadata present');
 if(!server.includes('fourDistinctCompositions: true'))fail('four distinct compositions metadata missing');else ok('four distinct compositions metadata present');
