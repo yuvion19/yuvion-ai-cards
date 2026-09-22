@@ -697,15 +697,15 @@ function productSeedFromHtml(html, finalUrl) {
   return {
     canonical,
     title: firstText(product.name, meta["og:title"], meta["twitter:title"], titleMatch?.[1]),
-    description: firstText(product.description, meta.description, meta["og:description"], meta["twitter:description"]),
-    brand: firstText(product.brand),
-    sku: firstText(product.sku, meta["product:retailer_item_id"]),
-    mpn: firstText(product.mpn),
-    barcode: firstText(product.gtin13, product.gtin14, product.gtin12, product.gtin8, product.gtin),
-    category: firstText(product.category, breadcrumbNames.length ? breadcrumbNames.join(" / ") : ""),
-    price: firstText(offer.price, offer.lowPrice, offer.priceSpecification?.price, meta["product:price:amount"]),
-    oldPrice: firstText(offer.highPrice),
-    currency: firstText(offer.priceCurrency, offer.priceSpecification?.priceCurrency, meta["product:price:currency"]),
+    description: decodeHtmlText(firstText(product.description, meta.description, meta["og:description"], meta["twitter:description"]).replace(/<[^>]+>/g, " ")),
+    brand: firstText(product.brand, meta.brand, meta["product:brand"]),
+    sku: firstText(product.sku, meta.sku, meta["product:sku"], meta["product:retailer_item_id"]),
+    mpn: firstText(product.mpn, meta.mpn),
+    barcode: firstText(product.gtin13, product.gtin14, product.gtin12, product.gtin8, product.gtin, meta.gtin13, meta.gtin14, meta.gtin12, meta.gtin8, meta.gtin),
+    category: firstText(product.category, meta.category, breadcrumbNames.length ? breadcrumbNames.join(" / ") : ""),
+    price: firstText(offer.price, offer.lowPrice, offer.priceSpecification?.price, meta["product:price:amount"], meta.price),
+    oldPrice: firstText(offer.highPrice, meta["product:original_price:amount"], meta["product:old_price:amount"]),
+    currency: firstText(offer.priceCurrency, offer.priceSpecification?.priceCurrency, meta["product:price:currency"], meta.pricecurrency),
     characteristics: [
       ...(firstText(product.mpn) ? [{ name: "MPN / модель производителя", value: firstText(product.mpn), evidence: "Schema.org mpn" }] : []),
       ...characteristics
@@ -775,8 +775,9 @@ async function normalizeRemoteImage(imageUrl, referer = "") {
     accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8",
     referer
   });
-  const type = String(result.response.headers.get("content-type") || "").toLowerCase();
-  if (!type.startsWith("image/")) throw new Error("Ссылка не является изображением.");
+  const type = String(result.response.headers.get("content-type") || "").toLowerCase().split(";")[0].trim();
+  const safeRasterTypes = new Set(["image/jpeg","image/png","image/webp","image/avif","image/gif"]);
+  if (!safeRasterTypes.has(type)) throw new Error("Поддерживаются только безопасные растровые изображения.");
   const normalized = await sharp(result.buffer, { limitInputPixels: 40000000 })
     .rotate()
     .resize({ width: 1400, height: 1400, fit: "inside", withoutEnlargement: true })
