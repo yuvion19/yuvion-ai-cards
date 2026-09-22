@@ -21,6 +21,14 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const RESEND_FROM = process.env.RESEND_FROM || "Память <onboarding@resend.dev>";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || "";
+const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || "";
+const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || "";
+const WHATSAPP_GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "";
+const WHATSAPP_TEMPLATE_NAME = process.env.WHATSAPP_TEMPLATE_NAME || "";
+const WHATSAPP_TEMPLATE_LANG = process.env.WHATSAPP_TEMPLATE_LANG || "ru";
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || "";
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || "";
+const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER || "";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const identifyUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 900000 }, fileFilter: (_req,file,cb)=>cb(null,/^image\//.test(file.mimetype)) });
 
@@ -164,11 +172,12 @@ app.get("/m/calendar", async (_req,res) => {
 });
 
 
+
 app.get("/m/reminders", (_req,res) => {
   res.setHeader("Cache-Control","no-store, no-cache, must-revalidate");
   res.send(mobileShell("Напоминания", `
     <h1>Напоминания</h1>
-    <p class="muted">Разрешите уведомления один раз. После этого система сможет напоминать о ближайших памятных датах на этом устройстве.</p>
+    <p class="muted">Выберите сроки и каналы. Push можно включить прямо на телефоне; Email, Telegram, WhatsApp и SMS работают после подключения соответствующего провайдера.</p>
 
     <div class="card">
       <h3 style="margin-top:0">Когда напоминать</h3>
@@ -178,82 +187,142 @@ app.get("/m/reminders", (_req,res) => {
       <div class="check"><input type="checkbox" class="remDay" value="3"><span>За 3 дня</span></div>
       <div class="check"><input type="checkbox" class="remDay" value="1" checked><span>За 1 день</span></div>
       <div class="check"><input type="checkbox" class="remDay" value="0" checked><span>В день события</span></div>
+    </div>
 
-      <label>Email (необязательно)</label>
+    <div class="card">
+      <h3 style="margin-top:0">Куда присылать</h3>
+
+      <div class="check"><input id="chPush" type="checkbox" checked><span><b>Push на телефон</b><br><span class="muted" id="stPush">проверка…</span></span></div>
+
+      <div class="check"><input id="chEmail" type="checkbox"><span><b>Email</b><br><span class="muted" id="stEmail">проверка…</span></span></div>
       <input id="remEmail" class="field" type="email" autocomplete="email" placeholder="name@example.com">
-      <div class="check"><input id="remEmailEnabled" type="checkbox"><span>Также отправлять на email, если почтовый канал включён</span></div>
 
-      <button id="enableReminders" class="btn" style="width:100%;margin-top:12px">Включить напоминания</button>
-      <button id="disableReminders" class="btn secondary" style="width:100%;margin-top:8px">Отключить на этом устройстве</button>
+      <div class="check"><input id="chTelegram" type="checkbox"><span><b>Telegram</b><br><span class="muted" id="stTelegram">проверка…</span></span></div>
+      <input id="remTelegram" class="field" inputmode="numeric" placeholder="Telegram chat ID">
+
+      <div class="check"><input id="chWhatsapp" type="checkbox"><span><b>WhatsApp</b><br><span class="muted" id="stWhatsapp">проверка…</span></span></div>
+      <input id="remWhatsapp" class="field" type="tel" autocomplete="tel" placeholder="+79991234567">
+
+      <div class="check"><input id="chSms" type="checkbox"><span><b>SMS</b><br><span class="muted" id="stSms">проверка…</span></span></div>
+      <input id="remSms" class="field" type="tel" autocomplete="tel" placeholder="+79991234567">
+
+      <button id="saveReminders" class="btn" style="width:100%;margin-top:14px">Сохранить и включить</button>
+      <button id="disableReminders" class="btn secondary" style="width:100%;margin-top:8px">Отключить все каналы на этом устройстве</button>
       <div id="remStatus" style="margin-top:10px"></div>
     </div>
 
     <div class="card">
-      <b>Как это работает</b>
-      <p class="muted" style="margin-bottom:0">Сервер проверяет приближающиеся даты регулярно. Уведомления не включаются автоматически: браузер сначала попросит ваше разрешение.</p>
+      <b>Статус каналов</b>
+      <p class="muted" style="margin-bottom:0">Если канал отмечен как «нужна настройка», предпочтение можно сохранить заранее, но сообщения начнут отправляться только после подключения провайдера.</p>
     </div>
   `, {scripts:`<script>
   (()=>{
     const status=document.getElementById("remStatus");
     const tokenKey="pamyat_device_token";
+    const cfgKey="pamyat_reminder_config";
+    let provider={push:false,email:false,telegram:false,whatsapp:false,sms:false};
+
+    const say=(msg,ok=true)=>status.innerHTML='<div class="'+(ok?"ok":"err")+'">'+msg+'</div>';
     const b64ToUint=s=>{
       const pad="=".repeat((4-s.length%4)%4),base=(s+pad).replace(/-/g,"+").replace(/_/g,"/");
       const raw=atob(base);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
     };
-    const say=(msg,ok=true)=>status.innerHTML='<div class="'+(ok?"ok":"err")+'">'+msg+'</div>';
-    async function sw(){
-      if(!("serviceWorker" in navigator))throw new Error("Этот браузер не поддерживает service worker");
-      return navigator.serviceWorker.register("/sw.js").then(()=>navigator.serviceWorker.ready);
-    }
-    async function enable(){
+    const state=(id,ok)=>document.getElementById(id).textContent=ok?"подключено":"нужна настройка провайдера";
+    async function loadStatus(){
       try{
-        if(!("Notification" in window)||!("PushManager" in window))throw new Error("Push-уведомления не поддерживаются этим браузером");
-        const perm=await Notification.requestPermission();
-        if(perm!=="granted")throw new Error("Разрешение на уведомления не выдано");
-        const reg=await sw();
-        const k=await fetch("/api/push/public-key",{cache:"no-store"}).then(r=>r.json());
-        if(!k.configured||!k.key)throw new Error("Сервер push пока не настроен");
-        let sub=await reg.pushManager.getSubscription();
-        if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToUint(k.key)});
-        const days=[...document.querySelectorAll(".remDay:checked")].map(x=>Number(x.value));
-        if(!days.length)throw new Error("Выберите хотя бы один срок");
-        const email=document.getElementById("remEmail").value.trim();
+        provider=await fetch("/api/reminders/status",{cache:"no-store"}).then(r=>r.json());
+        state("stPush",provider.push); state("stEmail",provider.email); state("stTelegram",provider.telegram);
+        state("stWhatsapp",provider.whatsapp); state("stSms",provider.sms);
+      }catch{
+        ["stPush","stEmail","stTelegram","stWhatsapp","stSms"].forEach(x=>document.getElementById(x).textContent="статус недоступен");
+      }
+    }
+    async function getPushSubscription(){
+      if(!document.getElementById("chPush").checked)return null;
+      if(!provider.push)throw new Error("Push на сервере пока не настроен");
+      if(!("Notification" in window)||!("PushManager" in window)||!("serviceWorker" in navigator))throw new Error("Этот браузер не поддерживает Push");
+      const perm=await Notification.requestPermission();
+      if(perm!=="granted")throw new Error("Разрешение на Push не выдано");
+      const reg=await navigator.serviceWorker.register("/sw.js").then(()=>navigator.serviceWorker.ready);
+      const k=await fetch("/api/push/public-key",{cache:"no-store"}).then(r=>r.json());
+      let sub=await reg.pushManager.getSubscription();
+      if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToUint(k.key)});
+      return sub.toJSON();
+    }
+    function read(){
+      const days=[...document.querySelectorAll(".remDay:checked")].map(x=>Number(x.value));
+      return {
+        days,
+        push:document.getElementById("chPush").checked,
+        email:document.getElementById("chEmail").checked,
+        telegram:document.getElementById("chTelegram").checked,
+        whatsapp:document.getElementById("chWhatsapp").checked,
+        sms:document.getElementById("chSms").checked,
+        email_value:document.getElementById("remEmail").value.trim(),
+        telegram_value:document.getElementById("remTelegram").value.trim(),
+        whatsapp_value:document.getElementById("remWhatsapp").value.trim(),
+        sms_value:document.getElementById("remSms").value.trim()
+      };
+    }
+    function restore(){
+      try{
+        const x=JSON.parse(localStorage.getItem(cfgKey)||"null"); if(!x)return;
+        if(Array.isArray(x.days))document.querySelectorAll(".remDay").forEach(i=>i.checked=x.days.includes(Number(i.value)));
+        document.getElementById("chPush").checked=Boolean(x.push);
+        document.getElementById("chEmail").checked=Boolean(x.email);
+        document.getElementById("chTelegram").checked=Boolean(x.telegram);
+        document.getElementById("chWhatsapp").checked=Boolean(x.whatsapp);
+        document.getElementById("chSms").checked=Boolean(x.sms);
+        document.getElementById("remEmail").value=x.email_value||"";
+        document.getElementById("remTelegram").value=x.telegram_value||"";
+        document.getElementById("remWhatsapp").value=x.whatsapp_value||"";
+        document.getElementById("remSms").value=x.sms_value||"";
+      }catch{}
+    }
+    async function save(){
+      try{
+        const x=read();
+        if(!x.days.length)throw new Error("Выберите хотя бы один срок");
+        if(!x.push&&!x.email&&!x.telegram&&!x.whatsapp&&!x.sms)throw new Error("Выберите хотя бы один канал");
+        const subscription=await getPushSubscription();
         const body={
-          subscription:sub.toJSON(),
+          device_token:localStorage.getItem(tokenKey)||null,
+          subscription,
           timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC",
           locale:navigator.language||"ru",
-          reminder_days:days,
-          email:email||null,
-          email_enabled:Boolean(email&&document.getElementById("remEmailEnabled").checked)
+          reminder_days:x.days,
+          push_enabled:x.push,
+          email:x.email_value||null,email_enabled:x.email,
+          telegram_chat_id:x.telegram_value||null,telegram_enabled:x.telegram,
+          whatsapp_phone:x.whatsapp_value||null,whatsapp_enabled:x.whatsapp,
+          sms_phone:x.sms_value||null,sms_enabled:x.sms
         };
-        const r=await fetch("/api/push/subscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        const r=await fetch("/api/reminders/subscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
         const data=await r.json();
         if(!r.ok)throw new Error(data.error||("HTTP "+r.status));
         if(data.device_token)localStorage.setItem(tokenKey,data.device_token);
-        localStorage.setItem("pamyat_reminder_days",JSON.stringify(days));
-        localStorage.setItem("pamyat_reminder_email",email);
-        say("Напоминания включены на этом устройстве.");
-      }catch(e){say(e.message||"Не удалось включить уведомления",false)}
+        localStorage.setItem(cfgKey,JSON.stringify(x));
+        const waiting=(data.waiting_for_provider||[]);
+        say("Настройки сохранены."+ (waiting.length?" Ожидают подключения: "+waiting.join(", ")+".":""));
+      }catch(e){say(e.message||"Не удалось сохранить",false)}
     }
     async function disable(){
       try{
         const t=localStorage.getItem(tokenKey);
         if(t)await fetch("/api/push/unsubscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({device_token:t})});
-        const reg=("serviceWorker" in navigator)?await navigator.serviceWorker.ready:null;
-        const sub=reg?await reg.pushManager.getSubscription():null;
-        if(sub)await sub.unsubscribe();
+        if("serviceWorker" in navigator){
+          const reg=await navigator.serviceWorker.ready.catch(()=>null);
+          const sub=reg?await reg.pushManager.getSubscription():null;
+          if(sub)await sub.unsubscribe();
+        }
         localStorage.removeItem(tokenKey);
-        say("Напоминания отключены на этом устройстве.");
+        say("Все напоминания на этом устройстве отключены.");
       }catch(e){say(e.message||"Не удалось отключить",false)}
     }
-    document.getElementById("enableReminders").onclick=enable;
+    document.getElementById("saveReminders").onclick=save;
     document.getElementById("disableReminders").onclick=disable;
-    try{
-      const saved=JSON.parse(localStorage.getItem("pamyat_reminder_days")||"[]");
-      if(saved.length)document.querySelectorAll(".remDay").forEach(x=>x.checked=saved.includes(Number(x.value)));
-      document.getElementById("remEmail").value=localStorage.getItem("pamyat_reminder_email")||"";
-      if(localStorage.getItem(tokenKey))say("На этом устройстве уже есть активная подписка.");
-    }catch{}
+    restore(); loadStatus();
+    if(localStorage.getItem(tokenKey))say("На этом устройстве уже есть сохранённая подписка.");
   })();
   </script>`}));
 });
@@ -843,7 +912,9 @@ app.get("/health", async (_req, res) => {
       active_frontend: cfg?.active_frontend || "current",
       push_configured: Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY),
       telegram_configured: Boolean(TELEGRAM_BOT_TOKEN),
-      email_configured: Boolean(RESEND_API_KEY)
+      email_configured: Boolean(RESEND_API_KEY),
+      whatsapp_configured: reminderProviderStatus().whatsapp,
+      sms_configured: reminderProviderStatus().sms
     });
   } catch (e) {
     res.status(503).json({ ok: false, database: "supabase", error: e.message });
@@ -1374,6 +1445,79 @@ app.post("/api/family/relations", rateLimit("family", 8, 60 * 60 * 1000), async 
 });
 
 app.get("/api/push/public-key", (_req, res) => res.json({ key: VAPID_PUBLIC_KEY || null, configured: Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) }));
+
+function validReminderEmail(v){ return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(v||"")); }
+function validE164(v){ return /^\\+[1-9]\\d{7,14}$/.test(String(v||"")); }
+function validTelegramChat(v){ return /^-?\\d{3,30}$/.test(String(v||"")); }
+function reminderProviderStatus(){
+  return {
+    push:Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY),
+    email:Boolean(RESEND_API_KEY && RESEND_FROM),
+    telegram:Boolean(TELEGRAM_BOT_TOKEN),
+    whatsapp:Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID && WHATSAPP_GRAPH_VERSION && WHATSAPP_TEMPLATE_NAME),
+    sms:Boolean(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER)
+  };
+}
+
+app.get("/api/reminders/status", (_req,res) => {
+  res.setHeader("Cache-Control","no-store");
+  res.json(reminderProviderStatus());
+});
+
+app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*1000), async (req,res) => {
+  try{
+    const b=req.body||{}, s=b.subscription||{};
+    const days=Array.isArray(b.reminder_days)?b.reminder_days.map(Number).filter(n=>[0,1,3,7,14,30].includes(n)):[7,1,0];
+    if(!days.length)return res.status(400).json({error:"reminder_days_required"});
+
+    const pushEnabled=Boolean(b.push_enabled);
+    const emailEnabled=Boolean(b.email_enabled);
+    const telegramEnabled=Boolean(b.telegram_enabled);
+    const whatsappEnabled=Boolean(b.whatsapp_enabled);
+    const smsEnabled=Boolean(b.sms_enabled);
+    if(!pushEnabled&&!emailEnabled&&!telegramEnabled&&!whatsappEnabled&&!smsEnabled)return res.status(400).json({error:"channel_required"});
+
+    const email=clean(b.email,180);
+    const telegramChat=clean(b.telegram_chat_id,100);
+    const whatsappPhone=clean(b.whatsapp_phone,40);
+    const smsPhone=clean(b.sms_phone,40);
+    if(pushEnabled && (!s.endpoint || !s.keys?.p256dh || !s.keys?.auth))return res.status(400).json({error:"push_permission_required"});
+    if(emailEnabled && !validReminderEmail(email))return res.status(400).json({error:"valid_email_required"});
+    if(telegramEnabled && !validTelegramChat(telegramChat))return res.status(400).json({error:"telegram_chat_id_required"});
+    if(whatsappEnabled && !validE164(whatsappPhone))return res.status(400).json({error:"whatsapp_phone_e164_required"});
+    if(smsEnabled && !validE164(smsPhone))return res.status(400).json({error:"sms_phone_e164_required"});
+
+    const dt=clean(b.device_token,100);
+    const token=await sb("rpc/memorial_reminder_subscribe",{
+      method:"POST",
+      body:{
+        p_device_token:/^[0-9a-f-]{36}$/i.test(dt)?dt:null,
+        p_endpoint:pushEnabled?s.endpoint:null,
+        p_p256dh:pushEnabled?s.keys.p256dh:null,
+        p_auth:pushEnabled?s.keys.auth:null,
+        p_timezone:clean(b.timezone,100)||"UTC",
+        p_locale:clean(b.locale,20)||"ru",
+        p_reminder_days:days,
+        p_push_enabled:pushEnabled,
+        p_email:email||null,p_email_enabled:emailEnabled,
+        p_telegram_chat_id:telegramChat||null,p_telegram_enabled:telegramEnabled,
+        p_whatsapp_phone:whatsappPhone||null,p_whatsapp_enabled:whatsappEnabled,
+        p_sms_phone:smsPhone||null,p_sms_enabled:smsEnabled
+      }
+    });
+    const p=reminderProviderStatus(),waiting=[];
+    if(pushEnabled&&!p.push)waiting.push("Push");
+    if(emailEnabled&&!p.email)waiting.push("Email");
+    if(telegramEnabled&&!p.telegram)waiting.push("Telegram");
+    if(whatsappEnabled&&!p.whatsapp)waiting.push("WhatsApp");
+    if(smsEnabled&&!p.sms)waiting.push("SMS");
+    res.status(201).json({ok:true,device_token:token,waiting_for_provider:waiting});
+  }catch(e){
+    console.error("reminder subscribe",e.data||e);
+    res.status(500).json({error:"subscribe_failed"});
+  }
+});
+
 app.post("/api/push/subscribe", rateLimit("push-subscribe", 10, 60 * 60 * 1000), async (req, res) => {
   try {
     const b = req.body || {}, s = b.subscription || {};
@@ -1439,6 +1583,43 @@ async function telegramSend(chatId, text) {
   if (!r.ok) throw new Error("telegram_" + r.status);
   return "sent";
 }
+
+async function whatsappSend(phone,text){
+  if(!reminderProviderStatus().whatsapp || !phone)return null;
+  const to=String(phone).replace(/^\\+/,"");
+  const r=await fetch("https://graph.facebook.com/"+encodeURIComponent(WHATSAPP_GRAPH_VERSION)+"/"+encodeURIComponent(WHATSAPP_PHONE_NUMBER_ID)+"/messages",{
+    method:"POST",
+    headers:{authorization:"Bearer "+WHATSAPP_ACCESS_TOKEN,"content-type":"application/json"},
+    body:JSON.stringify({
+      messaging_product:"whatsapp",
+      to,
+      type:"template",
+      template:{
+        name:WHATSAPP_TEMPLATE_NAME,
+        language:{code:WHATSAPP_TEMPLATE_LANG},
+        components:[{type:"body",parameters:[
+          {type:"text",text:text.title},
+          {type:"text",text:text.body},
+          {type:"text",text:APP_PUBLIC_URL}
+        ]}]
+      }
+    })
+  });
+  if(!r.ok)throw new Error("whatsapp_"+r.status);
+  return "sent";
+}
+async function smsSend(phone,text){
+  if(!reminderProviderStatus().sms || !phone)return null;
+  const form=new URLSearchParams({To:phone,From:TWILIO_FROM_NUMBER,Body:text.title+"\\n"+text.body+"\\n"+APP_PUBLIC_URL});
+  const r=await fetch("https://api.twilio.com/2010-04-01/Accounts/"+encodeURIComponent(TWILIO_ACCOUNT_SID)+"/Messages.json",{
+    method:"POST",
+    headers:{authorization:"Basic "+Buffer.from(TWILIO_ACCOUNT_SID+":"+TWILIO_AUTH_TOKEN).toString("base64"),"content-type":"application/x-www-form-urlencoded"},
+    body:form.toString()
+  });
+  if(!r.ok)throw new Error("sms_"+r.status);
+  return "sent";
+}
+
 let notificationCycleRunning = false;
 async function runNotificationCycle() {
   if (notificationCycleRunning || !ADMIN_TOKEN) return;
@@ -1447,7 +1628,7 @@ async function runNotificationCycle() {
     const due = await sb("rpc/memorial_due_notifications", { method: "POST", body: { p_token: ADMIN_TOKEN, p_now: new Date().toISOString() } });
     for (const item of due || []) {
       const text = notificationText(item);
-      if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+      if (item.push_enabled && !item.push_sent && item.endpoint && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
         try {
           await webpush.sendNotification({ endpoint: item.endpoint, keys: { p256dh: item.p256dh, auth: item.auth } },
             JSON.stringify({ title: text.title, body: text.body, url: APP_PUBLIC_URL + "/#event=" + item.event_id, event_id: item.event_id }),
@@ -1455,11 +1636,17 @@ async function runNotificationCycle() {
           await logDelivery(item, "push", "sent");
         } catch (e) { console.error("push send", e.statusCode || e.message); }
       }
-      if (item.email_enabled && item.email) {
+      if (item.email_enabled && !item.email_sent && item.email) {
         try { const r = await sendEmail(item,text); if (r) await logDelivery(item,"email",r); } catch (e) { console.error(e.message); }
       }
-      if (item.telegram_enabled && item.telegram_chat_id) {
+      if (item.telegram_enabled && !item.telegram_sent && item.telegram_chat_id) {
         try { const r = await telegramSend(item.telegram_chat_id, text.title + "\n" + text.body + "\n" + APP_PUBLIC_URL); if (r) await logDelivery(item,"telegram",r); } catch (e) { console.error(e.message); }
+      }
+      if (item.whatsapp_enabled && !item.whatsapp_sent && item.whatsapp_phone) {
+        try { const r = await whatsappSend(item.whatsapp_phone,text); if (r) await logDelivery(item,"whatsapp",r); } catch (e) { console.error(e.message); }
+      }
+      if (item.sms_enabled && !item.sms_sent && item.sms_phone) {
+        try { const r = await smsSend(item.sms_phone,text); if (r) await logDelivery(item,"sms",r); } catch (e) { console.error(e.message); }
       }
     }
   } catch (e) { console.error("notification cycle", e.data || e); }
