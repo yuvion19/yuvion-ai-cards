@@ -421,7 +421,7 @@
     </details>
 
     <div class="extra-photos">
-      <div class="extra-photos-head"><div><b>Дополнительные фото</b><div class="muted" style="font-size:10px">Необязательно, до 4 ракурсов</div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="photo-rank" id="bestMainPhoto">Выбрать лучшее главное</button><label class="btn btn-ghost btn-small" for="extraPhotosInput" style="cursor:pointer">Добавить фото</label></div></div>
+      <div class="extra-photos-head"><div><b>Дополнительные фото</b><div class="muted" style="font-size:10px">Необязательно, до 4 ракурсов</div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="photo-rank" id="bestMainPhoto">Выбрать лучшее главное</button><button type="button" class="photo-rank" id="ocrMainPhoto">OCR главного</button><label class="btn btn-ghost btn-small" for="extraPhotosInput" style="cursor:pointer">Добавить фото</label></div></div>
       <input id="extraPhotosInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
       <div class="extra-photo-grid" id="extraPhotoGrid"></div>
       <div class="extra-photo-note">Дополнительные фото сохраняются локально в черновике. Назначьте роль снимка: упаковка и маркировка могут использоваться для подтверждения фактов, но найденные OCR-значения применяются только после вашего подтверждения.</div>
@@ -868,6 +868,7 @@ const marginGrid=document.getElementById('marginGrid');
 const generateSkuBtn=document.getElementById('generateSku');
 const extraPhotosInput=document.getElementById('extraPhotosInput');
 const extraPhotoGrid=document.getElementById('extraPhotoGrid');
+const ocrMainPhoto=document.getElementById('ocrMainPhoto');
 const extraDataBox=document.getElementById('extraDataBox');
 const rememberBrandBtn=document.getElementById('rememberBrand');
 const tenantProfile=document.getElementById('tenantProfile');
@@ -1118,6 +1119,13 @@ async function runLabelOcr(photo){
     labelOcrList.innerHTML='<div class="fact-blocker-note">'+esc(e.message||'OCR недоступен')+'</div>';
   }
 }
+async function runMainPhotoOcr(){
+  let dataUrl=sourceDataUrl;
+  if(!dataUrl&&selectedFile)dataUrl=await compressFileToDataUrl(selectedFile,1400,.86);
+  if(!dataUrl){showError('Сначала добавьте главное фото.');return}
+  await runLabelOcr({id:'main',name:selectedFile?.name||'Главное фото',dataUrl,role:'label'});
+}
+
 function labelTargetFor(name){
   const n=normalizedFactText(name);
   if(n.includes('бренд'))return 'brand';
@@ -5553,6 +5561,7 @@ moderationStatus.addEventListener('change',()=>{
 });
 generateSkuBtn.onclick=()=>assignGeneratedSku(true);
 extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosInput.files));
+ocrMainPhoto.onclick=()=>runMainPhotoOcr();
 [privateCost,privateStock,privateBoxes,privateMinStock,privateLocation,privateCollections,privateNotes].forEach(el=>el.addEventListener('input',()=>{
   currentPrivateData=collectPrivateData();
   renderMargin();renderCollectionChips();renderProductCockpit();
