@@ -895,12 +895,12 @@ app.post("/api/import-url", async (req, res) => {
     const data = {
       seoTitle: compact(ai?.seoTitle || seed.title || "Товар", 180),
       category: compact(ai?.category || seed.category || "", 180),
-      shortDescription: compact(ai?.shortDescription || seed.description || "", 500),
-      fullDescription: compact(ai?.fullDescription || seed.description || "", ai?.fullDescription ? 3000 : 700),
+      shortDescription: sellerNeutralCopy(ai?.shortDescription || seed.description || "", 500),
+      fullDescription: sellerNeutralCopy(ai?.fullDescription || seed.description || "", ai?.fullDescription ? 3000 : 700),
       characteristics: merged.slice(0, 20),
       keywords: Array.isArray(ai?.keywords) ? ai.keywords.filter(Boolean).slice(0, 24).map((x) => compact(x, 60)) : [],
-      benefits: Array.isArray(ai?.benefits) ? ai.benefits.filter(Boolean).slice(0, 5).map((x) => compact(x, 120)) : [],
-      usage: Array.isArray(ai?.usage) ? ai.usage.filter(Boolean).slice(0, 4).map((x) => compact(x, 140)) : [],
+      benefits: Array.isArray(ai?.benefits) ? ai.benefits.filter(Boolean).map((x) => sellerNeutralCopy(x, 120)).filter(Boolean).slice(0, 5) : [],
+      usage: Array.isArray(ai?.usage) ? ai.usage.filter(Boolean).map((x) => sellerNeutralCopy(x, 140)).filter(Boolean).slice(0, 4) : [],
       needsClarification: [],
       confidence: ["Высокая","Средняя","Низкая"].includes(ai?.confidence) ? ai.confidence : (seed.title ? "Средняя" : "Низкая"),
       photoQuality: { score: 0, issues: [] },
@@ -987,7 +987,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "6.8.0",
+    version: "6.8.1",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -2140,5 +2140,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v6.8.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v6.8.1 listening on port ${port}`);
 });
