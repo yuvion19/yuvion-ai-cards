@@ -164,6 +164,12 @@ const features=[
   ['const {response,data:payload}=await fetchJsonRetry(\'/api/import-url\'','URL import wrapper destructuring'],
   ['Не предоставлено источником','source audit missing-field UI'],
   ['Подтверждено полей источником','catalog provenance report column'],
+  ['id="cameraFile"','mobile camera input'],
+  ['capture="environment"','rear camera capture hint'],
+  ['id="takeProductPhoto"','take photo action'],
+  ['id="chooseProductPhoto"','gallery action'],
+  ['mobileCaptureFlow: true','mobile capture flow health metadata'],
+  ['cameraGallerySplit: true','camera/gallery split metadata'],
   ['subject-touches-frame','safe fallback when subject touches source edge'],
   ['firstRing','two-stage alpha feather implementation']
 ];

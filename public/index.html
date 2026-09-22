@@ -252,6 +252,8 @@
     .url-import-card:after{content:"";position:absolute;right:-60px;top:-80px;width:210px;height:210px;border-radius:50%;background:radial-gradient(circle,rgba(233,54,73,.34),transparent 70%);pointer-events:none}.url-import-head{position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.url-import-head b{display:block;font-size:14px}.url-import-head span{display:block;margin-top:3px;color:#BAC6CF;font-size:10px;line-height:1.45}.url-import-tag{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.13);font-size:9px;font-weight:900;white-space:nowrap}.url-import-tag:before{content:"↗";color:#FF8794}
     .url-import-form{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}.url-import-form input{width:100%;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.09);color:#fff;border-radius:12px;padding:12px 13px;outline:none}.url-import-form input::placeholder{color:#98A7B4}.url-import-form input:focus{border-color:#FF7B89;box-shadow:0 0 0 3px rgba(233,54,73,.16)}.url-import-form .btn{min-width:160px}.url-import-hint{position:relative;z-index:1;margin-top:8px;font-size:9px;color:#9FAFBB;line-height:1.45}.url-import-status{display:none;position:relative;z-index:1;margin-top:9px;padding:9px 10px;border-radius:10px;background:rgba(255,255,255,.08);font-size:10px;line-height:1.45}.url-import-status.show{display:block}.url-import-status.ok{background:rgba(63,166,93,.18);color:#D9F3E0}.url-import-status.warn{background:rgba(225,164,39,.16);color:#FFE8B0}.url-import-status.bad{background:rgba(233,54,73,.18);color:#FFD9DE}
     .source-divider{display:flex;align-items:center;gap:10px;margin:12px 0 14px;color:#9A9FA6;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}.source-divider:before,.source-divider:after{content:"";height:1px;background:#E8EAED;flex:1}
+    .mobile-capture-actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}.mobile-capture-btn{flex:1 1 180px;border:1px solid #E0E3E7;background:#fff;color:#2C3137;border-radius:12px;padding:11px 13px;font-size:11px;font-weight:900;cursor:pointer}.mobile-capture-btn.primary{background:#1C252D;color:#fff;border-color:#1C252D}.mobile-capture-btn:active{transform:translateY(1px)}
+    @media(max-width:640px){.mobile-capture-actions{display:grid;grid-template-columns:1fr 1fr}.mobile-capture-btn{min-height:48px;padding:10px 8px}.drop-inner h2{font-size:17px}.drop-inner p{font-size:11px}}
     .source-reference{display:none;margin-top:10px;padding:9px 11px;border:1px solid #DDE7EE;border-radius:12px;background:#F5F9FC;color:#304B60;font-size:10px;line-height:1.4}.source-reference.show{display:flex;align-items:center;justify-content:space-between;gap:10px}.source-reference b{font-size:10px}.source-reference span{color:#6E8190}.source-reference a{color:#C92A3D;font-weight:850;text-decoration:none;white-space:nowrap}
     .source-badge.web{background:#EEF5FA;color:#315F84}.url-source-mark{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:999px;background:#EEF5FA;color:#315F84;font-size:8px;font-weight:900}
     .card.upload{border-color:#E3E6EA;box-shadow:0 18px 52px rgba(16,29,42,.08)}.drop{background:linear-gradient(180deg,#FFFFFF,#F8FAFB);border-color:#D8DEE4}.drop:hover{border-color:#D75968;background:#FFFDFD}.editor,.creative,.yuvion-export{box-shadow:0 12px 34px rgba(16,29,42,.055)}
@@ -564,6 +566,11 @@
       <div class="url-import-status" id="urlImportStatus"></div>
     </div>
     <div class="source-divider">или добавьте свои фото</div>
+    <div class="mobile-capture-actions">
+      <button type="button" class="mobile-capture-btn primary" id="takeProductPhoto">Снять товар</button>
+      <button type="button" class="mobile-capture-btn" id="chooseProductPhoto">Выбрать из галереи</button>
+      <input id="cameraFile" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
+    </div>
 
     <label class="drop" id="drop">
       <input id="file" type="file" accept="image/jpeg,image/png,image/webp" />
@@ -1118,6 +1125,9 @@
 <script src="/vendor/jsbarcode.all.min.js"></script>
 <script>
 const fileInput=document.getElementById('file');
+const cameraFile=document.getElementById('cameraFile');
+const takeProductPhoto=document.getElementById('takeProductPhoto');
+const chooseProductPhoto=document.getElementById('chooseProductPhoto');
 const drop=document.getElementById('drop');
 const dropText=document.getElementById('dropText');
 const preview=document.getElementById('preview');
@@ -3333,7 +3343,10 @@ function syncModeUi(){
 ['dragleave','drop'].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault();drop.classList.remove('drag')}));
 drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0])});
 fileInput.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0])});
-v7PhotoSource.onclick=()=>fileInput.click();
+takeProductPhoto.onclick=()=>{cameraFile.value='';cameraFile.click()};
+chooseProductPhoto.onclick=()=>{fileInput.value='';fileInput.click()};
+cameraFile.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0])});
+v7PhotoSource.onclick=()=>document.querySelector('.mobile-capture-actions')?.scrollIntoView({behavior:'smooth',block:'center'});
 v7UrlSource.onclick=()=>{productUrlInput.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>productUrlInput.focus(),300)};
 v7ExcelSource.onclick=()=>{const box=document.getElementById('excelAutopilot');if(box){box.open=true;box.scrollIntoView({behavior:'smooth',block:'start'})}};
 designStyleGrid.addEventListener('click',e=>{const btn=e.target.closest('[data-style]');if(btn)chooseDesignStyle(btn.dataset.style)});
@@ -4455,7 +4468,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentPalette=[];currentDesignVariant=0;currentDesignIntensity='selling';currentDesignSubstyle='auto';currentDesignSnapshots=[];currentVisualOptions={showBrand:true,showTitle:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,showPrice:false,coverTitle:'',season:'none',safeZone:false};currentComposition={scale:1,shiftX:0,shiftY:0};currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;duplicatePhotoId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentPalette=[];currentDesignVariant=0;currentDesignIntensity='selling';currentDesignSubstyle='auto';currentDesignSnapshots=[];currentVisualOptions={showBrand:true,showTitle:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,showPrice:false,coverTitle:'',season:'none',safeZone:false};currentComposition={scale:1,shiftX:0,shiftY:0};currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;duplicatePhotoId=null;currentBarcodeValid=true;fileInput.value='';cameraFile.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
