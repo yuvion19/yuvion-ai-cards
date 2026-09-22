@@ -1737,6 +1737,20 @@ function deterministicQualityScore(hardIssues = [], warnings = []) {
   const soft = Array.isArray(warnings) ? warnings.length : 0;
   return Math.max(0, Math.min(100, 100 - hard * 32 - soft * 8));
 }
+function clampScore(value){return Math.max(0,Math.min(100,Math.round(Number(value)||0)))}
+function qualityDimensionsV2(metrics={},hardIssues=[],warnings=[],seriesSimilarity={},index=0){
+  const hard=Array.isArray(hardIssues)?hardIssues.length:0,soft=Array.isArray(warnings)?warnings.length:0;
+  const sharpness=Number(metrics.sharpness||0),entropy=Number(metrics.entropy||0),contrast=Number(metrics.contrast||0),luminance=Number(metrics.luminance||0);
+  const product=clampScore(62+Math.min(26,sharpness*4.2)+Math.min(12,entropy*1.5)-hard*18);
+  const contrastScore=clampScore(45+Math.min(55,contrast*2.1)-(luminance<28||luminance>242?30:0));
+  const composition=clampScore(88-Math.abs(luminance-165)/4-Math.max(0,1.5-entropy)*14-hard*16);
+  const text=clampScore(100-hard*30-soft*9);
+  const pairs=Array.isArray(seriesSimilarity?.pairs)?seriesSimilarity.pairs.filter(p=>p.left===index||p.right===index):[];
+  const closest=pairs.length?Math.max(...pairs.map(p=>Number(p.similarity||0))):0;
+  const series=clampScore(100-Math.max(0,closest-.88)*700);
+  const marketplace=clampScore(product*.24+composition*.22+text*.20+contrastScore*.16+series*.18);
+  return{product,composition,text,contrast:contrastScore,series,marketplace,overall:marketplace};
+}
 
 async function cardPerceptualSignature(buffer) {
   const raw = await sharp(buffer, { failOn: "error" })
@@ -1868,7 +1882,8 @@ app.post("/api/quality-check", async (req, res) => {
           issues,
           warnings,
           metrics: localMetrics[index],
-          qualityScore: deterministicQualityScore(hardIssues, warnings),
+          qualityDimensions: qualityDimensionsV2(localMetrics[index],hardIssues,warnings,seriesSimilarity,index),
+          qualityScore: qualityDimensionsV2(localMetrics[index],hardIssues,warnings,seriesSimilarity,index).overall,
           needsRegeneration: hardIssues.length > 0
         };
       });
@@ -1880,9 +1895,10 @@ app.post("/api/quality-check", async (req, res) => {
         overall: failures ? "Нужно исправить" : warningsCount ? "Есть замечания" : "Отлично",
         cards: cardsResult,
         local: true,
-        visualQaVersion: 3,
+        visualQaVersion: 4,
         seriesSimilarity,
-        note: "Бесплатная локальная QA v3: размер, формат, целостность, яркость, контраст, визуальная информативность и perceptual-сравнение всей серии. Платный vision/image API не вызывается."
+        qualityScoreVersion: 2,
+        note: "Бесплатная локальная QA v4 / Quality Score 2.0: товар, композиция, текст, контраст, различимость серии и готовность маркетплейса. Платный vision/image API не вызывается."
       });
     }
 
@@ -1950,13 +1966,15 @@ app.post("/api/quality-check", async (req, res) => {
         issues,
         localWarnings,
         localMetrics: localMetrics[index],
-        qualityScore: deterministicQualityScore(extraIssues, localWarnings.concat(needsRegeneration && !extraIssues.length ? ["AI-блокер"] : [])),
+        qualityDimensions: qualityDimensionsV2(localMetrics[index],extraIssues,localWarnings.concat(needsRegeneration&&!extraIssues.length?["AI-блокер"]:[]),seriesSimilarity,index),
+        qualityScore: qualityDimensionsV2(localMetrics[index],extraIssues,localWarnings.concat(needsRegeneration&&!extraIssues.length?["AI-блокер"]:[]),seriesSimilarity,index).overall,
         needsRegeneration,
         status
       };
     });
     if (parsed.cards.some((x) => x.needsRegeneration)) parsed.overall = "Нужно исправить";
-    parsed.visualQaVersion = 3;
+    parsed.visualQaVersion = 4;
+    parsed.qualityScoreVersion = 2;
     parsed.seriesSimilarity = seriesSimilarity;
 
     stats.qualityChecks += 1;
@@ -3209,7 +3227,8 @@ app.post("/api/generate-cards", async (req, res) => {
     if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
 
     const sourceBuffer = Buffer.from(image, "base64");
-    const additionalSources = normalizeRenderAdditionalImages(additionalImages);
+    const sourceQuality = await assessSourcePhoto(sourceBuffer);
+    const additionalSources = await enrichRenderSources(normalizeRenderAdditionalImages(additionalImages));
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
     const suppliedPalette = normalizePalette(palette);
@@ -3221,11 +3240,13 @@ app.post("/api/generate-cards", async (req, res) => {
     const visual = normalizeVisualOptions(visualOptions);
     let scenes = [];
 
-    const renderSelections = [0, 1, 2, 3].map((index) => {
-      const primary = pickRenderSource(index, sourceBuffer, additionalSources, mimeType);
-      const inset = pickInsetSource(index, primary, additionalSources);
-      return { index, primary, inset };
+    const renderSelections = [0,1,2,3].map((index)=>{
+      const primary=pickRenderSource(index,sourceBuffer,additionalSources,mimeType,sourceQuality.score,sourceQuality);
+      const inset=pickInsetSource(index,primary,additionalSources);
+      return{index,primary,inset};
     });
+    const primaryAspect=Number(renderSelections[0]?.primary?.audit?.aspect||sourceQuality.aspect||1);
+    const studioProfile=buildStudioProfile(normalized,styleKey,variant,primaryAspect);
 
     scenes = await Promise.all(renderSelections.map(({ index, primary, inset }) =>
       renderFreeScene(
@@ -3240,18 +3261,33 @@ app.post("/api/generate-cards", async (req, res) => {
         visual,
         inset?.buffer || null,
         primary.role,
-        inset?.role || ""
+        inset?.role || "",
+        studioProfile
       )
     ));
     stats.freeSceneRenders += 4;
-
+    let coverOptimization={tested:1,selectedVariant:variant,score:0};
+    try{
+      const alt=(variant+1)%4,altProfile=buildStudioProfile(normalized,styleKey,alt,primaryAspect),selected=renderSelections[0];
+      const altScene=await renderFreeScene(selected.primary.buffer,0,styleKey,renderPalette,alt,renderComposition,intensity,substyle,visual,selected.inset?.buffer||null,selected.primary.role,selected.inset?.role||"",altProfile);
+      const candidates=[{scene:scenes[0],variant,profile:studioProfile},{scene:altScene,variant:alt,profile:altProfile}];
+      let best=null;
+      for(const candidate of candidates){
+        const cached=await normalizeSceneForCache(candidate.scene);
+        const cover=await composeCard(cached,overlayForCard(0,normalized,styleKey,renderPalette,intensity,substyle,visual,candidate.profile));
+        const score=coverVisualScore(await localCardVisualMetrics(cover));
+        if(!best||score>best.score)best={...candidate,score};
+      }
+      if(best){scenes[0]=best.scene;coverOptimization={tested:2,selectedVariant:best.variant,score:best.score}}
+      stats.freeSceneRenders+=1;
+    }catch{}
     const cachedScenes = await Promise.all(scenes.map((scene) => normalizeSceneForCache(scene)));
     const fileNames = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
     const cards = [];
 
     for (let index = 0; index < 4; index += 1) {
-      const overlay = overlayForCard(index, normalized, styleKey, renderPalette, intensity, substyle, visual);
+      const overlay=overlayForCard(index,normalized,styleKey,renderPalette,intensity,substyle,visual,studioProfile);
       const buffer = await composeCard(cachedScenes[index], overlay);
       cards.push({ filename: fileNames[index], title: titles[index], base64: buffer.toString("base64") });
     }
@@ -3276,12 +3312,15 @@ app.post("/api/generate-cards", async (req, res) => {
       designSubstyle: substyle,
       visualOptions: visual,
       composition: renderComposition,
-      renderEngine: "studio-local-v6",
+      renderEngine: "studio-director-v10",
       primaryRole: renderSelections[0]?.primary?.role || "main",
       insetRole: renderSelections[0]?.inset?.role || "",
       photoEnhancement: true,
       smartCutout: true,
       usedAdditionalImages: additionalSources.length,
+      sourceQuality,
+      studioProfile,
+      coverOptimization,
       renderSources: renderSelections.map(({ index, primary, inset }) => ({
         index,
         primaryRole: primary.role,
