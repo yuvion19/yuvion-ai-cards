@@ -3,20 +3,78 @@
   "name": "Память Джуури",
   "short_name": "Память",
   "lang": "ru",
+  "dir": "auto",
   "start_url": "/m",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
   "background_color": "#f5f1e8",
   "theme_color": "#4c3e2d",
-  "description": "Общественный календарь памяти, памятные даты и напоминания.",
-  "categories": ["lifestyle", "reference"],
+  "description": "Общественный календарь памяти, памятные даты, нер нешама и напоминания.",
+  "categories": [
+    "lifestyle",
+    "reference"
+  ],
   "icons": [
-    {"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ],
   "shortcuts": [
-    {"name":"Сегодня вспоминаем","short_name":"Сегодня","url":"/m/today","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml"}]},
-    {"name":"Добавить событие","short_name":"Добавить","url":"/m/add","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml"}]},
-    {"name":"Напоминания","short_name":"Напоминания","url":"/m/reminders","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml"}]}
+    {
+      "name": "Сегодня вспоминаем",
+      "short_name": "Сегодня",
+      "url": "/m/today",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Поиск по памяти",
+      "short_name": "Поиск",
+      "url": "/m/search",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Добавить событие",
+      "short_name": "Добавить",
+      "url": "/m/add",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Напоминания",
+      "short_name": "Напоминания",
+      "url": "/m/reminders",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
   ]
 }
