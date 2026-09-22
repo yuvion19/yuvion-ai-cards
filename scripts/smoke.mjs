@@ -277,3 +277,9 @@ if(!html.includes("show-excel"))fail('compact UI Excel reveal missing');else ok(
 if(!html.includes("show-editor"))fail('compact UI editor reveal missing');else ok('compact UI editor reveal present');
 if(!html.includes("Quality Score"))fail('Quality Score UI missing');else ok('Quality Score UI present');
 if(!html.includes('Авто · арт-директор'))fail('batch art director selector missing');else ok('batch art director selector present');
+
+if(!server.includes('zeroCreditTextFallback: true'))fail('zero-credit text fallback metadata missing');else ok('zero-credit text fallback metadata present');
+if(!server.includes('analysisMode: "local-fallback"'))fail('local fallback response missing');else ok('local fallback response present');
+if(!server.includes('credit_balance_exhausted" || error?.status === 401'))fail('credit fallback path missing');else ok('credit fallback path present');
+if(!html.includes('currentStaleCards=[0,1,2,3];currentScenes=[]'))fail('post-analysis full scene refresh missing');else ok('post-analysis full scene refresh present');
+if(!html.includes('currentStaleCards.length<4'))fail('full-set stale cards must bypass overlay-only rebuild');else ok('full-set stale cards bypass overlay-only rebuild');

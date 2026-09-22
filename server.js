@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.1.2
+// Production release marker: v10.2.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -748,6 +748,59 @@ function mergeConfirmedData(cardRaw, extraRaw) {
   return { ...card, confirmedData: extra };
 }
 
+async function localFallbackCard(extraRaw, sourceBuffer, reason = "AI недоступен") {
+  const extra = normalizeExtraData(extraRaw);
+  const title = compact(
+    extra.name ||
+    [extra.brand, extra.sku ? ("арт. " + extra.sku) : ""].filter(Boolean).join(" ") ||
+    "Товар",
+    180
+  );
+  const characteristics = [
+    ["Бренд", extra.brand],
+    ["Артикул", extra.sku],
+    ["Штрихкод/EAN", extra.barcode],
+    ["Размеры", extra.size],
+    ["Материал", extra.material]
+  ].filter(([, value]) => value).map(([name, value]) => ({ name, value, source: "Продавец" }));
+  const known = [];
+  if (extra.brand) known.push("бренд " + extra.brand);
+  if (extra.material) known.push("материал: " + extra.material);
+  if (extra.size) known.push("размеры: " + extra.size);
+  const shortDescription = known.length
+    ? compact(title + ". " + known.join(", ") + ".", 500)
+    : compact(title + ". Карточка сформирована локально по загруженному фото и подтверждённым данным без выдуманных характеристик.", 500);
+  const fullDescription = compact(
+    shortDescription + " Неподтверждённые технические параметры не добавляются автоматически. " +
+    "Для более полного описания можно указать название, бренд, материал, размеры или добавить ссылку на товар.",
+    2000
+  );
+  const missing = [];
+  if (!extra.name) missing.push("Название товара не предоставлено.");
+  if (!extra.brand) missing.push("Бренд не предоставлен.");
+  if (!extra.material) missing.push("Материал не предоставлен.");
+  if (!extra.size) missing.push("Размеры не предоставлены.");
+  if (!characteristics.length) missing.push("Точные характеристики не предоставлены; система не угадывает их по фото.");
+  let photoQuality = { score: 0, issues: [] };
+  try { if (sourceBuffer) photoQuality = await assessSourcePhoto(sourceBuffer); } catch {}
+  return {
+    seoTitle: title,
+    category: "Товар",
+    shortDescription,
+    fullDescription,
+    characteristics,
+    keywords: [extra.name, extra.brand, extra.sku].filter(Boolean).flatMap(v => String(v).split(/\s+/)).filter(Boolean).slice(0, 12),
+    benefits: characteristics.slice(0, 4).map(x => x.name + ": " + x.value),
+    usage: [],
+    needsClarification: missing,
+    confidence: characteristics.length || extra.name ? "Средняя" : "Низкая",
+    photoQuality: { score: Number(photoQuality.score || 0), issues: Array.isArray(photoQuality.issues) ? photoQuality.issues : [] },
+    confirmedData: extra,
+    analysisMode: "local-fallback",
+    analysisNotice: compact(reason, 180)
+  };
+}
+
 function normalizeCharacteristicSource(value) {
   return ["Продавец", "Маркировка", "Фото", "Сайт-источник"].includes(value) ? value : "Фото";
 }
@@ -1351,7 +1404,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.1.2",
+    version: "10.2.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1403,6 +1456,8 @@ app.get("/api/health", (_req, res) => {
       regenerativeQaRepair: true,
       compactDefaultInterface: true,
       hiddenAdvancedPanels: true,
+      zeroCreditTextFallback: true,
+      fullSceneRefreshAfterAnalysis: true,
       proceduralStudioLighting: true,
       depthOfFieldBackdrop: true,
       acrylicStageSets: true,
@@ -1500,8 +1555,9 @@ app.post("/api/analyze", async (req, res) => {
       }
     }
 
+    const sourceBuffer = Buffer.from(image, "base64");
     if (!process.env.OPENAI_API_KEY) {
-      return res.status(503).json({ error: "AI пока не настроен." });
+      return res.json(await localFallbackCard(extraData, sourceBuffer, "AI API не настроен — использован локальный режим."));
     }
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -1573,7 +1629,7 @@ app.post("/api/analyze", async (req, res) => {
     let parsed;
     try {
       parsed = mergeConfirmedData(JSON.parse(raw), extraData);
-      const sourceAudit = await assessSourcePhoto(Buffer.from(image, "base64"));
+      const sourceAudit = await assessSourcePhoto(sourceBuffer);
       parsed.photoQuality = { score: sourceAudit.score, issues: sourceAudit.issues };
     } catch {
       return res.status(502).json({ error: "Не удалось разобрать ответ AI." });
@@ -1588,10 +1644,16 @@ app.post("/api/analyze", async (req, res) => {
     stats.analysisErrors += 1;
     recordError("analysis", error);
     console.error("AI analyze error:", { message: error?.message, status: error?.status, code: error?.code });
-    if (error?.code === "operation_timeout") return res.status(504).json({ error: "Не удалось вовремя получить описание и характеристики. Изображения уже готовы; текстовый анализ можно повторить." });
-    if (error?.code === "credit_balance_exhausted") return res.status(402).json({ error: "На балансе OpenAI API закончились кредиты." });
-    if (error?.status === 401) return res.status(503).json({ error: "AI-ключ недействителен." });
-    if (error?.status === 429) return res.status(429).json({ error: "Достигнут лимит OpenAI API. Попробуйте немного позже." });
+    const canFallback = error?.code === "credit_balance_exhausted" || error?.status === 401 || error?.status === 429 || error?.code === "operation_timeout";
+    if (canFallback) {
+      try {
+        return res.json(await localFallbackCard(extraData, Buffer.from(image, "base64"),
+          error?.code === "credit_balance_exhausted"
+            ? "На AI API закончились кредиты — использован бесплатный локальный режим."
+            : "AI-анализ временно недоступен — использован бесплатный локальный режим."
+        ));
+      } catch {}
+    }
     return res.status(500).json({ error: "Не удалось создать карточку. Попробуйте ещё раз." });
   }
 });
@@ -3677,5 +3739,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.1.2 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.2.0 listening on port ${port}`);
 });

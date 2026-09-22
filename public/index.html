@@ -4086,7 +4086,7 @@ analyzeBtn.onclick=async()=>{
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
     const hadImmediateCards=currentCards.length===4&&currentScenes.length===4;
     currentData=data;
-    if(hadImmediateCards){cardsStale=true;currentStaleCards=[0,1,2,3];}
+    if(hadImmediateCards){cardsStale=true;currentStaleCards=[0,1,2,3];currentScenes=[];}
     else{currentCards=[];currentScenes=[];cardsStale=false;currentStaleCards=[];}
     currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
     addCurrentActivity('AI-анализ завершён','Уверенность: '+(data.confidence||'не указана'));
@@ -4103,7 +4103,9 @@ analyzeBtn.onclick=async()=>{
     if(!hadImmediateCards){creative.classList.remove('show');cardsPreview.innerHTML='';}
     else{creative.classList.add('show');renderCards();}
     if(pendingSimilarTemplate){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
-    confidence.textContent='Уверенность распознавания: '+(data.confidence||'не указана');
+    confidence.textContent=data.analysisMode==='local-fallback'
+      ?'Локальный режим: описание собрано без платного AI · '+(data.analysisNotice||'')
+      :'Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
     await saveHistory();
     if(hadImmediateCards){
@@ -4196,7 +4198,7 @@ styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPe
 function syncRenderModeUi(){
   renderModeSelect.value='free';
   generateAll.textContent='Создать 4 Studio-карточки бесплатно';
-  generateAll.title='Studio Director v10: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
+  generateAll.title='Studio Director v10.2: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4348,7 +4350,7 @@ generateAll.onclick=async()=>{
   if(cardsBusy||!currentData)return;
   currentData=collectEdits();cardsBusy=true;generateAll.disabled=true;creative.classList.add('show');
   currentQuality=null;qaSummary.style.display='none';
-  const canLocalOverlay=currentCards.length===4&&currentScenes.length===4&&cardsStale&&currentStaleCards.length>0;
+  const canLocalOverlay=currentCards.length===4&&currentScenes.length===4&&cardsStale&&currentStaleCards.length>0&&currentStaleCards.length<4;
   const selectiveAi=currentCards.length===4&&cardsStale&&currentStaleCards.length>0&&currentStaleCards.length<4&&!canLocalOverlay;
   creativeStatus.className='creative-status show';
   creativeStatus.textContent=canLocalOverlay
@@ -4383,8 +4385,8 @@ generateAll.onclick=async()=>{
       if(data.visualOptions)currentVisualOptions=normalizeClientVisualOptions({...currentVisualOptions,...data.visualOptions,safeZone:currentVisualOptions.safeZone});
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
-      const renderDetail=String(data.renderEngine||'').startsWith('studio-local-')
-        ?('Studio Director v10 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+      const renderDetail=/studio-(local|director)-/i.test(String(data.renderEngine||''))
+        ?('Studio Director v10.2 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
