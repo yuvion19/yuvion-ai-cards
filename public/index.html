@@ -186,7 +186,7 @@
     <div class="workflow-step active" id="stepPhoto"><span class="n"><span>1</span></span><span>Фото</span></div>
     <div class="workflow-step" id="stepData"><span class="n"><span>2</span></span><span>Проверить</span></div>
     <div class="workflow-step" id="stepCards"><span class="n"><span>3</span></span><span>Карточки</span></div>
-    <div class="workflow-step" id="stepExport"><span class="n"><span>3</span></span><span>Yuvion</span></div>
+    <div class="workflow-step" id="stepExport"><span class="n"><span id="stepExportNumber">3</span></span><span>Yuvion</span></div>
   </nav>
 
   <section class="focus-panel" id="focusPanel">
@@ -665,6 +665,7 @@ const stepPhoto=document.getElementById('stepPhoto');
 const stepData=document.getElementById('stepData');
 const stepCards=document.getElementById('stepCards');
 const stepExport=document.getElementById('stepExport');
+const stepExportNumber=document.getElementById('stepExportNumber');
 const saveState=document.getElementById('saveState');
 const readinessRing=document.getElementById('readinessRing');
 const readinessPercent=document.getElementById('readinessPercent');
@@ -1693,6 +1694,7 @@ function renderProductCockpit(){
     cockpitNext.textContent='Сначала добавьте и проанализируйте фотографию.';
     cockpitReady.textContent='0%';
     cockpitSku.textContent='—';cockpitPrice.textContent='—';cockpitStock.textContent='—';cockpitModeration.textContent='Не отправлен';
+    renderFocusPanel();
     return;
   }
   const d=collectEdits();
@@ -1718,6 +1720,7 @@ function renderProductCockpit(){
   cockpitPrice.textContent=x.price1?x.price1+' ₽':'—';
   cockpitStock.textContent=p.stock?p.stock+' шт.':'—';
   cockpitModeration.textContent=moderationLabel(currentModeration.status);
+  renderFocusPanel();
 }
 
 
@@ -1982,6 +1985,7 @@ function applyUiMode(mode,{save=true}={}){
   document.body.classList.toggle('simple-ui',simple);
   if(!simple){document.body.classList.remove('show-catalog','export-details-open')}
   if(uiModeToggle)uiModeToggle.textContent=simple?'Расширенный режим':'Простой режим';
+  if(stepExportNumber)stepExportNumber.textContent=simple?'3':'4';
   const strong=document.querySelector('.smart-strip>div:first-child strong');
   const note=document.querySelector('.smart-strip>div:first-child span');
   if(strong)strong.textContent=simple?'Простой режим':'Расширенный режим';
