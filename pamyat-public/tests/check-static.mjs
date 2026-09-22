@@ -8,7 +8,6 @@ const requiredServer=[
   'app.get("/m/add"',
   'app.post("/m/add"',
   'app.get("/m/calendar"',
-  'app.get("/m/family"',
   'app.get("/api/selftest"'
 ];
 for(const s of requiredServer){
@@ -24,6 +23,8 @@ for(const [i,src] of inline.entries()){
 
 if(/data-page="quba"/.test(html)) throw new Error("Cemetery catalog nav still visible");
 if(/id="quba"/.test(html)) throw new Error("Cemetery catalog section still visible");
+if(/data-page="family"/.test(html)) throw new Error("Genealogy nav still visible");
+if(/id="family"/.test(html)) throw new Error("Genealogy section still visible");
 if(/api\.qrserver\.com/.test(html)) throw new Error("External QR provider still present");
 
 console.log("Static checks passed:", {routes:requiredServer.length,inlineScripts:inline.length});
