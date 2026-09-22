@@ -202,6 +202,7 @@
     @media(max-width:760px){.ops-v64-grid{grid-template-columns:repeat(2,1fr)}}
 
 
+    .network-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border-radius:999px;background:#ECF7EF;color:#27663A;font-size:9px;font-weight:900;white-space:nowrap}.network-pill:before{content:"";width:6px;height:6px;border-radius:50%;background:#45A35F}.network-pill.offline{background:#FFF4E6;color:#8A5A00}.network-pill.offline:before{background:#E09A20}
     /* YUVION_V65_DESIGN */
     :root{
       --brand:#E93649;--brand2:#C92A3D;--brand3:#9F1D2D;
@@ -286,6 +287,7 @@
       <button class="smart-pill" id="jumpHistory">Каталог</button>
       <button class="smart-pill" id="jumpExcel">Excel → карточки</button>
       <button class="smart-pill" id="jumpTools">Инструменты</button>
+      <span class="network-pill" id="networkPill">Онлайн</span>
       <button class="smart-pill advanced-tool" id="jumpBatch">Пакет до 10 товаров</button>
       <button class="smart-pill advanced-tool" id="openIntake">Приёмка</button>
       <button class="smart-pill advanced-tool" id="jumpProblems">Проблемы</button>
@@ -1015,6 +1017,7 @@ const importNote=document.getElementById('importNote');
 const bulkLabels=document.getElementById('bulkLabels');
 const jumpExcel=document.getElementById('jumpExcel');
 const jumpTools=document.getElementById('jumpTools');
+const networkPill=document.getElementById('networkPill');
 const excelImportStart=document.getElementById('excelImportStart');
 const excelPhotoFiles=document.getElementById('excelPhotoFiles');
 const runExcelAutopilot=document.getElementById('runExcelAutopilot');
@@ -1126,6 +1129,18 @@ localStorage.removeItem('yuvionSessionId');
 queueBudgetUsd.value=localStorage.getItem(QUEUE_BUDGET_KEY)||'10';
 queueBudgetUsd.addEventListener('change',()=>{saveQueueBudget();refreshDiagnosticsNow()});
 function apiHeaders(){return {'Content-Type':'application/json'}}
+function renderNetworkState(){
+  const online=navigator.onLine!==false;
+  networkPill.textContent=online?'Онлайн':'Офлайн · AI на паузе';
+  networkPill.classList.toggle('offline',!online);
+  if(!online&&excelAutopilotBusy){
+    largeQueuePaused=true;
+    saveLargeQueueState({pending:true,paused:true,offline:true});
+  }
+}
+window.addEventListener('online',()=>{renderNetworkState();refreshDiagnosticsNow()});
+window.addEventListener('offline',()=>{renderNetworkState();refreshDiagnosticsNow()});
+
 function queueBudgetLimit(){
   const n=Number(queueBudgetUsd?.value||localStorage.getItem(QUEUE_BUDGET_KEY)||0);
   return Number.isFinite(n)&&n>0?n:0;
@@ -4951,6 +4966,11 @@ async function processExcelAutopilotItem(item,style){
 }
 async function runExcelAutopilotQueue(){
   if(excelAutopilotBusy)return;
+  if(navigator.onLine===false){
+    largeQueuePaused=true;saveLargeQueueState({pending:true,paused:true,offline:true});
+    excelAutoProgress.classList.add('show');excelAutoProgressText.textContent='Нет соединения. Excel, фото и черновики доступны локально; AI-очередь поставлена на паузу.';
+    renderNetworkState();return;
+  }
   const all=await dbAll();
   const queue=excelQueueItems(all).slice(0,EXCEL_AUTOPILOT_LIMIT);
   if(!queue.length){saveLargeQueueState({pending:false,paused:true});await refreshDiagnosticsNow(all);return}
@@ -5124,7 +5144,7 @@ async function refreshDiagnosticsNow(allItems=null){
   diagnosticList.innerHTML=[
     ['Версия приложения','6.4.0'],['IndexedDB товаров',String(all.length)+' / '+CATALOG_LIMIT],
     ['Хранилище',storageText+' из '+quotaText],['localStorage',Math.round(lsBytes/1024)+' КБ'],
-    ['PWA Service Worker',sw],['AI-очередь',queue.length?queue.length+' ожидают':'пусто'],
+    ['PWA Service Worker',sw],['Сеть',navigator.onLine===false?'офлайн':'онлайн'],['AI-очередь',queue.length?queue.length+' ожидают':'пусто'],
     ['Похожие товары',similarPairs.size?String(similarPairs.size):'не найдено'],
     ['AI image outputs локально',String(localImageOutputs)+(localImageEstimate?' · ≈ $'+localImageEstimate.toFixed(2):'')],
     ['Следующий запуск',nextCount?(nextCount+' товаров'+(nextImageEstimate?' · image ≈ $'+nextImageEstimate.toFixed(2):'')):'очередь пуста']
@@ -6116,7 +6136,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-initUiMode();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+renderNetworkState();initUiMode();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
