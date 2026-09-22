@@ -189,6 +189,14 @@
     .simple-ui #excelAutopilot,.simple-ui #publishCenter{display:block}.simple-ui #excelAutopilot{max-width:900px}.simple-ui #publishCenter{max-width:900px}
     @media(max-width:760px){.excel-auto-head,.publish-center-head{flex-direction:column}.excel-auto-actions{justify-content:flex-start}.excel-auto-steps{grid-template-columns:1fr}.excel-auto-stats,.publish-stats{grid-template-columns:repeat(2,1fr)}.publish-row{grid-template-columns:42px minmax(0,1fr)}.publish-row-actions{grid-column:1/-1;justify-content:flex-end}}
 
+  
+    /* YUVION_V64_OPERATIONS */
+    .photo-role-tools{display:flex;gap:5px;align-items:center;margin-top:5px}.photo-role-tools select{min-width:0;flex:1;border:1px solid var(--line);border-radius:7px;padding:5px;font-size:9px;background:#fff}.photo-ocr-btn{border:0;border-radius:7px;padding:6px 7px;font-size:9px;font-weight:850;cursor:pointer;background:#F3ECEE;color:var(--brand)}
+    .label-ocr-box{display:none;margin-top:10px;border:1px solid #E7DADD;border-radius:12px;background:#FFFBFC;padding:10px}.label-ocr-box.show{display:block}.label-ocr-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.label-ocr-head b{font-size:11px}.label-ocr-head span{font-size:9px;color:var(--muted)}.label-ocr-list{display:grid;gap:6px;margin-top:8px}.label-ocr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:9px;background:#fff}.label-ocr-row b{font-size:10px}.label-ocr-row small{display:block;font-size:9px;color:var(--muted);margin-top:2px}.label-ocr-confirm{border:0;border-radius:8px;padding:6px 8px;font-size:9px;font-weight:900;cursor:pointer;background:#EAF8EE;color:#226B38}
+    .ops-v64{max-width:1100px;margin:16px auto;border:1px solid var(--line);border-radius:22px;background:#fff;overflow:hidden}.ops-v64-body{padding:16px 18px 18px}.ops-v64-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.ops-v64-card{border:1px solid var(--line);border-radius:12px;padding:11px;background:#FCFAFA}.ops-v64-card b{display:block;font-size:11px}.ops-v64-card span{display:block;margin-top:3px;font-size:9px;color:var(--muted);line-height:1.4}.ops-v64-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.diagnostic-list,.activity-list{display:grid;gap:5px;margin-top:10px}.diagnostic-row,.activity-row{display:flex;justify-content:space-between;gap:12px;padding:7px 8px;border-radius:8px;background:#F7F7F8;font-size:9px}.activity-row{display:block}.activity-row b{font-size:9px}.activity-row small{display:block;color:var(--muted);margin-top:2px}
+    .queue-resume-note{margin-top:8px;padding:8px 9px;border-radius:9px;background:#FFF8E8;color:#7D5700;font-size:9px;display:none}.queue-resume-note.show{display:block}
+    @media(max-width:760px){.ops-v64-grid{grid-template-columns:repeat(2,1fr)}}
+
   </style>
 </head>
 <body class="simple-ui">
@@ -278,6 +286,28 @@
     <div class="publish-center-body">
       <div class="publish-stats"><div class="publish-stat"><b id="publishReadyCount">0</b><span>ГОТОВЫ</span></div><div class="publish-stat"><b id="publishProblemCount">0</b><span>ТРЕБУЮТ ВНИМАНИЯ</span></div><div class="publish-stat"><b id="publishNoPhotoCount">0</b><span>БЕЗ ФОТО</span></div><div class="publish-stat"><b id="publishDoneCount">0</b><span>ОПУБЛИКОВАНЫ</span></div></div>
       <div class="publish-list" id="publishCenterList"></div>
+    </div>
+  </details>
+
+  <details class="ops-v64" id="operationsV64">
+    <summary class="v63-panel-summary"><span><b>Операционный центр v6.4</b><small>очередь, отчёты, архив и диагностика</small></span><span>Открыть</span></summary>
+    <div class="ops-v64-body">
+      <div class="ops-v64-grid">
+        <div class="ops-v64-card"><b id="opsQueueValue">0</b><span>товаров в возобновляемой AI-очереди</span></div>
+        <div class="ops-v64-card"><b id="opsCacheValue">0</b><span>товаров с локальным AI-кэшем</span></div>
+        <div class="ops-v64-card"><b id="opsErrorValue">0</b><span>локальных ошибок очереди</span></div>
+        <div class="ops-v64-card"><b id="opsStorageValue">—</b><span>занято хранилища браузера</span></div>
+      </div>
+      <div class="queue-resume-note" id="queueResumeNote"></div>
+      <div class="ops-v64-actions">
+        <button class="btn btn-primary btn-small" id="resumeLargeQueue">Продолжить очередь</button>
+        <button class="btn btn-ghost btn-small" id="pauseLargeQueue">Пауза</button>
+        <button class="btn btn-ghost btn-small" id="exportCatalogReport">Отчёт CSV</button>
+        <button class="btn btn-ghost btn-small" id="projectArchive">Архив проекта</button>
+        <button class="btn btn-ghost btn-small" id="refreshDiagnostics">Диагностика</button>
+      </div>
+      <div class="diagnostic-list" id="diagnosticList"></div>
+      <div style="margin-top:12px"><b style="font-size:11px">Последние действия текущего товара</b><div class="activity-list" id="activityList"></div></div>
     </div>
   </details>
 
@@ -392,7 +422,8 @@
       <div class="extra-photos-head"><div><b>Дополнительные фото</b><div class="muted" style="font-size:10px">Необязательно, до 4 ракурсов</div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="photo-rank" id="bestMainPhoto">Выбрать лучшее главное</button><label class="btn btn-ghost btn-small" for="extraPhotosInput" style="cursor:pointer">Добавить фото</label></div></div>
       <input id="extraPhotosInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
       <div class="extra-photo-grid" id="extraPhotoGrid"></div>
-      <div class="extra-photo-note">Дополнительные фото сохраняются локально в черновике. При анализе они передаются AI вместе с основной фотографией только для сверки деталей товара.</div>
+      <div class="extra-photo-note">Дополнительные фото сохраняются локально в черновике. Назначьте роль снимка: упаковка и маркировка могут использоваться для подтверждения фактов, но найденные OCR-значения применяются только после вашего подтверждения.</div>
+      <div class="label-ocr-box" id="labelOcrBox"><div class="label-ocr-head"><b>Найдено на маркировке</b><span>подтвердите каждое значение</span></div><div class="label-ocr-list" id="labelOcrList"></div></div>
     </div>
 
     <div id="localQuality" class="quality-box"></div><div class="photo-hash-warning" id="photoHashWarning"></div>
@@ -944,6 +975,21 @@ const importMapSubtitle=document.getElementById('importMapSubtitle');
 const cancelImportMap=document.getElementById('cancelImportMap');
 const resetImportMap=document.getElementById('resetImportMap');
 const confirmImportMap=document.getElementById('confirmImportMap');
+const labelOcrBox=document.getElementById('labelOcrBox');
+const labelOcrList=document.getElementById('labelOcrList');
+const operationsV64=document.getElementById('operationsV64');
+const opsQueueValue=document.getElementById('opsQueueValue');
+const opsCacheValue=document.getElementById('opsCacheValue');
+const opsErrorValue=document.getElementById('opsErrorValue');
+const opsStorageValue=document.getElementById('opsStorageValue');
+const queueResumeNote=document.getElementById('queueResumeNote');
+const resumeLargeQueue=document.getElementById('resumeLargeQueue');
+const pauseLargeQueue=document.getElementById('pauseLargeQueue');
+const exportCatalogReport=document.getElementById('exportCatalogReport');
+const projectArchive=document.getElementById('projectArchive');
+const refreshDiagnostics=document.getElementById('refreshDiagnostics');
+const diagnosticList=document.getElementById('diagnosticList');
+const activityList=document.getElementById('activityList');
 
 let selectedFile=null;
 let sourceDataUrl=null;
@@ -977,7 +1023,12 @@ let dashboardCollection='all';
 let currentModeration={status:'none',reason:'',log:[]};
 let pendingImportMap=null;
 let excelAutopilotBusy=false;
+let currentLabelSuggestions=[];
+let currentActivity=[];
+let currentAnalysisCache=null;
+let largeQueuePaused=true;
 const EXCEL_AUTOPILOT_LIMIT=10;
+const LARGE_QUEUE_KEY='yuvionLargeQueueV1';
 
 localStorage.removeItem('yuvionSessionId');
 function apiHeaders(){return {'Content-Type':'application/json'}}
@@ -1005,20 +1056,106 @@ function clearExtraData(){
   renderMargin();
 }
 
+function photoRoleLabel(role){
+  return ({main:'Главное',angle:'Ракурс',package:'Упаковка',label:'Маркировка',barcode:'Штрихкод',detail:'Деталь'})[role]||'Ракурс';
+}
 function renderExtraPhotos(){
   extraPhotoGrid.innerHTML='';
   currentAdditionalPhotos.forEach((photo,index)=>{
     const el=document.createElement('div');
     el.className='extra-photo';
-    el.innerHTML='<img src="'+esc(photo.dataUrl)+'" alt="Дополнительное фото '+(index+1)+'"><button type="button" aria-label="Удалить фото">×</button>';
-    el.querySelector('button').onclick=()=>{
+    const role=photo.role||'angle';
+    el.innerHTML='<img src="'+esc(photo.dataUrl)+'" alt="Дополнительное фото '+(index+1)+'"><button type="button" aria-label="Удалить фото">×</button>'+
+      '<div class="photo-role-tools"><select data-photo-role>'+
+      ['angle','package','label','barcode','detail'].map(value=>'<option value="'+value+'" '+(value===role?'selected':'')+'>'+photoRoleLabel(value)+'</option>').join('')+
+      '</select><button type="button" class="photo-ocr-btn">OCR</button></div>';
+    el.querySelector('button[aria-label]').onclick=()=>{
       currentAdditionalPhotos.splice(index,1);
+      addCurrentActivity('Фото удалено',photo.name||('Ракурс '+(index+1)));
       renderExtraPhotos();
       if(currentData)saveHistoryDebounced();
     };
+    el.querySelector('[data-photo-role]').onchange=(e)=>{
+      photo.role=e.target.value;
+      addCurrentActivity('Роль фото изменена',(photo.name||'Фото')+' → '+photoRoleLabel(photo.role));
+      if(currentData)saveHistoryDebounced();
+    };
+    el.querySelector('.photo-ocr-btn').onclick=()=>runLabelOcr(photo);
     extraPhotoGrid.appendChild(el);
   });
 }
+function renderLabelSuggestions(){
+  if(!labelOcrList)return;
+  labelOcrBox.classList.toggle('show',currentLabelSuggestions.length>0);
+  labelOcrList.innerHTML=currentLabelSuggestions.length?currentLabelSuggestions.map((field,index)=>
+    '<div class="label-ocr-row"><div><b>'+esc(field.name)+': '+esc(field.value)+'</b><small>'+esc(field.confidence||'')+(field.evidence?' · «'+esc(field.evidence)+'»':'')+'</small></div><button class="label-ocr-confirm" data-label-confirm="'+index+'">Подтвердить</button></div>'
+  ).join(''):'';
+  labelOcrList.querySelectorAll('[data-label-confirm]').forEach(btn=>btn.onclick=()=>confirmLabelSuggestion(Number(btn.dataset.labelConfirm)));
+}
+async function runLabelOcr(photo){
+  if(!photo?.dataUrl)return;
+  const parts=dataUrlParts(photo.dataUrl);if(!parts)return;
+  photo.role=photo.role==='angle'?'label':photo.role;
+  renderExtraPhotos();
+  labelOcrBox.classList.add('show');
+  labelOcrList.innerHTML='<div class="muted" style="font-size:10px">Распознаём только читаемый текст на маркировке…</div>';
+  try{
+    const response=await fetch('/api/label-ocr',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:parts.base64,mimeType:parts.mime})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось распознать маркировку.');
+    currentLabelSuggestions=(data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||''}));
+    addCurrentActivity('OCR маркировки','Найдено полей: '+currentLabelSuggestions.length);
+    renderLabelSuggestions();
+    if(currentData)saveHistoryDebounced();
+  }catch(e){
+    labelOcrList.innerHTML='<div class="fact-blocker-note">'+esc(e.message||'OCR недоступен')+'</div>';
+  }
+}
+function labelTargetFor(name){
+  const n=normalizedFactText(name);
+  if(n.includes('бренд'))return 'brand';
+  if(n.includes('артикул')||n==='sku'||n.includes('модель'))return n.includes('модель')?'spec':'sku';
+  if(n.includes('штрих')||n.includes('ean')||n.includes('barcode')||n.includes('gtin'))return 'barcode';
+  if(n.includes('размер')||n.includes('габарит'))return 'size';
+  if(n.includes('материал'))return 'material';
+  return 'spec';
+}
+function confirmLabelSuggestion(index){
+  const field=currentLabelSuggestions[index];if(!field)return;
+  const target=labelTargetFor(field.name);
+  if(target==='brand')extraFields.brand.value=field.value;
+  else if(target==='sku')extraFields.sku.value=field.value;
+  else if(target==='barcode')extraFields.barcode.value=field.value;
+  else if(target==='size')extraFields.size.value=field.value;
+  else if(target==='material')extraFields.material.value=field.value;
+  const line=field.name+': '+field.value;
+  const lines=parseLines(editor.specs.value);
+  const key=normalizedFactText(field.name);
+  const filtered=lines.filter(x=>normalizedFactText(x.split(':')[0])!==key);
+  editor.specs.value=[...filtered,line].join('\n');
+  if(currentData){
+    currentData=collectEdits();
+    const spec=(currentData.characteristics||[]).find(x=>normalizedFactText(x.name)===key&&normalizedFactText(x.value)===normalizedFactText(field.value));
+    if(spec)spec.source='Маркировка';
+    currentData.confirmedData=collectExtraData();
+  }
+  currentLabelSuggestions.splice(index,1);
+  addCurrentActivity('Подтверждено по маркировке',line);
+  renderLabelSuggestions();renderFactSources();renderYuvionExport();renderProductCockpit();markCardsStale();saveHistoryDebounced();
+}
+
+function addCurrentActivity(type,detail=''){
+  currentActivity=[{at:Date.now(),type:String(type||'Действие').slice(0,80),detail:String(detail||'').slice(0,240)},...currentActivity].slice(0,80);
+  renderActivity();
+}
+function renderActivity(){
+  if(!activityList)return;
+  activityList.innerHTML=currentActivity.length?currentActivity.slice(0,12).map(x=>{
+    const when=new Date(x.at||Date.now()).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return '<div class="activity-row"><b>'+esc(x.type)+'</b><small>'+esc(when)+(x.detail?' · '+esc(x.detail):'')+'</small></div>';
+  }).join(''):'<div class="muted" style="font-size:9px">Действий пока нет.</div>';
+}
+
 
 async function addAdditionalPhotos(files){
   const list=[...(files||[])].slice(0,Math.max(0,4-currentAdditionalPhotos.length));
@@ -1030,7 +1167,8 @@ async function addAdditionalPhotos(files){
       id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
       name:String(file.name||'photo').slice(0,120),
       mimeType:(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',
-      dataUrl
+      dataUrl,
+      role:'angle'
     });
   }
   currentAdditionalPhotos=currentAdditionalPhotos.slice(0,4);
@@ -3019,7 +3157,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentQuality=null;currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderRevisionList();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentQuality=null;currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
@@ -3028,7 +3166,7 @@ function resetProduct(keepSimilar=false){
 
 /* IndexedDB history */
 const DB_NAME='YuvionCardsHistoryV1',STORE='items';
-const CATALOG_LIMIT=100;
+const CATALOG_LIMIT=500;
 function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function dbPut(item){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(item);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
 async function dbGet(id){const db=await openDb();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)})}
@@ -3293,6 +3431,11 @@ async function saveHistory(){
       photoHash:currentPhotoHash||'',
       additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
+      quality:currentQuality,
+      cardsStale:Boolean(cardsStale),
+      activity:currentActivity,
+      labelSuggestions:currentLabelSuggestions,
+      analysisCache:currentAnalysisCache,
       variations:variationsForExport(),
       revisions:currentRevisions,
       moderation:currentModeration,
@@ -4276,6 +4419,65 @@ async function runExcelAutopilotQueue(){
   }
 }
 
+function csvCell(value){
+  const v=String(value??'');
+  return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+}
+async function exportCatalogReportNow(){
+  const all=await dbAll();
+  const rows=[['SKU','Название','Статус','Готовность','Категория','Цена','Фото','Карточки','QA блокеры','Последнее изменение']];
+  for(const item of all){
+    const d=item.data||{},x=item.extraData||d.confirmedData||{},r=item.data?storedReadiness(item):{done:0,total:0};
+    rows.push([
+      skuOfStoredItem(item),item.title||d.seoTitle||'',draftStatus(item).label,
+      item.data?(r.done+'/'+r.total):'0/0',d.category||'',x.price1||'',
+      item.sourceDataUrl?'Да':'Нет',Array.isArray(item.cards)?item.cards.length:0,
+      storedQaBlockers(item).length,item.updatedAt?new Date(item.updatedAt).toISOString():''
+    ]);
+  }
+  const csv='\uFEFF'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');
+  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'yuvion-report-'+new Date().toISOString().slice(0,10)+'.csv');
+}
+async function refreshDiagnosticsNow(allItems=null){
+  const all=Array.isArray(allItems)?allItems:await dbAll();
+  const queue=excelQueueItems(all);
+  const cached=all.filter(x=>Boolean(x.analysisCache)).length;
+  const errors=all.filter(x=>x?.excelAutopilot?.state==='error').length;
+  opsQueueValue.textContent=String(queue.length);
+  opsCacheValue.textContent=String(cached);
+  opsErrorValue.textContent=String(errors);
+  let storageText='н/д',quotaText='н/д';
+  try{
+    const estimate=await navigator.storage?.estimate?.();
+    if(estimate){
+      const mb=n=>Math.round(Number(n||0)/1024/1024);
+      storageText=mb(estimate.usage)+' МБ';
+      quotaText=mb(estimate.quota)+' МБ';
+    }
+  }catch{}
+  opsStorageValue.textContent=storageText;
+  let sw='нет';
+  try{sw=('serviceWorker' in navigator)&&Boolean(await navigator.serviceWorker.getRegistration())?'активен':'не активен'}catch{}
+  const lsBytes=Object.keys(localStorage).reduce((sum,key)=>sum+String(localStorage.getItem(key)||'').length*2,0);
+  diagnosticList.innerHTML=[
+    ['Версия приложения','6.4.0'],['IndexedDB товаров',String(all.length)+' / '+CATALOG_LIMIT],
+    ['Хранилище',storageText+' из '+quotaText],['localStorage',Math.round(lsBytes/1024)+' КБ'],
+    ['PWA Service Worker',sw],['AI-очередь',queue.length?queue.length+' ожидают':'пусто']
+  ].map(x=>'<div class="diagnostic-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('');
+  const state=loadLargeQueueState();
+  queueResumeNote.classList.toggle('show',Boolean(state.pending));
+  queueResumeNote.textContent=state.pending?'Сохранена незавершённая очередь. Последний запуск: '+new Date(state.updatedAt||Date.now()).toLocaleString('ru-RU')+'. Нажмите «Продолжить очередь».':'';
+}
+function loadLargeQueueState(){
+  try{return JSON.parse(localStorage.getItem(LARGE_QUEUE_KEY)||'{}')||{}}catch{return {}}
+}
+function saveLargeQueueState(patch={}){
+  const current=loadLargeQueueState();
+  const next={...current,...patch,updatedAt:Date.now()};
+  localStorage.setItem(LARGE_QUEUE_KEY,JSON.stringify(next));
+  return next;
+}
+
 function renderDashboard(allItems){
   const all=Array.isArray(allItems)?allItems:[];
   const skuCounts=new Map();
@@ -4316,6 +4518,7 @@ async function renderHistory(){
     renderDashboard(all);
     renderExcelAutopilot(all);
     renderPublishCenter(all);
+    refreshDiagnosticsNow(all);
     await renderV6Panels(all);
     const collections=[...new Set(all.flatMap(item=>Array.isArray(item?.privateData?.collections)?item.privateData.collections:[]))].sort((a,b)=>a.localeCompare(b,'ru'));
     const previousCollection=catalogCollection.value||'all';
@@ -4412,8 +4615,11 @@ async function restoreHistory(item){
   currentAdditionalPhotos=Array.isArray(item.additionalPhotos)?item.additionalPhotos.slice(0,4):[];
   currentRevisions=Array.isArray(item.revisions)?item.revisions.slice(0,12):[];
   currentModeration=normalizeModeration(item.moderation||{});
+  currentLabelSuggestions=Array.isArray(item.labelSuggestions)?item.labelSuggestions.slice(0,20):[];
+  currentActivity=Array.isArray(item.activity)?item.activity.slice(0,80):[];
+  currentAnalysisCache=item.analysisCache||null;
   cardsStale=Boolean(item.cardsStale);
-  renderVariations();renderExtraPhotos();renderRevisionList();renderModeration();
+  renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderModeration();renderActivity();
   currentMode=item.mode||'full';
   styleSelect.value=item.style||'minimal';
   fillExtraData(item.extraData||item.data?.confirmedData||{});
@@ -5059,6 +5265,11 @@ excelPhotoFiles.addEventListener('change',async()=>{
   finally{excelPhotoFiles.value=''}
 });
 runExcelAutopilot.onclick=()=>runExcelAutopilotQueue();
+resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false});runExcelAutopilotQueue();};
+pauseLargeQueue.onclick=()=>{largeQueuePaused=true;saveLargeQueueState({pending:excelAutopilotBusy||excelQueueItems([]).length>0,paused:true});excelAutoProgressText.textContent='Очередь будет поставлена на паузу после текущего товара.';};
+exportCatalogReport.onclick=()=>exportCatalogReportNow();
+projectArchive.onclick=()=>createEncryptedBackup();
+refreshDiagnostics.onclick=()=>refreshDiagnosticsNow();
 publishCenterFilter.addEventListener('change',async()=>renderPublishCenter(await dbAll()));
 cancelImportMap.onclick=()=>closeImportMapper();
 resetImportMap.onclick=()=>renderImportMapper({redetect:true});
