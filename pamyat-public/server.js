@@ -3248,6 +3248,9 @@ app.post("/api/admin/events/:eventId/edit", requireAdminRole, async (req,res) =>
       event_type:clean(p.event_type,80),
       event_date:clean(p.event_date,10),
       event_time:clean(p.event_time,20),
+      event_timezone:clean(p.event_timezone,100)||"Europe/Moscow",
+      visibility:["public","link","invited"].includes(p.visibility)?p.visibility:"public",
+      audience_groups:(Array.isArray(p.audience_groups)?p.audience_groups:[]).map(x=>clean(x,64).toLowerCase()).filter(x=>/^[a-z0-9][a-z0-9-]{0,63}$/.test(x)).slice(0,30),
       city:clean(p.city,120),
       place:clean(p.place,180),
       note:clean(p.note,1500),
@@ -3418,6 +3421,78 @@ app.post("/api/admin/import/commit", requireAdminRole, async (req,res) => {
 app.get("/api/admin/stats", requireAdmin, async (_req,res) => {
   try{res.json(await sb("rpc/memorial_admin_stats",{method:"POST",body:{p_token:ADMIN_TOKEN}}))}
   catch(e){console.error("admin stats",e.data||e);res.status(500).json({error:"stats_failed"})}
+});
+
+function adminBroadcastText(e,mode){
+  const privateKey=/^[0-9a-f-]{36}$/i.test(String(e.share_token||""))?String(e.share_token):"";
+  const url=(APP_PUBLIC_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(e.id)+(e.visibility==="public"?"":privateKey?"?key="+encodeURIComponent(privateKey):"");
+  const when=[e.event_date,e.event_time].filter(Boolean).join(" ");
+  const where=[e.place,e.city].filter(Boolean).join(" · ");
+  return mode==="update"
+    ?{title:"Изменение события — "+(e.event_type||"Памятная дата"),body:[e.full_name,when,where].filter(Boolean).join(" · "),url}
+    :{title:"Напоминание — "+(e.event_type||"Памятная дата"),body:[e.full_name,when,where].filter(Boolean).join(" · "),url};
+}
+async function deliverAdminBroadcast(target,e,text,marker){
+  const item={...target,event_id:e.id,reminder_days:marker,timezone:target.timezone||"UTC"};
+  let sent=0,failed=0;
+  const run=async(channel,fn)=>{
+    try{const result=await fn();if(result){sent++;await logAttempt(item,channel,true,result);await logDelivery(item,channel,result)}}
+    catch(err){failed++;await logAttempt(item,channel,false,err.message||String(err))}
+  };
+  if(target.push_enabled&&target.endpoint)await run("push",async()=>{
+    if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)throw new Error("push_not_configured");
+    await webpush.sendNotification({endpoint:target.endpoint,keys:{p256dh:target.p256dh,auth:target.auth}},JSON.stringify({title:text.title,body:text.body,url:text.url,event_id:e.id}),{TTL:86400});return "sent";
+  });
+  if(target.email_enabled&&target.email)await run("email",()=>sendEmailAddress(target.email,text));
+  if(target.telegram_enabled&&target.telegram_chat_id)await run("telegram",()=>telegramSend(target.telegram_chat_id,text.title+"\n"+text.body+"\n"+text.url));
+  if(target.whatsapp_enabled&&target.whatsapp_phone)await run("whatsapp",()=>whatsappSend(target.whatsapp_phone,text));
+  if(target.sms_enabled&&target.sms_phone)await run("sms",()=>smsSend(target.sms_phone,text));
+  return {sent,failed};
+}
+
+app.get("/api/admin/notification-groups", requireAdmin, async (_req,res)=>{
+  try{res.json(await sb("rpc/memorial_admin_groups_list",{method:"POST",body:{p_token:ADMIN_TOKEN}}))}
+  catch(e){res.status(500).json({error:"groups_failed"})}
+});
+app.post("/api/admin/notification-groups", requireAdminRole, async (req,res)=>{
+  try{
+    const slug=clean(req.body?.slug,64).toLowerCase(),name=clean(req.body?.name,120);
+    if(!/^[a-z0-9][a-z0-9-]{0,63}$/.test(slug)||!name)return res.status(400).json({error:"bad_group"});
+    res.json(await sb("rpc/memorial_admin_group_upsert",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_slug:slug,p_name:name,p_description:clean(req.body?.description,500)||null,p_active:req.body?.active!==false
+    }}));
+  }catch(e){res.status(500).json({error:"group_update_failed"})}
+});
+
+app.get("/api/admin/events/:eventId/rsvp", requireAdmin, async (req,res)=>{
+  try{res.json(await sb("rpc/memorial_admin_rsvp_summary",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}}))}
+  catch(e){res.status(500).json({error:"rsvp_failed"})}
+});
+app.get("/api/admin/events/:eventId/broadcast-preview", requireAdmin, async (req,res)=>{
+  try{
+    const groups=String(req.query.groups||"").split(",").map(x=>clean(x,64).toLowerCase()).filter(x=>/^[a-z0-9][a-z0-9-]{0,63}$/.test(x)).slice(0,30);
+    const mode=String(req.query.mode||"update")==="announcement"?"announcement":"update";
+    const onlyPrevious=String(req.query.only_previous??(mode==="update"?"1":"0"))!=="0";
+    const d=await sb("rpc/memorial_admin_broadcast_preview",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_event_id:req.params.eventId,p_groups:groups.length?groups:null,p_only_previously_reached:onlyPrevious
+    }});
+    const e=d?.event||{};res.json({...d,mode,only_previous:onlyPrevious,message:adminBroadcastText(e,mode)});
+  }catch(e){res.status(500).json({error:"broadcast_preview_failed"})}
+});
+app.post("/api/admin/events/:eventId/broadcast", requireAdminRole, async (req,res)=>{
+  try{
+    const mode=req.body?.mode==="announcement"?"announcement":"update";
+    const groups=(Array.isArray(req.body?.groups)?req.body.groups:[]).map(x=>clean(x,64).toLowerCase()).filter(x=>/^[a-z0-9][a-z0-9-]{0,63}$/.test(x)).slice(0,30);
+    const onlyPrevious=req.body?.only_previous===undefined?(mode==="update"):Boolean(req.body.only_previous);
+    const d=await sb("rpc/memorial_admin_broadcast_targets",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_event_id:req.params.eventId,p_groups:groups.length?groups:null,p_only_previously_reached:onlyPrevious
+    }});
+    const e=d?.event||{},targets=d?.targets||[],text=adminBroadcastText(e,mode);
+    const rev=Math.max(0,Number(e.notification_revision||0)),marker=(mode==="update"?-1000:-2000)-rev;
+    let sent=0,failed=0;
+    for(const target of targets){const x=await deliverAdminBroadcast(target,e,text,marker);sent+=x.sent;failed+=x.failed}
+    res.json({ok:true,subscriptions:targets.length,sent,failed,groups:d?.groups||groups,mode,only_previous:onlyPrevious});
+  }catch(e){console.error("admin broadcast",e.data||e);res.status(500).json({error:"broadcast_failed"})}
 });
 
 app.get("/api/admin/notifications", requireAdmin, async (req,res) => {
