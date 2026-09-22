@@ -26,7 +26,7 @@ if(openDetails!==closeDetails)fail('details tags unbalanced '+openDetails+'/'+cl
 const required=[
   'excelAutopilot','publishCenter','confirmationCenter','operationsV64',
   'queueBudgetUsd','storageManager','labelOcrBox','networkPill',
-  'productUrlInput','importProductUrl','urlImportStatus','sourceReference','renderMode','autoCards'
+  'productUrlInput','importProductUrl','urlImportStatus','sourceReference','renderMode','autoCards','designStudio','designPalette','productScale','productShiftX','productShiftY'
 ];
 const missing=required.filter(id=>!ids.includes(id));
 if(missing.length)fail('required v6.5 UI ids missing: '+missing.join(', '));else ok('required v6.5 UI present');
@@ -59,7 +59,18 @@ const features=[
   ['recommendedStyleForProduct','category-aware style recommendation'],
   ['edgeWhiteCutout','free white-background cutout'],
   ['sellerNeutralCopy','seller-neutral commercial copy'],
-  ['Игрушки и детские товары','kids selling-card theme']
+  ['Игрушки и детские товары','kids selling-card theme'],
+  ['extractProductPalette','adaptive product palette'],
+  ['normalizeComposition','manual composition controls'],
+  ['designEngine','design engine health metadata'],
+  ['Красота и уход','beauty category theme'],
+  ['Спорт и активность','sport category theme'],
+  ['Инструменты и ремонт','tools category theme'],
+  ['Еда и напитки','food category theme'],
+  ['designStyleGrid','visual style gallery'],
+  ['extractPaletteFromDataUrl','client palette preview'],
+  ['currentDesignVariant','layout variants'],
+  ['syncCompositionFromControls','visual composition editor']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
@@ -88,4 +99,4 @@ if(healthVersion!==pkg.version)fail('package/server version mismatch: '+pkg.vers
 if(process.exitCode)process.exit(process.exitCode);
 
 if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
-if(!server.includes('version: "6.8.1"'))fail('server health version is not 6.8.1');else ok('server health version 6.8.1');
+if(!server.includes('version: "7.0.0"'))fail('server health version is not 7.0.0');else ok('server health version 7.0.0');
