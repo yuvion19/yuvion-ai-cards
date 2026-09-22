@@ -3009,6 +3009,7 @@ function storedReadiness(item){
     barcodeOk,
     duplicateCharacteristicNames(d).length===0,
     storedFactBlockers(item).length===0,
+    !item?.cardsStale,
     Array.isArray(item?.cards)&&item.cards.length===4
   ];
   return {done:checks.filter(Boolean).length,total:checks.length,ready:checks.every(Boolean)};
@@ -4452,6 +4453,7 @@ function productProblems(item,allItems=[]){
   if(Array.isArray(d.needsClarification)&&d.needsClarification.length)out.push({key:'clarify',label:'Есть неподтверждённые данные',detail:d.needsClarification.slice(0,2).join(' · ')});
   const factIssues=storedFactBlockers(item);
   if(factIssues.length)out.push({key:'facts',label:'Технические факты без подтверждения',detail:factIssues.slice(0,3).map(x=>x.name).join(', '),bad:true});
+  if(item.cardsStale)out.push({key:'cards',label:'Изображения устарели',detail:'Данные товара менялись после генерации карточек.',bad:true});
   if(!Array.isArray(item.cards)||item.cards.length!==4)out.push({key:'cards',label:'Нет полного комплекта изображений',detail:'Нужно 4 карточки 900×1200.'});
   if(lowStockState(item.privateData||{}))out.push({key:'stock',label:'Низкий остаток',detail:'Остаток ниже локального минимального значения.'});
   return out;
