@@ -43,7 +43,7 @@ app.use((req, res, next) => {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
   res.setHeader("Content-Security-Policy",
-    "default-src 'self'; img-src 'self' data: https://api.qrserver.com https://*.tile.openstreetmap.org; " +
+    "default-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org; " +
     "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; " +
     "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   next();
@@ -79,13 +79,23 @@ app.use("/vendor/leaflet", express.static(path.join(__dirname, "node_modules", "
 function htmlEsc(v) {
   return String(v ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 }
+function safeSourceLink(v){
+  const raw=String(v||"").trim();if(!raw)return null;
+  try{
+    const u=new URL(raw);
+    if(u.protocol!=="https:")return null;
+    const allowed=new Set(["matzevalog.github.io","jewishgen.org","www.jewishgen.org","findagrave.com","www.findagrave.com"]);
+    return allowed.has(u.hostname.toLowerCase())?u.toString():null;
+  }catch{return null}
+}
+
 function isMobileUA(req) {
   return /iPhone|iPad|iPod|Android|Mobile/i.test(String(req.headers["user-agent"] || ""));
 }
 function mobileShell(title, body, opts = {}) {
   const extraHead = opts.extraHead || "";
   const scripts = opts.scripts || "";
-  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#4c3e2d"><title>${htmlEsc(title)} — Память Джуури</title>${extraHead}<style>
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#4c3e2d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Память"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icon.svg"><title>${htmlEsc(title)} — Память Джуури</title>${extraHead}<style>
   :root{--bg:#f5f1e8;--paper:#fffdf8;--ink:#27231e;--muted:#746d63;--line:#ded6c8;--accent:#5b4934;--soft:#eee6d9}
   *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}
   </style></head><body><header><div class="top"><div class="brand">Память Джуури</div><a class="btn secondary" href="/m">Меню</a></div></header><main class="wrap">${body}</main>${scripts}</body></html>`;
@@ -1408,7 +1418,7 @@ app.post("/api/events", rateLimit("events", 5, 15 * 60 * 1000), async (req, res)
       event_time: clean(b.event_time, 20) || null,
       city: clean(b.city, 120) || null,
       place: clean(b.place, 180) || null,
-      cemetery_link: clean(b.cemetery_link, 800) || null,
+      cemetery_link: safeSourceLink(clean(b.cemetery_link, 800)),
       cemetery_record_key: clean(b.cemetery_record_key, 100) || null,
       note: clean(b.note, 1500) || null,
       visibility: "public",
