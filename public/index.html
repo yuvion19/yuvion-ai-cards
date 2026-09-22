@@ -283,7 +283,7 @@
     <summary class="v63-panel-summary"><span><b>Publish Center</b><small>готовность ассортимента к Yuvion</small></span><span>Открыть</span></summary>
     <div class="publish-center-head">
       <div><div class="section-kicker">Publish Center</div><h2>Готовность ассортимента к Yuvion</h2><p>Один экран показывает готовые товары и то, что ещё мешает публикации. Персональные данные арендатора и локальные складские заметки здесь не раскрываются.</p></div>
-      <select class="publish-filter" id="publishCenterFilter"><option value="all">Все товары</option><option value="ready">Готовы к Yuvion</option><option value="problem">Есть блокеры</option><option value="photo">Нет фото</option><option value="published">Опубликованы</option></select>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end"><select class="publish-filter" id="publishCenterFilter"><option value="all">Все товары</option><option value="ready">Готовы к Yuvion</option><option value="problem">Есть блокеры</option><option value="photo">Нет фото</option><option value="published">Опубликованы</option><option value="blocker:category">Блокер: категория</option><option value="blocker:price">Блокер: цены</option><option value="blocker:facts">Блокер: характеристики</option><option value="blocker:cards">Блокер: изображения / QA</option><option value="blocker:similar">Похожие товары</option></select><button class="btn btn-primary btn-small" id="publishNextProblem">Следующий проблемный</button></div>
     </div>
     <div class="publish-center-body">
       <div class="publish-stats"><div class="publish-stat"><b id="publishReadyCount">0</b><span>ГОТОВЫ</span></div><div class="publish-stat"><b id="publishProblemCount">0</b><span>ТРЕБУЮТ ВНИМАНИЯ</span></div><div class="publish-stat"><b id="publishNoPhotoCount">0</b><span>БЕЗ ФОТО</span></div><div class="publish-stat"><b id="publishDoneCount">0</b><span>ОПУБЛИКОВАНЫ</span></div></div>
@@ -968,6 +968,7 @@ const publishReadyCount=document.getElementById('publishReadyCount');
 const publishProblemCount=document.getElementById('publishProblemCount');
 const publishNoPhotoCount=document.getElementById('publishNoPhotoCount');
 const publishDoneCount=document.getElementById('publishDoneCount');
+const publishNextProblem=document.getElementById('publishNextProblem');
 const factSourcesPanel=document.getElementById('factSourcesPanel');
 const factSourceList=document.getElementById('factSourceList');
 const factBlockerNote=document.getElementById('factBlockerNote');
@@ -4561,7 +4562,20 @@ function renderPublishCenter(allItems){
   publishNoPhotoCount.textContent=String(states.filter(x=>x.state==='photo').length);
   publishDoneCount.textContent=String(states.filter(x=>x.state==='published').length);
   const filter=publishCenterFilter?.value||'all';
-  const filtered=states.filter(x=>filter==='all'||x.state===filter).sort((a,b)=>{
+  const filtered=states.filter(x=>{
+    if(filter==='all')return true;
+    if(filter.startsWith('blocker:')){
+      const key=filter.split(':')[1];
+      const problems=productProblems(x.item,all);
+      if(key==='category')return problems.some(p=>['category','category-fields'].includes(p.key));
+      if(key==='price')return problems.some(p=>p.key==='price');
+      if(key==='facts')return problems.some(p=>['facts','clarify'].includes(p.key));
+      if(key==='cards')return problems.some(p=>p.key==='cards');
+      if(key==='similar')return problems.some(p=>p.key==='similar');
+      return false;
+    }
+    return x.state===filter;
+  }).sort((a,b)=>{
     const order={ready:0,problem:1,photo:2,published:3};
     return (order[a.state]-order[b.state])||Number(b.item.updatedAt||0)-Number(a.item.updatedAt||0);
   }).slice(0,18);
@@ -4569,7 +4583,8 @@ function renderPublishCenter(allItems){
   publishCenterList.innerHTML=filtered.length?filtered.map(({item,state})=>{
     const r=item.data?storedReadiness(item):{done:0,total:0};
     const sku=skuOfStoredItem(item)||'SKU не указан';
-    return '<div class="publish-row"><img src="'+esc(item.sourceDataUrl||'')+'" alt=""><div><b>'+esc(item.title||item.data?.seoTitle||'Черновик')+'</b><small>'+esc(sku)+(item.data?' · готовность '+r.done+'/'+r.total:' · нужен анализ')+'</small></div><div class="publish-row-actions"><span class="publish-status '+state+'">'+labels[state]+'</span><button class="btn btn-ghost btn-small" data-publish-open="'+esc(item.id)+'">Открыть</button></div></div>';
+    const firstProblem=state==='problem'?productProblems(item,all)[0]:null;
+    return '<div class="publish-row"><img src="'+esc(item.sourceDataUrl||'')+'" alt=""><div><b>'+esc(item.title||item.data?.seoTitle||'Черновик')+'</b><small>'+esc(sku)+(item.data?' · готовность '+r.done+'/'+r.total:' · нужен анализ')+(firstProblem?' · '+esc(firstProblem.label):'')+'</small></div><div class="publish-row-actions"><span class="publish-status '+state+'">'+labels[state]+'</span><button class="btn btn-ghost btn-small" data-publish-open="'+esc(item.id)+'">Открыть</button></div></div>';
   }).join(''):'<div class="muted" style="font-size:11px">По выбранному фильтру товаров нет.</div>';
   publishCenterList.querySelectorAll('[data-publish-open]').forEach(btn=>btn.onclick=async()=>{
     const item=all.find(x=>x.id===btn.dataset.publishOpen);if(item)await restoreHistory(item);
@@ -5595,6 +5610,11 @@ exportCatalogReport.onclick=()=>exportCatalogReportNow();
 projectArchive.onclick=()=>createEncryptedBackup();
 refreshDiagnostics.onclick=()=>refreshDiagnosticsNow();
 publishCenterFilter.addEventListener('change',async()=>renderPublishCenter(await dbAll()));
+publishNextProblem.onclick=async()=>{
+  const all=await dbAll();
+  const item=all.filter(x=>!x.published).sort((a,b)=>Number(a.updatedAt||0)-Number(b.updatedAt||0)).find(x=>productProblems(x,all).some(p=>p.bad||p.key!=='stock'));
+  if(item)await restoreHistory(item);else alert('Проблемных товаров не найдено.');
+};
 cancelImportMap.onclick=()=>closeImportMapper();
 resetImportMap.onclick=()=>renderImportMapper({redetect:true});
 confirmImportMap.onclick=async()=>{
