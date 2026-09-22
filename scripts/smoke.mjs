@@ -50,6 +50,13 @@ const features=[
   ['safeRasterTypes','remote SVG rejection'],
   ['embeddedPublicJson','modern storefront embedded JSON fallback'],
   ['renderFreeScene','free local image renderer'],
+  ['makeProductReflection','local product reflection'],
+  ['studioLocalV6: true','Studio Local v6 health metadata'],
+  ['proceduralStudioLighting: true','procedural studio lighting metadata'],
+  ['depthOfFieldBackdrop: true','depth of field backdrop metadata'],
+  ['acrylicStageSets: true','acrylic stage set metadata'],
+  ['zeroImageApiMode: true','zero image API mode metadata'],
+  ['imageAiDisabledByProduct: true','paid image AI disabled metadata'],
   ['renderMode = "free"','free rendering default'],
   ['freeSceneRenders','free render telemetry'],
   ['MAX_FREE_CARD_BATCHES_PER_WINDOW','separate free batch limit'],
@@ -227,7 +234,7 @@ if(process.exitCode)process.exit(process.exitCode);
 if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
 if(!server.includes('version: "'+pkg.version+'"'))fail('server health version does not match package version');else ok('server health version '+pkg.version);
 if(server.includes('primaryRole: selectedSource.role'))fail('batch renderer references undefined selectedSource');else ok('batch renderer response variables safe');
-if(!server.includes('renderEngine: "power-local-v5"'))fail('power-local-v5 renderer marker missing');else ok('power-local-v5 renderer marker present');
+if(!server.includes('renderEngine: "studio-local-v6"'))fail('studio-local-v6 renderer marker missing');else ok('studio-local-v6 renderer marker present');
 if(!server.includes('categoryAwareLayouts: true'))fail('category-aware layout metadata missing');else ok('category-aware layout metadata present');
 if(!server.includes('marketplaceEditorialOverlays: true'))fail('editorial overlay metadata missing');else ok('editorial overlay metadata present');
 if(!server.includes('fourDistinctCompositions: true'))fail('four distinct compositions metadata missing');else ok('four distinct compositions metadata present');
@@ -253,3 +260,10 @@ if(!html.includes("state:'qa_blocked'"))fail('Excel QA quarantine state missing'
 if(!html.includes("Товар сохранён локально в карантин и не добавлен в общий ZIP"))fail('Batch ZIP quarantine gate missing');else ok('Batch ZIP quarantine gate present');
 if(!html.includes("batchQaPassed(item.quality)?'Да':'Нет'"))fail('catalog QA report must require passed QA');else ok('catalog QA report requires passed QA');
 if(!html.includes("needsQa=cardsReady&&!batchQaPassed(item.quality)"))fail('Excel queue must refresh stale QA schemas');else ok('Excel queue refreshes stale QA schemas');
+
+if(html.includes('<option value="ai">'))fail('paid image-AI option must not be exposed');else ok('paid image-AI option removed from UI');
+if((server.match(/const mode = "free";/g)||[]).length<2)fail('image endpoints must force free mode');else ok('image endpoints force free mode');
+if(!server.includes('aiMode: false'))fail('health must report image AI disabled');else ok('health reports image AI disabled');
+if(!server.includes('aiImageCalls: 0'))fail('image responses must report zero image-AI calls');else ok('image responses report zero image-AI calls');
+if(!html.includes('Studio Local · бесплатно · 0 image-AI'))fail('Studio Local free UI label missing');else ok('Studio Local free UI label present');
+if(!server.includes('filter id="studioBlur"'))fail('studio lighting filter missing');else ok('studio lighting filter present');

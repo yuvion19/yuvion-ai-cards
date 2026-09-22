@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v8.9.1
+// Production release marker: v9.0.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1351,7 +1351,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "8.9.1",
+    version: "9.0.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1386,6 +1386,13 @@ app.get("/api/health", (_req, res) => {
       benefitIconLibrary: true,
       textlessCoverMode: true,
       powerLocalRenderer: true,
+      studioLocalV6: true,
+      proceduralStudioLighting: true,
+      depthOfFieldBackdrop: true,
+      acrylicStageSets: true,
+      productReflection: true,
+      zeroImageApiMode: true,
+      imageAiDisabledByProduct: true,
       smartBackgroundCutout: true,
       productPhotoEnhancement: true,
       multiPhotoScenes: true,
@@ -1435,7 +1442,10 @@ app.get("/api/health", (_req, res) => {
     imageRendering: {
       defaultMode: "free",
       freeMode: true,
-      aiMode: Boolean(process.env.OPENAI_API_KEY)
+      studioLocal: true,
+      aiMode: false,
+      imageAiDisabled: true,
+      freeImageAiCalls: 0
     },
     estimates: {
       imageOutputUsdPerCard: IMAGE_OUTPUT_ESTIMATE_USD,
@@ -2169,6 +2179,25 @@ function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0
         <filter id="softShadow" x="-40%" y="-80%" width="180%" height="220%">
           <feGaussianBlur stdDeviation="18"/>
         </filter>
+        <filter id="studioBlur" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="34"/>
+        </filter>
+        <filter id="bokehBlur" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="22"/>
+        </filter>
+        <linearGradient id="acrylic" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".92"/>
+          <stop offset="100%" stop-color="${mixHex("#FFFFFF", style.accent, 0.08)}" stop-opacity=".72"/>
+        </linearGradient>
+        <linearGradient id="glassPanel" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".72"/>
+          <stop offset="52%" stop-color="${mixHex("#FFFFFF", style.accent2, 0.08)}" stop-opacity=".44"/>
+          <stop offset="100%" stop-color="#FFFFFF" stop-opacity=".20"/>
+        </linearGradient>
+        <linearGradient id="surface" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".62"/>
+          <stop offset="100%" stop-color="${mixHex(bgB, style.accent, 0.07)}" stop-opacity=".92"/>
+        </linearGradient>
       </defs>
       <rect width="900" height="1200" fill="url(#bg)"/>
       <g transform="translate(${shiftX} ${shiftY}) rotate(${tilt} 450 520)">
@@ -2185,6 +2214,34 @@ function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0
       ${profileDecor}
       <path d="M0 1085 C190 1010 315 1150 490 1088 C665 1022 765 1055 900 998 L900 1200 L0 1200 Z" fill="${style.accent}" fill-opacity="${playful ? 0.16 : 0.052}"/>
       ${seasonDecor}
+      <g opacity="${level === "bold" ? 0.34 : level === "calm" ? 0.18 : 0.26}">
+        <ellipse cx="${index === 1 ? 742 : index === 2 ? 300 : 610}" cy="${index === 3 ? 405 : 248}" rx="${index === 1 ? 220 : 285}" ry="${index === 3 ? 250 : 190}" fill="#FFFFFF" filter="url(#studioBlur)"/>
+      </g>
+      ${index === 0 ? `
+        <g>
+          <ellipse cx="450" cy="706" rx="316" ry="48" fill="#FFFFFF" fill-opacity=".60"/>
+          <rect x="242" y="636" width="416" height="92" rx="46" fill="url(#acrylic)" stroke="#FFFFFF" stroke-opacity=".78"/>
+          <ellipse cx="450" cy="638" rx="205" ry="24" fill="#FFFFFF" fill-opacity=".82"/>
+        </g>` : index === 1 ? `
+        <g opacity=".78">
+          <path d="M575 95 h255 a48 48 0 0 1 48 48 v610 h-350 v-610 a48 48 0 0 1 47-48z" fill="url(#glassPanel)" stroke="#FFFFFF" stroke-opacity=".62"/>
+          <ellipse cx="704" cy="815" rx="175" ry="34" fill="#FFFFFF" fill-opacity=".36"/>
+        </g>` : index === 2 ? `
+        <g>
+          <rect x="88" y="558" width="724" height="24" rx="12" fill="#FFFFFF" fill-opacity=".74"/>
+          <rect x="110" y="582" width="680" height="9" rx="5" fill="${style.accent2}" fill-opacity=".12"/>
+          <ellipse cx="450" cy="604" rx="280" ry="38" fill="#FFFFFF" fill-opacity=".32" filter="url(#studioBlur)"/>
+        </g>` : `
+        <g opacity=".86">
+          <path d="M0 650 C220 592 420 610 900 536 V930 H0 Z" fill="url(#surface)"/>
+          <path d="M0 650 C240 598 470 610 900 536" stroke="#FFFFFF" stroke-opacity=".54" stroke-width="3" fill="none"/>
+          <ellipse cx="545" cy="664" rx="282" ry="48" fill="#FFFFFF" fill-opacity=".24" filter="url(#studioBlur)"/>
+        </g>`}
+      <g opacity=".16" filter="url(#bokehBlur)">
+        <circle cx="${110 + variant * 31}" cy="${250 + index * 83}" r="${54 + index * 7}" fill="${style.accent}"/>
+        <circle cx="${815 - index * 41}" cy="${190 + variant * 58}" r="${38 + variant * 6}" fill="${style.accent2}"/>
+        <circle cx="${760 - variant * 34}" cy="${825 - index * 54}" r="${62 - index * 6}" fill="#FFFFFF"/>
+      </g>
     </svg>`;
 }
 
@@ -2566,6 +2623,32 @@ async function prepareInsetVisual(sourceBuffer, width, height, intensity = "sell
   return roundedPhotoPanel(enhanced, width, height, 28);
 }
 
+async function makeProductReflection(productBuffer, targetWidth, targetHeight, opacity = 0.14) {
+  const width = Math.max(80, Math.round(Number(targetWidth) || 320));
+  const height = Math.max(48, Math.round((Number(targetHeight) || 420) * 0.22));
+  const reflection = await sharp(productBuffer)
+    .ensureAlpha()
+    .flip()
+    .resize(width, height, { fit: "fill" })
+    .blur(1.2)
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+  const mask = Buffer.from(
+    `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#fff" stop-opacity="${opacity}"/>
+        <stop offset="72%" stop-color="#fff" stop-opacity="${opacity * 0.28}"/>
+        <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+      </linearGradient></defs>
+      <rect width="${width}" height="${height}" fill="url(#fade)"/>
+    </svg>`
+  );
+  return sharp(reflection)
+    .composite([{ input: mask, blend: "dest-in" }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
 async function renderFreeScene(
   sourceBuffer,
   index,
@@ -2612,6 +2695,21 @@ async function renderFreeScene(
       const shadow = await makeProductShadow(visual.product, intensity === "bold" ? 0.27 : 0.22, intensity === "bold" ? 15 : 13);
       composites.push({ input: shadow, left: layout.x + 12, top: layout.y + 20 });
     } catch {}
+    if (index === 0 || index === 3) {
+      try {
+        const reflection = await makeProductReflection(
+          visual.product,
+          layout.width,
+          layout.height,
+          intensity === "bold" ? 0.17 : intensity === "calm" ? 0.09 : 0.13
+        );
+        composites.push({
+          input: reflection,
+          left: layout.x,
+          top: Math.min(1110, layout.y + Math.round(layout.height * 0.82))
+        });
+      } catch {}
+    }
   } else {
     const panelShadow = Buffer.from(
       `<svg width="${layout.width + 40}" height="${layout.height + 46}" xmlns="http://www.w3.org/2000/svg"><filter id="s"><feGaussianBlur stdDeviation="15"/></filter><rect x="20" y="18" width="${layout.width}" height="${layout.height}" rx="40" fill="#171C23" fill-opacity=".16" filter="url(#s)"/></svg>`
@@ -2955,8 +3053,8 @@ async function addDirectoryToZip(zip, directory, prefix = "") {
   }
 }
 
-function renderModeFromBody(body) {
-  return body?.renderMode === "ai" ? "ai" : "free";
+function renderModeFromBody() {
+  return "free";
 }
 
 function imageErrorResponse(req, res, error, map, type) {
@@ -2995,29 +3093,18 @@ app.post("/api/generate-cards", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = cardRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
-    const mode = renderMode === "ai" ? "ai" : "free";
-    requestLimitMap = mode === "ai" ? cardRequestsByIp : freeCardRequestsByIp;
-
-    if (mode === "ai") {
-      if (!imagesEnabled) return res.status(503).json({ error: "AI-фоторежим временно отключён администратором. Бесплатные шаблонные карточки доступны." });
-      if (limitMap(cardRequestsByIp, ip, MAX_CARD_BATCHES_PER_WINDOW)) {
-        stats.rateLimitErrors += 1;
-        return res.status(429).json({ error: "Лимит AI-фоторежима: не более 12 комплектов в час с одного подключения. Бесплатный режим остаётся доступен." });
-      }
-    } else if (limitMap(freeCardRequestsByIp, ip, MAX_FREE_CARD_BATCHES_PER_WINDOW)) {
+    const { image, mimeType, card, style = "minimal", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
+    const mode = "free";
+    requestLimitMap = freeCardRequestsByIp;
+    if (limitMap(freeCardRequestsByIp, ip, MAX_FREE_CARD_BATCHES_PER_WINDOW)) {
       stats.rateLimitErrors += 1;
-      return res.status(429).json({ error: "Защитный лимит бесплатного рендера: 120 комплектов в час с одного подключения." });
+      return res.status(429).json({ error: "Защитный лимит бесплатного Studio Local: 120 комплектов в час с одного подключения." });
     }
     if (typeof image !== "string" || typeof mimeType !== "string" || !card || typeof card !== "object") {
       return res.status(400).json({ error: "Не хватает исходного фото или данных товара." });
     }
     if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
     if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
-
-    if (mode === "ai" && !process.env.OPENAI_API_KEY) {
-      return res.status(503).json({ error: "AI-фоторежим пока не настроен. Выберите бесплатный режим." });
-    }
 
     const sourceBuffer = Buffer.from(image, "base64");
     const additionalSources = normalizeRenderAdditionalImages(additionalImages);
@@ -3038,39 +3125,23 @@ app.post("/api/generate-cards", async (req, res) => {
       return { index, primary, inset };
     });
 
-    if (mode === "ai") {
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      for (let start = 0; start < 4; start += 2) {
-        const pair = await Promise.all(
-          cardScenes.slice(start, start + 2).map((prompt, localIndex) => {
-            const index = start + localIndex;
-            const selected = renderSelections[index];
-            return generateScene(client, selected.primary.buffer, selected.primary.mimeType || mimeType, prompt, index + 1, styleKey);
-          })
-        );
-        scenes.push(...pair);
-      }
-      stats.aiSceneRenders += 4;
-      stats.estimatedImageOutputUsd += 4 * IMAGE_OUTPUT_ESTIMATE_USD;
-    } else {
-      scenes = await Promise.all(renderSelections.map(({ index, primary, inset }) =>
-        renderFreeScene(
-          primary.buffer,
-          index,
-          styleKey,
-          renderPalette,
-          variant,
-          renderComposition,
-          intensity,
-          substyle,
-          visual,
-          inset?.buffer || null,
-          primary.role,
-          inset?.role || ""
-        )
-      ));
-      stats.freeSceneRenders += 4;
-    }
+    scenes = await Promise.all(renderSelections.map(({ index, primary, inset }) =>
+      renderFreeScene(
+        primary.buffer,
+        index,
+        styleKey,
+        renderPalette,
+        variant,
+        renderComposition,
+        intensity,
+        substyle,
+        visual,
+        inset?.buffer || null,
+        primary.role,
+        inset?.role || ""
+      )
+    ));
+    stats.freeSceneRenders += 4;
 
     const cachedScenes = await Promise.all(scenes.map((scene) => normalizeSceneForCache(scene)));
     const fileNames = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
@@ -3096,14 +3167,14 @@ app.post("/api/generate-cards", async (req, res) => {
       format: "900x1200",
       style: styleKey,
       renderMode: mode,
-      aiImageCalls: mode === "ai" ? 4 : 0,
+      aiImageCalls: 0,
       palette: renderPalette,
       designVariant: variant,
       designIntensity: intensity,
       designSubstyle: substyle,
       visualOptions: visual,
       composition: renderComposition,
-      renderEngine: "power-local-v5",
+      renderEngine: "studio-local-v6",
       primaryRole: renderSelections[0]?.primary?.role || "main",
       insetRole: renderSelections[0]?.inset?.role || "",
       photoEnhancement: true,
@@ -3118,7 +3189,7 @@ app.post("/api/generate-cards", async (req, res) => {
     });
   } catch (error) {
     console.error("Card generation error:", { message: error?.message, status: error?.status, code: error?.code });
-    return imageErrorResponse(req, res, error, requestLimitMap, renderModeFromBody(req.body) === "ai" ? "batch-ai" : "batch-free");
+    return imageErrorResponse(req, res, error, requestLimitMap, "batch-studio-local");
   }
 });
 
@@ -3126,19 +3197,12 @@ app.post("/api/regenerate-card", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = regenRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
-    const mode = renderMode === "ai" ? "ai" : "free";
-    requestLimitMap = mode === "ai" ? regenRequestsByIp : freeRegenRequestsByIp;
-
-    if (mode === "ai") {
-      if (!imagesEnabled) return res.status(503).json({ error: "AI-фоторежим временно отключён администратором. Бесплатная перегенерация доступна." });
-      if (limitMap(regenRequestsByIp, ip, MAX_REGENERATIONS_PER_WINDOW)) {
-        stats.rateLimitErrors += 1;
-        return res.status(429).json({ error: "Слишком много AI-перегенераций. Бесплатный режим остаётся доступен." });
-      }
-    } else if (limitMap(freeRegenRequestsByIp, ip, MAX_FREE_REGENERATIONS_PER_WINDOW)) {
+    const { image, mimeType, card, style = "minimal", index, palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
+    const mode = "free";
+    requestLimitMap = freeRegenRequestsByIp;
+    if (limitMap(freeRegenRequestsByIp, ip, MAX_FREE_REGENERATIONS_PER_WINDOW)) {
       stats.rateLimitErrors += 1;
-      return res.status(429).json({ error: "Защитный лимит бесплатной перегенерации: 240 карточек в час с одного подключения." });
+      return res.status(429).json({ error: "Защитный лимит бесплатной Studio Local перегенерации: 240 карточек в час с одного подключения." });
     }
     const cardIndex = Number(index);
     if (![0, 1, 2, 3].includes(cardIndex)) return res.status(400).json({ error: "Некорректный номер карточки." });
@@ -3147,10 +3211,6 @@ app.post("/api/regenerate-card", async (req, res) => {
     }
     if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
     if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
-
-    if (mode === "ai" && !process.env.OPENAI_API_KEY) {
-      return res.status(503).json({ error: "AI-фоторежим пока не настроен. Выберите бесплатный режим." });
-    }
 
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
@@ -3167,15 +3227,8 @@ app.post("/api/regenerate-card", async (req, res) => {
     const visual = normalizeVisualOptions(visualOptions);
     let scene;
 
-    if (mode === "ai") {
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      scene = await generateScene(client, selectedSource.buffer, selectedSource.mimeType || mimeType, cardScenes[cardIndex], cardIndex + 1, styleKey);
-      stats.aiSceneRenders += 1;
-      stats.estimatedImageOutputUsd += IMAGE_OUTPUT_ESTIMATE_USD;
-    } else {
-      scene = await renderFreeScene(selectedSource.buffer, cardIndex, styleKey, renderPalette, variant, renderComposition, intensity, substyle, visual, insetSource?.buffer || null, selectedSource.role, insetSource?.role || "");
-      stats.freeSceneRenders += 1;
-    }
+    scene = await renderFreeScene(selectedSource.buffer, cardIndex, styleKey, renderPalette, variant, renderComposition, intensity, substyle, visual, insetSource?.buffer || null, selectedSource.role, insetSource?.role || "");
+    stats.freeSceneRenders += 1;
 
     const cachedScene = await normalizeSceneForCache(scene);
     const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey, renderPalette, intensity, substyle, visual));
@@ -3197,7 +3250,7 @@ app.post("/api/regenerate-card", async (req, res) => {
         base64: cachedScene.toString("base64")
       },
       renderMode: mode,
-      aiImageCalls: mode === "ai" ? 1 : 0,
+      aiImageCalls: 0,
       palette: renderPalette,
       designVariant: variant,
       designIntensity: intensity,
@@ -3207,7 +3260,7 @@ app.post("/api/regenerate-card", async (req, res) => {
     });
   } catch (error) {
     console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
-    return imageErrorResponse(req, res, error, requestLimitMap, renderModeFromBody(req.body) === "ai" ? "regenerate-ai" : "regenerate-free");
+    return imageErrorResponse(req, res, error, requestLimitMap, "regenerate-studio-local");
   }
 });
 
@@ -3306,7 +3359,7 @@ app.post("/api/cover-variants", async (req, res) => {
       designSubstyle: substyle,
       aiImageCalls: 0,
       seriesMode: "full-set-on-select",
-      renderEngine: "power-local-v5",
+      renderEngine: "studio-local-v6",
       usedAdditionalImages: additionalSources.length,
       coverInsetRole: coverInset?.role || ""
     });
@@ -3463,5 +3516,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v8.9.1 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v9.0.0 listening on port ${port}`);
 });

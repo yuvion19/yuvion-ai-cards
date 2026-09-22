@@ -467,7 +467,7 @@
       <div class="queue-resume-note" id="queueResumeNote"></div>
       <div class="ops-budget">
         <label><span>Лимит AI-image бюджета, $</span><input id="queueBudgetUsd" type="number" min="0" step="0.5" value="10"></label>
-        <div id="queueBudgetStatus">Excel-автопилот использует бесплатный рендер; этот лимит относится только к ручному платному AI-фоторежиму.</div>
+        <div id="queueBudgetStatus">Excel-автопилот использует бесплатный рендер; этот лимит относится только к Studio Local работает без image-generation API.</div>
       </div>
       <div class="ops-v64-actions">
         <button class="btn btn-primary btn-small" id="resumeLargeQueue">Продолжить очередь</button>
@@ -879,8 +879,7 @@
           </div>
           <div class="style-select"><b>Изображения:</b>
             <select id="renderMode">
-              <option value="free">Бесплатно · без image-AI (0 ₽ за изображения)</option>
-              <option value="ai">AI-фото · платный image-AI</option>
+              <option value="free">Studio Local · бесплатно · 0 image-AI</option>
             </select>
           </div>
           <label class="style-select" style="cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap">
@@ -4183,9 +4182,9 @@ editor.category.addEventListener('blur',()=>{
 categoryDirectorySearch.addEventListener('input',()=>renderCategoryDirectory());
 styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPersonality();currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();renderProductCockpit();saveHistoryDebounced()};
 function syncRenderModeUi(){
-  const free=renderModeSelect.value!=='ai';
-  generateAll.textContent=free?'Создать 4 карточки бесплатно':'Создать 4 AI-карточки';
-  generateAll.title=free?'Без вызова image-generation API. Используется исходное фото товара и шаблонная инфографика.':'Использует платную AI-генерацию изображений.';
+  renderModeSelect.value='free';
+  generateAll.textContent='Создать 4 Studio-карточки бесплатно';
+  generateAll.title='Studio Local v6: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4369,8 +4368,8 @@ generateAll.onclick=async()=>{
       if(data.visualOptions)currentVisualOptions=normalizeClientVisualOptions({...currentVisualOptions,...data.visualOptions,safeZone:currentVisualOptions.safeZone});
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
-      const renderDetail=String(data.renderEngine||'').startsWith('power-local-')
-        ?('Power Render v5 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+      const renderDetail=String(data.renderEngine||'').startsWith('studio-local-')
+        ?('Studio Local v6 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
@@ -6609,7 +6608,7 @@ async function refreshDiagnosticsNow(allItems=null){
   if(storageManager.classList.contains('show'))await renderStorageManager(all);
   const state=loadLargeQueueState();
   const budgetLimit=queueBudgetLimit();
-  queueBudgetStatus.textContent='Excel-очередь создаёт изображения бесплатно: image-generation расход = $0. Лимит image-бюджета нужен только при ручном выборе «AI-фото · платно». Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
+  queueBudgetStatus.textContent='Excel-очередь создаёт изображения бесплатно: image-generation расход = $0. Лимит image-бюджета нужен только при ручном выборе «Studio Local · бесплатно». Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
   queueResumeNote.classList.toggle('show',Boolean(state.pending));
   queueResumeNote.textContent=state.pending?'Сохранена незавершённая очередь. Последний запуск: '+new Date(state.updatedAt||Date.now()).toLocaleString('ru-RU')+'. Нажмите «Продолжить очередь».':'';
 }
