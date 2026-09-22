@@ -42,7 +42,10 @@ const features=[
   ['/api/import-url','public product URL import'],
   ['validatePublicHttpUrl','URL SSRF validation'],
   ['isBlockedIp','private IP protection'],
-  ['Сайт-источник','URL provenance marker']
+  ['Сайт-источник','URL provenance marker'],
+  ['hydrateExcelItemFromUrl','Excel URL hydration'],
+  ["key:'sourceUrl'",'Excel URL column mapping'],
+  ['urlImportPending','resumable URL import state']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
