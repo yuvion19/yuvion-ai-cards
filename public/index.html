@@ -273,24 +273,24 @@
 <div class="wrap">
   <section class="hero hero-shell">
     <div class="eyebrow">Yuvion AI · быстрый рабочий режим</div>
-    <h1>Фото → проверить → Yuvion</h1>
-    <p>Добавьте фотографию. Сервис подготовит данные и изображения, покажет, что требуется проверить, и соберёт пакет для личного кабинета.</p>
+    <h1>Источник → проверить → Yuvion</h1>
+    <p>Добавьте фото, Excel или ссылку на публичную страницу товара. Сервис соберёт данные и изображения, покажет происхождение фактов и подготовит товар к Yuvion.</p>
     <div class="hero-badges">
       <span class="hero-badge"><span class="hero-dot"></span>Характеристики не выдумываются</span>
       <span class="hero-badge"><span class="hero-dot"></span>Черновики сохраняются локально</span>
-      <span class="hero-badge"><span class="hero-dot"></span>Yuvion Helper 3.0</span>
+      <span class="hero-badge"><span class="hero-dot"></span>Фото · Excel · ссылка</span>
     </div>
   </section>
 
   <nav class="workflow" id="workflow" aria-label="Этапы подготовки товара">
-    <div class="workflow-step active" id="stepPhoto"><span class="n"><span>1</span></span><span>Фото</span></div>
+    <div class="workflow-step active" id="stepPhoto"><span class="n"><span>1</span></span><span>Источник</span></div>
     <div class="workflow-step" id="stepData"><span class="n"><span>2</span></span><span>Проверить</span></div>
     <div class="workflow-step" id="stepCards"><span class="n"><span>3</span></span><span>Карточки</span></div>
     <div class="workflow-step" id="stepExport"><span class="n"><span id="stepExportNumber">3</span></span><span>Yuvion</span></div>
   </nav>
 
   <section class="focus-panel" id="focusPanel">
-    <div class="focus-copy"><span>Следующее действие</span><b id="focusTitle">Добавьте фото товара</b><small id="focusText">Одной фотографии достаточно, чтобы начать подготовку.</small></div>
+    <div class="focus-copy"><span>Следующее действие</span><b id="focusTitle">Добавьте источник товара</b><small id="focusText">Можно начать с фотографии или вставить ссылку на публичную страницу товара.</small></div>
     <button class="btn btn-primary" id="focusAction">Выбрать фото</button>
   </section>
 
@@ -2494,7 +2494,7 @@ function factBlockers(data=currentData){
   const d=data||{};
   return (d.characteristics||[]).filter(spec=>isTechnicalFactName(spec.name)&&!['Продавец','Маркировка','Сайт-источник'].includes(factSourceOf(spec,d))).map(spec=>({
     name:spec.name,value:spec.value,source:factSourceOf(spec,d),
-    message:spec.name+': точный технический факт требует подтверждения продавцом или читаемой маркировкой.'
+    message:spec.name+': точный технический факт требует подтверждения продавцом, читаемой маркировкой или явного источника на странице товара.'
   }));
 }
 function renderFactSources(){
@@ -2510,7 +2510,7 @@ function renderFactSources(){
     const cls=source==='Продавец'?'seller':source==='Маркировка'?'label':source==='Сайт-источник'?'web':'photo';
     return '<div class="fact-source-row '+(blocked?'blocked':'')+'"><div class="fact-source-name"><b>'+esc(spec.name)+':</b> '+esc(spec.value)+'</div><span class="source-badge '+(blocked?'blocked':cls)+'">'+esc(blocked?'Нужно подтвердить':source)+'</span></div>';
   }).join(''):'<div class="muted" style="font-size:10px">Подтверждённые характеристики пока не указаны.</div>';
-  factBlockerNote.innerHTML=blockers.length?'<div class="fact-blocker-note"><b>Публикация заблокирована:</b> '+blockers.map(x=>esc(x.name)).join(', ')+'. Уточните значение вручную или используйте читаемую маркировку.</div>':'';
+  factBlockerNote.innerHTML=blockers.length?'<div class="fact-blocker-note"><b>Публикация заблокирована:</b> '+blockers.map(x=>esc(x.name)).join(', ')+'. Уточните значение вручную, используйте читаемую маркировку или импортируйте его из явного сайта-источника.</div>':'';
 }
 function knownQaBlockers(){
   return currentQuality?.cards?.flatMap(card=>(card.needsRegeneration?(card.issues||[]).map(issue=>'Карточка '+(card.index+1)+': '+issue):[]))||[];
@@ -2647,8 +2647,8 @@ function renderFocusPanel(){
   if(!focusPanel)return;
   const hasPhoto=Boolean(selectedFile||sourceDataUrl);
   if(!hasPhoto){
-    focusTitle.textContent='Добавьте фото товара';
-    focusText.textContent='Одной фотографии достаточно, чтобы начать подготовку.';
+    focusTitle.textContent=currentData?'Добавьте фото товара':'Добавьте фото или ссылку';
+    focusText.textContent=currentData?'Данные уже есть. Для генерации визуальных карточек добавьте реальную фотографию товара.':'Можно выбрать фото ниже или вставить ссылку на публичную страницу товара.';
     focusAction.textContent='Выбрать фото';
     focusAction.disabled=false;
     return;
@@ -3256,7 +3256,7 @@ function collectEdits(){
     const i=line.indexOf(':');
     const base=i>0?{name:line.slice(0,i).trim(),value:line.slice(i+1).trim()}:{name:'Характеристика',value:line};
     const old=previous.find(x=>normalizedFactText(x.name)===normalizedFactText(base.name)&&normalizedFactText(x.value)===normalizedFactText(base.value));
-    return {...base,source:old?factSourceOf(old,currentData):'Продавец'};
+    return {...base,source:old?factSourceOf(old,currentData):'Продавец',...(old?.evidence?{evidence:old.evidence}:{})};
   }).filter(x=>x.value);
   return {
     ...(currentData||{}),
@@ -3647,6 +3647,8 @@ function storedFactBlockers(item){
   const x=item?.extraData||d.confirmedData||{};
   const sourceFor=spec=>{
     const n=normalizedFactText(spec?.name),v=normalizedFactText(spec?.value);
+    const explicit=d?.factProvenance?.[n];
+    if(['Продавец','Маркировка','Фото','Сайт-источник'].includes(explicit))return explicit;
     const known=[['бренд',x.brand],['артикул',x.sku],['штрихкод/ean',x.barcode],['размеры',x.size],['материал',x.material]];
     if(known.some(([name,value])=>normalizedFactText(name)===n&&value&&normalizedFactText(value)===v))return 'Продавец';
     return ['Продавец','Маркировка','Фото','Сайт-источник'].includes(spec?.source)?spec.source:'Фото';
