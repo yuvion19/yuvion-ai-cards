@@ -362,15 +362,89 @@
     .live-cover-price{display:none;position:absolute;z-index:5;right:12px;top:12px;background:rgba(255,255,255,.95);border-radius:9px;padding:6px 8px;color:#202226;font-size:10px;font-weight:950;box-shadow:0 5px 15px rgba(0,0,0,.08)}.live-cover.show-price .live-cover-price{display:block}
 
     .live-cover.hide-title .live-cover-title{display:none}
+
+    /* YUVION_V109_MINIMAL_FLOW */
+    .minimal-head-actions{display:flex;align-items:center;gap:8px}
+    .minimal-head-btn,.minimal-menu summary{border:0;background:#F6F2F3;color:#443A3C;border-radius:12px;padding:9px 12px;font-weight:800;font-size:13px;cursor:pointer}
+    .minimal-menu{position:relative}.minimal-menu summary{list-style:none;font-size:18px;line-height:1;padding:9px 13px}.minimal-menu summary::-webkit-details-marker{display:none}
+    .minimal-menu-pop{position:absolute;right:0;top:46px;z-index:80;width:230px;padding:8px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 22px 60px rgba(25,18,20,.16);display:grid;gap:3px}
+    .minimal-menu-pop button,.minimal-menu-pop a{border:0;background:transparent;color:#302A2C;text-decoration:none;text-align:left;padding:11px 12px;border-radius:10px;font-size:13px;font-weight:720;cursor:pointer}
+    .minimal-menu-pop button:hover,.minimal-menu-pop a:hover{background:#F8F4F5}
+
+    .simple-result,.simple-creative-controls,.minimal-card-menu{display:none}
+    .simple-ui{background:#FAF9F9}
+    .simple-ui header{border-bottom:1px solid #F1EBEC;box-shadow:none}.simple-ui .head{height:64px}.simple-ui .brand-logo{width:126px}.simple-ui .brand small,.simple-ui .release-chip{display:none!important}
+    .simple-ui main{padding:24px 0 70px}.simple-ui .wrap{max-width:900px}
+    .simple-ui .hero-shell{max-width:760px;padding:20px 18px 18px;margin-bottom:12px;background:transparent;border:0;box-shadow:none}.simple-ui .hero-shell:before,.simple-ui .hero-shell:after{display:none}
+    .simple-ui .hero .eyebrow,.simple-ui .hero-badges,.simple-ui .workflow,.simple-ui .focus-panel,.simple-ui .smart-strip{display:none!important}
+    .simple-ui .hero h1{font-size:clamp(30px,6vw,44px);margin:0 0 8px;letter-spacing:-.04em}.simple-ui .hero p{font-size:15px;line-height:1.5;max-width:600px}
+    .simple-ui #excelAutopilot,.simple-ui #operationsV64,.simple-ui #operationsPanels,.simple-ui #tenantProfile,.simple-ui #workDashboard,.simple-ui #batch{display:none!important}
+    .simple-ui.show-excel #excelAutopilot{display:block!important;max-width:760px;margin:12px auto}
+    .simple-ui .card.upload{max-width:760px;margin:0 auto;border-radius:22px;padding:16px;border:1px solid #EEE8E9;box-shadow:0 8px 28px rgba(34,24,28,.04);background:#fff}
+    .simple-ui .mode-row{display:none!important}
+    .simple-ui .v7-source-quick{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px;background:#F6F2F3;border-radius:14px;margin:0 0 14px}
+    .simple-ui .v7-source-btn{border:0!important;background:transparent!important;box-shadow:none!important;color:#756B6E!important;border-radius:10px!important;padding:10px 8px!important;font-size:13px!important;font-weight:800!important}
+    .simple-ui .v7-source-btn.active{background:#fff!important;color:#231F20!important;box-shadow:0 2px 8px rgba(35,25,28,.07)!important}
+    .simple-ui .url-import-card{display:none;margin:0;border:0;background:#FBF9F9;box-shadow:none;padding:16px;border-radius:16px}.simple-ui.source-url .url-import-card{display:block}
+    .simple-ui.source-url .mobile-capture-actions,.simple-ui.source-url .drop{display:none!important}
+    .simple-ui .url-import-tag{display:none}.simple-ui .url-import-head span,.simple-ui .url-import-hint{font-size:12px}
+    .simple-ui .url-import-form{grid-template-columns:1fr auto}.simple-ui .url-import-form .btn{min-width:120px}
+    .simple-ui .mobile-capture-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 10px}
+    .simple-ui .mobile-capture-btn{border:1px solid #ECE4E6;background:#fff;border-radius:13px;padding:11px 12px;font-weight:800;color:#4C4245}.simple-ui .mobile-capture-btn.primary{background:#F03E4A;color:#fff;border-color:#F03E4A}
+    .simple-ui .drop{min-height:210px;border-radius:17px;padding:22px;background:#FCFAFA;border-color:#E6DADD}.simple-ui .drop .icon{width:48px;height:48px;border-radius:15px;margin-bottom:11px}.simple-ui .drop h2{font-size:18px}.simple-ui .drop p{font-size:12px}.simple-ui .preview.show{max-height:430px}
+    .simple-ui #extraDataBox,.simple-ui .extra-photos,.simple-ui #localQuality,.simple-ui #photoHashWarning,.simple-ui .card.upload>.notice,.simple-ui .card.upload>.row{display:none!important}
+    .simple-ui .loading{padding:24px 8px}.simple-ui .spinner{width:34px;height:34px}
+    .simple-ui .workspace.show{max-width:760px;margin-top:18px;display:flex;flex-direction:column}.simple-ui .workspace-head,.simple-ui .product-cockpit,.simple-ui #designStudio,.simple-ui #yuvionExport{display:none!important}
+    .simple-ui .simple-result{display:block;order:1;background:#fff;border:1px solid #EEE8E9;border-radius:20px;padding:20px;box-shadow:0 8px 28px rgba(34,24,28,.035)}
+    .simple-result-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.simple-result-label{display:block;font-size:11px;font-weight:850;color:#A08F94;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+    .simple-result h2{font-size:24px;line-height:1.2;margin:0;letter-spacing:-.025em}.simple-result p{margin:12px 0 0;color:#60575A;font-size:14px;line-height:1.55}
+    .simple-specs{display:flex;gap:6px;flex-wrap:wrap;margin-top:13px}.simple-specs span{padding:7px 9px;border-radius:999px;background:#F7F3F4;color:#5E5356;font-size:11px;font-weight:720}
+    .simple-result-actions{display:flex;margin-top:14px}.simple-edit-btn,.simple-secondary-btn{border:1px solid #E8DFE1;background:#fff;color:#4D4245;border-radius:11px;padding:9px 12px;font-size:12px;font-weight:820;cursor:pointer}
+    .simple-ui .editor{display:none!important;order:2;margin-top:10px;border-radius:18px;padding:18px}.simple-ui.show-editor .editor{display:block!important}.simple-ui.show-editor .simple-result{display:none!important}
+    .simple-ui .editor .section-kicker,.simple-ui .editor h3,.simple-ui .editor-sub,.simple-ui .editor>.notice,.simple-ui .editor .ai-quality,.simple-ui .editor .variations,.simple-ui .editor .plan,.simple-ui .editor .full-actions{display:none!important}
+    .simple-ui .editor .field:has(#edCategory),.simple-ui .editor .field:has(#edKeywords),.simple-ui .editor .field:has(#edBenefits),.simple-ui .editor .field:has(#edUsage){display:none!important}
+    .simple-ui .editor .form-grid{grid-template-columns:1fr;gap:10px}.simple-ui .editor .field textarea{min-height:88px}
+    .simple-ui #creative{display:block;order:3;margin-top:12px;border-radius:20px;padding:18px;border:1px solid #EEE8E9;box-shadow:0 8px 28px rgba(34,24,28,.035)}
+    .simple-ui #creative:not(.show){display:none}.simple-ui .creative .section-kicker,.simple-ui .creative-top p{display:none!important}.simple-ui .creative h2{font-size:22px;margin:0}
+    .simple-ui .creative-top{align-items:center}.simple-ui .creative-actions>*{display:none!important}.simple-ui .creative-actions #zipFull{display:inline-flex!important;min-width:130px;padding:11px 14px}
+    .simple-ui .simple-creative-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid #F0EAEB}
+    .simple-ui .simple-creative-controls label{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:#62575A}.simple-ui #simpleStyle{border:1px solid #E8DFE1;border-radius:10px;background:#fff;padding:8px 10px;font-weight:750}
+    .simple-ui .creative-status{font-size:12px;margin-top:10px;padding:10px 12px}.simple-ui .qa-summary{display:none!important}
+    .simple-ui .cards-preview{grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}.simple-ui .preview-card{position:relative;padding:6px;border-radius:14px;background:#FAF8F8}.simple-ui .preview-card img{border-radius:10px}
+    .simple-ui .preview-card>strong,.simple-ui .qa-badge,.simple-ui .qa-mini-issues,.simple-ui .reorder-hint,.simple-ui .reorder-actions,.simple-ui .advanced-card-tools{display:none!important}
+    .simple-ui .minimal-card-menu{display:block;position:absolute;right:12px;top:12px}.minimal-card-menu summary{list-style:none;width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.94);display:grid;place-items:center;font-weight:900;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.08)}.minimal-card-menu summary::-webkit-details-marker{display:none}
+    .minimal-card-menu>div{position:absolute;right:0;top:39px;width:130px;padding:5px;border-radius:12px;background:#fff;border:1px solid #E9E1E3;box-shadow:0 12px 30px rgba(0,0,0,.13);z-index:10}.minimal-card-menu button{width:100%;border:0;background:transparent;text-align:left;padding:9px;border-radius:8px;font-size:12px;font-weight:760;cursor:pointer}.minimal-card-menu button:hover{background:#F7F3F4}.minimal-card-menu button:disabled{opacity:.45}
+    .simple-ui #history{display:none}.simple-ui.show-catalog #history{display:block;max-width:760px;margin:16px auto}.simple-ui #history .backup-actions,.simple-ui #history .privacy-inline,.simple-ui #history #openNextTask{display:none!important}
+    .simple-ui .sticky-dock, .simple-ui footer{display:none!important}
+    .simple-ui .network-pill{display:none!important}
+    @media(max-width:620px){
+      .simple-ui main{padding-top:16px}.simple-ui .head{height:58px}.simple-ui .brand-logo{width:112px}.minimal-head-btn{font-size:12px;padding:8px 10px}
+      .simple-ui .hero-shell{padding:14px 8px 12px}.simple-ui .hero h1{font-size:31px}.simple-ui .hero p{font-size:14px}
+      .simple-ui .card.upload,.simple-ui .simple-result,.simple-ui #creative{border-radius:17px;padding:13px}
+      .simple-ui .mobile-capture-actions{grid-template-columns:1fr}.simple-ui .drop{min-height:190px}
+      .simple-ui .cards-preview{gap:7px}.simple-ui .preview-card{padding:4px}.simple-ui .minimal-card-menu{right:9px;top:9px}
+      .simple-ui .simple-creative-controls{align-items:stretch;flex-direction:column}.simple-ui .simple-creative-controls label{justify-content:space-between}.simple-ui #simpleStyle{flex:1}
+      .simple-result h2{font-size:21px}.minimal-menu-pop{right:-2px;width:220px}
+    }
+
 </style>
 </head>
 <body class="simple-ui">
 <header>
   <div class="wrap head">
     <a class="brand" href="/"><img class="brand-logo" src="data:image/png;base64,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" alt="Yuvion" /><span><small>AI-карточки товаров</small></span><span class="release-chip">v6.6</span></a>
-    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-      <a class="back" href="https://admin.yuvion.ru/" target="_blank" rel="noopener">Личный кабинет →</a>
-      <a class="back" href="https://yuvion.ru/" target="_blank" rel="noopener">yuvion.ru</a>
+    <div class="minimal-head-actions">
+      <button type="button" class="minimal-head-btn" id="minimalHistory">История</button>
+      <details class="minimal-menu" id="minimalMenu">
+        <summary aria-label="Меню">•••</summary>
+        <div class="minimal-menu-pop">
+          <button type="button" id="minimalUrl">Импорт по ссылке</button>
+          <button type="button" id="minimalExcel">Excel</button>
+          <button type="button" id="minimalAdvanced">Профессиональный режим</button>
+          <a href="https://admin.yuvion.ru/" target="_blank" rel="noopener">Личный кабинет Yuvion</a>
+          <a href="https://yuvion.ru/" target="_blank" rel="noopener">yuvion.ru</a>
+        </div>
+      </details>
     </div>
   </div>
 </header>
@@ -378,13 +452,12 @@
 <main>
 <div class="wrap">
   <section class="hero hero-shell">
-    <div class="eyebrow">Yuvion AI · быстрый рабочий режим</div>
-    <h1>Источник → проверить → Yuvion</h1>
-    <p>Добавьте фото, Excel или ссылку на публичную страницу товара. Сервис соберёт данные и изображения, покажет происхождение фактов и подготовит товар к Yuvion.</p>
+    <div class="eyebrow">Yuvion AI Cards</div>
+    <h1>Создайте карточку товара</h1>
+    <p>Добавьте фото. Название, описание, характеристики и 4 изображения подготовятся автоматически.</p>
     <div class="hero-badges">
-      <span class="hero-badge"><span class="hero-dot"></span>Характеристики не выдумываются</span>
-      <span class="hero-badge"><span class="hero-dot"></span>Черновики сохраняются локально</span>
-      <span class="hero-badge"><span class="hero-dot"></span>Фото · Excel · ссылка</span>
+      <span class="hero-badge"><span class="hero-dot"></span>Без выдуманных характеристик</span>
+      <span class="hero-badge"><span class="hero-dot"></span>4 карточки автоматически</span>
     </div>
   </section>
 
@@ -564,18 +637,18 @@
       <button class="mode active" data-mode="full"><b>Полный комплект</b><span>Автоматически: продающий текст + 4 карточки 900×1200 + ZIP.</span></button>
     </div>
     <div class="v7-source-quick">
-      <button type="button" class="v7-source-btn" id="v7PhotoSource">Фото товара · самый быстрый старт</button>
-      <button type="button" class="v7-source-btn" id="v7UrlSource">Ссылка · забрать данные и фото</button>
-      <button type="button" class="v7-source-btn" id="v7ExcelSource">Excel · обработать ассортимент</button>
+      <button type="button" class="v7-source-btn" id="v7PhotoSource">Фото</button>
+      <button type="button" class="v7-source-btn" id="v7UrlSource">Ссылка</button>
+      <button type="button" class="v7-source-btn" id="v7ExcelSource">Excel</button>
     </div>
 
     <div class="url-import-card">
-      <div class="url-import-head"><div><b>Есть ссылка на товар?</b><span>Вставьте публичную страницу другого магазина или сайта поставщика — Yuvion заберёт опубликованные данные и фотографии в черновик.</span></div><div class="url-import-tag">Импорт по ссылке</div></div>
+      <div class="url-import-head"><div><b>Вставьте ссылку на товар</b><span>Yuvion попробует забрать опубликованные данные и фотографии.</span></div></div>
       <div class="url-import-form"><input id="productUrlInput" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com/product/..." maxlength="2048"><button class="btn btn-primary" id="importProductUrl">Забрать товар</button></div>
-      <div class="url-import-hint">Сервис не обходит авторизацию, CAPTCHA и закрытые страницы. Технические факты помечаются как «Сайт-источник», чтобы было видно их происхождение.</div>
+      <div class="url-import-hint">Поддерживаются публичные страницы без авторизации.</div>
       <div class="url-import-status" id="urlImportStatus"></div>
     </div>
-    <div class="source-divider">или добавьте свои фото</div>
+    
     <div class="mobile-capture-actions">
       <button type="button" class="mobile-capture-btn primary" id="takeProductPhoto">Снять товар</button>
       <button type="button" class="mobile-capture-btn" id="chooseProductPhoto">Выбрать из галереи</button>
@@ -656,6 +729,17 @@
       <div><div class="section-kicker">Проверка товара</div><h2>Проверьте данные</h2><div class="muted" id="confidence"></div><div class="save-state saved" id="saveState" style="margin-top:7px">Изменения сохраняются автоматически</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" id="saveRevision">Сохранить версию</button><button class="btn btn-ghost" id="similarProduct">Создать похожий</button><button class="btn btn-ghost" id="newProduct">Новый товар</button></div>
     </div>
+    <section class="simple-result" id="simpleResult">
+      <div class="simple-result-top">
+        <div><span class="simple-result-label">Товар</span><h2 id="simpleResultTitle">Готовим данные…</h2></div>
+        <button type="button" class="simple-edit-btn" id="simpleEdit">Изменить</button>
+      </div>
+      <p id="simpleResultDescription"></p>
+      <div class="simple-specs" id="simpleResultSpecs"></div>
+      <div class="simple-result-actions">
+        <button type="button" class="simple-secondary-btn" id="simpleNewProduct">Новый товар</button>
+      </div>
+    </section>
     <section class="design-studio" id="designStudio">
       <div class="design-studio-head">
         <div><div class="section-kicker">Дизайн 7.3</div><h3>Стиль карточек</h3><p>Yuvion сам собирает дизайн: можно оставить полноценную инфографику или сделать почти чистую обложку без текста, сохранив товар главным.</p></div>
@@ -950,8 +1034,19 @@
         <div class="creative-actions">
           <a class="btn btn-ghost" href="https://admin.yuvion.ru/" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Открыть личный кабинет</a>
           <button class="btn btn-ghost" id="zipImages" disabled>ZIP: 4 PNG</button>
-          <button class="btn btn-primary" id="zipFull" disabled>Полный ZIP + TXT</button>
+          <button class="btn btn-primary" id="zipFull" disabled>Скачать всё</button>
         </div>
+      </div>
+      <div class="simple-creative-controls">
+        <label>Стиль
+          <select id="simpleStyle">
+            <option value="auto">Авто</option>
+            <option value="minimal">Минимализм</option>
+            <option value="bright">Яркий</option>
+            <option value="premium">Премиум</option>
+          </select>
+        </label>
+        <button type="button" class="simple-secondary-btn" id="simpleRegenerateAll">Переделать все</button>
       </div>
       <div class="creative-status" id="creativeStatus"></div>
       <div class="qa-summary" id="qaSummary" style="display:none"></div>
@@ -3032,8 +3127,8 @@ function applyUiMode(mode,{save=true}={}){
 }
 function initUiMode(){
   markAdvancedFields();
-  const saved=localStorage.getItem(UI_MODE_KEY);
-  applyUiMode(saved==='advanced'?'advanced':'simple',{save:false});
+  applyUiMode('simple',{save:false});
+  localStorage.setItem(UI_MODE_KEY,'simple');
 }
 function renderFocusPanel(){
   if(!focusPanel)return;
@@ -3357,9 +3452,18 @@ fileInput.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.fi
 takeProductPhoto.onclick=()=>{cameraFile.value='';cameraFile.click()};
 chooseProductPhoto.onclick=()=>{fileInput.value='';fileInput.click()};
 cameraFile.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0])});
-v7PhotoSource.onclick=()=>document.querySelector('.mobile-capture-actions')?.scrollIntoView({behavior:'smooth',block:'center'});
-v7UrlSource.onclick=()=>{productUrlInput.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>productUrlInput.focus(),300)};
-v7ExcelSource.onclick=()=>{const box=document.getElementById('excelAutopilot');if(box){box.open=true;box.scrollIntoView({behavior:'smooth',block:'start'})}};
+function setSimpleSource(mode){
+  const value=['photo','url','excel'].includes(mode)?mode:'photo';
+  document.body.classList.toggle('source-url',value==='url');
+  document.body.classList.toggle('show-excel',value==='excel');
+  [v7PhotoSource,v7UrlSource,v7ExcelSource].forEach((btn,i)=>btn?.classList.toggle('active',['photo','url','excel'][i]===value));
+  if(value==='photo')document.querySelector('.mobile-capture-actions')?.scrollIntoView({behavior:'smooth',block:'center'});
+  if(value==='url'){productUrlInput.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>productUrlInput.focus(),220)}
+  if(value==='excel'){const box=document.getElementById('excelAutopilot');if(box){box.open=true;box.scrollIntoView({behavior:'smooth',block:'start'})}}
+}
+v7PhotoSource.onclick=()=>setSimpleSource('photo');
+v7UrlSource.onclick=()=>setSimpleSource('url');
+v7ExcelSource.onclick=()=>setSimpleSource('excel');
 designStyleGrid.addEventListener('click',e=>{const btn=e.target.closest('[data-style]');if(btn)chooseDesignStyle(btn.dataset.style)});
 saveDesignSnapshotBtn.onclick=()=>captureDesignSnapshot('Сохранённый вариант');
 designHistoryList.addEventListener('click',e=>{const btn=e.target.closest('[data-design-snapshot]');if(btn)applyDesignSnapshot(btn.dataset.designSnapshot)});
@@ -4003,7 +4107,7 @@ function parseLocalVisionJson(text){
 
 function ensureLocalVisionWorker(){
   if(localVisionWorker)return localVisionWorker;
-  localVisionWorker=new Worker('/local-vision-worker.js?v=10.8.0',{type:'module'});
+  localVisionWorker=new Worker('/local-vision-worker.js?v=10.9.0',{type:'module'});
   return localVisionWorker;
 }
 
@@ -4290,6 +4394,17 @@ function fillEditor(d){
   editor.short.value=d.shortDescription||'';editor.full.value=d.fullDescription||'';
   editor.specs.value=(d.characteristics||[]).map(x=>x.name+': '+x.value).join('\n');
   editor.benefits.value=(d.benefits||[]).join('\n');editor.usage.value=(d.usage||[]).join('\n');
+  renderSimpleResult();
+}
+function renderSimpleResult(){
+  const box=document.getElementById('simpleResult');if(!box)return;
+  const title=(editor?.title?.value||currentData?.seoTitle||'Товар').trim()||'Товар';
+  const desc=(editor?.short?.value||editor?.full?.value||currentData?.shortDescription||'').trim();
+  const specs=String(editor?.specs?.value||'').split('\n').map(x=>x.trim()).filter(Boolean).slice(0,5);
+  document.getElementById('simpleResultTitle').textContent=title;
+  document.getElementById('simpleResultDescription').textContent=desc||'Описание появится после анализа фотографии.';
+  const specsBox=document.getElementById('simpleResultSpecs');
+  specsBox.innerHTML=specs.length?specs.map(x=>'<span>'+esc(x)+'</span>').join(''):'';
 }
 
 function parseLines(v){return String(v||'').split('\n').map(x=>x.trim()).filter(Boolean)}
@@ -4356,7 +4471,7 @@ styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPe
 function syncRenderModeUi(){
   renderModeSelect.value='free';
   generateAll.textContent='Создать 4 Studio-карточки бесплатно';
-  generateAll.title='Studio Director v10.8.0: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
+  generateAll.title='Studio Director v10.9.0: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4544,7 +4659,7 @@ generateAll.onclick=async()=>{
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       const renderDetail=/studio-(local|director)-/i.test(String(data.renderEngine||''))
-        ?('Studio Director v10.8.0 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+        ?('Studio Director v10.9.0 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
@@ -4612,7 +4727,8 @@ function renderCards(){
       (qaPending?'<div class="qa-mini-issues">QA ещё не завершена — PNG пока заблокирован.</div>':'')+
       '<div class="reorder-hint">Перетащите карточку или используйте стрелки, чтобы изменить порядок загрузки.</div>'+
       '<div class="reorder-actions"><button class="btn btn-ghost btn-small move-left" '+(index===0?'disabled':'')+'>←</button><button class="btn btn-ghost btn-small move-right" '+(index===currentCards.length-1?'disabled':'')+'>→</button></div>'+
-      '<div class="card-actions"><button class="btn btn-ghost btn-small download-one" '+(downloadBlocked?'disabled title="Доступно после успешной QA"':'')+'>PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>';
+      '<div class="card-actions advanced-card-tools"><button class="btn btn-ghost btn-small download-one" '+(downloadBlocked?'disabled title="Доступно после успешной QA"':'')+'>PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>'+
+      '<details class="minimal-card-menu"><summary aria-label="Действия с карточкой">•••</summary><div><button class="minimal-download-one" '+(downloadBlocked?'disabled':'')+'>Скачать</button><button class="minimal-regen-one">Переделать</button></div></details>';
 
     el.addEventListener('dragstart',e=>{
       draggedIndex=index;
@@ -4630,8 +4746,11 @@ function renderCards(){
 
     el.querySelector('.move-left').onclick=()=>moveCard(index,index-1);
     el.querySelector('.move-right').onclick=()=>moveCard(index,index+1);
-    el.querySelector('.download-one').onclick=()=>{const a=document.createElement('a');a.href='data:image/png;base64,'+card.base64;a.download=card.filename;a.click()};
+    const downloadCard=()=>{const a=document.createElement('a');a.href='data:image/png;base64,'+card.base64;a.download=card.filename;a.click()};
+    el.querySelector('.download-one').onclick=downloadCard;
     el.querySelector('.regen-one').onclick=()=>regenerateOne(index,el);
+    el.querySelector('.minimal-download-one')?.addEventListener('click',downloadCard);
+    el.querySelector('.minimal-regen-one')?.addEventListener('click',()=>regenerateOne(index,el));
     cardsPreview.appendChild(el);
   });
   syncQualityDownloadState();
@@ -7789,7 +7908,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=22',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=23',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
@@ -7877,6 +7996,21 @@ stepData.onclick=()=>{
 };
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
+
+document.getElementById('minimalHistory')?.addEventListener('click',()=>document.getElementById('jumpHistory')?.click());
+document.getElementById('minimalExcel')?.addEventListener('click',()=>{document.getElementById('minimalMenu')?.removeAttribute('open');setSimpleSource('excel')});
+document.getElementById('minimalUrl')?.addEventListener('click',()=>{document.getElementById('minimalMenu')?.removeAttribute('open');setSimpleSource('url')});
+document.getElementById('minimalAdvanced')?.addEventListener('click',()=>{document.getElementById('minimalMenu')?.removeAttribute('open');applyUiMode('advanced')});
+document.getElementById('simpleEdit')?.addEventListener('click',()=>{document.body.classList.add('show-editor');document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'})});
+document.getElementById('simpleNewProduct')?.addEventListener('click',()=>document.getElementById('newProduct')?.click());
+document.getElementById('simpleRegenerateAll')?.addEventListener('click',()=>document.getElementById('generateAll')?.click());
+document.getElementById('simpleStyle')?.addEventListener('change',e=>{
+  const value=e.target.value;
+  if(value==='auto'){prepareAutomaticCardStyle();renderDesignStudio()}
+  else{styleSelect.value=value;currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced()}
+});
+[editor.title,editor.short,editor.full,editor.specs].forEach(el=>el?.addEventListener('input',renderSimpleResult));
+setSimpleSource('photo');
 
 renderModeSelect.value='free';renderNetworkState();initUiMode();
 renderDesignStudio();syncRenderModeUi();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
