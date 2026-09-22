@@ -57,7 +57,7 @@ const features=[
   ['Создать 4 карточки бесплатно','free mode is explicit in UI'],
   ['autoCreateCardsIfEnabled','automatic four-card workflow'],
   ['recommendedStyleForProduct','category-aware style recommendation'],
-  ['edgeWhiteCutout','free white-background cutout'],
+  ['darkUniformBackground','free uniform-background cutout'],
   ['sellerNeutralCopy','seller-neutral commercial copy'],
   ['Игрушки и детские товары','kids selling-card theme'],
   ['extractProductPalette','adaptive product palette'],
