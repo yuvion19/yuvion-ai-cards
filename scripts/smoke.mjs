@@ -176,6 +176,9 @@ const features=[
   ['svgTextSelfTest: true','SVG text self-test health metadata'],
   ['textOverlayHealthGate: true','text overlay health gate metadata'],
   ['textOverlayPixelGuard: true','per-card text overlay pixel guard metadata'],
+  ['textOverlayStartupSelfTest: true','text overlay startup self-test metadata'],
+  ['verifyTextOverlayPixelGuard','text overlay startup self-test implementation'],
+  ['textOverlayGuardReady','text overlay health readiness field'],
   ['rasterizeOverlayWithTextGuard','rasterized text-layer verification'],
   ['textOverlayChecks','text overlay runtime counters'],
   ['CARD_RENDER_SCHEMA=2','card render cache schema'],
@@ -228,3 +231,5 @@ if(pkg.scripts?.test!=='node --check server.js && node scripts/smoke.mjs')fail('
 
 if(!server.includes('error.code = "text_overlay_render_failed"'))fail('text overlay guard failure code missing');else ok('text overlay guard failure code present');
 if(!server.includes('textPixels < 80'))fail('text overlay pixel threshold missing');else ok('text overlay pixel threshold present');
+
+if(!server.includes('fontRenderState.ready && textOverlayGuardState.ready'))fail('health must gate on font and overlay guard');else ok('health gates on font and overlay guard');
