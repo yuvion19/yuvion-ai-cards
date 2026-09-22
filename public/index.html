@@ -4033,7 +4033,22 @@ async function importProductRows(rows,filename='таблица'){
   if(!headers.some(Boolean))throw new Error('Не удалось определить заголовки таблицы.');
 
   const defaults=loadSellerDefaults();
-  let imported=0,skipped=0;
+  const existing=await dbAll();
+  const skuIndex=new Map(),barcodeIndex=new Map();
+  for(const item of existing){
+    const sku=skuOfStoredItem(item),barcode=barcodeOfStoredItem(item);
+    if(sku){
+      if(!skuIndex.has(sku))skuIndex.set(sku,[]);
+      skuIndex.get(sku).push(item);
+    }
+    if(barcode){
+      if(!barcodeIndex.has(barcode))barcodeIndex.set(barcode,[]);
+      barcodeIndex.get(barcode).push(item);
+    }
+  }
+  const seenIds=new Set();
+  let created=0,updated=0,unchanged=0,skipped=0,conflicts=0;
+
   for(const row of rows.slice(1,CATALOG_LIMIT+1)){
     const record=importRecordFromRow(headers,row);
     if(!Object.values(record).some(Boolean)){skipped++;continue}
@@ -4050,6 +4065,94 @@ async function importProductRows(rows,filename='таблица'){
       record.price3=p?String(Math.max(0,Math.round(p*(1-Number(defaults.discount3??10)/100)))):'';
     }
 
+    const normalizedSku=normalizeSku(record.sku);
+    const normalizedBarcode=normalizeBarcode(record.barcode);
+    const candidates=[
+      ...(normalizedSku?(skuIndex.get(normalizedSku)||[]):[]),
+      ...(normalizedBarcode?(barcodeIndex.get(normalizedBarcode)||[]):[])
+    ];
+    const uniqueCandidates=[...new Map(candidates.map(x=>[x.id,x])).values()];
+    if(uniqueCandidates.length>1){conflicts++;continue}
+    const old=uniqueCandidates[0]||null;
+
+    const makeExtra=(base={})=>({
+      name:record.title||base.name||'',
+      brand:record.brand||base.brand||'',
+      sku:record.sku||base.sku||'',
+      barcode:record.barcode||base.barcode||'',
+      size:record.size||base.size||'',
+      material:record.material||base.material||'',
+      price1:record.price1||base.price1||base.price||'',
+      price2:record.price2||base.price2||'',
+      price3:record.price3||base.price3||'',
+      oldPrice:record.oldPrice||base.oldPrice||''
+    });
+
+    if(old){
+      seenIds.add(old.id);
+      const oldData=old.data||{};
+      const oldExtra=old.extraData||oldData.confirmedData||{};
+      const extraData=makeExtra(oldExtra);
+      const title=record.title||old.title||oldData.seoTitle||[extraData.brand,extraData.sku].filter(Boolean).join(' ')||'Импортированный товар';
+      const category=record.category||oldData.category||importedCategory||'';
+      const description=record.description||oldData.fullDescription||oldData.shortDescription||'';
+
+      const publicBefore=JSON.stringify({
+        title:oldData.seoTitle||old.title||'',category:oldData.category||'',
+        description:oldData.fullDescription||oldData.shortDescription||'',
+        brand:oldExtra.brand||'',size:oldExtra.size||'',material:oldExtra.material||''
+      });
+      const publicAfter=JSON.stringify({
+        title,category,description,
+        brand:extraData.brand||'',size:extraData.size||'',material:extraData.material||''
+      });
+      const changedPublic=publicBefore!==publicAfter;
+
+      const knownNames=new Set(['бренд','артикул','штрихкод/ean','размеры','материал']);
+      const preserved=(oldData.characteristics||[]).filter(x=>!knownNames.has(normalizedFactText(x.name)));
+      const confirmed=[];
+      if(extraData.brand)confirmed.push({name:'Бренд',value:extraData.brand,source:'Продавец'});
+      if(extraData.sku)confirmed.push({name:'Артикул',value:extraData.sku,source:'Продавец'});
+      if(extraData.barcode)confirmed.push({name:'Штрихкод/EAN',value:extraData.barcode,source:'Продавец'});
+      if(extraData.size)confirmed.push({name:'Размеры',value:extraData.size,source:'Продавец'});
+      if(extraData.material)confirmed.push({name:'Материал',value:extraData.material,source:'Продавец'});
+
+      const data={
+        ...oldData,
+        seoTitle:title,
+        category,
+        shortDescription:record.description||oldData.shortDescription||'',
+        fullDescription:description,
+        characteristics:[...confirmed,...preserved].slice(0,12),
+        confirmedData:extraData
+      };
+      const privateData={
+        ...(old.privateData||{}),
+        cost:record.cost||old.privateData?.cost||'',
+        stock:record.stock||old.privateData?.stock||'',
+        boxes:record.boxes||old.privateData?.boxes||'',
+        minStock:record.minStock||old.privateData?.minStock||'',
+        location:record.location||old.privateData?.location||'',
+        collections:record.collections?parseCollections(record.collections):(old.privateData?.collections||[])
+      };
+      const changedAny=JSON.stringify({data,extraData,privateData})!==JSON.stringify({data:oldData,extraData:oldExtra,privateData:old.privateData||{}});
+      if(!changedAny){unchanged++;continue}
+
+      const activity=[{at:Date.now(),type:'Excel обновлён',detail:changedPublic?'Изменены публичные данные товара':'Изменены цены или локальные данные'},...(old.activity||[])].slice(0,80);
+      const updatedItem={
+        ...old,title,data,extraData,privateData,activity,
+        cardsStale:Boolean(old.cardsStale||(changedPublic&&Array.isArray(old.cards)&&old.cards.length)),
+        analysisCache:changedPublic?null:(old.analysisCache||null),
+        importedFrom:String(filename||'таблица').slice(0,120),
+        importedAt:Date.now(),updatedAt:Date.now(),
+        excelAutopilot:changedPublic&&old.sourceDataUrl?{state:'matched',error:''}:(old.excelAutopilot||{state:'waiting',error:''})
+      };
+      await dbPut(updatedItem);
+      updated++;
+      continue;
+    }
+
+    const extraData=makeExtra();
     const title=record.title||[record.brand,record.sku].filter(Boolean).join(' ')||'Импортированный товар';
     const characteristics=[];
     if(record.brand)characteristics.push({name:'Бренд',value:record.brand,source:'Продавец'});
@@ -4057,72 +4160,45 @@ async function importProductRows(rows,filename='таблица'){
     if(record.barcode)characteristics.push({name:'Штрихкод/EAN',value:record.barcode,source:'Продавец'});
     if(record.size)characteristics.push({name:'Размеры',value:record.size,source:'Продавец'});
     if(record.material)characteristics.push({name:'Материал',value:record.material,source:'Продавец'});
-
-    const extraData={
-      name:record.title||'',
-      brand:record.brand||'',
-      sku:record.sku||'',
-      barcode:record.barcode||'',
-      size:record.size||'',
-      material:record.material||'',
-      price1:record.price1||'',
-      price2:record.price2||'',
-      price3:record.price3||'',
-      oldPrice:record.oldPrice||''
-    };
     const data={
-      seoTitle:title,
-      category:importedCategory,
-      shortDescription:record.description||'',
-      fullDescription:record.description||'',
-      characteristics,
-      keywords:[],
-      benefits:[],
-      usage:[],
+      seoTitle:title,category:importedCategory,shortDescription:record.description||'',fullDescription:record.description||'',
+      characteristics,keywords:[],benefits:[],usage:[],
       needsClarification:['Добавьте фотографию товара и выполните AI-анализ, чтобы дополнить карточку только подтверждёнными данными.'],
-      confidence:'импорт из таблицы',
-      photoQuality:{score:0,issues:['Основная фотография ещё не добавлена.']},
-      confirmedData:extraData
+      confidence:'импорт из таблицы',photoQuality:{score:0,issues:['Основная фотография ещё не добавлена.']},confirmedData:extraData
     };
-    await dbPut({
+    const item={
       id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
-      updatedAt:Date.now()-imported,
-      title,
-      data,
-      extraData,
-      privateData:{
-        cost:record.cost||'',
-        stock:record.stock||'',
-        boxes:record.boxes||'',
-        minStock:record.minStock||'',
-        location:record.location||'',
-        collections:parseCollections(record.collections||'')
-      },
-      sourceDataUrl:'',
-      additionalPhotos:[],
-      cards:[],
-      variations:[],
-      revisions:[],
-      mode:defaults.mode||'full',
-      style:importedRule?.style||defaults.style||'minimal',
-      published:false,
-      importedFrom:String(filename||'таблица').slice(0,120),
-      importedAt:Date.now(),
-      excelAutopilot:{state:'waiting',error:''}
-    });
-    imported++;
+      updatedAt:Date.now()-created,title,data,extraData,
+      privateData:{cost:record.cost||'',stock:record.stock||'',boxes:record.boxes||'',minStock:record.minStock||'',location:record.location||'',collections:parseCollections(record.collections||'')},
+      sourceDataUrl:'',additionalPhotos:[],cards:[],quality:null,cardsStale:false,variations:[],revisions:[],
+      activity:[{at:Date.now(),type:'Импортирован из Excel',detail:String(filename||'таблица').slice(0,120)}],
+      labelSuggestions:[],analysisCache:null,mode:defaults.mode||'full',style:importedRule?.style||defaults.style||'minimal',
+      published:false,importedFrom:String(filename||'таблица').slice(0,120),importedAt:Date.now(),excelAutopilot:{state:'waiting',error:''}
+    };
+    await dbPut(item);
+    seenIds.add(item.id);
+    if(normalizedSku){
+      if(!skuIndex.has(normalizedSku))skuIndex.set(normalizedSku,[]);
+      skuIndex.get(normalizedSku).push(item);
+    }
+    if(normalizedBarcode){
+      if(!barcodeIndex.has(normalizedBarcode))barcodeIndex.set(normalizedBarcode,[]);
+      barcodeIndex.get(normalizedBarcode).push(item);
+    }
+    created++;
   }
+
+  const missingFromFile=existing.filter(item=>item.importedFrom&&!seenIds.has(item.id)).length;
   await trimCatalog();
   await renderHistory();
   const truncated=Math.max(0,rows.length-1-CATALOG_LIMIT);
   importNote.className='import-note show';
-  importNote.textContent='Импортировано: '+imported+'. Пропущено пустых строк: '+skipped+(truncated?' · строк сверх локального лимита: '+truncated:'')+'. Теперь добавьте фотографии с SKU/артикулом в имени файла.';
+  importNote.textContent='Excel синхронизирован: новых '+created+', обновлено '+updated+', без изменений '+unchanged+', конфликтов SKU/EAN '+conflicts+', пустых строк '+skipped+(missingFromFile?' · отсутствуют в новом файле: '+missingFromFile:'')+(truncated?' · строк сверх лимита: '+truncated:'')+'. Удаление отсутствующих товаров автоматически не выполняется.';
   if(isSimpleUi()){
     document.getElementById('excelAutopilot').open=true;
     document.getElementById('excelAutopilot').scrollIntoView({behavior:'smooth',block:'start'});
   }else document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
 }
-
 
 async function rowsFromImportFile(file){
   if(!file)throw new Error('Файл не выбран.');
