@@ -1698,8 +1698,8 @@ function requireRoles(...roles){
     next();
   };
 }
-const requireOwner=requireRoles("owner");
-const requireAdminRole=requireRoles("owner","admin");
+function requireOwner(req,res,next){ return requireRoles("owner")(req,res,next); }
+function requireAdminRole(req,res,next){ return requireRoles("owner","admin")(req,res,next); }
 
 function securePasswordCompare(password,salt,expectedHash){
   if(!salt||!expectedHash)return false;
