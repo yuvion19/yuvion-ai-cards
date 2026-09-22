@@ -1283,6 +1283,11 @@ app.get("/api/health", (_req, res) => {
       referenceDesignBalance: true,
       benefitIconLibrary: true,
       textlessCoverMode: true,
+      powerLocalRenderer: true,
+      smartBackgroundCutout: true,
+      productPhotoEnhancement: true,
+      multiPhotoScenes: true,
+      adaptiveProductShadow: true,
       darkWorkbench: true,
       wideWorkbench: true,
       manualComposition: true
@@ -1952,7 +1957,7 @@ function rgbDistance3(a, b) {
 async function smartBackgroundCutout(sourceBuffer, layout) {
   const prepared = await sharp(sourceBuffer)
     .rotate()
-    .resize(1100, 1100, { fit: "inside", withoutEnlargement: false })
+    .resize(840, 840, { fit: "inside", withoutEnlargement: false })
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
@@ -1995,7 +2000,11 @@ async function smartBackgroundCutout(sourceBuffer, layout) {
     const pixel = [data[p], data[p + 1], data[p + 2]];
     const luminance = 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2];
     if (luminance < Math.max(120, bgBrightness - 72)) return false;
-    const distance = Math.min(...corners.map((corner) => rgbDistance3(pixel, corner)));
+    let distance = Infinity;
+    for (let i = 0; i < corners.length; i += 1) {
+      const d = rgbDistance3(pixel, corners[i]);
+      if (d < distance) distance = d;
+    }
     return distance <= threshold * multiplier;
   };
   const push = (idx) => {
@@ -2091,7 +2100,7 @@ async function makeProductShadow(productBuffer, opacity = 0.22, blur = 13) {
     data[p + 2] = 26;
     data[p + 3] = Math.round(data[p + 3] * opacity);
   }
-  return sharp(data, { raw: info }).blur(blur).png({ compressionLevel: 9 }).toBuffer();
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } }).blur(blur).png({ compressionLevel: 9 }).toBuffer();
 }
 
 async function prepareProductVisual(sourceBuffer, layout, intensity = "selling", role = "main") {
@@ -2682,7 +2691,7 @@ app.post("/api/cover-variants", async (req, res) => {
       stats.rateLimitErrors += 1;
       return res.status(429).json({ error: "Защитный лимит бесплатных вариантов временно исчерпан." });
     }
-    const { image, mimeType, card, style = "minimal", palette = [], composition = {}, designSubstyle = "auto", visualOptions = {} } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", palette = [], composition = {}, designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
     if (typeof image !== "string" || typeof mimeType !== "string" || !card || typeof card !== "object") {
       return res.status(400).json({ error: "Не хватает исходного фото или данных товара." });
     }
@@ -2690,6 +2699,9 @@ app.post("/api/cover-variants", async (req, res) => {
     if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
 
     const sourceBuffer = Buffer.from(image, "base64");
+    const additionalSources = normalizeRenderAdditionalImages(additionalImages);
+    const coverPrimary = pickRenderSource(0, sourceBuffer, additionalSources, mimeType);
+    const coverInset = pickInsetSource(0, coverPrimary, additionalSources);
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
     const suppliedPalette = normalizePalette(palette);
@@ -2704,7 +2716,7 @@ app.post("/api/cover-variants", async (req, res) => {
     ];
     const variants = [];
     for (const option of options) {
-      const scene = await renderFreeScene(sourceBuffer, 0, styleKey, renderPalette, option.variant, renderComposition, option.intensity, substyle, visual);
+      const scene = await renderFreeScene(coverPrimary.buffer, 0, styleKey, renderPalette, option.variant, renderComposition, option.intensity, substyle, visual, coverInset?.buffer || null, coverPrimary.role, coverInset?.role || "");
       const cachedScene = await normalizeSceneForCache(scene);
       const buffer = await composeCard(cachedScene, overlayForCard(0, normalized, styleKey, renderPalette, option.intensity, substyle, visual));
       variants.push({
@@ -2717,7 +2729,15 @@ app.post("/api/cover-variants", async (req, res) => {
     }
     stats.freeSceneRenders += variants.length;
     stats.imagesGenerated += variants.length;
-    return res.json({ variants, palette: renderPalette, designSubstyle: substyle, aiImageCalls: 0 });
+    return res.json({
+      variants,
+      palette: renderPalette,
+      designSubstyle: substyle,
+      aiImageCalls: 0,
+      renderEngine: "power-local-v2",
+      usedAdditionalImages: additionalSources.length,
+      coverInsetRole: coverInset?.role || ""
+    });
   } catch (error) {
     console.error("Cover variants error:", { message: error?.message, status: error?.status, code: error?.code });
     return imageErrorResponse(req, res, error, freeRegenRequestsByIp, "cover-variants-free");
