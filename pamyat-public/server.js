@@ -156,7 +156,7 @@ function csvCell(v) {
 app.get("/health", async (_req, res) => {
   try {
     const [e, c] = await Promise.all([
-      sb("memorial_events?select=id&limit=1"),
+      sb("rpc/memorial_event_search", { method: "POST", body: { p_query: "", p_city: "", p_type: "", p_limit: 1 } }),
       sb("cemetery_records?select=record_key&limit=1")
     ]);
     res.json({
