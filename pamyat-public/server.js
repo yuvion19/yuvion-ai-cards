@@ -4,6 +4,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { parse } from "csv-parse/sync";
 import webpush from "web-push";
+import multer from "multer";
+import QRCode from "qrcode";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -20,6 +22,7 @@ const RESEND_FROM = process.env.RESEND_FROM || "Память <onboarding@resend.
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || "";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const identifyUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 900000 }, fileFilter: (_req,file,cb)=>cb(null,/^image\//.test(file.mimetype)) });
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -66,6 +69,10 @@ app.get("/m", (_req,res) => {
       <a class="btn" href="/m/catalog">Каталог кладбища</a>
       <a class="btn" href="/m/map">Карта кладбища</a>
       <a class="btn" href="/m/calendar">Календарь</a>
+      <a class="btn" href="/m/family">Родословная</a>
+      <a class="btn" href="/m/identify">Опознать могилу</a>
+      <a class="btn" href="/m/offline">Офлайн-каталог</a>
+      <a class="btn" href="/api/selftest">Проверка системы</a>
     </div>
     <div class="card"><b>Кладбище Кубы / Губы</b><p class="muted">В базе 1238 индексных записей QBA. Можно открыть каталог, найти человека и перейти к карте.</p></div>
     <a class="btn secondary" href="/pamyat-juhuro?desktop=1">Открыть полную версию</a>
@@ -90,13 +97,16 @@ app.get("/m/catalog", async (req,res) => {
       params.set("offset",String((page-1)*limit));
       rows=await sb("cemetery_records?"+params.toString());
     }
-    const list=(rows||[]).map(x=>`<div class="card"><div class="row"><span class="tag">${htmlEsc(x.external_id)}</span>${x.death_gr?`<span class="tag">${htmlEsc(x.death_gr)}</span>`:""}</div><h3>${htmlEsc(x.name_ru||"Без имени")}</h3>${x.name_he?`<div dir="rtl">${htmlEsc(x.name_he)}</div>`:""}<div class="row" style="margin-top:10px"><a class="btn secondary" href="${htmlEsc(x.source_url)}" target="_blank" rel="noopener">Источник</a>${x.latitude&&x.longitude?`<a class="btn secondary" href="/m/map?lat=${encodeURIComponent(x.latitude)}&lon=${encodeURIComponent(x.longitude)}&name=${encodeURIComponent(x.name_ru||x.external_id)}">На карте</a>`:""}</div></div>`).join("");
+    const list=(rows||[]).map(x=>`<label class="card" style="display:block"><div class="row"><input type="checkbox" name="key" value="${htmlEsc(x.record_key)}"><span class="tag">${htmlEsc(x.external_id)}</span>${x.death_gr?`<span class="tag">${htmlEsc(x.death_gr)}</span>`:""}${x.quality_status?`<span class="tag">${qualityLabel(x.quality_status)}</span>`:""}</div><h3>${htmlEsc(x.name_ru||"Без имени")}</h3>${x.name_he?`<div dir="rtl">${htmlEsc(x.name_he)}</div>`:""}<div class="row" style="margin-top:10px"><a class="btn secondary" href="/m/person/${encodeURIComponent(x.record_key)}">Карточка</a><a class="btn secondary" href="${htmlEsc(x.source_url)}" target="_blank" rel="noopener">Источник</a>${x.latitude&&x.longitude?`<a class="btn secondary" href="/m/map?lat=${encodeURIComponent(x.latitude)}&lon=${encodeURIComponent(x.longitude)}&name=${encodeURIComponent(x.name_ru||x.external_id)}">На карте</a>`:""}</div></label>`).join("");
     const pager=q?"":`<div class="pager">${page>1?`<a class="btn secondary" href="/m/catalog?page=${page-1}">← Назад</a>`:"<span></span>"}<a class="btn secondary" href="/m/catalog?page=${page+1}">Далее →</a></div>`;
     res.send(mobileShell("Каталог кладбища", `
       <h1>Каталог кладбища</h1>
       <form method="get" action="/m/catalog"><label>Поиск по имени, QBA или ивриту</label><input class="field" name="q" value="${htmlEsc(q)}"><button class="btn" style="width:100%;margin-top:8px">Найти</button></form>
       ${q?`<p class="muted">Результаты поиска: ${rows.length}</p>`:`<p class="muted">Страница ${page}, по 50 записей</p>`}
-      ${list||'<div class="card">Ничего не найдено.</div>'}${pager}
+      <form method="get" action="/m/route">
+      ${list||'<div class="card">Ничего не найдено.</div>'}
+      ${rows.length?'<button class="btn" style="width:100%;margin:10px 0">Маршрут по выбранным могилам</button>':""}
+      </form>${pager}
     `));
   } catch(e) {
     console.error("mobile catalog",e.data||e);
@@ -133,13 +143,20 @@ app.get("/m/calendar", async (_req,res) => {
   }
 });
 
-app.get("/m/add", (_req,res) => {
+app.get("/m/add", async (_req,res) => {
   res.setHeader("Cache-Control","no-store");
+  let pref={};
+  const key=clean(_req.query.record_key,100);
+  if(key){try{const card=await sb("rpc/memorial_person_card",{method:"POST",body:{p_record_key:key}});pref=card?.record||{}}catch{}}
+  const death=(pref.death_date||"");
   res.send(mobileShell("Добавить событие", `
     <h1>Добавить событие</h1>
+    ${key?'<div class="ok">Данные подставлены из записи кладбища '+htmlEsc(pref.external_id||key)+'. Их можно уточнить перед отправкой.</div>':""}
     <form method="post" action="/m/add">
-      <label>ФИО *</label><input class="field" name="full_name" required>
-      <label>Дата смерти *</label><input class="field" type="date" name="death_date" required>
+      <input type="hidden" name="cemetery_record_key" value="${htmlEsc(key)}">
+      <input type="hidden" name="cemetery_link" value="${htmlEsc(pref.source_url||"")}">
+      <label>ФИО *</label><input class="field" name="full_name" value="${htmlEsc(pref.name_ru||"")}" required>
+      <label>Дата смерти *</label><input class="field" type="date" name="death_date" value="${htmlEsc(death)}" required>
       <div class="check"><input type="checkbox" name="publish_day7" value="1" checked><span>7 дней</span></div>
       <div class="check"><input type="checkbox" name="publish_day40" value="1" checked><span>40 дней</span></div>
       <div class="check"><input type="checkbox" name="publish_year1" value="1" checked><span>1 год</span></div>
@@ -166,7 +183,7 @@ app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
     const yahrzeit=nextYahrzeit(deathDate);
     const base={
       full_name:fullName,death_date:deathDate,event_time:null,city:clean(b.city,120)||null,place:clean(b.place,180)||null,
-      cemetery_link:null,cemetery_record_key:null,note:clean(b.note,1500)||null,visibility:"public",status:"pending",relation_confirmed:true,
+      cemetery_link:clean(b.cemetery_link,800)||null,cemetery_record_key:clean(b.cemetery_record_key,100)||null,note:clean(b.note,1500)||null,visibility:"public",status:"pending",relation_confirmed:true,
       publish_day7:Boolean(b.publish_day7),publish_day40:Boolean(b.publish_day40),publish_year1:Boolean(b.publish_year1),
       publish_annual:Boolean(b.publish_annual),hebrew_death_label:hebrewLabel(deathDate),yahrzeit_date:yahrzeit,
       derived:{...derivedDates(deathDate),yahrzeit},submitter_name:clean(b.submitter_name,120)||null,submitter_contact:clean(b.submitter_contact,180)||null
@@ -187,11 +204,184 @@ app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
   }
 });
 
+function qualityLabel(v){
+  return ({family_verified:"Подтверждено семьёй",source_verified:"Подтверждено источником",family_and_source:"Семья + источник",needs_review:"Требует проверки"})[v]||"Требует проверки";
+}
+function haversine(a,b){
+  const R=6371000,rad=x=>x*Math.PI/180,dLat=rad(b.latitude-a.latitude),dLon=rad(b.longitude-a.longitude);
+  const x=Math.sin(dLat/2)**2+Math.cos(rad(a.latitude))*Math.cos(rad(b.latitude))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+function greedyRoute(points){
+  if(points.length<2)return points;
+  const left=points.slice(1),out=[points[0]];
+  while(left.length){const last=out[out.length-1];let bi=0,bd=Infinity;for(let i=0;i<left.length;i++){const d=haversine(last,left[i]);if(d<bd){bd=d;bi=i}}out.push(left.splice(bi,1)[0])}
+  return out;
+}
+
+app.get("/api/selftest", async (_req,res)=>{
+  try{
+    const db=await sb("rpc/memorial_selftest",{method:"POST",body:{}});
+    const ok=Boolean(db?.ok);
+    res.status(ok?200:503).json({ok,db,mobile_routes:["/m","/m/add","/m/catalog","/m/map","/m/family","/m/offline"],release:"memory-hub-v3"});
+  }catch(e){res.status(503).json({ok:false,error:"selftest_failed",detail:e.data||e.message})}
+});
+
+app.get("/api/cemetery/offline", async (_req,res)=>{
+  try{
+    const rows=await sb("cemetery_records?select=record_key,external_id,name_ru,name_he,death_gr,death_he,latitude,longitude,source_url,quality_status&cemetery_code=eq.QBA&order=external_id.asc,person_index.asc&limit=2000");
+    res.setHeader("Cache-Control","public,max-age=3600");
+    res.json({generated_at:new Date().toISOString(),records:rows});
+  }catch(e){res.status(500).json({error:"offline_export_failed"})}
+});
+
+app.get("/api/cemetery/person/:key", async (req,res)=>{
+  try{
+    const data=await sb("rpc/memorial_person_card",{method:"POST",body:{p_record_key:req.params.key}});
+    if(!data?.record)return res.status(404).json({error:"not_found"});
+    res.json(data);
+  }catch(e){res.status(500).json({error:"person_failed"})}
+});
+
+app.get("/qr/cemetery/:key.svg", async (req,res)=>{
+  try{
+    const data=await sb("rpc/memorial_person_card",{method:"POST",body:{p_record_key:req.params.key}});
+    if(!data?.record)return res.status(404).send("Not found");
+    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
+    const svg=await QRCode.toString(base+"/m/person/"+encodeURIComponent(req.params.key),{type:"svg",margin:1,width:360});
+    res.type("image/svg+xml").setHeader("Cache-Control","public,max-age=86400").send(svg);
+  }catch(e){res.status(500).send("QR failed")}
+});
+
+app.get("/qr/event/:id.svg", async (req,res)=>{
+  try{
+    const e=await sb("rpc/memorial_public_event_detail",{method:"POST",body:{p_event_id:req.params.id}});
+    if(!e)return res.status(404).send("Not found");
+    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
+    const svg=await QRCode.toString(base+"/pamyat-juhuro#event="+encodeURIComponent(req.params.id),{type:"svg",margin:1,width:360});
+    res.type("image/svg+xml").setHeader("Cache-Control","public,max-age=86400").send(svg);
+  }catch(e){res.status(500).send("QR failed")}
+});
+
+app.get("/m/person/:key", async (req,res)=>{
+  try{
+    const data=await sb("rpc/memorial_person_card",{method:"POST",body:{p_record_key:req.params.key}});
+    const x=data?.record;if(!x)return res.status(404).send(mobileShell("Не найдено",'<div class="err">Запись не найдена.</div>'));
+    const rel=(data.related||[]).map(p=>'<li>'+htmlEsc(p.name)+(p.cemetery_record_key?' · <a href="/m/person/'+encodeURIComponent(p.cemetery_record_key)+'">захоронение</a>':'')+'</li>').join("");
+    const ev=(data.events||[]).map(e=>'<div class="card"><span class="tag">'+htmlEsc(e.event_type)+'</span><b>'+htmlEsc(e.full_name)+'</b><div>'+htmlEsc(e.event_date||"")+'</div></div>').join("");
+    res.send(mobileShell(x.name_ru||x.external_id,`
+      <div class="row"><span class="tag">${htmlEsc(x.external_id)}</span><span class="tag">${qualityLabel(x.quality_status)}</span></div>
+      <h1>${htmlEsc(x.name_ru||"Без имени")}</h1>
+      ${x.name_he?'<div dir="rtl" style="font-size:22px">'+htmlEsc(x.name_he)+'</div>':""}
+      <p><b>Дата:</b> ${htmlEsc(x.death_gr||x.death_he||"—")}</p>
+      <div class="nav">
+        <a class="btn" href="/m/add?record_key=${encodeURIComponent(x.record_key)}">Создать памятные даты</a>
+        ${x.latitude&&x.longitude?'<a class="btn" href="/m/map?lat='+encodeURIComponent(x.latitude)+'&lon='+encodeURIComponent(x.longitude)+'&name='+encodeURIComponent(x.name_ru||x.external_id)+'">Показать на карте</a>':""}
+        <a class="btn secondary" href="${htmlEsc(x.source_url)}" target="_blank" rel="noopener">Исходная карточка</a>
+        <a class="btn secondary" href="/qr/cemetery/${encodeURIComponent(x.record_key)}.svg" target="_blank">QR-код</a>
+      </div>
+      <div class="card"><h3>Подтверждённые родственники</h3>${rel?'<ul>'+rel+'</ul>':'<p class="muted">Связей пока нет.</p>'}</div>
+      <div class="card"><h3>Добавить родственника</h3>
+        <form method="post" action="/m/person/${encodeURIComponent(x.record_key)}/relation">
+          <label>Имя родственника</label><input class="field" name="relative_name" required>
+          <label>Дата смерти родственника</label><input class="field" type="date" name="relative_death">
+          <label>Кем приходится</label><select class="field" name="relation_type"><option value="parent">родитель</option><option value="child">ребёнок</option><option value="spouse">супруг/супруга</option><option value="sibling">брат/сестра</option><option value="grandparent">дедушка/бабушка</option><option value="grandchild">внук/внучка</option><option value="other">другое</option></select>
+          <label>Ваше имя</label><input class="field" name="submitted_by">
+          <label>Контакт модератору</label><input class="field" name="contact">
+          <button class="btn" style="width:100%;margin-top:10px">Отправить связь на проверку</button>
+        </form>
+      </div>
+      ${ev?'<h3>Памятные даты</h3>'+ev:""}
+    `));
+  }catch(e){console.error(e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось открыть карточку.</div>'))}
+});
+
+app.post("/m/person/:key/relation", rateLimit("mobile-family",8,3600000), async (req,res)=>{
+  try{
+    const card=await sb("rpc/memorial_person_card",{method:"POST",body:{p_record_key:req.params.key}});
+    const x=card?.record;if(!x)return res.status(404).send(mobileShell("Ошибка",'<div class="err">Запись не найдена.</div>'));
+    await sb("rpc/memorial_submit_family_relation",{method:"POST",body:{
+      p_person_name:x.name_ru||x.external_id,p_person_death:x.death_date||null,
+      p_relative_name:clean(req.body.relative_name,180),p_relative_death:validDate(req.body.relative_death)?req.body.relative_death:null,
+      p_relation_type:clean(req.body.relation_type,40),p_cemetery_record_key:req.params.key,
+      p_submitted_by:clean(req.body.submitted_by,120)||null,p_contact:clean(req.body.contact,180)||null,p_evidence:"Добавлено из карточки QBA "+x.external_id
+    }});
+    res.send(mobileShell("Отправлено",'<div class="ok">Родственная связь отправлена на модерацию.</div><p><a class="btn" href="/m/person/'+encodeURIComponent(req.params.key)+'">Вернуться</a></p>'));
+  }catch(e){res.status(400).send(mobileShell("Ошибка",'<div class="err">Не удалось отправить связь.</div>'))}
+});
+
+app.get("/m/route", async (req,res)=>{
+  try{
+    const keys=(Array.isArray(req.query.key)?req.query.key:[req.query.key]).filter(Boolean).slice(0,20);
+    if(!keys.length)return res.send(mobileShell("Маршрут",'<div class="err">Выберите минимум одну запись в каталоге.</div><p><a class="btn" href="/m/catalog">Каталог</a></p>'));
+    const cards=await Promise.all(keys.map(k=>sb("rpc/memorial_person_card",{method:"POST",body:{p_record_key:k}})));
+    const points=cards.map(d=>d?.record).filter(x=>x&&Number.isFinite(Number(x.latitude))&&Number.isFinite(Number(x.longitude))).map(x=>({...x,latitude:Number(x.latitude),longitude:Number(x.longitude)}));
+    const route=greedyRoute(points);
+    const extraHead='<link rel="stylesheet" href="/vendor/leaflet/leaflet.css"><script src="/vendor/leaflet/leaflet.js"></script>';
+    const payload=JSON.stringify(route.map(x=>({key:x.record_key,id:x.external_id,name:x.name_ru,lat:x.latitude,lon:x.longitude}))).replace(/</g,"\\u003c");
+    const scripts=`<script>(()=>{const pts=${payload};const map=L.map("mobileMap");L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap"}).addTo(map);const ll=[];pts.forEach((p,i)=>{const m=L.marker([p.lat,p.lon]).addTo(map).bindPopup("<b>"+(i+1)+". "+p.name+"</b><br>"+p.id);ll.push([p.lat,p.lon])});if(ll.length>1)L.polyline(ll,{weight:4}).addTo(map);if(ll.length)map.fitBounds(ll,{padding:[25,25],maxZoom:19});setTimeout(()=>map.invalidateSize(),150)})();</script>`;
+    const list=route.map((x,i)=>'<div class="card"><b>'+(i+1)+'. '+htmlEsc(x.name_ru||x.external_id)+'</b><div class="muted">'+htmlEsc(x.external_id)+'</div></div>').join("");
+    res.send(mobileShell("Семейный маршрут",'<h1>Маршрут по кладбищу</h1><p class="muted">Порядок рассчитан по ближайшим координатам. Это последовательность посещения, а не дорожная навигация.</p>'+list+'<div id="mobileMap"></div>',{extraHead,scripts}));
+  }catch(e){console.error(e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось построить маршрут.</div>'))}
+});
+
+app.get("/m/family", async (req,res)=>{
+  try{
+    const q=clean(req.query.q,180);
+    const g=await sb("rpc/memorial_family_graph",{method:"POST",body:{p_query:q,p_limit:160}});
+    const nodes=g?.nodes||[],edges=g?.edges||[];
+    const by=Object.fromEntries(nodes.map(n=>[n.id,n]));
+    const rows=edges.map(e=>'<div class="card"><b>'+htmlEsc(by[e.a]?.name||"")+'</b> — '+htmlEsc(e.type)+' — <b>'+htmlEsc(by[e.b]?.name||"")+'</b></div>').join("");
+    res.send(mobileShell("Родословная",`<h1>Родословная</h1><form><label>Найти человека</label><input class="field" name="q" value="${htmlEsc(q)}"><button class="btn" style="width:100%;margin-top:8px">Найти</button></form><p class="muted">Показываются подтверждённые связи до трёх уровней родства.</p>${rows||'<div class="card">Подтверждённых связей пока нет.</div>'}`));
+  }catch(e){res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить родословную.</div>'))}
+});
+
+app.get("/m/identify", (_req,res)=>{
+  res.send(mobileShell("Опознать могилу",`<h1>Нужна помощь с идентификацией</h1><p class="muted">Для плохо читаемой или неизвестной могилы. Заявка видна только модераторам до проверки.</p><form method="post" action="/m/identify" enctype="multipart/form-data"><label>Фото (до 900 КБ)</label><input class="field" type="file" accept="image/*" name="photo"><label>Предполагаемое имя</label><input class="field" name="approximate_name"><label>Примерный год</label><input class="field" name="approximate_year"><label>QBA / участок, если известен</label><input class="field" name="sector_note"><label>Что удалось прочитать / дополнительная информация</label><textarea class="field" name="details" rows="5"></textarea><label>Ваше имя</label><input class="field" name="requester_name"><label>Контакт модератору</label><input class="field" name="requester_contact"><button class="btn" style="width:100%;margin-top:12px">Отправить на проверку</button></form>`));
+});
+
+app.post("/m/identify", identifyUpload.single("photo"), rateLimit("identify",5,3600000), async (req,res)=>{
+  try{
+    const image=req.file?("data:"+req.file.mimetype+";base64,"+req.file.buffer.toString("base64")):null;
+    await sb("identification_requests",{method:"POST",prefer:"return=minimal",body:{
+      id:id(),cemetery_code:"QBA",approximate_record_key:null,approximate_name:clean(req.body.approximate_name,180)||null,
+      approximate_year:clean(req.body.approximate_year,40)||null,sector_note:clean(req.body.sector_note,300)||null,
+      image_data:image,image_mime:req.file?.mimetype||null,requester_name:clean(req.body.requester_name,120)||null,
+      requester_contact:clean(req.body.requester_contact,180)||null,details:clean(req.body.details,1500)||null,status:"pending"
+    }});
+    res.send(mobileShell("Отправлено",'<div class="ok">Заявка на идентификацию отправлена модератору.</div><p><a class="btn" href="/m">Главная</a></p>'));
+  }catch(e){console.error("identify",e.data||e);res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось отправить заявку.</div>'))}
+});
+
+app.get("/m/offline", (_req,res)=>{
+  const scripts=`<script>
+  const status=document.getElementById("offlineStatus"),q=document.getElementById("offlineQ"),results=document.getElementById("offlineResults"),map=document.getElementById("offlineMap");
+  let data=[];function escx(s){return String(s||"").replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))}
+  function loadLocal(){try{data=JSON.parse(localStorage.getItem("pamyatQBAOffline")||"[]")}catch{data=[]}status.textContent=data.length?"Сохранено записей: "+data.length:"Каталог ещё не сохранён";render()}
+  function render(){const term=q.value.trim().toLowerCase();const rows=(term?data.filter(x=>(x.name_ru+" "+x.name_he+" "+x.external_id).toLowerCase().includes(term)):data).slice(0,60);results.innerHTML=rows.map(x=>"<div class='card'><b>"+escx(x.name_ru||x.external_id)+"</b><div>"+escx(x.external_id)+" · "+escx(x.death_gr||"")+"</div></div>").join("")||"<div class='card'>Нет данных.</div>";draw(rows.length?rows:data)}
+  function draw(rows){const pts=rows.filter(x=>Number.isFinite(Number(x.latitude))&&Number.isFinite(Number(x.longitude))).slice(0,1200);if(!pts.length){map.innerHTML="";return}const lats=pts.map(x=>+x.latitude),lons=pts.map(x=>+x.longitude),minA=Math.min(...lats),maxA=Math.max(...lats),minO=Math.min(...lons),maxO=Math.max(...lons);map.innerHTML='<svg viewBox="0 0 600 420" style="width:100%;background:#eee;border-radius:12px">'+pts.map(x=>{const cx=20+560*((+x.longitude-minO)/(maxO-minO||1)),cy=400-380*((+x.latitude-minA)/(maxA-minA||1));return '<circle cx="'+cx+'" cy="'+cy+'" r="2.2" fill="#5b4934"><title>'+escx(x.name_ru||x.external_id)+'</title></circle>'}).join("")+'</svg><p class="muted">Офлайн-схема по координатам. Без интернет-картографического фона.</p>'}
+  async function saveOffline(){status.textContent="Загрузка…";const r=await fetch("/api/cemetery/offline",{cache:"no-store"});const j=await r.json();data=j.records||[];localStorage.setItem("pamyatQBAOffline",JSON.stringify(data));status.textContent="Сохранено записей: "+data.length;render()}
+  document.getElementById("saveOffline").onclick=saveOffline;q.oninput=render;loadLocal();
+  </script>`;
+  res.send(mobileShell("Офлайн-каталог",`<h1>Офлайн-каталог и карта</h1><p class="muted">Один раз сохраните каталог при наличии интернета. После этого поиск и координатная схема работают без сети.</p><button id="saveOffline" class="btn" style="width:100%">Сохранить / обновить 1238 записей</button><p id="offlineStatus" class="muted"></p><input id="offlineQ" class="field" placeholder="Поиск офлайн"><div id="offlineMap" style="margin-top:10px"></div><div id="offlineResults"></div>`,{scripts}));
+});
+
+app.get("/api/admin/duplicates", requireAdmin, async (_req,res)=>{
+  try{const data=await sb("rpc/memorial_duplicate_queue",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:150}});res.json(data||[])}
+  catch(e){res.status(500).json({error:"duplicates_failed"})}
+});
+app.post("/api/admin/frontend-release/:value", requireAdmin, async (req,res)=>{
+  try{const ok=await sb("rpc/memorial_admin_set_frontend_release",{method:"POST",body:{p_token:ADMIN_TOKEN,p_value:req.params.value}});res.json({ok:Boolean(ok),active:req.params.value})}
+  catch(e){res.status(400).json({error:"release_switch_failed"})}
+});
+
 app.get("/", (_req, res) => res.redirect(302, "/pamyat-juhuro"));
-app.get("/pamyat-juhuro", (req, res) => {
+app.get("/pamyat-juhuro", async (req, res) => {
   if (isMobileUA(req) && req.query.desktop !== "1") return res.redirect(302, "/m");
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  let file="index.html";
+  try{const cfg=await sb("rpc/memorial_public_site_config",{method:"POST",body:{}});if(cfg?.active_frontend==="stable")file="index-stable.html"}catch{}
+  res.sendFile(path.join(__dirname, "public", file));
 });
 app.use(express.static(path.join(__dirname, "public"), {
   setHeaders(res, filePath) {
