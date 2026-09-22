@@ -32,15 +32,25 @@ app.use((req, res, next) => {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
   res.setHeader("Content-Security-Policy",
-    "default-src 'self'; img-src 'self' data: https://api.qrserver.com https://*.tile.openstreetmap.org https://unpkg.com; " +
-    "style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com; " +
+    "default-src 'self'; img-src 'self' data: https://api.qrserver.com https://*.tile.openstreetmap.org; " +
+    "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; " +
     "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   next();
 });
 app.use(express.json({ limit: "2mb" }));
+app.use("/vendor/leaflet", express.static(path.join(__dirname, "node_modules", "leaflet", "dist"), { immutable: true, maxAge: "365d" }));
 app.get("/", (_req, res) => res.redirect(302, "/pamyat-juhuro"));
-app.get("/pamyat-juhuro", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
-app.use(express.static(path.join(__dirname, "public")));
+app.get("/pamyat-juhuro", (_req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+app.use(express.static(path.join(__dirname, "public"), {
+  setHeaders(res, filePath) {
+    if (/index\.html$|sw\.js$|manifest\.webmanifest$/.test(filePath)) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    }
+  }
+}));
 
 const clean = (v, n = 1000) => String(v ?? "").trim().slice(0, n);
 const validDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ""));
@@ -388,9 +398,9 @@ app.post("/api/events", rateLimit("events", 5, 15 * 60 * 1000), async (req, res)
     const unique = new Map();
     for (const [type, date] of planned) unique.set(type + "|" + date, [type, date]);
     const rows = [...unique.values()].map(([type, date]) => ({ id: id(), ...base, event_type: type, event_date: date }));
-    const created = await sb("memorial_events", { method: "POST", body: rows, prefer: "return=representation" });
+    await sb("memorial_events", { method: "POST", body: rows, prefer: "return=minimal" });
     res.status(201).json({
-      ok: true, ids: created.map(x => x.id), created: created.length, status: "pending",
+      ok: true, ids: rows.map(x => x.id), created: rows.length, status: "pending",
       derived: base.derived, hebrew_death_label: base.hebrew_death_label
     });
   } catch (e) {
