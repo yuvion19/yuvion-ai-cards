@@ -436,8 +436,8 @@ async function syncCemeteryCatalog(force = false) {
   if (cemeterySyncPromise) return cemeterySyncPromise;
   cemeterySyncPromise = (async () => {
     if (!force) {
-      const one = await sb("cemetery_records?select=record_key&limit=1");
-      if (one.length) return { skipped: true, reason: "already_indexed" };
+      const indexed = await sb("cemetery_records?select=record_key&limit=1000");
+      if (indexed.length >= 1000) return { skipped: true, reason: "already_indexed" };
     }
     const url = "https://raw.githubusercontent.com/matzevalog/matzevalog/main/data/data.csv";
     const r = await fetch(url, { headers: { "user-agent": "pamyat-community-hub/1.0" } });
@@ -476,16 +476,29 @@ async function syncCemeteryCatalog(force = false) {
         });
       }
     }
-    let written = 0;
+    let written = 0, skipped = 0;
+    async function upsertBatch(batch) {
+      try {
+        const n = await sb("rpc/memorial_admin_upsert_cemetery", {
+          method: "POST", body: { p_token: ADMIN_TOKEN, p_records: batch }
+        });
+        return Number(n || batch.length);
+      } catch (e) {
+        if (batch.length <= 1) {
+          skipped += 1;
+          console.error("catalog record skipped", batch[0]?.record_key, e.data || e.message);
+          return 0;
+        }
+        const mid = Math.floor(batch.length / 2);
+        return (await upsertBatch(batch.slice(0, mid))) + (await upsertBatch(batch.slice(mid)));
+      }
+    }
     for (let i = 0; i < records.length; i += 100) {
-      const batch = records.slice(i, i + 100);
-      const n = await sb("rpc/memorial_admin_upsert_cemetery", {
-        method: "POST", body: { p_token: ADMIN_TOKEN, p_records: batch }
-      });
-      written += Number(n || batch.length);
+      written += await upsertBatch(records.slice(i, i + 100));
       await sleep(25);
     }
-    return { ok: true, monuments: rows.filter(x => String(x.Number || "").startsWith("QBA")).length, records: records.length, written };
+    console.log("catalog sync complete", { records: records.length, written, skipped });
+    return { ok: true, monuments: rows.filter(x => String(x.Number || "").startsWith("QBA")).length, records: records.length, written, skipped };
   })().finally(() => { cemeterySyncPromise = null; });
   return cemeterySyncPromise;
 }
