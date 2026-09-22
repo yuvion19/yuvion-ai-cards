@@ -1860,7 +1860,7 @@ function normalizeRenderAdditionalImages(raw) {
   return out;
 }
 
-function pickRenderSource(index, mainBuffer, additional) {
+function pickRenderSource(index, mainBuffer, additional, mainMimeType = "image/jpeg") {
   const priorities = [
     [],
     ["detail", "angle", "package"],
@@ -1871,7 +1871,7 @@ function pickRenderSource(index, mainBuffer, additional) {
     const found = additional.find((item) => item.role === role);
     if (found) return { ...found, source: "extra" };
   }
-  return { buffer: mainBuffer, role: "main", source: "main" };
+  return { buffer: mainBuffer, mimeType: mainMimeType, role: "main", source: "main" };
 }
 
 function pickInsetSource(index, primary, additional) {
@@ -1882,7 +1882,7 @@ function pickInsetSource(index, primary, additional) {
     ["angle", "detail", "package"]
   ][index] || [];
   for (const role of priorities) {
-    const found = additional.find((item) => item !== primary && item.role === role);
+    const found = additional.find((item) => item.buffer !== primary?.buffer && item.role === role);
     if (found) return found;
   }
   return null;
@@ -2415,7 +2415,7 @@ app.post("/api/generate-cards", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = cardRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {} } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? cardRequestsByIp : freeCardRequestsByIp;
 
@@ -2440,6 +2440,7 @@ app.post("/api/generate-cards", async (req, res) => {
     }
 
     const sourceBuffer = Buffer.from(image, "base64");
+    const additionalSources = normalizeRenderAdditionalImages(additionalImages);
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
     const suppliedPalette = normalizePalette(palette);
@@ -2451,20 +2452,43 @@ app.post("/api/generate-cards", async (req, res) => {
     const visual = normalizeVisualOptions(visualOptions);
     let scenes = [];
 
+    const renderSelections = [0, 1, 2, 3].map((index) => {
+      const primary = pickRenderSource(index, sourceBuffer, additionalSources, mimeType);
+      const inset = pickInsetSource(index, primary, additionalSources);
+      return { index, primary, inset };
+    });
+
     if (mode === "ai") {
       const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       for (let start = 0; start < 4; start += 2) {
         const pair = await Promise.all(
-          cardScenes.slice(start, start + 2).map((prompt, localIndex) =>
-            generateScene(client, sourceBuffer, mimeType, prompt, start + localIndex + 1, styleKey)
-          )
+          cardScenes.slice(start, start + 2).map((prompt, localIndex) => {
+            const index = start + localIndex;
+            const selected = renderSelections[index];
+            return generateScene(client, selected.primary.buffer, selected.primary.mimeType || mimeType, prompt, index + 1, styleKey);
+          })
         );
         scenes.push(...pair);
       }
       stats.aiSceneRenders += 4;
       stats.estimatedImageOutputUsd += 4 * IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey, renderPalette, variant, renderComposition, intensity, substyle, visual)));
+      scenes = await Promise.all(renderSelections.map(({ index, primary, inset }) =>
+        renderFreeScene(
+          primary.buffer,
+          index,
+          styleKey,
+          renderPalette,
+          variant,
+          renderComposition,
+          intensity,
+          substyle,
+          visual,
+          inset?.buffer || null,
+          primary.role,
+          inset?.role || ""
+        )
+      ));
       stats.freeSceneRenders += 4;
     }
 
@@ -2499,6 +2523,18 @@ app.post("/api/generate-cards", async (req, res) => {
       designSubstyle: substyle,
       visualOptions: visual,
       composition: renderComposition,
+      renderEngine: "power-local-v2",
+      primaryRole: selectedSource.role,
+      insetRole: insetSource?.role || "",
+      renderEngine: "power-local-v2",
+      photoEnhancement: true,
+      smartCutout: true,
+      usedAdditionalImages: additionalSources.length,
+      renderSources: renderSelections.map(({ index, primary, inset }) => ({
+        index,
+        primaryRole: primary.role,
+        insetRole: inset?.role || ""
+      })),
       description: descriptionText(normalized)
     });
   } catch (error) {
@@ -2511,7 +2547,7 @@ app.post("/api/regenerate-card", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = regenRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {} } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? regenRequestsByIp : freeRegenRequestsByIp;
 
@@ -2540,6 +2576,9 @@ app.post("/api/regenerate-card", async (req, res) => {
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
     const sourceBuffer = Buffer.from(image, "base64");
+    const additionalSources = normalizeRenderAdditionalImages(additionalImages);
+    const selectedSource = pickRenderSource(cardIndex, sourceBuffer, additionalSources, mimeType);
+    const insetSource = pickInsetSource(cardIndex, selectedSource, additionalSources);
     const suppliedPalette = normalizePalette(palette);
     const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
     const variant = normalizeDesignVariant(designVariant, normalized);
@@ -2551,11 +2590,11 @@ app.post("/api/regenerate-card", async (req, res) => {
 
     if (mode === "ai") {
       const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      scene = await generateScene(client, sourceBuffer, mimeType, cardScenes[cardIndex], cardIndex + 1, styleKey);
+      scene = await generateScene(client, selectedSource.buffer, selectedSource.mimeType || mimeType, cardScenes[cardIndex], cardIndex + 1, styleKey);
       stats.aiSceneRenders += 1;
       stats.estimatedImageOutputUsd += IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey, renderPalette, variant, renderComposition, intensity, substyle, visual);
+      scene = await renderFreeScene(selectedSource.buffer, cardIndex, styleKey, renderPalette, variant, renderComposition, intensity, substyle, visual, insetSource?.buffer || null, selectedSource.role, insetSource?.role || "");
       stats.freeSceneRenders += 1;
     }
 
