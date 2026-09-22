@@ -312,11 +312,18 @@ function mobileShell(title, body, opts = {}) {
   </script>${scripts}</body></html>`;
 }
 
-app.get("/m", (_req,res) => {
+app.get("/m", async (_req,res) => {
   res.setHeader("Cache-Control","no-store");
+  let today=[];
+  try{today=await sb("rpc/memorial_public_upcoming",{method:"POST",body:{p_days:0,p_limit:20}})||[]}catch{}
+  const todayCards=today.map(e=>'<div class="card"><span class="tag">'+htmlEsc(e.event_type||"Памятная дата")+'</span><h3>'+htmlEsc(e.full_name||"")+'</h3><div class="muted">'+htmlEsc([e.city,e.place].filter(Boolean).join(" · "))+'</div><p><a class="btn secondary" href="/m/memorial/'+encodeURIComponent(e.id)+'">Почтить память</a></p></div>').join("");
   res.send(mobileShell("Главная", `
     <h1>Мобильная версия</h1>
     <p class="muted">Простая версия без большого интерфейса. Критические функции работают отдельными страницами.</p>
+    <section>
+      <h2>Сегодня вспоминаем</h2>
+      ${todayCards||'<div class="card muted">На сегодня публичных памятных дат нет.</div>'}
+    </section>
     <div class="nav">
       <a class="btn" href="/m/add">+ Добавить событие</a>
       <a class="btn" href="/m/add?funeral=1">Срочное похоронное объявление</a>
@@ -359,7 +366,9 @@ app.get("/m/feed", async (_req,res)=>{
   try{
     const d=await sb("rpc/memorial_memory_feed",{method:"POST",body:{p_limit:40}});
     const cards=rows=>(rows||[]).map(e=>'<div class="card"><span class="tag">'+htmlEsc(e.event_type||"Памятная дата")+'</span><h3>'+htmlEsc(e.full_name||"")+'</h3><div>'+htmlEsc(e.event_date||"")+'</div><div class="muted">'+htmlEsc([e.city,e.place].filter(Boolean).join(" · "))+'</div><div class="muted">Свечей памяти: '+Number(e.candles||0)+'</div><p><a class="btn secondary" href="/m/memorial/'+encodeURIComponent(e.id)+'">Открыть</a></p></div>').join("");
-    res.send(mobileShell("Лента памяти",'<h1>Лента памяти</h1><p class="muted">Спокойная лента без лайков и рейтингов.</p><h2>Сегодня вспоминаем</h2>'+(cards(d?.today)||'<div class="card muted">На сегодня записей нет.</div>')+'<h2>Ближайшие 30 дней</h2>'+(cards(d?.upcoming)||'<div class="card muted">Ближайших дат нет.</div>')+'<h2>Недавно добавлено</h2>'+(cards(d?.recent)||'<div class="card muted">Пока нет записей.</div>')));
+    const t=new Date();t.setHours(0,0,0,0);const day7=new Date(t);day7.setDate(day7.getDate()+7);
+    const up=d?.upcoming||[],near7=up.filter(e=>e.event_date&&new Date(e.event_date+"T00:00:00")<=day7),later=up.filter(e=>!near7.includes(e));
+    res.send(mobileShell("Лента памяти",'<h1>Лента памяти</h1><p class="muted">Спокойная лента без лайков и рейтингов.</p><h2>Сегодня вспоминаем</h2>'+(cards(d?.today)||'<div class="card muted">На сегодня записей нет.</div>')+'<h2>Ближайшие 7 дней</h2>'+(cards(near7)||'<div class="card muted">В ближайшие 7 дней дат нет.</div>')+'<h2>8–30 дней</h2>'+(cards(later)||'<div class="card muted">На период 8–30 дней дат нет.</div>')+'<h2>Недавно добавлено</h2>'+(cards(d?.recent)||'<div class="card muted">Пока нет записей.</div>')));
   }catch(e){res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить ленту памяти.</div>'))}
 });
 
@@ -1868,7 +1877,11 @@ app.get("/m/admin", (_req,res) => {
         api("/api/admin/events/"+encodeURIComponent(id)+"/details"),
         api("/api/admin/events/"+encodeURIComponent(id)+"/rsvp").catch(()=>({yes:0,no:0,follow:0,responses:[]}))
       ]),e=d.event||{};
-      const history=(d.history||[]).map(h=>'<div class="card"><b>'+esc(h.operation||"изменение")+'</b><div class="muted">'+esc(fmt(h.created_at))+'</div></div>').join("");
+      const history=(d.history||[]).map(h=>{
+        const old=h.old_data||{},neu=h.new_data||{},labels={full_name:"ФИО",death_date:"Дата смерти",event_type:"Тип",event_date:"Дата события",event_time:"Время",event_timezone:"Часовой пояс",city:"Город",place:"Место",note:"Комментарий",visibility:"Приватность",public_contact:"Публичный контакт",public_contact_allowed:"Разрешение контакта"};
+        const diffs=Object.keys(labels).filter(k=>String(old[k]??"")!==String(neu[k]??"")).map(k=>'<div><b>'+esc(labels[k])+'</b>: <s>'+esc(old[k]??"—")+'</s> → '+esc(neu[k]??"—")+'</div>').join("");
+        return '<div class="card"><b>'+esc(h.operation||"изменение")+'</b><div class="muted">'+esc(fmt(h.created_at))+'</div>'+(diffs||'<div class="muted">Техническое изменение без публичных полей.</div>')+'</div>';
+      }).join("");
       const hidden=Boolean(e.trashed_at);
       const privateSuffix=e.visibility==="public"?"":(e.share_token?"?key="+encodeURIComponent(e.share_token):"");
       const viewUrl="/m/memorial/"+encodeURIComponent(id)+privateSuffix;
@@ -4453,8 +4466,8 @@ app.listen(PORT, "0.0.0.0", () => {
   setTimeout(() => runMaintenanceCycle(), 18000);
   setTimeout(() => sendOffsiteBackup().catch(e=>console.error("offsite backup",e.message)), 30000);
   setTimeout(() => configureTelegramWebhook(), 20000);
-  setInterval(() => runNotificationCycle(), 30 * 60 * 1000).unref();
-  setInterval(() => runMaintenanceCycle(), 30 * 60 * 1000).unref();
+  setInterval(() => runNotificationCycle(), 5 * 60 * 1000).unref();
+  setInterval(() => runMaintenanceCycle(), 5 * 60 * 1000).unref();
   setInterval(() => createDailySnapshot(), 6 * 60 * 60 * 1000).unref();
   setInterval(() => sendOffsiteBackup().catch(e=>console.error("offsite backup",e.message)), 24 * 60 * 60 * 1000).unref();
   // Cemetery catalog refresh disabled.
