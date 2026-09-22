@@ -1856,9 +1856,9 @@ app.get("/m/admin", (_req,res) => {
         '<div class="card"><b>Подтверждения присутствия</b><div class="row" style="margin-top:8px"><span class="tag">Будут: '+Number(rsvp.yes||0)+'</span><span class="tag">Не смогут: '+Number(rsvp.no||0)+'</span><span class="tag">Ждут изменений: '+Number(rsvp.follow||0)+'</span></div></div>'+
         '<button class="btn" id="saveEventEdit" style="width:100%;margin-top:10px">Сохранить изменения</button>'+
         '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">Рассылка</h3><p class="muted">Сначала просмотрите сообщение и количество адресатов. Для изменения времени/места по умолчанию выбираются только те, кто уже получал это событие.</p>'+
-          '<div class="row"><button class="btn secondary" id="previewUpdateBroadcast">Превью изменений</button><button class="btn secondary" id="previewReminderBroadcast">Превью напоминания</button><button class="btn secondary" id="testAdminBroadcast">Тест себе на email</button></div>'+
+          '<div class="row"><button class="btn secondary" id="previewUpdateBroadcast">Превью изменений</button><button class="btn secondary" id="previewReminderBroadcast">Превью напоминания</button><button class="btn secondary" id="previewCorrectionBroadcast">Превью исправления</button><button class="btn secondary" id="testAdminBroadcast">Тест себе на email</button></div>'+
           '<div id="broadcastPreview" class="muted" style="margin-top:10px">Превью ещё не построено.</div>'+
-          '<div class="row" style="margin-top:8px"><button class="btn" id="sendUpdateBroadcast">Отправить изменения</button><button class="btn secondary" id="sendReminderBroadcast">Отправить напоминание</button></div></div>'+
+          '<div class="row" style="margin-top:8px"><button class="btn" id="sendUpdateBroadcast">Отправить изменения</button><button class="btn secondary" id="sendReminderBroadcast">Отправить напоминание</button><button class="btn secondary" id="sendCorrectionBroadcast" style="background:#f6ecd5">Исправить ошибочную рассылку</button></div></div>'+
         buttons(e)+
         '<h3>Дубликаты</h3><p class="muted">Укажите ID дублирующего события. Свечи, комментарии и подтверждения будут перенесены в эту запись.</p>'+
         '<input id="mergeDuplicateId" class="field" placeholder="UUID дубликата"><button class="btn secondary" id="mergeDuplicate" style="width:100%;margin-top:8px">Объединить дубликат</button>'+
@@ -1892,7 +1892,7 @@ app.get("/m/admin", (_req,res) => {
       qs("#copyPrivateLink").onclick=async()=>{try{await navigator.clipboard.writeText(location.origin+viewUrl);alert("Ссылка скопирована.")}catch{}};
       const selectedAudience=()=>[...document.querySelectorAll(".editAudienceGroup:checked")].map(x=>x.value);
       async function previewBroadcast(mode){
-        const groups=selectedAudience(),only=mode==="update"?"1":"0";
+        const groups=selectedAudience(),only=mode==="announcement"?"0":"1";
         const d=await api("/api/admin/events/"+encodeURIComponent(id)+"/broadcast-preview?"+new URLSearchParams({mode,groups:groups.join(","),only_previous:only}));
         const ch=d.channels||{},m=d.message||{};
         qs("#broadcastPreview").innerHTML='<b>'+esc(m.title||"")+'</b><br>'+esc(m.body||"")+'<br><br><b>Получателей:</b> '+Number(d.total_subscribers||0)+
@@ -1901,18 +1901,21 @@ app.get("/m/admin", (_req,res) => {
       }
       qs("#previewUpdateBroadcast").onclick=()=>previewBroadcast("update").catch(x=>alert(x.message));
       qs("#previewReminderBroadcast").onclick=()=>previewBroadcast("announcement").catch(x=>alert(x.message));
+      qs("#previewCorrectionBroadcast").onclick=()=>previewBroadcast("correction").catch(x=>alert(x.message));
       async function sendBroadcast(mode){
-        const p=await previewBroadcast(mode);
-        if(!confirm("Отправить это сообщение? Подписчиков: "+Number(p.total_subscribers||0)))return;
+        const p=await previewBroadcast(mode),expected=Number(p.total_subscribers||0);
+        const typed=prompt("Для подтверждения массовой отправки введите количество получателей: "+expected);
+        if(typed===null||Number(typed)!==expected)return;
         const groups=selectedAudience();
         const r=await api("/api/admin/events/"+encodeURIComponent(id)+"/broadcast",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-          mode,groups,only_previous:mode==="update"
+          mode,groups,only_previous:mode!=="announcement",confirm_count:expected
         })});
         alert("Рассылка завершена. Отправлено по каналам: "+Number(r.sent||0)+", ошибок: "+Number(r.failed||0)+".");
-        await loadDelivery();
+        await loadDelivery();await loadSystemStatus();
       }
       qs("#sendUpdateBroadcast").onclick=()=>sendBroadcast("update").catch(x=>alert(x.message));
       qs("#sendReminderBroadcast").onclick=()=>sendBroadcast("announcement").catch(x=>alert(x.message));
+      qs("#sendCorrectionBroadcast").onclick=()=>sendBroadcast("correction").catch(x=>alert(x.message));
       qs("#testAdminBroadcast").onclick=async()=>{
         try{
           const r=await api("/api/admin/events/"+encodeURIComponent(id)+"/test-broadcast",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mode:"announcement"})});
