@@ -3352,12 +3352,6 @@ async function togglePublished(id){
   item.updatedAt=Date.now();
   await dbPut(item);
   await renderHistory();
-  if(!remaining&&!haltedByLimit){
-    document.getElementById('publishCenter').open=true;
-    publishCenterFilter.value='all';
-    renderPublishCenter(await dbAll());
-    document.getElementById('publishCenter').scrollIntoView({behavior:'smooth',block:'start'});
-  }
 }
 
 
@@ -4274,6 +4268,12 @@ async function runExcelAutopilotQueue(){
     ?'Очередь остановлена защитным лимитом AI. Готово: '+success+'. Необработанные товары сохранены и не потеряны.'
     :'Завершено: '+success+' из '+done+'.'+(remaining?' В очереди осталось: '+remaining+'.':' Очередь обработана.');
   await renderHistory();
+  if(!remaining&&!haltedByLimit){
+    document.getElementById('publishCenter').open=true;
+    publishCenterFilter.value='all';
+    renderPublishCenter(await dbAll());
+    document.getElementById('publishCenter').scrollIntoView({behavior:'smooth',block:'start'});
+  }
 }
 
 function renderDashboard(allItems){
