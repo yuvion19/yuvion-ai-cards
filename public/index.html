@@ -3296,7 +3296,9 @@ function titleSimilarity(a,b){
   if(A.size<2||B.size<2)return 0;
   let inter=0;for(const x of A)if(B.has(x))inter++;
   const union=new Set([...A,...B]).size;
-  return union?inter/union:0;
+  const jaccard=union?inter/union:0;
+  const containment=inter/Math.max(1,Math.min(A.size,B.size));
+  return Math.max(jaccard,containment*.9);
 }
 function similarCatalogProduct(item,allItems=[]){
   const title=item?.data?.seoTitle||item?.title||'';
@@ -3307,7 +3309,7 @@ function similarCatalogProduct(item,allItems=[]){
     if(item?.photoHash&&other.photoHash&&hammingHex(item.photoHash,other.photoHash)<=5)score=Math.max(score,.96);
     if(score>bestScore){bestScore=score;best=other}
   }
-  return bestScore>=.78?{item:best,score:bestScore}:null;
+  return bestScore>=.65?{item:best,score:bestScore}:null;
 }
 
 function storedQaBlockers(item){
