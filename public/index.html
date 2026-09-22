@@ -495,6 +495,10 @@
         <div class="profile-field"><label>Любимая категория / путь</label><input id="profileCategory" placeholder="Например: Игрушки / Мягкие игрушки" /></div>
         <div class="profile-field"><label>Режим по умолчанию</label><select id="profileMode"><option value="full">Полный комплект</option><option value="fast">Быстро</option></select></div>
         <div class="profile-field"><label>Стиль карточек</label><select id="profileStyle"><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option><option value="kids">Игрушки</option><option value="beauty">Красота</option><option value="sport">Спорт</option><option value="tools">Инструменты</option><option value="food">Еда</option></select></div>
+        <div class="profile-field"><label>Выразительность дизайна</label><select id="profileIntensity"><option value="calm">Спокойный</option><option value="selling">Продающий</option><option value="bold">Максимум</option></select></div>
+        <div class="profile-field"><label>Подача дизайна</label><select id="profileSubstyle"><option value="auto">Авто</option><option value="clean">Чистая</option><option value="contrast">Контрастная</option><option value="soft">Мягкая</option></select></div>
+        <div class="profile-field"><label>Сезонный декор</label><select id="profileSeason"><option value="none">Без декора</option><option value="newyear">Новый год</option><option value="spring">Весна</option><option value="summer">Лето</option><option value="school">Школа</option></select></div>
+        <div class="profile-field"><label>Стиль серии товаров</label><select id="profileSeriesDesign"><option value="off">Не применять автоматически</option><option value="on">Применять сохранённый пресет</option></select></div>
         <div class="profile-field"><label>Скидка от 2 шт., %</label><input id="profileDiscount2" inputmode="decimal" value="5" /></div>
         <div class="profile-field"><label>Скидка от 3 шт., %</label><input id="profileDiscount3" inputmode="decimal" value="10" /></div>
         <div class="profile-field"><label>Префикс SKU</label><input id="profileSkuPrefix" maxlength="32" placeholder="Например: YU-" /></div>
@@ -695,7 +699,7 @@
                 <option value="school">Школа</option>
               </select>
               <div class="visual-editor-actions">
-                <button type="button" class="visual-mini-btn" id="referencePaletteBtn">Палитра из референса</button>
+                <button type="button" class="visual-mini-btn" id="referencePaletteBtn" title="Локально извлекает палитру, контраст и визуальный баланс — без копирования чужого текста или бренда.">Стиль из референса</button>
                 <input type="file" id="referencePaletteFile" accept="image/jpeg,image/png,image/webp" hidden>
                 <button type="button" class="visual-mini-btn" id="saveSeriesPreset">Сохранить стиль серии</button>
                 <button type="button" class="visual-mini-btn primary" id="applySeriesPreset">Применить стиль серии</button>
@@ -1289,6 +1293,10 @@ const profileBrand=document.getElementById('profileBrand');
 const profileCategory=document.getElementById('profileCategory');
 const profileMode=document.getElementById('profileMode');
 const profileStyle=document.getElementById('profileStyle');
+const profileIntensity=document.getElementById('profileIntensity');
+const profileSubstyle=document.getElementById('profileSubstyle');
+const profileSeason=document.getElementById('profileSeason');
+const profileSeriesDesign=document.getElementById('profileSeriesDesign');
 const profileDiscount2=document.getElementById('profileDiscount2');
 const profileDiscount3=document.getElementById('profileDiscount3');
 const profileSkuPrefix=document.getElementById('profileSkuPrefix');
@@ -2149,6 +2157,10 @@ function renderProfile(){
   profileCategory.value=d.category||'';
   profileMode.value=d.mode||'full';
   profileStyle.value=d.style||'minimal';
+  profileIntensity.value=['calm','selling','bold'].includes(d.intensity)?d.intensity:'selling';
+  profileSubstyle.value=['auto','clean','contrast','soft'].includes(d.substyle)?d.substyle:'auto';
+  profileSeason.value=['none','newyear','spring','summer','school'].includes(d.season)?d.season:'none';
+  profileSeriesDesign.value=d.seriesDesign==='on'?'on':'off';
   profileDiscount2.value=String(d.discount2??5);
   profileDiscount3.value=String(d.discount3??10);
   profileSkuPrefix.value=String(d.skuPrefix||'YU-');
@@ -2167,6 +2179,22 @@ function applySellerDefaults(){
     document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   }
   if(defaults.style&&styleSelect.querySelector('option[value="'+defaults.style+'"]'))styleSelect.value=defaults.style;
+  if(['calm','selling','bold'].includes(defaults.intensity))currentDesignIntensity=defaults.intensity;
+  if(['auto','clean','contrast','soft'].includes(defaults.substyle))currentDesignSubstyle=defaults.substyle;
+  if(['none','newyear','spring','summer','school'].includes(defaults.season))currentVisualOptions={...currentVisualOptions,season:defaults.season};
+  if(defaults.seriesDesign==='on'){
+    const preset=loadSeriesPreset();
+    if(preset){
+      if(preset.style&&styleSelect.querySelector('option[value="'+preset.style+'"]'))styleSelect.value=preset.style;
+      currentDesignIntensity=preset.intensity||currentDesignIntensity;
+      currentDesignSubstyle=preset.substyle||currentDesignSubstyle;
+      currentDesignVariant=Number.isInteger(preset.variant)?preset.variant:currentDesignVariant;
+      currentComposition={...currentComposition,...(preset.composition||{})};
+      currentPalette=Array.isArray(preset.palette)?preset.palette.slice(0,4):currentPalette;
+      currentVisualOptions=normalizeClientVisualOptions({...currentVisualOptions,...(preset.visualOptions||{})});
+    }
+  }
+  if(designStyleGrid)renderDesignStudio();
 }
 function moneyNumber(value){
   const normalized=String(value||'').replace(/\s/g,'').replace(',','.');
@@ -3126,6 +3154,10 @@ saveProfileBtn.onclick=()=>{
     category:profileCategory.value.trim(),
     mode:profileMode.value,
     style:profileStyle.value,
+    intensity:profileIntensity.value,
+    substyle:profileSubstyle.value,
+    season:profileSeason.value,
+    seriesDesign:profileSeriesDesign.value==='on'?'on':'off',
     discount2:Math.max(0,Math.min(90,Number(profileDiscount2.value)||0)),
     discount3:Math.max(0,Math.min(90,Number(profileDiscount3.value)||0)),
     skuPrefix:profileSkuPrefix.value.trim().slice(0,32),
@@ -3142,7 +3174,7 @@ saveProfileBtn.onclick=()=>{
 resetProfileBtn.onclick=()=>{
   localStorage.removeItem(SELLER_DEFAULTS_KEY);
   renderProfile();
-  profileMode.value='full';profileStyle.value='minimal';profileDiscount2.value='5';profileDiscount3.value='10';profileSkuPrefix.value='YU-';profileSkuNext.value='1';profileAutoSku.value='off';
+  profileMode.value='full';profileStyle.value='minimal';profileIntensity.value='selling';profileSubstyle.value='auto';profileSeason.value='none';profileSeriesDesign.value='off';profileDiscount2.value='5';profileDiscount3.value='10';profileSkuPrefix.value='YU-';profileSkuNext.value='1';profileAutoSku.value='off';
 };
 
 extraFields.price1.addEventListener('blur',()=>{
@@ -3281,7 +3313,7 @@ safeZoneToggle.onclick=()=>{currentVisualOptions.safeZone=!currentVisualOptions.
 darkWorkbenchToggle.onclick=()=>{const next=!document.body.classList.contains('dark-workbench');localStorage.setItem(WORKBENCH_THEME_KEY,next?'dark':'light');applyWorkbenchState()};
 wideWorkbenchToggle.onclick=()=>{const next=!document.body.classList.contains('wide-workbench');localStorage.setItem(WORKBENCH_WIDE_KEY,next?'1':'0');applyWorkbenchState()};
 referencePaletteBtn.onclick=()=>referencePaletteFile.click();
-referencePaletteFile.onchange=async()=>{const file=referencePaletteFile.files?.[0];if(!file)return;const dataUrl=await fileToDataUrl(file);const palette=await extractPaletteFromDataUrl(dataUrl);if(palette.length){currentPalette=palette;currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced()}referencePaletteFile.value=''};
+referencePaletteFile.onchange=async()=>{const file=referencePaletteFile.files?.[0];if(!file)return;const dataUrl=await fileToDataUrl(file);const [palette,hint]=await Promise.all([extractPaletteFromDataUrl(dataUrl),analyzeReferenceDesign(dataUrl)]);if(palette.length)currentPalette=palette;currentDesignIntensity=hint.intensity;currentDesignSubstyle=hint.substyle;currentDesignVariant=hint.variant;currentComposition={...currentComposition,shiftX:hint.shiftX};designIntensity.dataset.userChanged='1';designSubstyle.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced();referencePaletteFile.value=''};
 saveSeriesPresetBtn.onclick=()=>{const preset={style:styleSelect.value,intensity:currentDesignIntensity,substyle:currentDesignSubstyle,variant:currentDesignVariant,composition:{...currentComposition},palette:[...currentPalette],visualOptions:{...currentVisualOptions}};localStorage.setItem(SERIES_PRESET_KEY,JSON.stringify(preset));saveSeriesPresetBtn.textContent='Стиль серии сохранён';setTimeout(()=>saveSeriesPresetBtn.textContent='Сохранить стиль серии',1300)};
 applySeriesPresetBtn.onclick=()=>{const p=loadSeriesPreset();if(!p)return;if(styleSelect.querySelector('option[value="'+p.style+'"]'))styleSelect.value=p.style;currentDesignIntensity=p.intensity||'selling';currentDesignSubstyle=p.substyle||'auto';currentDesignVariant=Number.isInteger(p.variant)?p.variant:0;currentComposition={...currentComposition,...(p.composition||{})};currentPalette=Array.isArray(p.palette)?p.palette.slice(0,4):currentPalette;currentVisualOptions=normalizeClientVisualOptions(p.visualOptions||currentVisualOptions);styleSelect.dataset.userChanged='1';designIntensity.dataset.userChanged='1';designSubstyle.dataset.userChanged='1';currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced()};
 
@@ -3675,6 +3707,34 @@ function collectVisualOptionsFromUi(){
 function loadSeriesPreset(){
   try{return JSON.parse(localStorage.getItem(SERIES_PRESET_KEY)||'null')}catch{return null}
 }
+
+function analyzeReferenceDesign(dataUrl){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const canvas=document.createElement('canvas');canvas.width=72;canvas.height=72;
+        const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,72,72);
+        const d=ctx.getImageData(0,0,72,72).data;
+        let total=0,weightedX=0,contrastSum=0,meanSum=0,n=0;
+        const gray=(x,y)=>{const i=(y*72+x)*4;return .299*d[i]+.587*d[i+1]+.114*d[i+2]};
+        for(let y=1;y<71;y+=2)for(let x=1;x<71;x+=2){
+          const g=gray(x,y),dx=Math.abs(g-gray(x-1,y))+Math.abs(g-gray(x+1,y)),dy=Math.abs(g-gray(x,y-1))+Math.abs(g-gray(x,y+1));
+          const energy=dx+dy+1;total+=energy;weightedX+=x*energy;contrastSum+=dx+dy;meanSum+=g;n++;
+        }
+        const centroid=total?weightedX/total:36;
+        const contrast=n?contrastSum/n:0,mean=n?meanSum/n:150;
+        const shiftX=Math.round(Math.max(-75,Math.min(75,(centroid-36)/36*90)));
+        const intensity=contrast>75?'bold':contrast<42?'calm':'selling';
+        const substyle=mean>185?'clean':contrast>70?'contrast':'soft';
+        const variant=centroid>41?1:centroid<31?2:0;
+        resolve({shiftX,intensity,substyle,variant});
+      }catch{resolve({shiftX:0,intensity:'selling',substyle:'auto',variant:0})}
+    };
+    img.onerror=()=>resolve({shiftX:0,intensity:'selling',substyle:'auto',variant:0});img.src=dataUrl;
+  });
+}
+
 function applyWorkbenchState(){
   const dark=localStorage.getItem(WORKBENCH_THEME_KEY)==='dark';
   const wide=localStorage.getItem(WORKBENCH_WIDE_KEY)==='1';
