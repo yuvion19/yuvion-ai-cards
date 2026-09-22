@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v8.1.0
+// Production release marker: v8.2.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1187,6 +1187,27 @@ app.post("/api/import-url", async (req, res) => {
     ensureSpec("Материал", material);
     for (const item of merged) factProvenance[String(item.name).toLocaleLowerCase("ru").replace(/\s+/g, " ").trim()] = "Сайт-источник";
 
+    const evidenceForSpec = (names = []) => {
+      const normalizedNames = names.map((name) => String(name).toLocaleLowerCase("ru"));
+      const found = merged.find((item) => normalizedNames.some((name) => String(item.name || "").toLocaleLowerCase("ru").includes(name)));
+      return found ? compact(found.evidence || "Публичная страница товара", 220) : "";
+    };
+    const fieldEvidence = {
+      seoTitle: seed.title ? "Структурированные метаданные страницы" : (ai?.seoTitle ? "Видимый текст публичной страницы" : ""),
+      category: seed.category ? "Хлебные крошки / категория сайта-источника" : (ai?.category ? "Видимый текст публичной страницы" : ""),
+      brand: seed.brand ? "Структурированные данные страницы" : (evidenceForSpec(["бренд","brand"]) || (ai?.brand ? "Видимый текст публичной страницы" : "")),
+      sku: seed.sku ? "Структурированные данные страницы" : (evidenceForSpec(["артикул","sku","код товара"]) || (ai?.sku ? "Видимый текст публичной страницы" : "")),
+      barcode: seed.barcode ? "Структурированные данные страницы" : (evidenceForSpec(["штрих","ean","gtin","barcode"]) || (ai?.barcode ? "Видимый текст публичной страницы" : "")),
+      size: evidenceForSpec(["размер","габарит"]) || (ai?.size ? "Видимый текст публичной страницы" : ""),
+      material: evidenceForSpec(["материал","состав"]) || (ai?.material ? "Видимый текст публичной страницы" : ""),
+      price: seed.price ? "Структурированные данные / цена страницы" : (ai?.price ? "Видимый текст публичной страницы" : ""),
+      oldPrice: seed.oldPrice ? "Структурированные данные / старая цена страницы" : (ai?.oldPrice ? "Видимый текст публичной страницы" : "")
+    };
+    const notProvided = [];
+    if (!size) notProvided.push("Размеры");
+    if (!material) notProvided.push("Материал");
+    if (!barcode) notProvided.push("Штрихкод/EAN");
+
     const data = {
       seoTitle: compact(ai?.seoTitle || seed.title || "Товар", 180),
       category: compact(ai?.category || seed.category || "", 180),
@@ -1199,7 +1220,8 @@ app.post("/api/import-url", async (req, res) => {
       needsClarification: [],
       confidence: ["Высокая","Средняя","Низкая"].includes(ai?.confidence) ? ai.confidence : (seed.title ? "Средняя" : "Низкая"),
       photoQuality: { score: 0, issues: [] },
-      factProvenance
+      factProvenance,
+      sourceFieldEvidence: fieldEvidence
     };
 
     const images = [];
@@ -1212,6 +1234,22 @@ app.post("/api/import-url", async (req, res) => {
     if (!images.length) warnings.push("Изображения товара не удалось получить автоматически. Данные импортированы без фото.");
     if (!process.env.OPENAI_API_KEY) warnings.push("AI-нормализация отключена; использованы Schema.org и метаданные страницы.");
 
+    const structuredSignals = [
+      seed.title, seed.description, seed.category, seed.brand, seed.sku, seed.barcode, seed.price, seed.oldPrice
+    ].filter(Boolean).length + seed.characteristics.length;
+    const verifiedFieldCount = Object.values(fieldEvidence).filter(Boolean).length;
+    const sourceAudit = {
+      structuredSignals,
+      sourceCharacteristics: seed.characteristics.length,
+      normalizedCharacteristics: merged.length,
+      verifiedFieldCount,
+      requestedImages: seed.imageUrls.length,
+      downloadedImages: images.length,
+      aiNormalizationUsed: Boolean(ai),
+      notProvided,
+      generatedAt: new Date().toISOString()
+    };
+
     stats.urlImports += 1;
     return res.json({
       source: {
@@ -1219,7 +1257,9 @@ app.post("/api/import-url", async (req, res) => {
         requestedUrl: rawUrl,
         host: new URL(seed.canonical || page.finalUrl).hostname,
         fetchedAt: new Date().toISOString(),
-        title: seed.title || data.seoTitle
+        title: seed.title || data.seoTitle,
+        audit: sourceAudit,
+        fieldEvidence
       },
       data,
       extraData: {
@@ -1282,7 +1322,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "8.1.0",
+    version: "8.2.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1334,6 +1374,9 @@ app.get("/api/health", (_req, res) => {
       adaptiveToneMapping: true,
       safeCutoutPadding: true,
       twoStageEdgeFeathering: true,
+      productIntakeV2: true,
+      urlImportProvenanceAudit: true,
+      sourceFieldEvidence: true,
       darkWorkbench: true,
       wideWorkbench: true,
       manualComposition: true
@@ -3196,5 +3239,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v8.1.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v8.2.0 listening on port ${port}`);
 });

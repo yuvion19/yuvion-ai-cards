@@ -158,6 +158,12 @@ const features=[
   ['adaptiveToneMapping: true','adaptive tone mapping metadata'],
   ['safeCutoutPadding: true','safe cutout padding metadata'],
   ['twoStageEdgeFeathering: true','two-stage edge feathering metadata'],
+  ['productIntakeV2: true','Product Intake v2 health metadata'],
+  ['urlImportProvenanceAudit: true','URL provenance audit metadata'],
+  ['sourceFieldEvidence: true','source field evidence metadata'],
+  ['const {response,data:payload}=await fetchJsonRetry(\'/api/import-url\'','URL import wrapper destructuring'],
+  ['Не предоставлено источником','source audit missing-field UI'],
+  ['Подтверждено полей источником','catalog provenance report column'],
   ['subject-touches-frame','safe fallback when subject touches source edge'],
   ['firstRing','two-stage alpha feather implementation']
 ];

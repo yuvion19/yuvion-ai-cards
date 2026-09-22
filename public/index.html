@@ -1567,8 +1567,16 @@ function renderSourceReference(){
   if(!src?.url){sourceReference.className='source-reference';sourceReference.innerHTML='';return}
   let href='';
   try{const u=new URL(src.url);if(['http:','https:'].includes(u.protocol))href=u.href}catch{}
+  const audit=src.audit||{};
+  const chips=[];
+  if(Number.isFinite(Number(audit.verifiedFieldCount)))chips.push('подтверждено полей: '+Number(audit.verifiedFieldCount));
+  if(Number.isFinite(Number(audit.normalizedCharacteristics)))chips.push('характеристик: '+Number(audit.normalizedCharacteristics));
+  if(Number.isFinite(Number(audit.downloadedImages)))chips.push('фото: '+Number(audit.downloadedImages));
+  if(audit.aiNormalizationUsed===true)chips.push('AI-нормализация страницы');
+  if(audit.aiNormalizationUsed===false)chips.push('без AI-нормализации');
+  const missing=Array.isArray(audit.notProvided)?audit.notProvided.filter(Boolean):[];
   sourceReference.className='source-reference show';
-  sourceReference.innerHTML='<div><b>Источник: '+esc(src.host||'сторонний сайт')+'</b><span> · данные импортированы '+esc(src.fetchedAt?new Date(src.fetchedAt).toLocaleString('ru-RU'):'')+'</span></div>'+(href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">Открыть источник ↗</a>':'');
+  sourceReference.innerHTML='<div><b>Источник: '+esc(src.host||'сторонний сайт')+'</b><span> · данные импортированы '+esc(src.fetchedAt?new Date(src.fetchedAt).toLocaleString('ru-RU'):'')+'</span>'+(chips.length?'<small style="display:block;margin-top:4px">'+chips.map(esc).join(' · ')+'</small>':'')+(missing.length?'<small style="display:block;margin-top:3px;color:#9A6108">Не предоставлено источником: '+missing.map(esc).join(', ')+'</small>':'')+'</div>'+(href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">Открыть источник ↗</a>':'');
 }
 
 function setUrlImportStatus(message,type=''){
@@ -1583,9 +1591,10 @@ async function importFromProductUrl(){
   busy=true;importProductUrl.disabled=true;importProductUrl.textContent='Забираем…';clearError();
   setUrlImportStatus('Читаем публичные данные страницы, характеристики и изображения…','');
   try{
-    const payload=await fetchJsonRetry('/api/import-url',{
+    const {response,data:payload}=await fetchJsonRetry('/api/import-url',{
       method:'POST',headers:apiHeaders(),body:JSON.stringify({url})
     },1);
+    if(!response.ok)throw new Error(payload.error||'Не удалось импортировать товар по ссылке.');
     resetProduct(false);
     currentHistoryId=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36);
     currentSourceReference=payload.source||null;
@@ -1623,6 +1632,7 @@ async function importFromProductUrl(){
     }));
     currentPhotoHash=sourceDataUrl?await imageHashFromDataUrl(sourceDataUrl):'';
     currentCards=[];currentScenes=[];currentQuality=null;currentStaleCards=[];cardsStale=false;
+    if(currentPhotoHash)await checkPhotoDuplicate(currentPhotoHash);
     fillEditor(currentData);
     renderSourceReference();renderExtraPhotos();renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderFactSources();renderYuvionExport();renderProductCockpit();syncModeUi();
     preview.src=sourceDataUrl||'';preview.classList.toggle('show',!!sourceDataUrl);drop.classList.toggle('has',!!sourceDataUrl);dropText.style.display=sourceDataUrl?'none':'';
@@ -1630,10 +1640,11 @@ async function importFromProductUrl(){
     analyzeBtn.disabled=!sourceDataUrl;
     confidence.textContent='Уверенность импорта: '+(currentData.confidence||'не указана');
     workspace.classList.add('show');
-    addCurrentActivity('Импорт по ссылке',currentSourceReference?.url||url);
+    const audit=currentSourceReference?.audit||{};
+    addCurrentActivity('Импорт по ссылке',(currentSourceReference?.url||url)+' · полей '+Number(audit.verifiedFieldCount||0)+' · фото '+Number(audit.downloadedImages||0));
     await checkDuplicateSku();await checkBarcodeState('product');await saveHistory();
     await refreshDesignPalette();
-    autoCreateCardsIfEnabled();
+    await autoCreateCardsIfEnabled();
     const warnings=Array.isArray(payload.warnings)?payload.warnings.filter(Boolean):[];
     if(currencyWarning)warnings.unshift(currencyWarning);
     setUrlImportStatus('Товар импортирован: данные'+(sourceDataUrl?' и фотографии':'')+' перенесены в черновик.'+(warnings.length?' '+warnings.join(' '):''),warnings.length?'warn':'ok');
@@ -6199,11 +6210,12 @@ async function hydrateExcelItemFromUrl(item){
   item.title=remoteData.seoTitle||item.title||'Товар';
   item.extraData=mergedExtra;
   item.sourceReference=payload.source||null;
+  item.sourceAudit=payload.source?.audit||null;
   item.pendingSourceUrl='';
   item.urlImportPending=false;
   item.urlDataReady=true;
   item.analysisCache=null;item.generationFingerprint=null;
-  item.activity=[{at:Date.now(),type:'Ссылка из Excel обработана',detail:item.sourceReference?.url||''},...(item.activity||[])].slice(0,80);
+  item.activity=[{at:Date.now(),type:'Ссылка из Excel обработана',detail:(item.sourceReference?.url||'')+' · полей '+Number(item.sourceReference?.audit?.verifiedFieldCount||0)+' · фото '+Number(item.sourceReference?.audit?.downloadedImages||0)},...(item.activity||[])].slice(0,80);
   item.updatedAt=Date.now();
   await dbPut(item);
   return item;
@@ -6369,7 +6381,7 @@ async function exportCatalogReportNow(){
   const rows=[[
     'Название','Артикул','Бренд','Штрихкод','Категория','Цена за 1','Цена от 2','Цена от 3','Старая цена',
     'Материал','Размеры','Описание','Себестоимость','Остаток','Коробки','Минимальный остаток','Место хранения','Коллекции',
-    'Статус Yuvion','Готовность','Фото','Карточки','QA пройден','QA блокеры','Источник данных','URL источника','Дубль главного фото','OCR ожидает','Последнее изменение'
+    'Статус Yuvion','Готовность','Фото','Карточки','QA пройден','QA блокеры','Источник данных','URL источника','Подтверждено полей источником','Не предоставлено источником','Дубль главного фото','OCR ожидает','Последнее изменение'
   ]];
   for(const item of all){
     const d=item.data||{},x=item.extraData||d.confirmedData||{},p=item.privateData||{},r=item.data?storedReadiness(item):{done:0,total:0};
@@ -6380,6 +6392,7 @@ async function exportCatalogReportNow(){
       Array.isArray(p.collections)?p.collections.join(', '):'',
       draftStatus(item).label,item.data?(r.done+'/'+r.total):'0/0',item.sourceDataUrl?'Да':'Нет',Array.isArray(item.cards)?item.cards.length:0,
       item.quality?'Да':'Нет',storedQaBlockers(item).length,item.sourceReference?.host||'Свои данные',item.sourceReference?.url||'',
+      Number(item.sourceReference?.audit?.verifiedFieldCount||0),(item.sourceReference?.audit?.notProvided||[]).join(', '),
       duplicatePhotoInCatalog(item,all)?'Да':'Нет',Array.isArray(item.labelSuggestions)?item.labelSuggestions.length:0,item.updatedAt?new Date(item.updatedAt).toISOString():''
     ]);
   }
