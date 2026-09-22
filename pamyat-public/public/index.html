@@ -11,7 +11,7 @@
   <meta name="application-name" content="Память Джуури">
   <meta name="format-detection" content="telephone=no">
   <link rel="apple-touch-icon" href="/icon.svg">
-  <meta name="description" content="Общественный календарь памяти, каталог кладбища Кубы, родословная и уведомления.">
+  <meta name="description" content="Общественный календарь памяти, родословная и уведомления.">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
   <script src="/vendor/leaflet/leaflet.js"></script>
@@ -31,7 +31,7 @@
     label{display:block;font-weight:750;margin:12px 0 6px}.help{font-size:13px;color:var(--muted);margin-top:5px}.card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.chips{display:flex;gap:8px;overflow:auto;padding:2px 0 12px}.chip{white-space:nowrap;border:1px solid var(--line);background:white;border-radius:999px;padding:8px 12px;cursor:pointer}.chip.active{background:var(--accent);color:white;border-color:var(--accent)}
     .derived{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}.datebox{background:var(--soft);padding:11px;border-radius:12px}.datebox b{display:block}.datebox span{font-size:12px;color:var(--muted)}.empty{padding:28px;text-align:center;color:var(--muted);background:var(--paper);border:1px dashed var(--line);border-radius:16px}
     .quba{background:linear-gradient(135deg,#3c3025,#735f46);color:white}.quba p,.quba .meta{color:#e9dfd0}.quba .secondary{background:white;color:#332a21}.stat{font-size:34px;font-weight:850}
-    #qubaMap{height:520px;border-radius:16px;border:1px solid var(--line);overflow:hidden;background:#ddd}.mapwrap{position:relative}.maplegend{position:absolute;z-index:500;left:10px;bottom:10px;background:white;padding:8px 10px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);font-size:12px}
+    
     .search-results{display:grid;gap:9px;max-height:560px;overflow:auto}.result{background:white;border:1px solid var(--line);border-radius:13px;padding:12px}.hebrew{font-size:18px;direction:rtl}
     .cal-row{display:grid;grid-template-columns:110px 1fr auto;gap:12px;align-items:center;background:white;border:1px solid var(--line);border-radius:14px;padding:12px}.calendar-list{display:grid;gap:9px}
     .family-stage{min-height:460px;background:white;border:1px solid var(--line);border-radius:16px;overflow:auto}.family-stage svg{width:100%;min-width:700px;height:460px}.node-label{font-size:12px;fill:var(--ink);text-anchor:middle}.edge-line{stroke:#b9aa94;stroke-width:2}.node-dot{fill:#6c5940}.node-dot.verified{fill:#54745a}
@@ -41,7 +41,7 @@
     footer{margin-top:40px;padding:24px 0;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
     .adminbar{display:grid;grid-template-columns:2fr auto auto auto;gap:8px}.badge{display:inline-flex;padding:4px 7px;border-radius:999px;background:var(--soft);font-size:12px}.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
     @media(max-width:900px){.hero,.split{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.derived{grid-template-columns:repeat(2,1fr)}.head{flex-wrap:wrap}.head .brand{flex:1}.head nav{display:flex;order:3;width:100%;overflow-x:auto;padding-top:4px}.toolbar,.adminbar{grid-template-columns:1fr}}
-    @media(max-width:580px){.wrap{padding-left:12px;padding-right:12px}.head{padding-left:12px;padding-right:12px}.grid{grid-template-columns:1fr}.checks{grid-template-columns:1fr}.derived{grid-template-columns:1fr}.hero>div{padding:20px}.cal-row{grid-template-columns:80px 1fr}.cal-row button{grid-column:2}.lang{max-width:100px}#qubaMap{height:420px}}
+    @media(max-width:580px){.wrap{padding-left:12px;padding-right:12px}.head{padding-left:12px;padding-right:12px}.grid{grid-template-columns:1fr}.checks{grid-template-columns:1fr}.derived{grid-template-columns:1fr}.hero>div{padding:20px}.cal-row{grid-template-columns:80px 1fr}.cal-row button{grid-column:2}.lang{max-width:100px}}
   </style>
 </head>
 <body>
@@ -51,7 +51,6 @@
     <nav>
       <button class="navbtn active" data-page="home" data-i18n="home">Главная</button>
       <button class="navbtn" data-page="calendar" data-i18n="calendar">Календарь</button>
-      <button class="navbtn" data-page="quba" data-i18n="quba">Кладбище Губы</button>
       <button class="navbtn" data-page="family" data-i18n="family">Родословная</button>
       <button class="navbtn" data-page="notifications" data-i18n="notifications">Уведомления</button>
       <button class="navbtn" data-page="add" data-i18n="add">Добавить</button>
@@ -71,8 +70,8 @@
       <div>
         <div class="meta"><span class="tag" data-i18n="publicHub">Общественный центр памяти</span><span class="tag">PWA</span><span class="tag">Supabase</span></div>
         <h1 data-i18n="heroTitle">Память, даты и семейная история — в одном месте</h1>
-        <p class="lead" data-i18n="heroText">Похороны, 7 и 40 дней, 1 год, годовщины, йорцайт, каталог кладбища Кубы, родственные связи и автоматические напоминания.</p>
-        <div class="card-actions"><button class="primary" onclick="showPage('add')" data-i18n="reportDate">Сообщить дату памяти</button><button class="secondary" onclick="showPage('notifications')" data-i18n="enableAlerts">Настроить напоминания</button><button class="secondary" onclick="showPage('quba')" data-i18n="findGrave">Найти захоронение</button></div>
+        <p class="lead" data-i18n="heroText">Похороны, 7 и 40 дней, 1 год, годовщины, йорцайт, родственные связи и автоматические напоминания.</p>
+        <div class="card-actions"><button class="primary" onclick="showPage('add')" data-i18n="reportDate">Сообщить дату памяти</button><button class="secondary" onclick="showPage('notifications')" data-i18n="enableAlerts">Настроить напоминания</button></div>
       </div>
       <div>
         <h3 data-i18n="nearest">Ближайшие даты</h3>
@@ -80,21 +79,7 @@
         <p class="muted" data-i18n="approvedPublic">одобренных публичных событий</p>
         <div class="notice" data-i18n="privacyNote">Контактные данные заявителей и точные служебные сведения не публикуются. Новые записи проходят модерацию.</div>
       </div>
-    </div>
-
-    <div class="panel quba">
-      <div class="split">
-        <div>
-          <div class="meta"><span class="tag">QBA · Куба / Губа · Азербайджан</span></div>
-          <h2 data-i18n="qubaTitle">Старое центральное кладбище горских евреев</h2>
-          <p data-i18n="qubaIntro">Встроенный индекс каталога «Мацевалог»: поиск по имени, вариантам имени, номеру QBA, датам и ивриту. Метаданные синхронизируются с исходным каталогом; изображения не копируются.</p>
-          <div class="card-actions"><button class="secondary" onclick="showPage('quba')" data-i18n="openCatalog">Открыть поиск и карту</button><a class="secondary" style="text-decoration:none" target="_blank" rel="noopener" href="https://matzevalog.github.io/matzevalog/cemeteries/QBA.html">Мацевалог ↗</a></div>
-        </div>
-        <div><div class="notice" style="background:rgba(255,255,255,.12);color:#f0e8dc" data-i18n="sourceNote">Источник — «Мацевалог». Повторное использование фотографий и текстов регулируется условиями конкретной исходной карточки.</div></div>
-      </div>
-    </div>
-
-    <div class="toolbar">
+    </div><div class="toolbar">
       <input id="search" class="field" data-ph="searchName" placeholder="Поиск по ФИО и вариантам имени" oninput="debouncedLoadEvents()">
       <input id="cityFilter" class="field" data-ph="city" placeholder="Город" oninput="debouncedLoadEvents()">
       <button class="secondary" onclick="loadEvents()" data-i18n="search">Найти</button>
@@ -113,39 +98,7 @@
       <button class="chip" data-mode="all" data-i18n="all">Все</button>
     </div>
     <div id="calendarList" class="calendar-list"></div>
-  </section>
-
-  <section id="quba" class="section">
-    <div class="panel quba">
-      <div class="meta"><span class="tag">QBA</span><span class="tag">6,7 га</span><span class="tag">1194 памятника в исходном каталоге</span></div>
-      <h1 style="font-size:42px" data-i18n="qubaTitle">Старое центральное кладбище горских евреев</h1>
-      <p class="lead" style="color:#eadfce" data-i18n="qubaSearchHelp">Ищите по ФИО, номеру QBA, имени на иврите или варианту имени. Нечёткий поиск учитывает распространённые варианты.</p>
-    </div>
-    <div class="split" style="margin-top:18px">
-      <div class="panel">
-        <div class="toolbar" style="grid-template-columns:1fr auto">
-          <input id="cemeterySearch" class="field" data-ph="graveSearch" placeholder="Например: Юсуф, Йосеф, QBA0505" onkeydown="if(event.key==='Enter')searchCemetery()">
-          <button class="primary" onclick="searchCemetery()" data-i18n="search">Найти</button>
-        </div>
-        <div class="card-actions" style="margin-bottom:10px">
-          <button class="secondary" onclick="cemeteryPage=1;loadCemeteryCatalog()">Каталогизация кладбища</button>
-          <button class="secondary" onclick="suggestCemeteryEntry()">+ Предложить запись</button>
-          <a class="secondary" style="text-decoration:none" target="_blank" rel="noopener" href="https://matzevalog.github.io/matzevalog/cemeteries/QBA.html">Оригинал «Мацевалог» ↗</a>
-        </div>
-        <div class="help" data-i18n="catalogDisclaimer">Показываем индексные данные и ссылку на оригинал. Фото и эпитафии остаются у источника.</div>
-        <div id="cemeteryResults" class="search-results" style="margin-top:12px"></div>
-        <div id="cemeteryPager" class="card-actions" style="justify-content:space-between"></div>
-      </div>
-      <div class="panel">
-        <div class="mapwrap">
-          <div id="qubaMap"></div>
-          <div class="maplegend"><span data-i18n="mapHint">Нажмите на точку для карточки и исходной ссылки</span></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="family" class="section">
+  </section><section id="family" class="section">
     <div class="split">
       <div class="panel">
         <h2 data-i18n="familyTitle">Родословная ↔ кладбище</h2>
@@ -162,83 +115,6 @@
           <label data-i18n="relativeDeath">Дата смерти родственника</label><input class="field" type="date" name="relative_death">
           <label data-i18n="relation">Связь</label>
           <select class="field" name="relation_type"><option value="parent">родитель</option><option value="child">ребёнок</option><option value="spouse">супруг/супруга</option><option value="sibling">брат/сестра</option><option value="grandparent">дедушка/бабушка</option><option value="grandchild">внук/внучка</option><option value="other">другое</option></select>
-          <label>QBA record key</label><input class="field" name="cemetery_record_key" placeholder="QBA0505:1">
-          <label data-i18n="yourName">Ваше имя</label><input class="field" name="submitted_by">
-          <label data-i18n="contactPrivate">Контакт модератору</label><input class="field" name="contact">
-          <label data-i18n="evidence">Комментарий / подтверждение</label><textarea class="field" name="evidence_note" rows="3"></textarea>
-          <button class="primary" style="margin-top:12px" data-i18n="submitModeration">Отправить на модерацию</button>
-          <div id="familyStatus"></div>
-        </form>
-      </div>
-    </div>
-  </section>
-
-  <section id="notifications" class="section">
-    <div class="panel" style="margin-bottom:18px">
-      <div class="modalhead"><div><h2 style="margin-bottom:4px">Центр уведомлений</h2><div class="muted">Бесплатно: ближайшие публичные даты, отметка прочитанного и badge на иконке приложения.</div></div><button class="secondary small" onclick="markAllNotificationsRead()">Прочитать всё</button></div>
-      <div id="internalNotifications" class="calendar-list" style="margin-top:12px"></div>
-      <div class="card-actions">
-        <a class="secondary" style="text-decoration:none" href="/api/calendar.ics">Календарь .ics</a>
-        <a class="secondary" style="text-decoration:none" target="_blank" rel="noopener" href="/api/feed.xml">RSS</a>
-        <button class="secondary" onclick="copyCalendarFeed()">Скопировать ссылку календаря</button>
-      </div>
-      <div class="help">Эти каналы не требуют SMS-провайдера, платной почты или Telegram-бота.</div>
-    </div>
-    <div class="split">
-      <div class="panel">
-        <h2 data-i18n="notificationsTitle">Автоматические напоминания</h2>
-        <p class="muted" data-i18n="notificationsHelp">Push работает напрямую через браузер. Email и Telegram включаются в той же подписке, когда соответствующий серверный канал подключён.</p>
-        <div class="channel"><div>🔔</div><div><strong>Web Push</strong><div id="pushState" class="statusline">Проверяем…</div></div></div>
-        <div class="channel" style="margin-top:8px"><div>✉️</div><div><strong>Email</strong><div id="emailState" class="statusline">Проверяем…</div></div></div>
-        <div class="channel" style="margin-top:8px"><div>✈️</div><div><strong>Telegram bot</strong><div id="telegramState" class="statusline">Проверяем…</div></div></div>
-        <div class="checks" style="margin-top:14px">
-          <div class="check"><input id="rem7" type="checkbox" checked><label>за 7 дней</label></div>
-          <div class="check"><input id="rem1" type="checkbox" checked><label>за 1 день</label></div>
-          <div class="check"><input id="rem0" type="checkbox" checked><label>в день события</label></div>
-          <div class="check"><input id="rem30" type="checkbox"><label>за 30 дней</label></div>
-        </div>
-        <label>Email</label><input id="notifyEmail" class="field" type="email" placeholder="name@example.com">
-        <div class="check" style="margin-top:7px"><input id="emailEnabled" type="checkbox"><label data-i18n="emailEnable">Использовать email, когда канал доступен</label></div>
-        <label>Telegram chat ID</label><input id="telegramChatId" class="field" placeholder="123456789">
-        <div class="check" style="margin-top:7px"><input id="telegramEnabled" type="checkbox"><label data-i18n="telegramEnable">Использовать Telegram, когда бот подключён</label></div>
-        <div class="card-actions"><button class="primary" onclick="subscribePush()" data-i18n="enableAlerts">Включить уведомления</button><button class="secondary" onclick="unsubscribePush()" data-i18n="disableAlerts">Отключить</button></div>
-        <div id="notifyStatus" style="margin-top:10px"></div>
-      </div>
-      <div class="panel">
-        <h3 data-i18n="installApp">Установить как приложение</h3>
-        <p class="muted" data-i18n="installHelp">Сайт работает как PWA: его можно добавить на главный экран телефона. Уведомления запрашиваются только после нажатия кнопки.</p>
-        <div class="notice warn" id="providerNote" data-i18n="providerNote">Email и Telegram требуют серверных ключей провайдеров. Веб-push не требует стороннего почтового сервиса.</div>
-        <h3 style="margin-top:22px">Telegram</h3>
-        <p class="muted">После подключения бота доступны команды <b>/today</b>, <b>/week</b>, <b>/find Имя</b>. Команда <b>/start</b> показывает ваш chat ID.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="add" class="section">
-    <div class="split">
-      <div class="panel">
-        <h2 data-i18n="addEvent">Добавить событие</h2>
-        <form id="addForm">
-          <label data-i18n="fullName">ФИО *</label><input class="field" name="full_name" required>
-          <label data-i18n="deathDate">Дата смерти</label><input class="field" type="date" name="death_date" id="deathDate">
-          <div id="hebrewPreview" class="notice" style="margin-top:9px;display:none"></div>
-          <div id="derivedDates" class="derived"></div>
-          <div class="checks" style="margin-top:8px">
-            <div class="check"><input type="checkbox" name="publish_day7" checked><label>7 дней</label></div>
-            <div class="check"><input type="checkbox" name="publish_day40" checked><label>40 дней</label></div>
-            <div class="check"><input type="checkbox" name="publish_year1" checked><label>1 год</label></div>
-            <div class="check"><input type="checkbox" name="publish_annual" checked><label data-i18n="anniversary">Годовщина</label></div>
-            <div class="check"><input type="checkbox" name="publish_yahrzeit" checked><label>Йорцайт</label></div>
-          </div>
-          <label data-i18n="manualYahrzeit">Ручная дата йорцайта, если семейная традиция отличается</label><input class="field" type="date" name="manual_yahrzeit_date">
-          <label data-i18n="eventType">Дополнительное событие</label>
-          <select class="field" name="event_type"><option value="">—</option><option>Похороны</option><option>Посещение кладбища</option><option>Памятная дата</option><option>Годовщина</option></select>
-          <label data-i18n="eventDate">Дата дополнительного события</label><input class="field" type="date" name="event_date">
-          <label data-i18n="time">Время</label><input class="field" type="time" name="event_time">
-          <label data-i18n="city">Город</label><input class="field" name="city">
-          <label data-i18n="place">Место</label><input class="field" name="place" list="places"><datalist id="places"><option value="Куба (центральное кладбище)"></option></datalist>
-          <label>QBA record key</label><input class="field" name="cemetery_record_key" id="cemeteryRecordKey" placeholder="QBA0062:1">
-          <label data-i18n="sourceLink">Ссылка на исходную карточку</label><input class="field" type="url" name="cemetery_link">
           <label data-i18n="note">Краткая информация</label><textarea class="field" name="note" rows="4"></textarea>
           <label data-i18n="visibility">Видимость</label><select class="field" name="visibility"><option value="public">Для всех</option><option value="link">Только по ссылке</option><option value="invited">Только приглашённым</option></select>
           <label data-i18n="yourName">Ваше имя</label><input class="field" name="submitter_name">
@@ -252,8 +128,6 @@
         <h3 data-i18n="dateLogic">Как считаются даты</h3>
         <p class="muted">7 и 40 дней считаются от введённой даты. 1 год и обычная годовщина — по григорианскому календарю. Йорцайт вычисляется по еврейскому календарю как автоматическая подсказка; ручная дата имеет приоритет.</p>
         <div class="notice warn">Практика подсчёта памятных дат может различаться в семьях и общинах. Поэтому автоматические даты можно корректировать до публикации через модерацию.</div>
-        <h3 style="margin-top:22px" data-i18n="findInQuba">Связать с кладбищем Кубы</h3>
-        <p class="muted" data-i18n="findInQubaHelp">Найдите запись в разделе кладбища и нажмите «Использовать в форме» — номер QBA и исходная ссылка подставятся автоматически.</p>
       </div>
     </div>
   </section>
@@ -269,7 +143,6 @@
       <input id="adminToken" type="password" class="field" placeholder="Токен администратора">
       <button class="primary" onclick="loadAdmin()">Войти</button>
       <button class="secondary" onclick="adminSnapshot()">Снимок БД</button>
-      <button class="secondary" onclick="adminSyncCemetery()">Синхр. QBA</button>
     </div>
     <div class="card-actions">
   <button class="secondary small" onclick="adminDownload('/api/admin/export.json')">Экспорт JSON</button>
@@ -283,7 +156,6 @@
 
   <footer>
     <div data-i18n="footerPrivacy">Публикуйте личную информацию только с согласия семьи. Публичные записи проходят модерацию.</div>
-    <div style="margin-top:6px">Каталог QBA: внешний источник «Мацевалог». Метаданные индексируются для поиска; исходные материалы остаются у правообладателей.</div>
     <button class="ghost" onclick="showPage('admin')">Администратор</button>
   </footer>
 </main>
@@ -293,8 +165,8 @@
 
 <script>
 const T={
-ru:{brand:"Память",home:"Главная",calendar:"Календарь",quba:"Кладбище Губы",family:"Родословная",notifications:"Уведомления",add:"Добавить",archive:"Архив",addShort:"+ Добавить",publicHub:"Общественный центр памяти",heroTitle:"Память, даты и семейная история — в одном месте",heroText:"Похороны, 7 и 40 дней, 1 год, годовщины, йорцайт, каталог кладбища Кубы, родственные связи и автоматические напоминания.",reportDate:"Сообщить дату памяти",enableAlerts:"Настроить напоминания",disableAlerts:"Отключить",findGrave:"Найти захоронение",nearest:"Ближайшие даты",approvedPublic:"одобренных публичных событий",privacyNote:"Контактные данные заявителей и точные служебные сведения не публикуются. Новые записи проходят модерацию.",qubaTitle:"Старое центральное кладбище горских евреев",qubaIntro:"Встроенный индекс каталога «Мацевалог»: поиск по имени, вариантам имени, номеру QBA, датам и ивриту. Метаданные синхронизируются с исходным каталогом; изображения не копируются.",openCatalog:"Открыть поиск и карту",sourceNote:"Источник — «Мацевалог». Повторное использование фотографий и текстов регулируется условиями конкретной исходной карточки.",search:"Найти",today:"Сегодня",tomorrow:"Завтра",all:"Все",qubaSearchHelp:"Ищите по ФИО, номеру QBA, имени на иврите или варианту имени. Нечёткий поиск учитывает распространённые варианты.",catalogDisclaimer:"Показываем только индексные данные и ссылку на оригинал. Фото и эпитафии остаются у источника.",mapHint:"Нажмите на точку для карточки и исходной ссылки",familyTitle:"Родословная ↔ кладбище",familyHelp:"Подтверждённые связи отображаются как граф. Отдельных публичных персональных мемориальных страниц здесь нет.",addRelation:"Добавить родственную связь",person:"Человек",deathDate:"Дата смерти",relative:"Родственник",relativeDeath:"Дата смерти родственника",relation:"Связь",yourName:"Ваше имя",contactPrivate:"Контакт модератору",evidence:"Комментарий / подтверждение",submitModeration:"Отправить на модерацию",notificationsTitle:"Автоматические напоминания",notificationsHelp:"Push работает напрямую через браузер. Email и Telegram включаются в той же подписке, когда соответствующий серверный канал подключён.",emailEnable:"Использовать email, когда канал доступен",telegramEnable:"Использовать Telegram, когда бот подключён",installApp:"Установить как приложение",installHelp:"Сайт работает как PWA: его можно добавить на главный экран телефона. Уведомления запрашиваются только после нажатия кнопки.",providerNote:"Email и Telegram требуют серверных ключей провайдеров. Веб-push не требует стороннего почтового сервиса.",addEvent:"Добавить событие",fullName:"ФИО *",anniversary:"Годовщина",manualYahrzeit:"Ручная дата йорцайта, если семейная традиция отличается",eventType:"Дополнительное событие",eventDate:"Дата дополнительного события",time:"Время",city:"Город",place:"Место",sourceLink:"Ссылка на исходную карточку",note:"Краткая информация",visibility:"Видимость",consent:"У меня есть право или согласие семьи на публикацию.",dateLogic:"Как считаются даты",findInQuba:"Связать с кладбищем Кубы",findInQubaHelp:"Найдите запись в разделе кладбища и нажмите «Использовать в форме» — номер QBA и исходная ссылка подставятся автоматически.",footerPrivacy:"Публикуйте личную информацию только с согласия семьи. Публичные записи проходят модерацию.",searchName:"Поиск по ФИО и вариантам имени",graveSearch:"Например: Юсуф, Йосеф, QBA0505",familySearch:"Найти человека"},
-en:{brand:"Memory",home:"Home",calendar:"Calendar",quba:"Quba cemetery",family:"Family tree",notifications:"Notifications",add:"Add",archive:"Archive",addShort:"+ Add",publicHub:"Community memory hub",heroTitle:"Memory, dates and family history in one place",heroText:"Funerals, 7/40 days, one year, anniversaries, yahrzeit, Quba cemetery index, family links and reminders.",reportDate:"Submit a memorial date",enableAlerts:"Set reminders",disableAlerts:"Disable",findGrave:"Find a grave",nearest:"Upcoming dates",approvedPublic:"approved public events",privacyNote:"Submitter contacts and private service data are not public. New records are moderated.",search:"Search",today:"Today",tomorrow:"Tomorrow",all:"All",familyTitle:"Family tree ↔ cemetery",addRelation:"Add family relation",notificationsTitle:"Automatic reminders",addEvent:"Add event",fullName:"Full name *",deathDate:"Date of death",yourName:"Your name",contactPrivate:"Private moderator contact",submitModeration:"Send for moderation",city:"City",place:"Place",archive:"Archive",footerPrivacy:"Publish personal information only with family consent."},
+ru:{brand:"Память",home:"Главная",calendar:"Календарь",quba:"Кладбище Губы",family:"Родословная",notifications:"Уведомления",add:"Добавить",archive:"Архив",addShort:"+ Добавить",publicHub:"Общественный центр памяти",heroTitle:"Память, даты и семейная история — в одном месте",heroText:"Похороны, 7 и 40 дней, 1 год, годовщины, йорцайт, родственные связи и автоматические напоминания.",reportDate:"Сообщить дату памяти",enableAlerts:"Настроить напоминания",disableAlerts:"Отключить",findGrave:"Найти захоронение",nearest:"Ближайшие даты",approvedPublic:"одобренных публичных событий",privacyNote:"Контактные данные заявителей и точные служебные сведения не публикуются. Новые записи проходят модерацию.",qubaTitle:"Старое центральное кладбище горских евреев",qubaIntro:"Встроенный индекс каталога «Мацевалог»: поиск по имени, вариантам имени, номеру QBA, датам и ивриту. Метаданные синхронизируются с исходным каталогом; изображения не копируются.",openCatalog:"Открыть поиск и карту",sourceNote:"Источник — «Мацевалог». Повторное использование фотографий и текстов регулируется условиями конкретной исходной карточки.",search:"Найти",today:"Сегодня",tomorrow:"Завтра",all:"Все",qubaSearchHelp:"Ищите по ФИО, номеру QBA, имени на иврите или варианту имени. Нечёткий поиск учитывает распространённые варианты.",catalogDisclaimer:"Показываем только индексные данные и ссылку на оригинал. Фото и эпитафии остаются у источника.",mapHint:"Нажмите на точку для карточки и исходной ссылки",familyTitle:"Родословная ↔ кладбище",familyHelp:"Подтверждённые связи отображаются как граф. Отдельных публичных персональных мемориальных страниц здесь нет.",addRelation:"Добавить родственную связь",person:"Человек",deathDate:"Дата смерти",relative:"Родственник",relativeDeath:"Дата смерти родственника",relation:"Связь",yourName:"Ваше имя",contactPrivate:"Контакт модератору",evidence:"Комментарий / подтверждение",submitModeration:"Отправить на модерацию",notificationsTitle:"Автоматические напоминания",notificationsHelp:"Push работает напрямую через браузер. Email и Telegram включаются в той же подписке, когда соответствующий серверный канал подключён.",emailEnable:"Использовать email, когда канал доступен",telegramEnable:"Использовать Telegram, когда бот подключён",installApp:"Установить как приложение",installHelp:"Сайт работает как PWA: его можно добавить на главный экран телефона. Уведомления запрашиваются только после нажатия кнопки.",providerNote:"Email и Telegram требуют серверных ключей провайдеров. Веб-push не требует стороннего почтового сервиса.",addEvent:"Добавить событие",fullName:"ФИО *",anniversary:"Годовщина",manualYahrzeit:"Ручная дата йорцайта, если семейная традиция отличается",eventType:"Дополнительное событие",eventDate:"Дата дополнительного события",time:"Время",city:"Город",place:"Место",sourceLink:"Ссылка на исходную карточку",note:"Краткая информация",visibility:"Видимость",consent:"У меня есть право или согласие семьи на публикацию.",dateLogic:"Как считаются даты",findInQuba:"Связать с кладбищем Кубы",findInQubaHelp:"Найдите запись в разделе кладбища и нажмите «Использовать в форме» — номер QBA и исходная ссылка подставятся автоматически.",footerPrivacy:"Публикуйте личную информацию только с согласия семьи. Публичные записи проходят модерацию.",searchName:"Поиск по ФИО и вариантам имени",graveSearch:"Например: Юсуф, Йосеф, QBA0505",familySearch:"Найти человека"},
+en:{brand:"Memory",home:"Home",calendar:"Calendar",quba:"Quba cemetery",family:"Family tree",notifications:"Notifications",add:"Add",archive:"Archive",addShort:"+ Add",publicHub:"Community memory hub",heroTitle:"Memory, dates and family history in one place",heroText:"Funerals, 7/40 days, one year, anniversaries, yahrzeit, family links and reminders.",reportDate:"Submit a memorial date",enableAlerts:"Set reminders",disableAlerts:"Disable",findGrave:"Find a grave",nearest:"Upcoming dates",approvedPublic:"approved public events",privacyNote:"Submitter contacts and private service data are not public. New records are moderated.",search:"Search",today:"Today",tomorrow:"Tomorrow",all:"All",familyTitle:"Family tree ↔ cemetery",addRelation:"Add family relation",notificationsTitle:"Automatic reminders",addEvent:"Add event",fullName:"Full name *",deathDate:"Date of death",yourName:"Your name",contactPrivate:"Private moderator contact",submitModeration:"Send for moderation",city:"City",place:"Place",archive:"Archive",footerPrivacy:"Publish personal information only with family consent."},
 az:{brand:"Xatirə",home:"Ana səhifə",calendar:"Təqvim",quba:"Quba qəbiristanlığı",family:"Şəcərə",notifications:"Bildirişlər",add:"Əlavə et",archive:"Arxiv",addShort:"+ Əlavə et",publicHub:"İcma xatirə mərkəzi",heroTitle:"Xatirə, tarixlər və ailə tarixi bir yerdə",reportDate:"Xatirə tarixini əlavə et",enableAlerts:"Bildirişləri qur",findGrave:"Məzarı tap",search:"Axtar",today:"Bu gün",tomorrow:"Sabah",all:"Hamısı",deathDate:"Vəfat tarixi",yourName:"Adınız",city:"Şəhər",place:"Yer",submitModeration:"Yoxlamaya göndər"},
 he:{brand:"זיכרון",home:"ראשי",calendar:"לוח שנה",quba:"בית העלמין בקובה",family:"עץ משפחה",notifications:"התראות",add:"הוספה",archive:"ארכיון",addShort:"+ הוספה",publicHub:"מרכז זיכרון קהילתי",heroTitle:"זיכרון, תאריכים והיסטוריה משפחתית במקום אחד",reportDate:"הוספת תאריך זיכרון",enableAlerts:"הגדרת תזכורות",findGrave:"חיפוש קבר",search:"חיפוש",today:"היום",tomorrow:"מחר",all:"הכול",deathDate:"תאריך פטירה",yourName:"שמך",city:"עיר",place:"מקום",submitModeration:"שליחה לבדיקה"},
 juuri:{brand:"Ёр",home:"Сер",calendar:"Луьвэхь",quba:"Гъоврегьо Куба",family:"Кифлет",notifications:"Хэбер",add:"Артмиш",archive:"Архив",addShort:"+ Артмиш",publicHub:"Маркази ёр",heroTitle:"Ёр, торих ва кифлет — е жой",reportDate:"Торихи ёр артмиш",enableAlerts:"Хэбер сохде",disableAlerts:"Хэбер нис",findGrave:"Гъовре гешде",search:"Гешд",today:"Имбуруз",tomorrow:"Себэхь",all:"Гьемише",deathDate:"Торихи мурде",yourName:"Номи шумо",city:"Шегьер",place:"Жой",relative:"Гъовум",submitModeration:"Ба санжиш фиристед"}
@@ -307,7 +179,7 @@ function tr(k){return T[lang]?.[k]||T.ru[k]||k}
 function applyLang(){document.documentElement.lang=lang;document.body.classList.toggle("rtl",lang==="he");$$("[data-i18n]").forEach(e=>{e.textContent=tr(e.dataset.i18n)});$$("[data-ph]").forEach(e=>{e.placeholder=tr(e.dataset.ph)});$("#langSelect").value=lang;localStorage.setItem("pamyatLang",lang)}
 $("#langSelect").onchange=e=>{lang=e.target.value;applyLang();renderEvents();renderCalendar()};applyLang();
 
-function showPage(id){$(".section").forEach(x=>x.classList.toggle("active",x.id===id));$(".navbtn[data-page]").forEach(x=>x.classList.toggle("active",x.dataset.page===id));if(id==="calendar")renderCalendar();if(id==="archive")renderArchive();if(id==="quba"){setTimeout(initMap,100);loadCemeteryCatalog()}if(id==="family")loadFamilyGraph();if(id==="notifications"){loadChannelStatus();loadInternalNotifications()}scrollTo({top:0,behavior:"smooth"})}
+function showPage(id){$(".section").forEach(x=>x.classList.toggle("active",x.id===id));$(".navbtn[data-page]").forEach(x=>x.classList.toggle("active",x.dataset.page===id));if(id==="calendar")renderCalendar();if(id==="archive")renderArchive();if(id==="family")loadFamilyGraph();if(id==="notifications"){loadChannelStatus();loadInternalNotifications()}scrollTo({top:0,behavior:"smooth"})}
 $$(".navbtn[data-page]").forEach(b=>b.onclick=()=>showPage(b.dataset.page));
 
 const TYPES=["Все","Похороны","Посещение кладбища","7 дней","40 дней","1 год","Годовщина","Йорцайт","Памятная дата"];
@@ -372,83 +244,6 @@ async function submitClaim(id){const r=await fetch("/api/events/"+id+"/relative-
 function openCorrection(eventId,current){$("#simpleModal").innerHTML='<div class="modalhead"><h2>Исправить данные</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div><select id="corrField" class="field"><option value="full_name">ФИО</option><option value="death_date">Дата смерти</option><option value="event_date">Дата события</option><option value="place">Место</option><option value="note">Информация</option><option value="other">Другое</option></select><input id="corrValue" class="field" placeholder="Правильное значение"><input id="corrName" class="field" placeholder="Ваше имя"><input id="corrContact" class="field" placeholder="Контакт модератору"><input id="corrRelation" class="field" placeholder="Кем приходитесь"><div class="check"><input id="corrFamily" type="checkbox"><label>Я член семьи</label></div><textarea id="corrEvidence" class="field" rows="3" placeholder="Пояснение"></textarea><button class="primary" onclick="submitCorrection(\''+eventId+'\',\''+current.replace(/'/g,"&#39;")+'\')">Отправить</button>';simpleDialog.showModal()}
 async function submitCorrection(eventId,current){const b={event_id:eventId,field_name:$("#corrField").value,current_value:current,proposed_value:$("#corrValue").value,requester_name:$("#corrName").value,requester_contact:$("#corrContact").value,relation_to_person:$("#corrRelation").value,family_claim:$("#corrFamily").checked,evidence_note:$("#corrEvidence").value};const r=await fetch("/api/corrections",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});if(r.ok){simpleDialog.close();alert("Исправление отправлено на проверку.")}}
 
-
-function cemeteryRow(x){
-  return '<div class="result"><div class="meta"><span class="tag">'+esc(x.external_id)+'</span>'+(x.death_gr?'<span class="tag">'+esc(x.death_gr)+'</span>':'')+'</div><b>'+esc(x.name_ru||"Без имени")+'</b>'+(x.name_he?'<div class="hebrew">'+esc(x.name_he)+'</div>':'')+'<div class="card-actions"><a class="secondary small" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(x.source_url)+'">Источник ↗</a>'+(x.latitude?'<button class="secondary small" onclick="focusMap('+Number(x.latitude)+','+Number(x.longitude)+',\''+esc(x.name_ru||x.external_id).replace(/'/g,"&#39;")+'\')">На карте</button>':'')+'<button class="secondary small" onclick="useCemeteryRecord(\''+esc(x.record_key)+'\',\''+esc(x.source_url)+'\')">Использовать в форме</button><button class="secondary small" onclick="openCemeteryCorrection(\''+esc(x.record_key)+'\',\''+esc(x.name_ru||x.external_id).replace(/'/g,"&#39;")+'\')">Исправить</button></div></div>'
-}
-async function loadCemeteryCatalog(){
-  $("#cemeterySearch").value="";
-  $("#cemeteryResults").innerHTML='<div class="muted">Загрузка каталога…</div>';
-  try{
-    const r=await fetch("/api/cemetery/catalog?page="+cemeteryPage+"&limit=100"),j=await r.json();
-    const rows=j.rows||[];
-    $("#cemeteryResults").innerHTML=rows.length?rows.map(cemeteryRow).join(""):'<div class="empty">Записей нет.</div>';
-    $("#cemeteryPager").innerHTML='<button class="secondary" '+(cemeteryPage<=1?'disabled':'')+' onclick="if(cemeteryPage>1){cemeteryPage--;loadCemeteryCatalog()}">← Назад</button><span class="muted">Страница '+cemeteryPage+' · по 100 записей</span><button class="secondary" '+(!j.has_more?'disabled':'')+' onclick="if('+Boolean(j.has_more)+'){cemeteryPage++;loadCemeteryCatalog()}">Далее →</button>';
-  }catch{
-    $("#cemeteryResults").innerHTML='<div class="notice err">Не удалось открыть каталог.</div>';
-  }
-}
-function suggestCemeteryEntry(){
-  $("#simpleModal").innerHTML='<div class="modalhead"><h2>Предложить запись кладбища</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div><p class="muted">Новая запись не публикуется автоматически — она попадёт модератору.</p><input id="newCemName" class="field" placeholder="ФИО"><input id="newCemQba" class="field" placeholder="Номер QBA, если известен"><input id="newCemDeath" class="field" placeholder="Дата или год смерти"><input id="newCemContact" class="field" placeholder="Контакт модератору"><textarea id="newCemNote" class="field" rows="4" placeholder="Дополнительная информация / источник"></textarea><button class="primary" onclick="submitCemeterySuggestion()">Отправить на модерацию</button>';
-  simpleDialog.showModal();
-}
-async function submitCemeterySuggestion(){
-  const name=$("#newCemName").value.trim();
-  if(!name)return alert("Укажите имя.");
-  const proposed=[name,$("#newCemQba").value.trim(),$("#newCemDeath").value.trim(),$("#newCemNote").value.trim()].filter(Boolean).join(" | ");
-  const r=await fetch("/api/corrections",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({field_name:"new_cemetery_record",proposed_value:proposed,requester_contact:$("#newCemContact").value,evidence_note:$("#newCemNote").value})});
-  if(r.ok){simpleDialog.close();alert("Запись отправлена на модерацию.");}else alert("Не удалось отправить.");
-}
-function openCemeteryCorrection(key,current){
-  $("#simpleModal").innerHTML='<div class="modalhead"><h2>Исправить запись кладбища</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div><input id="cemCorrField" class="field" placeholder="Что исправить: имя, дата, место…"><input id="cemCorrValue" class="field" placeholder="Правильное значение"><input id="cemCorrContact" class="field" placeholder="Контакт модератору"><textarea id="cemCorrEvidence" class="field" rows="3" placeholder="Комментарий / источник"></textarea><button class="primary" onclick="submitCemeteryCorrection(\''+key+'\',\''+current.replace(/'/g,"&#39;")+'\')">Отправить</button>';
-  simpleDialog.showModal();
-}
-async function submitCemeteryCorrection(key,current){
-  const r=await fetch("/api/corrections",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({cemetery_record_key:key,field_name:$("#cemCorrField").value,current_value:current,proposed_value:$("#cemCorrValue").value,requester_contact:$("#cemCorrContact").value,evidence_note:$("#cemCorrEvidence").value})});
-  if(r.ok){simpleDialog.close();alert("Исправление отправлено на модерацию.");}else alert("Не удалось отправить.");
-}
-async function searchCemetery(){const q=$("#cemeterySearch").value.trim();$("#cemeteryResults").innerHTML='<div class="muted">Поиск…</div>';try{const r=await fetch("/api/cemetery/search?q="+encodeURIComponent(q)+"&limit=80"),rows=await r.json();$("#cemeteryResults").innerHTML=rows.length?rows.map(cemeteryRow).join(""):'<div class="empty">Ничего не найдено.</div>';$("#cemeteryPager").innerHTML=""}catch{$("#cemeteryResults").innerHTML='<div class="notice err">Ошибка поиска.</div>'}}
-function initMap(retry=0){
-  if(qubaMap){setTimeout(()=>qubaMap.invalidateSize(),50);return}
-  if(!window.L){
-    if(retry<20)return setTimeout(()=>initMap(retry+1),200);
-    const el=$("#qubaMap");if(el)el.innerHTML='<div class="empty">Модуль карты не загрузился. Обновите страницу.</div>';
-    return;
-  }
-  const el=$("#qubaMap");if(!el)return;
-  qubaMap=L.map("qubaMap").setView([41.3697,48.5063],16);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap"}).addTo(qubaMap);
-  setTimeout(()=>qubaMap.invalidateSize(),100);
-  loadMapPoints();
-}
-async function loadMapPoints(){
-  if(mapLoaded||!qubaMap)return;
-  try{
-    const r=await fetch("/api/cemetery/map?limit=2200",{cache:"no-store"});
-    if(!r.ok)throw new Error("HTTP "+r.status);
-    const rows=await r.json();
-    for(const x of rows){
-      if(!Number.isFinite(Number(x.latitude))||!Number.isFinite(Number(x.longitude)))continue;
-      const m=L.circleMarker([Number(x.latitude),Number(x.longitude)],{radius:4,weight:1,fillOpacity:.75}).addTo(qubaMap);
-      m.bindPopup('<b>'+esc(x.name_ru||x.external_id)+'</b><br>'+esc(x.external_id)+'<br><a target="_blank" rel="noopener" href="'+esc(x.source_url)+'">Мацевалог ↗</a>');
-      mapMarkers.push(m);
-    }
-    mapLoaded=true;
-    if(mapMarkers.length){
-      const group=L.featureGroup(mapMarkers);
-      qubaMap.fitBounds(group.getBounds().pad(.08),{maxZoom:19});
-    }
-    const legend=document.querySelector(".maplegend span");
-    if(legend)legend.textContent="На карте: "+mapMarkers.length+" записей с координатами";
-  }catch(e){
-    mapLoaded=false;
-    const legend=document.querySelector(".maplegend span");
-    if(legend)legend.textContent="Не удалось загрузить точки карты. Нажмите раздел ещё раз.";
-    console.error("map points",e);
-  }
-}
-function focusMap(lat,lon,name){showPage("quba");setTimeout(()=>{initMap();qubaMap?.setView([lat,lon],19);L.popup().setLatLng([lat,lon]).setContent('<b>'+esc(name)+'</b>').openOn(qubaMap)},200)}
-function useCemeteryRecord(key,url){$("#cemeteryRecordKey").value=key;document.querySelector('[name=cemetery_link]').value=url;document.querySelector('[name=place]').value="Куба (центральное кладбище)";document.querySelector('[name=city]').value="Куба (Губа), Азербайджан";showPage("add")}
 
 $("#familyForm").addEventListener("submit",async e=>{e.preventDefault();const b=Object.fromEntries(new FormData(e.target).entries()),r=await fetch("/api/family/relations",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});$("#familyStatus").innerHTML=r.ok?'<div class="notice ok" style="margin-top:9px">Связь отправлена на модерацию.</div>':'<div class="notice err" style="margin-top:9px">Не удалось отправить.</div>';if(r.ok)e.target.reset()});
 async function loadFamilyGraph(){const q=$("#familySearch")?.value.trim()||"";try{const r=await fetch("/api/family/graph?q="+encodeURIComponent(q)),g=await r.json();renderFamilyGraph(g)}catch{$("#familyStage").innerHTML='<div class="empty">Ошибка загрузки.</div>'}}
