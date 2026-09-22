@@ -29,6 +29,8 @@ const WHATSAPP_TEMPLATE_LANG = process.env.WHATSAPP_TEMPLATE_LANG || "ru";
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || "";
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || "";
 const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER || "";
+const BACKUP_WEBHOOK_URL = process.env.BACKUP_WEBHOOK_URL || "";
+const BACKUP_WEBHOOK_TOKEN = process.env.BACKUP_WEBHOOK_TOKEN || "";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const identifyUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 900000 }, fileFilter: (_req,file,cb)=>cb(null,/^image\//.test(file.mimetype)) });
 
@@ -1227,7 +1229,8 @@ app.get("/health", async (_req, res) => {
       telegram_configured: Boolean(TELEGRAM_BOT_TOKEN),
       email_configured: Boolean(RESEND_API_KEY),
       whatsapp_configured: reminderProviderStatus().whatsapp,
-      sms_configured: reminderProviderStatus().sms
+      sms_configured: reminderProviderStatus().sms,
+      offsite_backup_configured: Boolean(BACKUP_WEBHOOK_URL && BACKUP_WEBHOOK_TOKEN)
     });
   } catch (e) {
     res.status(503).json({ ok: false, database: "supabase", error: e.message });
@@ -2224,6 +2227,11 @@ app.post("/api/admin/history/:historyId/rollback", requireAdmin, async (req,res)
     res.json({ok:Boolean(data)});
   } catch { res.status(400).json({error:"rollback_failed"}); }
 });
+app.post("/api/admin/backup/test", requireAdmin, async (_req,res)=>{
+  try{const r=await sendOffsiteBackup();res.status(r.ok?200:503).json(r)}
+  catch(e){res.status(502).json({ok:false,error:e.message||"backup_failed"})}
+});
+
 app.post("/api/admin/snapshot", requireAdmin, async (_req,res) => {
   try {
     const data = await sb("rpc/memorial_create_daily_snapshot",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:new Date().toISOString().slice(0,10)}});
@@ -2248,6 +2256,20 @@ app.get("/api/admin/export.csv", requireAdmin, async (_req,res) => {
   } catch { res.status(500).send("export_failed"); }
 });
 
+async function sendOffsiteBackup(){
+  if(!BACKUP_WEBHOOK_URL||!BACKUP_WEBHOOK_TOKEN||!ADMIN_TOKEN)return {ok:false,configured:false};
+  let u;try{u=new URL(BACKUP_WEBHOOK_URL)}catch{return {ok:false,error:"bad_backup_url"}}
+  if(u.protocol!=="https:")return {ok:false,error:"backup_https_required"};
+  const data=await sb("rpc/memorial_admin_export",{method:"POST",body:{p_token:ADMIN_TOKEN}});
+  const r=await fetch(u.toString(),{
+    method:"POST",
+    headers:{"content-type":"application/json","authorization":"Bearer "+BACKUP_WEBHOOK_TOKEN,"x-pamyat-backup-date":new Date().toISOString().slice(0,10)},
+    body:JSON.stringify(data)
+  });
+  if(!r.ok)throw new Error("backup_http_"+r.status);
+  return {ok:true,configured:true,exported_at:data?.exported_at||new Date().toISOString()};
+}
+
 async function createDailySnapshot() {
   if (!ADMIN_TOKEN) return;
   try {
@@ -2271,8 +2293,10 @@ app.listen(PORT, "0.0.0.0", () => {
   // Cemetery catalog module disabled by product decision.
   setTimeout(() => runNotificationCycle(), 10000);
   setTimeout(() => createDailySnapshot(), 15000);
+  setTimeout(() => sendOffsiteBackup().catch(e=>console.error("offsite backup",e.message)), 30000);
   setTimeout(() => configureTelegramWebhook(), 20000);
   setInterval(() => runNotificationCycle(), 30 * 60 * 1000).unref();
   setInterval(() => createDailySnapshot(), 6 * 60 * 60 * 1000).unref();
+  setInterval(() => sendOffsiteBackup().catch(e=>console.error("offsite backup",e.message)), 24 * 60 * 60 * 1000).unref();
   // Cemetery catalog refresh disabled.
 });
