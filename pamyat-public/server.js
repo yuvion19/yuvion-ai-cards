@@ -3238,10 +3238,23 @@ async function logDelivery(item, channel, result) {
   });
 }
 function notificationText(item) {
-  const when = item.reminder_days === -1 ? "срочное объявление" : item.reminder_days === 0 ? "сегодня" : item.reminder_days === 1 ? "завтра" : "через " + item.reminder_days + " дн.";
+  const lang=String(item.locale||"ru").toLowerCase().split(/[-_]/)[0];
+  const dict={
+    ru:{urgent:"срочное объявление",today:"сегодня",tomorrow:"завтра",days:n=>"через "+n+" дн.",open:"Открыть памятную страницу",
+      types:{"Памятная дата":"Памятная дата","Похороны":"Похороны","Йорцайт":"Йорцайт","Годовщина":"Годовщина"}},
+    en:{urgent:"urgent notice",today:"today",tomorrow:"tomorrow",days:n=>"in "+n+" days",open:"Open memorial page",
+      types:{"Памятная дата":"Memorial date","Похороны":"Funeral","Йорцайт":"Yahrzeit","Годовщина":"Anniversary"}},
+    he:{urgent:"הודעה דחופה",today:"היום",tomorrow:"מחר",days:n=>"בעוד "+n+" ימים",open:"פתיחת דף הזיכרון",
+      types:{"Памятная дата":"יום זיכרון","Похороны":"לוויה","Йорцайт":"יארצייט","Годовщина":"יום שנה"}},
+    az:{urgent:"təcili elan",today:"bu gün",tomorrow:"sabah",days:n=>n+" gün sonra",open:"Xatirə səhifəsini aç",
+      types:{"Памятная дата":"Xatirə tarixi","Похороны":"Dəfn","Йорцайт":"Yortsayt","Годовщина":"İldönümü"}}
+  };
+  const d=dict[lang]||dict.ru;
+  const when=item.reminder_days===-1?d.urgent:item.reminder_days===0?d.today:item.reminder_days===1?d.tomorrow:d.days(item.reminder_days);
+  const eventType=d.types[item.event_type]||item.event_type||d.types["Памятная дата"];
   const privateKey=/^[0-9a-f-]{36}$/i.test(String(item.share_token||""))?String(item.share_token):"";
-  const url=(APP_PUBLIC_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(item.event_id)+(privateKey?"?key="+encodeURIComponent(privateKey):"");
-  return { title: item.event_type + " — " + when, body: item.full_name + " · " + item.event_date + (item.place ? " · " + item.place : ""), url };
+  const url=(APP_PUBLIC_URL||PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(item.event_id)+(privateKey?"?key="+encodeURIComponent(privateKey):"");
+  return { title: eventType + " — " + when, body: item.full_name + " · " + item.event_date + (item.place ? " · " + item.place : ""), url, openLabel:d.open };
 }
 async function sendEmailAddress(address, text) {
   if (!RESEND_API_KEY || !RESEND_FROM) throw new Error("email_not_configured");
@@ -3250,7 +3263,7 @@ async function sendEmailAddress(address, text) {
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { authorization: "Bearer " + RESEND_API_KEY, "content-type": "application/json" },
-    body: JSON.stringify({ from: RESEND_FROM, to: [address], subject: text.title, html: "<p>" + safeBody + "</p><p><a href='" + openUrl + "'>Открыть событие</a></p>" })
+    body: JSON.stringify({ from: RESEND_FROM, to: [address], subject: text.title, html: "<p>" + safeBody + "</p><p><a href='" + openUrl + "'>" + String(text.openLabel||"Открыть памятную страницу").replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])) + "</a></p>" })
   });
   if (!r.ok) throw new Error("email_" + r.status);
   return "sent";
@@ -3318,16 +3331,50 @@ async function logAttempt(item,channel,success,detail){
 }
 
 let notificationCycleRunning = false;
+function notificationLocalDate(item){
+  try{return new Intl.DateTimeFormat("en-CA",{timeZone:item.timezone||"UTC",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
+  catch{return new Date().toISOString().slice(0,10)}
+}
+function inQuietHours(item){
+  if(!item.quiet_start||!item.quiet_end)return false;
+  try{
+    const p=new Intl.DateTimeFormat("en-GB",{timeZone:item.timezone||"UTC",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date());
+    const cur=p.slice(0,5),a=String(item.quiet_start).slice(0,5),b=String(item.quiet_end).slice(0,5);
+    if(a===b)return false;
+    return a<b?(cur>=a&&cur<b):(cur>=a||cur<b);
+  }catch{return false}
+}
+async function ensureInboxItem(item,text){
+  if(!/^[0-9a-f-]{36}$/i.test(String(item.device_token||"")))return;
+  const key=[item.event_id,item.reminder_days,notificationLocalDate(item),item.notification_revision||0].join(":");
+  try{
+    await sb("rpc/memorial_inbox_upsert_admin",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_device_token:item.device_token,p_event_id:item.event_id,
+      p_kind:item.reminder_days===-1?"urgent":item.follow_only?"person-follow":"reminder",
+      p_title:text.title,p_body:text.body,p_url:text.url,p_dedupe_key:key
+    }});
+  }catch(e){console.error("inbox upsert",e.data||e.message)}
+}
 async function runNotificationCycle() {
   if (notificationCycleRunning || !ADMIN_TOKEN) return;
   notificationCycleRunning = true;
   try {
     const nowIso=new Date().toISOString();
-    const regular = await sb("rpc/memorial_due_notifications", { method: "POST", body: { p_token: ADMIN_TOKEN, p_now: nowIso } });
-    const urgent = await sb("rpc/memorial_due_urgent_notifications", { method: "POST", body: { p_token: ADMIN_TOKEN, p_now: nowIso } });
-    const due=[...(regular||[]),...(urgent||[])];
-    for (const item of due) {
+    const [regular,urgent,follow]=await Promise.all([
+      sb("rpc/memorial_due_notifications",{method:"POST",body:{p_token:ADMIN_TOKEN,p_now:nowIso}}),
+      sb("rpc/memorial_due_urgent_notifications",{method:"POST",body:{p_token:ADMIN_TOKEN,p_now:nowIso}}),
+      sb("rpc/memorial_due_follow_notifications",{method:"POST",body:{p_token:ADMIN_TOKEN,p_now:nowIso}})
+    ]);
+    const map=new Map();
+    for(const item of [...(regular||[]),...(urgent||[]),...(follow||[])]){
+      const k=[item.subscription_id,item.event_id,item.reminder_days].join(":");
+      if(!map.has(k))map.set(k,item);
+      else map.set(k,{...map.get(k),...item,follow_only:Boolean(map.get(k).follow_only||item.follow_only)});
+    }
+    for (const item of map.values()) {
       const text = notificationText(item);
+      await ensureInboxItem(item,text);
+      if(inQuietHours(item))continue;
       const run=async(channel,fn)=>{
         try{
           const r=await fn();
@@ -3351,7 +3398,6 @@ async function runNotificationCycle() {
   } catch (e) { console.error("notification cycle", e.data || e); }
   finally { notificationCycleRunning = false; }
 }
-
 app.get("/api/telegram/status", (_req,res) => res.json({ configured: Boolean(TELEGRAM_BOT_TOKEN), webhook_ready: Boolean(TELEGRAM_WEBHOOK_SECRET) }));
 app.post("/api/telegram/webhook/:secret", async (req,res) => {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_WEBHOOK_SECRET || req.params.secret !== TELEGRAM_WEBHOOK_SECRET) return res.status(404).end();
@@ -3974,8 +4020,21 @@ async function sendOffsiteBackup(){
 async function createDailySnapshot() {
   if (!ADMIN_TOKEN) return;
   try {
-    await sb("rpc/memorial_create_daily_snapshot",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:new Date().toISOString().slice(0,10)}});
+    await sb("rpc/memorial_admin_snapshot_create",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:new Date().toISOString().slice(0,10)}});
   } catch (e) { console.error("snapshot", e.data || e); }
+}
+let maintenanceRunning=false;
+async function runMaintenanceCycle(){
+  if(maintenanceRunning||!ADMIN_TOKEN)return;maintenanceRunning=true;
+  try{
+    const now=new Date(),year=now.getUTCFullYear();
+    const [published,annual]=await Promise.all([
+      sb("rpc/memorial_admin_publish_due",{method:"POST",body:{p_token:ADMIN_TOKEN,p_now:now.toISOString()}}),
+      sb("rpc/memorial_admin_ensure_annual",{method:"POST",body:{p_token:ADMIN_TOKEN,p_year:year}})
+    ]);
+    if(Number(published||0)||Number(annual||0))console.log("maintenance",JSON.stringify({published,annual}));
+  }catch(e){console.error("maintenance",e.data||e)}
+  finally{maintenanceRunning=false}
 }
 async function configureTelegramWebhook() {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_WEBHOOK_SECRET || !PUBLIC_BASE_URL) return;
@@ -3994,9 +4053,11 @@ app.listen(PORT, "0.0.0.0", () => {
   // Cemetery catalog module disabled by product decision.
   setTimeout(() => runNotificationCycle(), 10000);
   setTimeout(() => createDailySnapshot(), 15000);
+  setTimeout(() => runMaintenanceCycle(), 18000);
   setTimeout(() => sendOffsiteBackup().catch(e=>console.error("offsite backup",e.message)), 30000);
   setTimeout(() => configureTelegramWebhook(), 20000);
   setInterval(() => runNotificationCycle(), 30 * 60 * 1000).unref();
+  setInterval(() => runMaintenanceCycle(), 30 * 60 * 1000).unref();
   setInterval(() => createDailySnapshot(), 6 * 60 * 60 * 1000).unref();
   setInterval(() => sendOffsiteBackup().catch(e=>console.error("offsite backup",e.message)), 24 * 60 * 60 * 1000).unref();
   // Cemetery catalog refresh disabled.
