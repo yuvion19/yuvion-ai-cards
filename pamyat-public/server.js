@@ -2389,6 +2389,55 @@ app.get("/api/events/:eventId.ics", async (req, res) => {
   }
 });
 
+app.get("/api/events/:eventId/follow", rateLimit("follow-read",60,60*60*1000), async (req,res)=>{
+  try{
+    const t=clean(req.query.device_token,80);
+    if(!/^[0-9a-f-]{36}$/i.test(t))return res.status(400).json({error:"device_token_required"});
+    res.setHeader("Cache-Control","no-store");
+    res.json(await sb("rpc/memorial_person_follow_status",{method:"POST",body:{p_event_id:req.params.eventId,p_device_token:t}}));
+  }catch(e){res.status(500).json({error:"follow_failed"})}
+});
+app.post("/api/events/:eventId/follow", rateLimit("follow-write",20,60*60*1000), async (req,res)=>{
+  try{
+    const t=clean(req.body?.device_token,80),key=clean(req.body?.key,80);
+    if(!/^[0-9a-f-]{36}$/i.test(t))return res.status(400).json({error:"device_token_required"});
+    const d=await sb("rpc/memorial_person_follow_set",{method:"POST",body:{
+      p_event_id:req.params.eventId,p_device_token:t,p_active:req.body?.active!==false,
+      p_share_token:/^[0-9a-f-]{36}$/i.test(key)?key:null
+    }});
+    res.json(d);
+  }catch(e){res.status(400).json({error:"follow_failed"})}
+});
+app.get("/api/events/:eventId/history", rateLimit("history-read",60,60*60*1000), async (req,res)=>{
+  try{res.json(await sb("rpc/memorial_public_change_history",{method:"POST",body:{p_event_id:req.params.eventId}})||[])}
+  catch(e){res.status(500).json({error:"history_failed"})}
+});
+app.get("/api/duplicates", rateLimit("duplicate-check",30,60*60*1000), async (req,res)=>{
+  try{
+    const name=clean(req.query.full_name,180),date=clean(req.query.death_date,10),city=clean(req.query.city,120);
+    if(!name)return res.json([]);
+    const rows=await sb("rpc/memorial_duplicate_candidates",{method:"POST",body:{p_full_name:name,p_death_date:validDate(date)?date:null,p_city:city||null,p_limit:8}});
+    res.json(rows||[]);
+  }catch(e){res.status(500).json({error:"duplicate_check_failed"})}
+});
+
+app.get("/api/inbox", rateLimit("inbox-read",120,60*60*1000), async (req,res)=>{
+  try{
+    const t=clean(req.query.device_token,80);
+    if(!/^[0-9a-f-]{36}$/i.test(t))return res.status(400).json({error:"device_token_required"});
+    res.setHeader("Cache-Control","no-store");
+    res.json(await sb("rpc/memorial_inbox_list",{method:"POST",body:{p_device_token:t,p_limit:120}}));
+  }catch(e){res.status(500).json({error:"inbox_failed"})}
+});
+app.post("/api/inbox/read", rateLimit("inbox-write",120,60*60*1000), async (req,res)=>{
+  try{
+    const t=clean(req.body?.device_token,80),idv=clean(req.body?.id,80);
+    if(!/^[0-9a-f-]{36}$/i.test(t))return res.status(400).json({error:"device_token_required"});
+    const n=await sb("rpc/memorial_inbox_mark_read",{method:"POST",body:{p_device_token:t,p_id:/^[0-9a-f-]{36}$/i.test(idv)?idv:null}});
+    res.json({ok:true,updated:Number(n||0)});
+  }catch(e){res.status(500).json({error:"inbox_update_failed"})}
+});
+
 app.get("/api/events/:eventId/rsvp", rateLimit("rsvp-read",60,60*60*1000), async (req,res)=>{
   try{
     const rawKey=clean(req.query.key,80),accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
