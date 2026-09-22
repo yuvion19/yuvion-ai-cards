@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v7.6.1
+// Production release marker: v7.7.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -588,28 +588,49 @@ function normalizeComposition(raw) {
   };
 }
 
-function adjustedFreeLayout(index, composition = {}, designVariant = 0, intensity = "selling", sourceAspect = 1) {
+function adjustedFreeLayout(index, composition = {}, designVariant = 0, intensity = "selling", sourceAspect = 1, styleKey = "minimal") {
   const base = freeSceneLayouts[index] || freeSceneLayouts[0];
   const tune = normalizeComposition(composition);
   const variant = Math.max(0, Math.min(3, Number(designVariant) || 0));
   const level = normalizeDesignIntensity(intensity);
   const aspect = Number(sourceAspect) > 0 ? Number(sourceAspect) : 1;
+  const archetype = designArchetype(styleKey);
+  const profile = {
+    playful: [
+      { x: 0, y: -12, scale: 1.05 }, { x: -18, y: 12, scale: 1.06 }, { x: 0, y: -8, scale: 1.02 }, { x: 12, y: -10, scale: 1.04 }
+    ],
+    technical: [
+      { x: 18, y: -8, scale: 1.00 }, { x: 8, y: -18, scale: 1.04 }, { x: -24, y: -18, scale: 0.96 }, { x: 28, y: -12, scale: 0.98 }
+    ],
+    editorial: [
+      { x: 0, y: -22, scale: 0.98 }, { x: -20, y: -22, scale: 0.94 }, { x: 14, y: -20, scale: 0.98 }, { x: 24, y: -18, scale: 0.97 }
+    ],
+    active: [
+      { x: 16, y: -18, scale: 1.04 }, { x: 0, y: -10, scale: 1.05 }, { x: -12, y: -12, scale: 1.00 }, { x: 24, y: -6, scale: 1.04 }
+    ],
+    warm: [
+      { x: 0, y: -12, scale: 1.01 }, { x: -10, y: -8, scale: 1.00 }, { x: 14, y: -8, scale: 0.98 }, { x: 18, y: -8, scale: 1.01 }
+    ],
+    clean: [
+      { x: 0, y: -8, scale: 1.00 }, { x: -10, y: -10, scale: 1.00 }, { x: 0, y: -8, scale: 0.99 }, { x: 18, y: -6, scale: 1.00 }
+    ]
+  }[archetype][index] || { x: 0, y: 0, scale: 1 };
   const variantShift = [
     { x: 0, y: 0, scale: 1 },
-    { x: index === 1 ? -34 : 42, y: -18, scale: 1.04 },
-    { x: index === 1 ? 26 : -38, y: 24, scale: 0.96 },
-    { x: index === 1 ? -12 : 18, y: 40, scale: 1.08 }
+    { x: index === 1 ? -28 : 34, y: -14, scale: 1.035 },
+    { x: index === 1 ? 22 : -30, y: 18, scale: 0.97 },
+    { x: index === 1 ? -10 : 15, y: 30, scale: 1.06 }
   ][variant];
-  const aspectScale = aspect > 1.45 ? 0.92 : aspect < 0.72 ? 0.94 : 1;
-  const levelScale = level === "bold" ? 1.06 : level === "calm" ? 0.94 : 1;
-  const scale = tune.scale * variantShift.scale * aspectScale * levelScale;
+  const aspectScale = aspect > 1.65 ? 0.88 : aspect > 1.38 ? 0.93 : aspect < 0.62 ? 0.90 : aspect < 0.78 ? 0.95 : 1;
+  const levelScale = level === "bold" ? 1.045 : level === "calm" ? 0.955 : 1;
+  const scale = tune.scale * variantShift.scale * profile.scale * aspectScale * levelScale;
   const width = Math.round(base.width * scale);
   const height = Math.round(base.height * scale);
-  const x = Math.round(base.x - (width - base.width) / 2 + tune.shiftX + variantShift.x);
-  const y = Math.round(base.y - (height - base.height) / 2 + tune.shiftY + variantShift.y);
+  const x = Math.round(base.x - (width - base.width) / 2 + tune.shiftX + variantShift.x + profile.x);
+  const y = Math.round(base.y - (height - base.height) / 2 + tune.shiftY + variantShift.y + profile.y);
   return {
-    x: Math.max(-80, Math.min(880 - Math.max(80, width * 0.2), x)),
-    y: Math.max(-80, Math.min(1120 - Math.max(80, height * 0.2), y)),
+    x: Math.max(-70, Math.min(885 - Math.max(90, width * 0.22), x)),
+    y: Math.max(-65, Math.min(1110 - Math.max(100, height * 0.22), y)),
     width,
     height
   };
@@ -1261,7 +1282,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "7.6.1",
+    version: "7.7.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1294,6 +1315,9 @@ app.get("/api/health", (_req, res) => {
       productPhotoEnhancement: true,
       multiPhotoScenes: true,
       adaptiveProductShadow: true,
+      categoryAwareLayouts: true,
+      marketplaceEditorialOverlays: true,
+      fourDistinctCompositions: true,
       darkWorkbench: true,
       wideWorkbench: true,
       manualComposition: true
@@ -1776,11 +1800,20 @@ const cardScenes = [
   "Товар полностью виден, композиция естественная. Нижняя часть кадра остается свободной под будущие сценарии использования."
 ];
 
+function designArchetype(styleKey) {
+  if (styleKey === "kids") return "playful";
+  if (styleKey === "tech" || styleKey === "tools") return "technical";
+  if (styleKey === "premium" || styleKey === "beauty") return "editorial";
+  if (styleKey === "sport") return "active";
+  if (styleKey === "food" || styleKey === "home") return "warm";
+  return "clean";
+}
+
 const freeSceneLayouts = [
-  { x: 90, y: 126, width: 720, height: 610 },
-  { x: 520, y: 160, width: 330, height: 720 },
-  { x: 110, y: 92, width: 680, height: 500 },
-  { x: 105, y: 105, width: 690, height: 535 }
+  { x: 90, y: 120, width: 720, height: 610 },
+  { x: 520, y: 150, width: 330, height: 720 },
+  { x: 110, y: 82, width: 680, height: 500 },
+  { x: 105, y: 88, width: 690, height: 535 }
 ];
 
 function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0, intensity = "selling", substyle = "auto", visualOptions = {}) {
@@ -1813,6 +1846,41 @@ function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0
   const premiumGlow = premium ? `
     <ellipse cx="690" cy="190" rx="260" ry="175" fill="${style.accent}" fill-opacity="0.055"/>
     <ellipse cx="125" cy="1020" rx="210" ry="160" fill="${style.accent2}" fill-opacity="0.04"/>` : "";
+  const archetype = designArchetype(styleKey);
+  const profileDecor = archetype === "editorial"
+    ? `<g fill="none" stroke="${style.accent2}" opacity=".11">
+        <ellipse cx="735" cy="330" rx="210" ry="300" stroke-width="3"/>
+        <ellipse cx="735" cy="330" rx="165" ry="245" stroke-width="2"/>
+        <path d="M72 820 C205 690 340 700 440 820" stroke-width="3"/>
+      </g>`
+    : archetype === "technical"
+      ? `<g opacity=".12" stroke="${style.accent2}" fill="none">
+          <path d="M44 360 H210 L258 312 H390" stroke-width="3"/>
+          <path d="M590 120 V248 L700 358 H858" stroke-width="3"/>
+          <circle cx="258" cy="312" r="7" fill="${style.accent2}"/>
+          <circle cx="700" cy="358" r="7" fill="${style.accent2}"/>
+          <path d="M610 520 h210 M715 415 v210" stroke-width="2"/>
+        </g>`
+      : archetype === "active"
+        ? `<g opacity=".12" fill="none" stroke="${style.accent2}" stroke-width="7" stroke-linecap="round">
+            <path d="M60 320 C240 215 340 250 500 150"/>
+            <path d="M120 385 C300 280 405 315 565 215"/>
+            <path d="M660 720 l160-95 M690 785 l150-88"/>
+          </g>`
+      : archetype === "warm"
+        ? `<g opacity=".10" fill="${style.accent}">
+            <ellipse cx="118" cy="300" rx="90" ry="38" transform="rotate(-24 118 300)"/>
+            <ellipse cx="785" cy="410" rx="112" ry="45" transform="rotate(32 785 410)"/>
+            <circle cx="760" cy="850" r="76" fill="${style.accent2}" fill-opacity=".55"/>
+          </g>`
+      : archetype === "playful"
+        ? `<g opacity=".18" fill="${style.accent}">
+            <circle cx="720" cy="610" r="34"/><circle cx="785" cy="680" r="18"/>
+            <path d="M70 430 q70-105 140 0 q-70 82-140 0z"/>
+          </g>`
+        : `<g opacity=".08" fill="none" stroke="${style.accent2}" stroke-width="3">
+            <circle cx="760" cy="310" r="160"/><path d="M40 760 C240 680 340 760 510 680"/>
+          </g>`;
 
   const sceneProps = index === 0
     ? `<g opacity="${level === "bold" ? 0.72 : 0.52}">
@@ -1870,6 +1938,7 @@ function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0
       ${playful ? dots : ""}
       ${technicalLines}
       ${premiumGlow}
+      ${profileDecor}
       <path d="M0 1085 C190 1010 315 1150 490 1088 C665 1022 765 1055 900 998 L900 1200 L0 1200 Z" fill="${style.accent}" fill-opacity="${playful ? 0.16 : 0.052}"/>
       ${seasonDecor}
     </svg>`;
@@ -2187,7 +2256,7 @@ async function renderFreeScene(
     const meta = await sharp(sourceBuffer).rotate().metadata();
     if (meta.width && meta.height) sourceAspect = meta.width / meta.height;
   } catch {}
-  const layout = adjustedFreeLayout(index, composition, designVariant, intensity, sourceAspect);
+  const layout = adjustedFreeLayout(index, composition, designVariant, intensity, sourceAspect, styleKey);
   const visual = await prepareProductVisual(sourceBuffer, layout, intensity, primaryRole);
   const composites = [];
 
@@ -2284,80 +2353,117 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
   const level = normalizeDesignIntensity(intensity);
   const visual = normalizeVisualOptions(visualOptions);
   const style = resolveRenderStyle(styleKey, palette, level, substyle);
+  const archetype = designArchetype(styleKey);
   const title = compact(visual.coverTitle || card.seoTitle || card.category || "Товар", 120);
   const category = compact(card.category || "Товар", 50);
   const characteristics = card.characteristics || [];
   const benefits = card.benefits.length ? card.benefits : characteristics.slice(0, 4).map((x) => `${x.name}: ${x.value}`);
+  const font = "DejaVu Sans, Arial, sans-serif";
+  const softText = mixHex(style.text, "#FFFFFF", 0.38);
+  const border = mixHex(style.accent, "#FFFFFF", 0.70);
+  const panelOpacity = archetype === "editorial" ? 0.95 : archetype === "technical" ? 0.97 : 0.96;
 
   if (index === 0) {
-    const titleLines = wrapWords(title, level === "bold" ? 22 : level === "calm" ? 28 : 25, 3);
-    const quick = benefits.slice(0, level === "calm" ? 2 : 3);
-    const baseTitleSize = level === "bold" ? 52 : level === "calm" ? 43 : 47;
-    const titleSize = Math.max(34, baseTitleSize - (title.length > 75 ? 10 : title.length > 58 ? 6 : title.length > 42 ? 3 : 0));
+    const titleLines = wrapWords(title, level === "bold" ? 21 : level === "calm" ? 29 : 25, 3);
+    const baseTitleSize = level === "bold" ? 54 : level === "calm" ? 44 : 49;
+    const titleSize = Math.max(34, baseTitleSize - (title.length > 82 ? 12 : title.length > 62 ? 7 : title.length > 44 ? 3 : 0));
+    const quick = benefits.filter(Boolean).slice(0, 3);
     const price = compact(card.confirmedData?.price1 || "", 32);
     const oldPrice = compact(card.confirmedData?.oldPrice || "", 32);
+    const chipWidth = quick.length <= 2 ? 354 : 230;
+    const chipGap = 14;
+    const chipX = 72;
+    const chips = visual.showBenefits ? quick.map((item, i) => {
+      const x = chipX + i * (chipWidth + chipGap);
+      return `<rect x="${x}" y="1080" width="${chipWidth}" height="54" rx="27" fill="${style.accent}" fill-opacity=".10" stroke="${border}" stroke-width="1.5"/>
+        <circle cx="${x + 25}" cy="1107" r="7" fill="${style.accent}"/>
+        <text x="${x + 43}" y="1115" font-family="${font}" font-size="17" font-weight="720" fill="${style.text}">${escapeXml(compact(item, quick.length <= 2 ? 34 : 21))}</text>`;
+    }).join("") : "";
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
+        <defs><filter id="panelShadow"><feGaussianBlur stdDeviation="14"/></filter></defs>
         <rect width="900" height="1200" fill="none"/>
-        ${visual.showBrand ? `<rect x="46" y="46" rx="24" width="154" height="54" fill="${style.accent}"/><text x="123" y="82" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="#FFFFFF">YUVION</text>` : ""}
-        ${visual.showPrice && price ? `<rect x="650" y="46" rx="24" width="204" height="68" fill="#FFFFFF" fill-opacity="0.94"/><text x="752" y="82" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="29" font-weight="900" fill="${style.text}">${escapeXml(price)} ₽</text>${oldPrice ? `<text x="752" y="103" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" font-weight="650" fill="#8B7F82" text-decoration="line-through">${escapeXml(oldPrice)} ₽</text>` : ""}` : ""}
-        <rect x="38" y="790" rx="38" width="824" height="372" fill="${style.panel}" fill-opacity="0.97"/>
-        ${visual.showCategory ? `<rect x="72" y="824" rx="18" width="250" height="42" fill="${style.accent}" fill-opacity="0.12"/><text x="92" y="853" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="800" fill="${style.accent2}">${escapeXml(category.toUpperCase())}</text>` : ""}
-        ${visual.showTitle ? textLines(titleLines, { x: 72, y: 918, size: titleSize, lineHeight: titleSize + 8, weight: 850, fill: style.text }) : ""}
-        ${visual.showBenefits && quick.length ? bulletGroups(quick, { x: 84, y: 1080, maxChars: 35, maxItems: 3, size: 22, lineHeight: 27, gap: 7, accent: style.accent, text: style.text }) : ""}
+        ${visual.showBrand ? `<rect x="46" y="46" rx="25" width="146" height="52" fill="${style.text}" fill-opacity=".92"/><text x="119" y="80" text-anchor="middle" font-family="${font}" font-size="21" font-weight="850" letter-spacing="1.4" fill="#FFFFFF">YUVION</text>` : ""}
+        ${visual.showPrice && price ? `<rect x="632" y="42" rx="28" width="222" height="76" fill="#FFFFFF" fill-opacity=".94" stroke="${border}" stroke-width="1.5"/><text x="743" y="82" text-anchor="middle" font-family="${font}" font-size="31" font-weight="900" fill="${style.text}">${escapeXml(price)} ₽</text>${oldPrice ? `<text x="743" y="105" text-anchor="middle" font-family="${font}" font-size="14" font-weight="650" fill="#8B7F82" text-decoration="line-through">${escapeXml(oldPrice)} ₽</text>` : ""}` : ""}
+        <rect x="48" y="798" rx="42" width="804" height="350" fill="#17191F" fill-opacity=".10" filter="url(#panelShadow)"/>
+        <rect x="38" y="784" rx="42" width="824" height="374" fill="${style.panel}" fill-opacity="${panelOpacity}" stroke="${border}" stroke-width="1.5"/>
+        ${visual.showCategory ? `<rect x="72" y="820" rx="18" width="258" height="42" fill="${style.accent}" fill-opacity=".11"/><text x="92" y="849" font-family="${font}" font-size="18" font-weight="850" letter-spacing=".6" fill="${style.accent2}">${escapeXml(category.toUpperCase())}</text>` : ""}
+        ${visual.showTitle ? textLines(titleLines, { x: 72, y: 925, size: titleSize, lineHeight: titleSize + 7, weight: 880, fill: style.text }) : ""}
+        ${chips}
       </svg>`;
   }
 
   if (index === 1) {
+    const visibleBenefits = benefits.filter(Boolean).slice(0, level === "calm" ? 4 : 5);
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
+        <defs><filter id="shadow1"><feGaussianBlur stdDeviation="13"/></filter></defs>
         <rect width="900" height="1200" fill="none"/>
-        <rect x="28" y="66" rx="40" width="498" height="1066" fill="${style.panel}" fill-opacity="0.97"/>
-        <text x="70" y="135" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="${style.accent}">ГЛАВНОЕ О ТОВАРЕ</text>
-        <text x="70" y="210" font-family="DejaVu Sans, Arial, sans-serif" font-size="50" font-weight="850" fill="${style.text}">Преимущества</text>
-        ${visual.showBenefits ? iconBenefitGroups(benefits, { x: 58, y: 315, width: 430, maxItems: 5, accent: style.accent, text: style.text }) : textLines(["Минимальная подача", "без лишнего текста"], { x: 84, y: 345, size: 28, lineHeight: 38, weight: 650, fill: style.text })}
+        <rect x="38" y="78" rx="44" width="494" height="1050" fill="#17191F" fill-opacity=".09" filter="url(#shadow1)"/>
+        <rect x="28" y="66" rx="44" width="504" height="1058" fill="${style.panel}" fill-opacity="${panelOpacity}" stroke="${border}" stroke-width="1.5"/>
+        <rect x="28" y="66" rx="44" width="18" height="1058" fill="${style.accent}"/>
+        <text x="76" y="132" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">02 · ПРЕИМУЩЕСТВА</text>
+        <text x="76" y="206" font-family="${font}" font-size="47" font-weight="880" fill="${style.text}">Почему удобно</text>
+        <path d="M76 238 H450" stroke="${border}" stroke-width="2"/>
+        ${visual.showBenefits ? iconBenefitGroups(visibleBenefits, { x: 62, y: 318, width: 430, maxItems: 5, accent: style.accent, text: style.text }) : textLines(["Чистая карточка", "без лишних обещаний"], { x: 82, y: 350, size: 28, lineHeight: 38, weight: 650, fill: style.text })}
+        <text x="76" y="1080" font-family="${font}" font-size="16" font-weight="650" fill="${softText}">Только подтверждённые и безопасно описательные преимущества</text>
       </svg>`;
   }
 
   if (index === 2) {
     const specs = visual.showSpecs ? characteristics.slice(0, 5) : [];
-    let y = 825;
-    let rows = "";
+    let cards = "";
     if (specs.length) {
-      for (const item of specs) {
-        rows += `
-          <rect x="72" y="${y - 29}" width="10" height="46" rx="5" fill="${style.accent}"/>
-          <text x="100" y="${y - 4}" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" fill="${style.accent2}">${escapeXml(compact(item.name, 28))}</text>
-          <text x="100" y="${y + 30}" font-family="DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="800" fill="${style.text}">${escapeXml(compact(item.value, 40))}</text>
-        `;
-        y += 68;
-      }
+      specs.forEach((item, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const x = 70 + col * 385;
+        const y = 812 + row * 112;
+        const width = i === 4 ? 760 : 365;
+        const safeX = i === 4 ? 70 : x;
+        cards += `
+          <rect x="${safeX}" y="${y}" width="${width}" height="92" rx="22" fill="#FFFFFF" fill-opacity=".72" stroke="${border}" stroke-width="1.3"/>
+          <rect x="${safeX}" y="${y}" width="8" height="92" rx="4" fill="${style.accent}"/>
+          <text x="${safeX + 26}" y="${y + 32}" font-family="${font}" font-size="16" font-weight="760" fill="${style.accent2}">${escapeXml(compact(item.name, i === 4 ? 50 : 25))}</text>
+          <text x="${safeX + 26}" y="${y + 65}" font-family="${font}" font-size="24" font-weight="850" fill="${style.text}">${escapeXml(compact(item.value, i === 4 ? 56 : 28))}</text>`;
+      });
     } else {
-      rows = textLines(["Точные характеристики", "не указаны в исходных данных"], { x: 78, y: 860, size: 31, lineHeight: 44, weight: 700, fill: style.text });
+      cards = `<rect x="70" y="830" width="760" height="150" rx="28" fill="#FFFFFF" fill-opacity=".70" stroke="${border}" stroke-width="1.3"/>
+        ${textLines(["Точные характеристики", "пока не подтверждены"], { x: 102, y: 890, size: 31, lineHeight: 43, weight: 760, fill: style.text })}`;
     }
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
+        <defs><filter id="shadow2"><feGaussianBlur stdDeviation="13"/></filter></defs>
         <rect width="900" height="1200" fill="none"/>
-        <rect x="38" y="640" rx="38" width="824" height="520" fill="${style.panel}" fill-opacity="0.97"/>
-        <text x="76" y="710" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="${style.accent}">БЕЗ ЛИШНИХ ОБЕЩАНИЙ</text>
-        <text x="76" y="770" font-family="DejaVu Sans, Arial, sans-serif" font-size="46" font-weight="850" fill="${style.text}">Что важно знать</text>
-        ${rows}
+        <rect x="48" y="670" rx="42" width="804" height="478" fill="#17191F" fill-opacity=".09" filter="url(#shadow2)"/>
+        <rect x="38" y="658" rx="42" width="824" height="500" fill="${style.panel}" fill-opacity="${panelOpacity}" stroke="${border}" stroke-width="1.5"/>
+        <text x="74" y="716" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">03 · ХАРАКТЕРИСТИКИ</text>
+        <text x="74" y="775" font-family="${font}" font-size="43" font-weight="880" fill="${style.text}">Главное в цифрах и фактах</text>
+        ${cards}
       </svg>`;
   }
 
   const usage = visual.showUsage ? (card.usage.length ? card.usage : benefits.slice(0, 3)) : [];
-  const desc = visual.showDescription ? wrapWords(card.shortDescription || card.fullDescription || category, 43, 3) : [];
+  const desc = visual.showDescription ? wrapWords(card.shortDescription || card.fullDescription || category, 54, 2) : [];
+  const usageCards = usage.filter(Boolean).slice(0, 3).map((item, i) => {
+    const y = 836 + i * 82;
+    return `<rect x="72" y="${y}" width="756" height="64" rx="22" fill="#FFFFFF" fill-opacity=".70" stroke="${border}" stroke-width="1.2"/>
+      <circle cx="106" cy="${y + 32}" r="20" fill="${style.accent}"/>
+      <text x="106" y="${y + 39}" text-anchor="middle" font-family="${font}" font-size="18" font-weight="900" fill="#FFFFFF">0${i + 1}</text>
+      <text x="142" y="${y + 40}" font-family="${font}" font-size="23" font-weight="760" fill="${style.text}">${escapeXml(compact(item, 52))}</text>`;
+  }).join("");
   return `
     <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
+      <defs><filter id="shadow3"><feGaussianBlur stdDeviation="13"/></filter></defs>
       <rect width="900" height="1200" fill="none"/>
-      <rect x="38" y="675" rx="38" width="824" height="485" fill="${style.panel}" fill-opacity="0.97"/>
-      <text x="76" y="742" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="${style.accent}">ИДЕИ ИСПОЛЬЗОВАНИЯ</text>
-      <text x="76" y="805" font-family="DejaVu Sans, Arial, sans-serif" font-size="47" font-weight="850" fill="${style.text}">Подойдёт для</text>
-      ${bulletGroups(usage, { x: 88, y: 882, maxChars: 40, maxItems: 3, size: 28, lineHeight: 35, gap: 17, accent: style.accent, text: style.text })}
-      ${textLines(desc, { x: 76, y: 1086, size: 20, lineHeight: 28, weight: 550, fill: "#6D6165" })}
+      <rect x="48" y="680" rx="42" width="804" height="468" fill="#17191F" fill-opacity=".09" filter="url(#shadow3)"/>
+      <rect x="38" y="668" rx="42" width="824" height="490" fill="${style.panel}" fill-opacity="${panelOpacity}" stroke="${border}" stroke-width="1.5"/>
+      <text x="74" y="726" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">04 · СЦЕНАРИИ</text>
+      <text x="74" y="786" font-family="${font}" font-size="44" font-weight="880" fill="${style.text}">Где пригодится</text>
+      ${usageCards || textLines(["Сценарии применения", "уточняются по типу товара"], { x: 78, y: 874, size: 28, lineHeight: 40, weight: 700, fill: style.text })}
+      ${desc.length ? textLines(desc, { x: 74, y: 1120, size: 18, lineHeight: 25, weight: 550, fill: softText }) : ""}
     </svg>`;
 }
-
 async function normalizeSceneForCache(sceneBuffer) {
   return sharp(sceneBuffer)
     .resize(900, 1200, {
@@ -2585,7 +2691,7 @@ app.post("/api/generate-cards", async (req, res) => {
       designSubstyle: substyle,
       visualOptions: visual,
       composition: renderComposition,
-      renderEngine: "power-local-v3",
+      renderEngine: "power-local-v4",
       primaryRole: renderSelections[0]?.primary?.role || "main",
       insetRole: renderSelections[0]?.inset?.role || "",
       photoEnhancement: true,
@@ -2929,5 +3035,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v7.6.1 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v7.7.0 listening on port ${port}`);
 });
