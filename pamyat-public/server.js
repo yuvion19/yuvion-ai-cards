@@ -135,7 +135,7 @@ const MOBILE_I18N={
     "Зажечь свечу":"Light a candle","Нер нешама — свеча памяти":"Ner Neshama — memorial candle",
     "Подтверждено семьёй ✓":"Family verified ✓","Добрые слова":"Kind words","Сообщить об ошибке":"Report an error",
     "Ваше имя":"Your name","Дата":"Date","Место":"Place","Город":"City","Комментарий":"Comment",
-    "Войти":"Sign in","Выйти":"Sign out","Показать пароль":"Show password","Поиск":"Search","Архив":"Archive"
+    "Войти":"Sign in","Выйти":"Sign out","Показать пароль":"Show password","Поиск":"Search","Архив":"Archive","Режим памяти":"Memorial mode","Выйти из режима памяти":"Exit memorial mode"
   },
   he:{
     "Память Джуури":"זיכרון ג׳והורי","Меню":"תפריט","Главная":"ראשי","Мобильная версия":"גרסה לנייד",
@@ -145,7 +145,7 @@ const MOBILE_I18N={
     "Почтить память":"לכבד את הזיכרון","Добавить в календарь":"הוספה ליומן","Поделиться":"שיתוף","Печатная карточка":"כרטיס להדפסה",
     "Зажечь свечу":"הדלקת נר","Нер нешама — свеча памяти":"נר נשמה","Подтверждено семьёй ✓":"אומת על ידי המשפחה ✓",
     "Добрые слова":"מילות זיכרון","Сообщить об ошибке":"דיווח על טעות","Ваше имя":"השם שלך","Дата":"תאריך","Место":"מקום",
-    "Город":"עיר","Комментарий":"הערה","Войти":"כניסה","Выйти":"יציאה","Показать пароль":"הצגת סיסמה","Поиск":"חיפוש","Архив":"ארכיון"
+    "Город":"עיר","Комментарий":"הערה","Войти":"כניסה","Выйти":"יציאה","Показать пароль":"הצגת סיסמה","Поиск":"חיפוש","Архив":"ארכיון","Режим памяти":"מצב זיכרון","Выйти из режима памяти":"יציאה ממצב זיכרון"
   },
   az:{
     "Память Джуури":"Cuhuri Yaddaşı","Меню":"Menyu","Главная":"Ana səhifə","Мобильная версия":"Mobil versiya",
@@ -155,12 +155,12 @@ const MOBILE_I18N={
     "Почтить память":"Xatirəsini yad et","Добавить в календарь":"Təqvimə əlavə et","Поделиться":"Paylaş","Печатная карточка":"Çap kartı",
     "Зажечь свечу":"Şam yandır","Нер нешама — свеча памяти":"Ner Neşama — xatirə şamı","Подтверждено семьёй ✓":"Ailə tərəfindən təsdiqlənib ✓",
     "Добрые слова":"Xatirə sözləri","Сообщить об ошибке":"Səhv barədə bildir","Ваше имя":"Adınız","Дата":"Tarix","Место":"Yer",
-    "Город":"Şəhər","Комментарий":"Şərh","Войти":"Daxil ol","Выйти":"Çıx","Показать пароль":"Şifrəni göstər","Поиск":"Axtarış","Архив":"Arxiv"
+    "Город":"Şəhər","Комментарий":"Şərh","Войти":"Daxil ol","Выйти":"Çıx","Показать пароль":"Şifrəni göstər","Поиск":"Axtarış","Архив":"Arxiv","Режим памяти":"Xatirə rejimi","Выйти из режима памяти":"Xatirə rejimindən çıx"
   },
   juuri:{
     "Память Джуури":"Память Джуури","Меню":"Меню","Главная":"Главная","Мобильная версия":"Мобильная версия",
     "Календарь":"Луьвэхь","Сегодня вспоминаем":"Имбуруз вспоминаем","Подтверждено семьёй ✓":"Кифлет ✓",
-    "Нер нешама — свеча памяти":"Нер нешама — נר נשמה","Поиск":"Поиск","Архив":"Архив"
+    "Нер нешама — свеча памяти":"Нер нешама — נר נשמה","Поиск":"Поиск","Архив":"Архив","Режим памяти":"Режим памяти","Выйти из режима памяти":"Выйти из режима памяти"
   }
 };
 function mobileShell(title, body, opts = {}) {
@@ -169,7 +169,7 @@ function mobileShell(title, body, opts = {}) {
   const i18nJson=JSON.stringify(MOBILE_I18N).replace(/</g,"\\u003c");
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#4c3e2d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Память"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icon.svg"><title>${htmlEsc(title)} — Память Джуури</title>${extraHead}<style>
   :root{--bg:#f5f1e8;--paper:#fffdf8;--ink:#27231e;--muted:#746d63;--line:#ded6c8;--accent:#5b4934;--soft:#eee6d9}
-  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}.skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;z-index:999;background:#fff;padding:10px;border-radius:8px}.btn:focus,.field:focus,input:focus,select:focus,textarea:focus{outline:3px solid #8b6d45;outline-offset:2px}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}body[data-font="large"]{font-size:19px}body[data-font="xlarge"]{font-size:22px}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}.ner-wrap{text-align:center;padding:18px}.ner{position:relative;width:78px;height:124px;margin:34px auto 10px;border-radius:10px 10px 14px 14px;background:linear-gradient(#fffdf4,#ece7dc);border:1px solid #d7cdbd;box-shadow:0 10px 30px rgba(0,0,0,.12)}.ner:before{content:"✡";position:absolute;left:0;right:0;top:46px;font-size:26px;color:#4a5f8c}.flame{position:absolute;left:27px;top:-34px;width:24px;height:38px;border-radius:55% 45% 55% 45%;transform:rotate(8deg);background:radial-gradient(circle at 50% 70%,#fff7b2 0 20%,#f0a64a 45%,#c45b31 75%);box-shadow:0 0 20px rgba(240,166,74,.7);animation:flicker 1.4s infinite alternate}.flame.off{opacity:.2;filter:grayscale(1)}@keyframes flicker{from{transform:rotate(5deg) scale(.96)}to{transform:rotate(12deg) scale(1.04)}}.skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;z-index:999;background:#fff;padding:10px;border-radius:8px}.btn:focus,.field:focus,input:focus,select:focus,textarea:focus{outline:3px solid #8b6d45;outline-offset:2px}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}body[data-font="large"]{font-size:19px}body[data-font="xlarge"]{font-size:22px}body.memory-mode{background:#17130f;color:#f8f2e7}body.memory-mode header{display:none}body.memory-mode .wrap{max-width:900px;padding-top:32px}body.memory-mode .memory-hide{display:none!important}body.memory-mode .memory-hero{background:#211b15;border-color:#4d4033;color:#f8f2e7}body.memory-mode .memory-hero .muted{color:#cbbdac}body.memory-mode .memory-exit{display:block!important;position:fixed;right:16px;top:16px;z-index:30}
   </style></head><body><a class="skip" href="#main">К содержанию</a><header><div class="top"><div class="brand">Память Джуури</div><select id="uiLang" class="field" style="width:auto;padding:8px" aria-label="Язык"><option value="ru">RU</option><option value="juuri">JUURI β</option><option value="he">HE</option><option value="en">EN</option><option value="az">AZ</option></select><button id="fontDown" class="btn secondary" style="padding:8px" aria-label="Уменьшить шрифт">A−</button><button id="fontUp" class="btn secondary" style="padding:8px" aria-label="Увеличить шрифт">A+</button><a class="btn secondary" href="/m">Меню</a></div></header><main id="main" class="wrap">${body}</main><script>
   (()=>{
     const dictionaries=${i18nJson};
@@ -330,6 +330,7 @@ app.get("/m/wall", async (_req,res) => {
       counts=Object.fromEntries((rows2||[]).map(x=>[x.event_id,x.count]));
     }
     const cards=list.map(e=>`<div class="card" style="text-align:center">
+      <img src="/api/events/${encodeURIComponent(e.id)}/photo" alt="Фото ${htmlEsc(e.full_name||"")}" style="width:112px;height:112px;object-fit:cover;border-radius:50%;margin:0 auto 8px;display:block" onerror="this.style.display='none'">
       <div style="font-size:30px">✡</div>
       <h3 style="margin:6px 0">${htmlEsc(e.full_name||"Без имени")}</h3>
       ${e.death_date?'<div class="muted">Дата смерти: '+htmlEsc(e.death_date)+'</div>':""}
@@ -415,17 +416,21 @@ app.get("/m/memorial/:id", async (req,res) => {
       '<meta property="og:description" content="'+htmlEsc(ogDescription)+'"><meta property="og:url" content="'+htmlEsc(canonical)+'">'+
       '<meta property="og:image" content="'+htmlEsc(ogImage)+'"><meta name="twitter:card" content="summary_large_image">';
     res.send(mobileShell(e.full_name,`
+      <button class="btn secondary memory-hide" id="memoryMode" style="width:100%;margin-bottom:12px">Режим памяти</button>
+      <button class="btn secondary memory-exit" id="memoryExit" style="display:none">Выйти из режима памяти</button>
+      <section class="memory-hero card">
       ${e.urgent?'<div class="err"><b>Срочное объявление</b></div>':""}
       <div class="row"><span class="tag">${htmlEsc(e.event_type||"Памятная дата")}</span>${e.family_verified?'<span class="tag">Подтверждено семьёй ✓</span>':""}</div>
       <h1>${htmlEsc(e.full_name)}</h1>
-      ${e.has_photo?'<div class="card" style="text-align:center"><img src="/api/events/'+encodeURIComponent(e.id)+'/photo" alt="Фото '+htmlEsc(e.full_name)+'" style="width:min(100%,360px);max-height:440px;object-fit:cover;border-radius:16px"></div>':""}
-      <div class="card">
+      ${e.has_photo?'<div style="text-align:center;margin:14px 0"><img src="/api/events/'+encodeURIComponent(e.id)+'/photo" alt="Фото '+htmlEsc(e.full_name)+'" style="width:min(100%,360px);max-height:440px;object-fit:cover;border-radius:16px"></div>':""}
+      <div>
         <div><b>Дата:</b> ${htmlEsc(e.event_date||"—")}${e.event_time?" · "+htmlEsc(e.event_time):""}</div>
         <div><b>Место:</b> ${htmlEsc([e.city,e.place].filter(Boolean).join(" · ")||"—")}</div>
         ${e.hebrew_death_label?'<div><b>Еврейская дата:</b> '+htmlEsc(e.hebrew_death_label)+(e.hebrew_after_sunset?' · после захода солнца':'')+'</div>':""}
         ${e.yahrzeit_date?'<div><b>Йорцайт:</b> '+htmlEsc(e.yahrzeit_date)+'</div>':""}
         ${e.note?'<p>'+htmlEsc(e.note)+'</p>':""}
       </div>
+      </section>
 
       <div class="card ner-wrap">
         <div class="ner"><div id="nerFlame" class="flame"></div></div>
@@ -436,7 +441,7 @@ app.get("/m/memorial/:id", async (req,res) => {
         <div class="muted" style="margin-top:8px">Зажжено свечей: <span id="nerCount">${Number(e.candles||0)}</span></div>
       </div>
 
-      <div class="card">
+      <div class="card memory-hide">
         <h3 style="margin-top:0">Молитвы и тексты памяти</h3>
         <p class="muted">Текст и порядок чтения могут отличаться по общинной и семейной традиции. Для религиозной практики ориентируйтесь на свою общину.</p>
         <details>
@@ -456,7 +461,7 @@ app.get("/m/memorial/:id", async (req,res) => {
         </details>
       </div>
 
-      <div class="card">
+      <div class="card memory-hide">
         <b>Добавить в календарь</b>
         <div class="nav">
           <a class="btn secondary" href="/api/events/${encodeURIComponent(e.id)}.ics">Apple / ICS</a>
@@ -467,12 +472,12 @@ app.get("/m/memorial/:id", async (req,res) => {
         </div>
       </div>
 
-      <div class="card" style="text-align:center">
+      <div class="card memory-hide" style="text-align:center">
         <b>QR-код памятной страницы</b><br>
         <img src="/qr/event/${encodeURIComponent(e.id)}.svg" alt="QR" style="width:210px;max-width:100%;margin-top:10px">
       </div>
 
-      <div class="card">
+      <div class="card memory-hide">
         <h3>Я родственник</h3>
         <p class="muted">После проверки модератором запись может получить отметку «Подтверждено семьёй».</p>
         <input id="claimName" class="field" placeholder="Ваше имя">
@@ -482,7 +487,7 @@ app.get("/m/memorial/:id", async (req,res) => {
         <button class="btn secondary" id="sendClaim" style="width:100%;margin-top:8px">Отправить подтверждение</button>
       </div>
 
-      <div class="card">
+      <div class="card memory-hide">
         <h3>Сообщить об ошибке</h3>
         <select id="corrField" class="field"><option value="full_name">ФИО</option><option value="event_date">Дата</option><option value="place">Место</option><option value="note">Описание</option></select>
         <input id="corrCurrent" class="field" placeholder="Сейчас указано" style="margin-top:8px">
@@ -491,9 +496,9 @@ app.get("/m/memorial/:id", async (req,res) => {
         <input id="corrContact" class="field" placeholder="Контакт модератору" style="margin-top:8px">
         <button class="btn secondary" id="sendCorrection" style="width:100%;margin-top:8px">Отправить исправление</button>
       </div>
-      <h3>Добрые слова</h3>
-      ${comments||'<div class="card muted">Пока нет опубликованных сообщений.</div>'}
-      <div class="card">
+      <h3 class="memory-hide">Добрые слова</h3>
+      <div class="memory-hide">${comments||'<div class="card muted">Пока нет опубликованных сообщений.</div>'}</div>
+      <div class="card memory-hide">
         <input id="commentAuthor" class="field" placeholder="Ваше имя">
         <textarea id="commentBody" class="field" rows="3" placeholder="Доброе слово" style="margin-top:8px"></textarea>
         <button class="btn secondary" id="sendComment" style="width:100%;margin-top:8px">Отправить на модерацию</button>
@@ -502,6 +507,8 @@ app.get("/m/memorial/:id", async (req,res) => {
     `,{extraHead,scripts:`<script>
       const status=document.getElementById("memorialStatus");
       const say=(m,ok=true)=>status.innerHTML='<div class="'+(ok?"ok":"err")+'">'+m+'</div>';
+      document.getElementById("memoryMode").onclick=()=>{document.body.classList.add("memory-mode");window.scrollTo({top:0,behavior:"smooth"})};
+      document.getElementById("memoryExit").onclick=()=>document.body.classList.remove("memory-mode");
       document.getElementById("lightNer").onclick=async()=>{
         const r=await fetch("/api/events/${req.params.id}/candle",{method:"POST"}),d=await r.json();
         if(r.ok){document.getElementById("nerCount").textContent=d.count;document.getElementById("nerFlame").classList.remove("off");say("Свеча памяти зажжена.")}else say("Не удалось зажечь свечу.",false)
