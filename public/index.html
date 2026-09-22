@@ -345,6 +345,8 @@
     body.dark-workbench .live-cover-frame,body.dark-workbench .market-preview{background:#12161A}body.dark-workbench .market-item{background:#20262C;color:#E8EBED}body.dark-workbench .market-name{color:#E8EBED}body.dark-workbench footer{background:#15191E;border-color:#343A40}
     @media(max-width:900px){.visual-editor-grid{grid-template-columns:1fr 1fr}.visual-editor-grid .visual-editor-box:last-child{grid-column:1/-1}}
     @media(max-width:620px){.visual-editor-grid{grid-template-columns:1fr}.visual-editor-grid .visual-editor-box:last-child{grid-column:auto}}
+
+    .live-cover-price{display:none;position:absolute;z-index:5;right:12px;top:12px;background:rgba(255,255,255,.95);border-radius:9px;padding:6px 8px;color:#202226;font-size:10px;font-weight:950;box-shadow:0 5px 15px rgba(0,0,0,.08)}.live-cover.show-price .live-cover-price{display:block}
 </style>
 </head>
 <body class="simple-ui">
@@ -680,6 +682,7 @@
                 <label class="visual-toggle"><input type="checkbox" id="showSpecsToggle" checked>Характеристики</label>
                 <label class="visual-toggle"><input type="checkbox" id="showUsageToggle" checked>Применение</label>
                 <label class="visual-toggle"><input type="checkbox" id="showDescriptionToggle" checked>Описание</label>
+                <label class="visual-toggle"><input type="checkbox" id="showPriceToggle">Цена</label>
               </div>
             </div>
             <div class="visual-editor-box">
@@ -725,6 +728,7 @@
             <div class="live-cover-frame">
               <div class="live-cover" id="liveCover">
                 <div class="live-cover-brand">YUVION</div>
+                <div class="live-cover-price" id="liveCoverPrice"></div>
                 <img class="live-cover-product" id="liveCoverProduct" alt="">
                 <div class="live-cover-copy">
                   <span class="live-cover-category" id="liveCoverCategory">ТОВАР</span>
@@ -1140,6 +1144,7 @@ const liveCoverProduct=document.getElementById('liveCoverProduct');
 const liveCoverCategory=document.getElementById('liveCoverCategory');
 const liveCoverTitle=document.getElementById('liveCoverTitle');
 const liveCoverBenefits=document.getElementById('liveCoverBenefits');
+const liveCoverPrice=document.getElementById('liveCoverPrice');
 const marketPreview=document.getElementById('marketPreview');
 const saveDesignSnapshotBtn=document.getElementById('saveDesignSnapshot');
 const designHistoryList=document.getElementById('designHistoryList');
@@ -1150,6 +1155,7 @@ const showBenefitsToggle=document.getElementById('showBenefitsToggle');
 const showSpecsToggle=document.getElementById('showSpecsToggle');
 const showUsageToggle=document.getElementById('showUsageToggle');
 const showDescriptionToggle=document.getElementById('showDescriptionToggle');
+const showPriceToggle=document.getElementById('showPriceToggle');
 const seasonSelect=document.getElementById('seasonSelect');
 const referencePaletteBtn=document.getElementById('referencePaletteBtn');
 const referencePaletteFile=document.getElementById('referencePaletteFile');
@@ -1454,7 +1460,7 @@ let currentDesignIntensity='selling';
 let currentDesignSubstyle='auto';
 let currentCoverVariants=[];
 let currentDesignSnapshots=[];
-let currentVisualOptions={showBrand:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,coverTitle:'',season:'none',safeZone:false};
+let currentVisualOptions={showBrand:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,showPrice:false,coverTitle:'',season:'none',safeZone:false};
 let beautifyStep=0;
 let currentComposition={scale:1,shiftX:0,shiftY:0};
 let currentMode='full';
@@ -3269,7 +3275,7 @@ v7ExcelSource.onclick=()=>{const box=document.getElementById('excelAutopilot');i
 designStyleGrid.addEventListener('click',e=>{const btn=e.target.closest('[data-style]');if(btn)chooseDesignStyle(btn.dataset.style)});
 saveDesignSnapshotBtn.onclick=()=>captureDesignSnapshot('Сохранённый вариант');
 designHistoryList.addEventListener('click',e=>{const btn=e.target.closest('[data-design-snapshot]');if(btn)applyDesignSnapshot(btn.dataset.designSnapshot)});
-[coverTitleInput,showBrandToggle,showCategoryToggle,showBenefitsToggle,showSpecsToggle,showUsageToggle,showDescriptionToggle,seasonSelect].forEach(el=>el?.addEventListener('input',()=>{collectVisualOptionsFromUi();currentScenes=[];markCardsStale([0,1,2,3]);applyWorkbenchState();
+[coverTitleInput,showBrandToggle,showCategoryToggle,showBenefitsToggle,showSpecsToggle,showUsageToggle,showDescriptionToggle,showPriceToggle,seasonSelect].forEach(el=>el?.addEventListener('input',()=>{collectVisualOptionsFromUi();currentScenes=[];markCardsStale([0,1,2,3]);applyWorkbenchState();
 renderDesignStudio();saveHistoryDebounced()}));
 safeZoneToggle.onclick=()=>{currentVisualOptions.safeZone=!currentVisualOptions.safeZone;renderDesignStudio();saveHistoryDebounced()};
 darkWorkbenchToggle.onclick=()=>{const next=!document.body.classList.contains('dark-workbench');localStorage.setItem(WORKBENCH_THEME_KEY,next?'dark':'light');applyWorkbenchState()};
@@ -3631,7 +3637,7 @@ async function refreshDesignPalette(){
 function normalizeClientVisualOptions(raw={}){
   return {
     showBrand:raw.showBrand!==false,showCategory:raw.showCategory!==false,showBenefits:raw.showBenefits!==false,
-    showSpecs:raw.showSpecs!==false,showUsage:raw.showUsage!==false,showDescription:raw.showDescription!==false,
+    showSpecs:raw.showSpecs!==false,showUsage:raw.showUsage!==false,showDescription:raw.showDescription!==false,showPrice:raw.showPrice===true,
     coverTitle:String(raw.coverTitle||'').slice(0,120),season:['none','newyear','spring','summer','school'].includes(raw.season)?raw.season:'none',
     safeZone:Boolean(raw.safeZone)
   };
@@ -3647,6 +3653,8 @@ function renderLayoutAudit(){
   const benefits=(d.benefits||[]).length;
   issues.push(currentVisualOptions.showBenefits&&benefits>3?['warn','На карточке будет показано только 2–3 ключевых преимущества.']:['ok','Количество преимуществ не перегружает макет.']);
   issues.push(currentVisualOptions.safeZone?['ok','Safe Zone включена для проверки краёв и мобильного кропа.']:['warn','Safe Zone выключена. Для финальной проверки её полезно включить.']);
+  const priceData=typeof collectExtraData==='function'?collectExtraData():{};
+  if(currentVisualOptions.showPrice)issues.push(priceData.price1?['ok','Цена подтверждена и может быть показана на обложке.']:['bad','Блок цены включён, но подтверждённая цена не заполнена.']);
   layoutAudit.innerHTML=issues.map(x=>'<div class="layout-audit-item '+x[0]+'"><i class="layout-audit-dot"></i><span>'+esc(x[1])+'</span></div>').join('');
 }
 function collectVisualOptionsFromUi(){
@@ -3659,6 +3667,7 @@ function collectVisualOptionsFromUi(){
     showSpecs:showSpecsToggle?.checked,
     showUsage:showUsageToggle?.checked,
     showDescription:showDescriptionToggle?.checked,
+    showPrice:showPriceToggle?.checked,
     season:seasonSelect?.value||'none'
   });
   return currentVisualOptions;
@@ -3698,6 +3707,9 @@ function renderLiveDesignPreview(){
   liveCover.classList.toggle('hide-brand',!currentVisualOptions.showBrand);
   liveCover.classList.toggle('hide-category',!currentVisualOptions.showCategory);
   liveCover.classList.toggle('hide-benefits',!currentVisualOptions.showBenefits);
+  liveCover.classList.toggle('show-price',Boolean(currentVisualOptions.showPrice));
+  const priceData=typeof collectExtraData==='function'?collectExtraData():{};
+  liveCoverPrice.textContent=currentVisualOptions.showPrice&&priceData.price1?priceData.price1+' ₽':'';
   const img=currentPreviewImage();liveCoverProduct.src=img||'';liveCoverProduct.style.display=img?'block':'none';
   liveCoverCategory.textContent=(d.category||'Товар').split('/').pop().trim().slice(0,42).toUpperCase();
   liveCoverTitle.textContent=currentVisualOptions.coverTitle||d.seoTitle||'Название товара';
@@ -3776,6 +3788,7 @@ function renderDesignStudio(){
   if(showSpecsToggle)showSpecsToggle.checked=currentVisualOptions.showSpecs!==false;
   if(showUsageToggle)showUsageToggle.checked=currentVisualOptions.showUsage!==false;
   if(showDescriptionToggle)showDescriptionToggle.checked=currentVisualOptions.showDescription!==false;
+  if(showPriceToggle)showPriceToggle.checked=currentVisualOptions.showPrice===true;
   if(seasonSelect)seasonSelect.value=currentVisualOptions.season||'none';
   safeZoneToggle?.classList.toggle('active',Boolean(currentVisualOptions.safeZone));
   renderLiveDesignPreview();renderLayoutAudit();applyWorkbenchState();
@@ -4206,7 +4219,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentPalette=[];currentDesignVariant=0;currentDesignIntensity='selling';currentDesignSubstyle='auto';currentDesignSnapshots=[];currentVisualOptions={showBrand:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,coverTitle:'',season:'none',safeZone:false};currentComposition={scale:1,shiftX:0,shiftY:0};currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentPalette=[];currentDesignVariant=0;currentDesignIntensity='selling';currentDesignSubstyle='auto';currentDesignSnapshots=[];currentVisualOptions={showBrand:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,showPrice:false,coverTitle:'',season:'none',safeZone:false};currentComposition={scale:1,shiftX:0,shiftY:0};currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
