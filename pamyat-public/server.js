@@ -486,8 +486,11 @@ app.get("/m/memorial/:id", async (req,res) => {
     if(!e)return res.status(404).send(mobileShell("Не найдено",'<div class="err">Памятная запись не найдена или ссылка недействительна.</div>'));
     const accessSuffix=accessKey?"?key="+encodeURIComponent(accessKey):"";
     const next=addDays(e.event_date,1), gStart=String(e.event_date||"").replaceAll("-",""), gEnd=String(next||"").replaceAll("-","");
-    const google="https://calendar.google.com/calendar/render?"+new URLSearchParams({action:"TEMPLATE",text:(e.event_type||"Памятная дата")+" — "+e.full_name,dates:gStart+"/"+gEnd,details:e.note||"",location:e.place||e.city||""}).toString();
-    const outlook="https://outlook.live.com/calendar/0/deeplink/compose?"+new URLSearchParams({path:"/calendar/action/compose",rru:"addevent",subject:(e.event_type||"Памятная дата")+" — "+e.full_name,startdt:e.event_date,enddt:next,allday:"true",body:e.note||"",location:e.place||e.city||""}).toString();
+    const eventTz=validIanaTimezone(e.event_timezone),hasTime=Boolean(calendarLocal(e.event_date,e.event_time)),endLocal=hasTime?addLocalMinutes(e.event_date,e.event_time,60):null;
+    const googleParams={action:"TEMPLATE",text:(e.event_type||"Памятная дата")+" — "+e.full_name,dates:hasTime?(calendarLocal(e.event_date,e.event_time)+"/"+calendarLocal(endLocal.date,endLocal.time)):(gStart+"/"+gEnd),details:e.note||"",location:[e.place,e.city].filter(Boolean).join(", ")};
+    if(hasTime)googleParams.ctz=eventTz;
+    const google="https://calendar.google.com/calendar/render?"+new URLSearchParams(googleParams).toString();
+    const outlook="https://outlook.live.com/calendar/0/deeplink/compose?"+new URLSearchParams({path:"/calendar/action/compose",rru:"addevent",subject:(e.event_type||"Памятная дата")+" — "+e.full_name,startdt:hasTime?(e.event_date+"T"+e.event_time+":00"):e.event_date,enddt:hasTime?(endLocal.date+"T"+endLocal.time+":00"):next,allday:hasTime?"false":"true",body:e.note||"",location:[e.place,e.city].filter(Boolean).join(", ")}).toString();
     const comments=(e.comments||[]).map(x=>'<div class="card"><b>'+htmlEsc(x.author||"Гость")+'</b><div>'+htmlEsc(x.body||"")+'</div><div class="muted">'+htmlEsc(String(x.created_at||"").slice(0,10))+'</div></div>').join("");
     const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
     const canonical=base+"/m/memorial/"+encodeURIComponent(e.id)+accessSuffix;
@@ -2152,6 +2155,21 @@ function escIcs(v) {
   return String(v ?? "").replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
 }
 function toIcsDate(v) { return String(v || "").replaceAll("-", ""); }
+function validIanaTimezone(v){
+  const tz=String(v||"").trim()||"Europe/Moscow";
+  try{new Intl.DateTimeFormat("en",{timeZone:tz}).format(new Date());return tz}catch{return "Europe/Moscow"}
+}
+function calendarLocal(date,time){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||""))||!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(time||"")))return null;
+  return toIcsDate(date)+"T"+String(time).replace(":","")+"00";
+}
+function addLocalMinutes(date,time,mins=60){
+  if(!calendarLocal(date,time))return null;
+  const [y,m,d]=date.split("-").map(Number),[hh,mm]=time.split(":").map(Number);
+  const x=new Date(Date.UTC(y,m-1,d,hh,mm)+mins*60000);
+  const pad=v=>String(v).padStart(2,"0");
+  return {date:x.getUTCFullYear()+"-"+pad(x.getUTCMonth()+1)+"-"+pad(x.getUTCDate()),time:pad(x.getUTCHours())+":"+pad(x.getUTCMinutes())};
+}
 function csvCell(v) {
   const s = String(v ?? "");
   return /[",\n]/.test(s) ? '"' + s.replaceAll('"', '""') + '"' : s;
@@ -2265,18 +2283,23 @@ app.get("/api/events/:eventId.ics", async (req, res) => {
       body: { p_event_id: req.params.eventId, p_share_token: accessKey }
     });
     if (!e || !e.event_date) return res.status(404).send("Not found");
-    const d = toIcsDate(e.event_date);
-    const end = toIcsDate(addDays(e.event_date, 1));
-    const ics = [
-      "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Pamyat//Memorial Calendar//RU","CALSCALE:GREGORIAN",
-      "BEGIN:VEVENT","UID:" + e.id + "@pamyat",
-      "DTSTART;VALUE=DATE:" + d,"DTEND;VALUE=DATE:" + end,
+    const d = toIcsDate(e.event_date),end = toIcsDate(addDays(e.event_date, 1));
+    const tz=validIanaTimezone(e.event_timezone),hasTime=Boolean(calendarLocal(e.event_date,e.event_time)),endLocal=hasTime?addLocalMinutes(e.event_date,e.event_time,60):null;
+    const suffix=accessKey?"?key="+encodeURIComponent(accessKey):"";
+    const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Pamyat//Memorial Calendar//RU","CALSCALE:GREGORIAN","BEGIN:VEVENT","UID:" + e.id + "@pamyat"];
+    if(hasTime){
+      lines.push("DTSTART;TZID="+tz+":" + calendarLocal(e.event_date,e.event_time),"DTEND;TZID="+tz+":" + calendarLocal(endLocal.date,endLocal.time));
+    }else{
+      lines.push("DTSTART;VALUE=DATE:" + d,"DTEND;VALUE=DATE:" + end);
+    }
+    lines.push(
       "SUMMARY:" + escIcs(e.event_type + " — " + e.full_name),
-      "LOCATION:" + escIcs(e.place || e.city || ""),
+      "LOCATION:" + escIcs([e.place,e.city].filter(Boolean).join(", ")),
       "DESCRIPTION:" + escIcs(e.note || ""),
-      "URL:" + escIcs((APP_PUBLIC_URL || "") + "/#event=" + e.id),
+      "URL:" + escIcs((APP_PUBLIC_URL || "").replace(/\/$/,"") + "/m/memorial/" + e.id + suffix),
       "END:VEVENT","END:VCALENDAR"
-    ].join("\r\n");
+    );
+    const ics=lines.join("\r\n");
     res.type("text/calendar; charset=utf-8");
     res.setHeader("Content-Disposition", 'attachment; filename="pamyat-' + e.id + '.ics"');
     res.send(ics);
