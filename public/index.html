@@ -6326,10 +6326,2356 @@ async function runExcelAutopilotQueue(){
     ?'Очередь остановлена защитным лимитом AI. Готово в этой порции: '+success+'. Необработанные товары сохранены.'
     :haltedByBudget
       ?'Очередь остановлена по локальному budget-controller. Потраченный image-ориентир: 
+      :largeQueuePaused&&remaining
+        ?'Очередь на паузе. Готово в этой порции: '+success+'. Осталось: '+remaining+'.'
+        :autoContinue
+          ?'Порция готова: '+success+' из '+done+'. Осталось '+remaining+'. Продолжаем автоматически…'
+          :'Очередь обработана: '+success+' из '+done+' в последней порции.';
+  await renderHistory();
+  if(autoContinue){
+    window.setTimeout(()=>{if(!largeQueuePaused&&!excelAutopilotBusy)runExcelAutopilotQueue()},500);
+    return;
+  }
+  if(!remaining&&!haltedByLimit){
+    document.getElementById('publishCenter').open=true;
+    publishCenterFilter.value='all';
+    renderPublishCenter(await dbAll());
+    document.getElementById('publishCenter').scrollIntoView({behavior:'smooth',block:'start'});
+  }
 }
-+spent.toFixed(2)+' из 
+function csvCell(value){
+  const v=String(value??'');
+  return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
 }
-+budget.toFixed(2)+'.'
+async function exportCatalogReportNow(){
+  const all=await dbAll();
+  const rows=[[
+    'Название','Артикул','Бренд','Штрихкод','Категория','Цена за 1','Цена от 2','Цена от 3','Старая цена',
+    'Материал','Размеры','Описание','Себестоимость','Остаток','Коробки','Минимальный остаток','Место хранения','Коллекции',
+    'Статус Yuvion','Готовность','Фото','Карточки','QA пройден','QA блокеры','Источник данных','URL источника','Дубль главного фото','OCR ожидает','Последнее изменение'
+  ]];
+  for(const item of all){
+    const d=item.data||{},x=item.extraData||d.confirmedData||{},p=item.privateData||{},r=item.data?storedReadiness(item):{done:0,total:0};
+    rows.push([
+      item.title||d.seoTitle||'',skuOfStoredItem(item),x.brand||storedCharValue(d,'Бренд')||'',barcodeOfStoredItem(item),d.category||'',
+      x.price1||x.price||'',x.price2||'',x.price3||'',x.oldPrice||'',x.material||storedCharValue(d,'Материал')||'',x.size||storedCharValue(d,'Размеры')||'',
+      d.fullDescription||d.shortDescription||'',p.cost||'',p.stock||'',p.boxes||'',p.minStock||'',p.location||'',
+      Array.isArray(p.collections)?p.collections.join(', '):'',
+      draftStatus(item).label,item.data?(r.done+'/'+r.total):'0/0',item.sourceDataUrl?'Да':'Нет',Array.isArray(item.cards)?item.cards.length:0,
+      item.quality?'Да':'Нет',storedQaBlockers(item).length,item.sourceReference?.host||'Свои данные',item.sourceReference?.url||'',
+      duplicatePhotoInCatalog(item,all)?'Да':'Нет',Array.isArray(item.labelSuggestions)?item.labelSuggestions.length:0,item.updatedAt?new Date(item.updatedAt).toISOString():''
+    ]);
+  }
+  const csv='\uFEFF'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');
+  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'yuvion-roundtrip-'+new Date().toISOString().slice(0,10)+'.csv');
+}
+function approximateBase64Bytes(value){
+  const s=String(value||'');const comma=s.indexOf(',');const b64=comma>=0?s.slice(comma+1):s;
+  return Math.round(b64.length*.75);
+}
+function formatBytes(bytes){
+  const n=Number(bytes||0);if(n<1024)return n+' Б';if(n<1024*1024)return (n/1024).toFixed(1)+' КБ';return (n/1024/1024).toFixed(1)+' МБ';
+}
+function catalogStorageBreakdown(all){
+  let sources=0,cards=0,scenes=0,extras=0,revisions=0,caches=0;
+  for(const item of all||[]){
+    sources+=approximateBase64Bytes(item.sourceDataUrl);
+    for(const x of item.cards||[])cards+=approximateBase64Bytes(x?.base64);
+    for(const x of item.scenes||[])scenes+=approximateBase64Bytes(x?.base64);
+    for(const x of item.additionalPhotos||[])extras+=approximateBase64Bytes(x?.dataUrl);
+    revisions+=new Blob([JSON.stringify(item.revisions||[])]).size;
+    caches+=new Blob([JSON.stringify(item.analysisCache||{})]).size;
+  }
+  return {sources,cards,scenes,extras,revisions,caches,total:sources+cards+scenes+extras+revisions+caches};
+}
+async function renderStorageManager(allItems=null){
+  const all=Array.isArray(allItems)?allItems:await dbAll();
+  const b=catalogStorageBreakdown(all);
+  const cells=[['Исходные фото',b.sources],['Доп. фото',b.extras],['Финальные PNG',b.cards],['Чистые сцены',b.scenes],['Версии',b.revisions],['AI-кэш',b.caches]];
+  storageGrid.innerHTML=cells.map(x=>'<div class="storage-cell"><b>'+formatBytes(x[1])+'</b><span>'+x[0]+'</span></div>').join('');
+  const snaps=(await snapshotAll()).sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  storageManagerNote.textContent='Оценка данных каталога: '+formatBytes(b.total)+'. Снимков Excel для отката: '+snaps.length+'. Безопасная очистка сохраняет исходные фото и финальные PNG.';
+}
+async function compactStorageNow(){
+  if(!confirm('Выполнить безопасную очистку? У опубликованных товаров удалятся чистые сцены и AI-кэш, а версии сократятся до 3. Финальные PNG и исходные фото сохранятся.'))return;
+  const all=await dbAll();
+  for(const item of all){
+    let changed=false;
+    if(Array.isArray(item.revisions)&&item.revisions.length>3){item.revisions=item.revisions.slice(0,3);changed=true}
+    if(item.published&&Array.isArray(item.scenes)&&item.scenes.length){item.scenes=[];changed=true}
+    if(item.published&&item.analysisCache){item.analysisCache=null;item.generationFingerprint=null;changed=true}
+    if(item.published&&Array.isArray(item.labelSuggestions)&&item.labelSuggestions.length){item.labelSuggestions=[];changed=true}
+    if(changed)await dbPut(item);
+  }
+  await renderHistory();await renderStorageManager();
+}
+async function clearAllSceneCacheNow(){
+  if(!confirm('Удалить чистые сцены у всех товаров? Финальные PNG сохранятся, но следующая правка инфографики может снова потребовать AI-генерацию.'))return;
+  const all=await dbAll();
+  for(const item of all){if(Array.isArray(item.scenes)&&item.scenes.length){item.scenes=[];await dbPut(item)}}
+  if(currentHistoryId){currentScenes=[];await saveHistory()}
+  await renderStorageManager();
+}
+
+async function refreshDiagnosticsNow(allItems=null){
+  const all=Array.isArray(allItems)?allItems:await dbAll();
+  const queue=excelQueueItems(all);
+  if(!publicHealthCache){
+    try{
+      const response=await fetch('/api/health');
+      if(response.ok)publicHealthCache=await response.json();
+    }catch{}
+  }
+  const cached=all.filter(x=>Boolean(x.analysisCache)).length;
+  const errors=all.filter(x=>x?.excelAutopilot?.state==='error').length;
+  const imageRate=Number(publicHealthCache?.estimates?.imageOutputUsdPerCard||0);
+  const paidImageOutputs=all.reduce((sum,item)=>{
+    const paid=item?.renderMode==='ai'||!item?.renderMode;
+    return sum+(paid?(Number(item?.aiLocal?.cardBatches||0)*4+Number(item?.aiLocal?.regenerations||0)):0);
+  },0);
+  const localImageEstimate=imageRate?paidImageOutputs*imageRate:0;
+  const nextCount=Math.min(queue.length,EXCEL_AUTOPILOT_LIMIT);
+  const nextImageEstimate=0;
+  const moderationTop=topModerationPattern();
+  const styleStats=new Map();
+  for(const item of all){
+    const key=item.style||'minimal',x=styleStats.get(key)||{total:0,clean:0,regen:0};
+    x.total++;if(item.quality&&!storedQaBlockers(item).length)x.clean++;x.regen+=Number(item.aiLocal?.regenerations||0);styleStats.set(key,x);
+  }
+  const stableStyle=[...styleStats.entries()].filter(([,x])=>x.total>=2).sort((a,b)=>(b[1].clean/b[1].total)-(a[1].clean/a[1].total)||a[1].regen-b[1].regen)[0]||null;
+  const similarPairs=new Set();
+  for(const item of all){
+    const hit=similarCatalogProduct(item,all);
+    if(hit)similarPairs.add([item.id,hit.item.id].sort().join('|'));
+  }
+  opsQueueValue.textContent=String(queue.length);
+  opsCacheValue.textContent=String(cached);
+  opsErrorValue.textContent=String(errors);
+  let storageText='н/д',quotaText='н/д';
+  try{
+    const estimate=await navigator.storage?.estimate?.();
+    if(estimate){
+      const mb=n=>Math.round(Number(n||0)/1024/1024);
+      storageText=mb(estimate.usage)+' МБ';
+      quotaText=mb(estimate.quota)+' МБ';
+    }
+  }catch{}
+  opsStorageValue.textContent=storageText;
+  let sw='нет';
+  try{sw=('serviceWorker' in navigator)&&Boolean(await navigator.serviceWorker.getRegistration())?'активен':'не активен'}catch{}
+  const lsBytes=Object.keys(localStorage).reduce((sum,key)=>sum+String(localStorage.getItem(key)||'').length*2,0);
+  diagnosticList.innerHTML=[
+    ['Версия приложения','6.7.1'],['IndexedDB товаров',String(all.length)+' / '+CATALOG_LIMIT],
+    ['Хранилище',storageText+' из '+quotaText],['localStorage',Math.round(lsBytes/1024)+' КБ'],
+    ['PWA Service Worker',sw],['Сеть',navigator.onLine===false?'офлайн':'онлайн'],['AI-очередь',queue.length?queue.length+' ожидают':'пусто'],
+    ['Похожие товары',similarPairs.size?String(similarPairs.size):'не найдено'],
+    ['AI image outputs локально',String(localImageOutputs)+(localImageEstimate?' · ≈ $'+localImageEstimate.toFixed(2):'')],
+    ['Схема локальных данных','v'+ITEM_SCHEMA_VERSION],
+    ['Стабильный стиль',stableStyle?(stableStyle[0]+' · '+stableStyle[1].clean+'/'+stableStyle[1].total+' QA clean'):'недостаточно данных'],
+    ['Повторяемое отклонение',moderationTop?(moderationTop[0].slice(0,65)+' · '+moderationTop[1].count+'×'):'не накоплено'],
+    ['Следующий запуск',nextCount?(nextCount+' товаров'+(nextImageEstimate?' · image ≈ $'+nextImageEstimate.toFixed(2):'')):'очередь пуста']
+  ].map(x=>'<div class="diagnostic-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('');
+  if(storageManager.classList.contains('show'))await renderStorageManager(all);
+  const state=loadLargeQueueState();
+  const budgetLimit=queueBudgetLimit();
+  queueBudgetStatus.textContent='Excel-очередь создаёт изображения бесплатно: image-generation расход = $0. Лимит image-бюджета нужен только при ручном выборе «AI-фото · платно». Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
+  queueResumeNote.classList.toggle('show',Boolean(state.pending));
+  queueResumeNote.textContent=state.pending?'Сохранена незавершённая очередь. Последний запуск: '+new Date(state.updatedAt||Date.now()).toLocaleString('ru-RU')+'. Нажмите «Продолжить очередь».':'';
+}
+function loadLargeQueueState(){
+  try{return JSON.parse(localStorage.getItem(LARGE_QUEUE_KEY)||'{}')||{}}catch{return {}}
+}
+function saveLargeQueueState(patch={}){
+  const current=loadLargeQueueState();
+  const next={...current,...patch,updatedAt:Date.now()};
+  localStorage.setItem(LARGE_QUEUE_KEY,JSON.stringify(next));
+  return next;
+}
+
+function labelPhotoForStoredItem(item){
+  return (item?.additionalPhotos||[]).find(x=>['label','barcode','package'].includes(x?.role)&&x?.dataUrl)||null;
+}
+function renderConfirmationCenter(allItems=[]){
+  if(!confirmationList)return;
+  const pending=(allItems||[]).filter(item=>Array.isArray(item.labelSuggestions)&&item.labelSuggestions.length);
+  const total=pending.reduce((sum,item)=>sum+item.labelSuggestions.length,0);
+  confirmationSummary.textContent=total+' '+(total===1?'ожидает':'ожидают');
+  confirmationList.innerHTML=pending.length?pending.slice(0,30).map(item=>{
+    const fields=item.labelSuggestions.slice(0,5);
+    return '<div class="confirmation-row"><div><b>'+esc(item.title||item.data?.seoTitle||'Товар')+'</b><small>'+esc(skuOfStoredItem(item)||'без SKU')+' · найдено '+item.labelSuggestions.length+'</small><div class="confirmation-pills">'+fields.map(x=>'<span class="confirmation-pill">'+esc(x.name)+': '+esc(x.value)+'</span>').join('')+'</div></div><button class="btn btn-primary btn-small" data-confirm-open="'+esc(item.id)+'">Проверить</button></div>';
+  }).join(''):'<div class="muted" style="font-size:10px">Неподтверждённых OCR-фактов нет.</div>';
+  confirmationList.querySelectorAll('[data-confirm-open]').forEach(btn=>btn.onclick=async()=>{
+    const item=(allItems||[]).find(x=>x.id===btn.dataset.confirmOpen);if(item)await restoreHistory(item);
+  });
+}
+async function runBulkLabelOcrNow(){
+  if(excelAutopilotBusy)return;
+  const all=await dbAll();
+  const candidates=all.filter(item=>labelPhotoForStoredItem(item)&&!(item.labelSuggestions||[]).length).slice(0,10);
+  if(!candidates.length){alert('Нет товаров с фото маркировки, ожидающих OCR. Назначьте снимку роль «Маркировка», «Штрихкод» или «Упаковка».');return}
+  runBulkLabelOcr.disabled=true;runBulkLabelOcr.textContent='OCR работает…';
+  let done=0,found=0;
+  try{
+    for(const item of candidates){
+      const photo=labelPhotoForStoredItem(item);const parts=dataUrlParts(photo.dataUrl);if(!parts)continue;
+      const {response,data}=await fetchJsonRetry('/api/label-ocr',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:parts.base64,mimeType:parts.mime})},2);
+      if(response.status===429){break}
+      if(response.ok){
+        item.labelSuggestions=(data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||''}));
+        item.activity=[{at:Date.now(),type:'Массовый OCR маркировки',detail:'Найдено полей: '+item.labelSuggestions.length},...(item.activity||[])].slice(0,80);
+        item.updatedAt=Date.now();await dbPut(item);found+=item.labelSuggestions.length;
+      }
+      done++;
+    }
+  }finally{
+    runBulkLabelOcr.disabled=false;runBulkLabelOcr.textContent='OCR маркировок очереди';
+    const refreshed=await dbAll();renderConfirmationCenter(refreshed);await renderHistory();
+    confirmationCenter.open=true;confirmationCenter.scrollIntoView({behavior:'smooth',block:'start'});
+    if(done)confirmationSummary.textContent=found+' найдено в '+done+' товарах';
+  }
+}
+
+function renderDashboard(allItems){
+  const all=Array.isArray(allItems)?allItems:[];
+  const skuCounts=new Map();
+  for(const item of all){
+    const sku=skuOfStoredItem(item);
+    if(sku)skuCounts.set(sku,(skuCounts.get(sku)||0)+1);
+  }
+  const duplicates=all.filter(item=>{
+    const sku=skuOfStoredItem(item);
+    return (sku&&(skuCounts.get(sku)||0)>1)||Boolean(duplicateBarcodeInCatalog(item,all))||Boolean(duplicatePhotoInCatalog(item,all));
+  }).length;
+  const photo=all.filter(item=>!item.data).length;
+  const ready=all.filter(item=>item.data&&storedReadiness(item).ready&&!item.published).length;
+  const needs=all.filter(item=>item.data&&!storedReadiness(item).ready).length;
+  const lowStock=all.filter(item=>lowStockState(item.privateData||{})).length;
+  dashAll.textContent=String(all.length);
+  dashPhoto.textContent=String(photo);
+  dashNeeds.textContent=String(needs);
+  dashDuplicates.textContent=String(duplicates);
+  dashReady.textContent=String(ready);
+  dashLowStock.textContent=String(lowStock);
+}
+
+function dashboardMatches(item,allItems){
+  if(dashboardFilter==='all')return true;
+  if(dashboardFilter==='photo')return !item.data;
+  if(dashboardFilter==='needs')return Boolean(item.data)&&!storedReadiness(item).ready;
+  if(dashboardFilter==='duplicate')return Boolean(duplicateSkuInCatalog(item,allItems)||duplicateBarcodeInCatalog(item,allItems)||duplicatePhotoInCatalog(item,allItems));
+  if(dashboardFilter==='ready')return Boolean(item.data)&&storedReadiness(item).ready&&!item.published;
+  if(dashboardFilter==='lowstock')return lowStockState(item.privateData||{});
+  return true;
+}
+
+async function renderHistory(){
+  const grid=document.getElementById('historyGrid'),empty=document.getElementById('emptyHistory');
+  try{
+    const all=(await dbAll()).sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
+    renderDashboard(all);
+    renderExcelAutopilot(all);
+    renderPublishCenter(all);
+    renderConfirmationCenter(all);
+    if(unmatchedPhotoPool.length)renderUnmatchedPhotoManager(excelImportedItems(all));
+    refreshDiagnosticsNow(all);
+    await renderV6Panels(all);
+    const collections=[...new Set(all.flatMap(item=>Array.isArray(item?.privateData?.collections)?item.privateData.collections:[]))].sort((a,b)=>a.localeCompare(b,'ru'));
+    const previousCollection=catalogCollection.value||'all';
+    catalogCollection.innerHTML='<option value="all">Все коллекции</option>'+collections.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');
+    catalogCollection.value=collections.includes(previousCollection)?previousCollection:'all';
+    const query=String(catalogSearch?.value||'').trim().toLocaleLowerCase('ru');
+    const statusFilter=catalogStatus?.value||'all';
+    const collectionFilter=catalogCollection?.value||'all';
+    const queueFilter=catalogQueue?.value||'all';
+    const filtered=all.filter(item=>{
+      const status=draftStatus(item);
+      if(statusFilter!=='all'&&status.key!==statusFilter)return false;
+      if(collectionFilter!=='all'&&!(item?.privateData?.collections||[]).includes(collectionFilter))return false;
+      if(queueFilter!=='all'&&nextActionForItem(item,all).key!==queueFilter)return false;
+      if(!dashboardMatches(item,all))return false;
+      if(query&&!draftSearchText(item).includes(query))return false;
+      return true;
+    });
+
+    const validIds=new Set(all.map(item=>item.id));
+    for(const id of [...selectedDraftIds])if(!validIds.has(id))selectedDraftIds.delete(id);
+    lastVisibleDraftIds=filtered.map(item=>item.id);
+    catalogCount.textContent=filtered.length+' из '+all.length+' товаров';
+    updateBulkBar();
+    grid.innerHTML='';
+    empty.style.display=filtered.length?'none':'block';
+    empty.textContent=all.length
+      ? 'По выбранному фильтру товары не найдены.'
+      : 'Каталог пока пуст. Добавьте фотографию — черновик сохранится локально автоматически.';
+
+    filtered.forEach(item=>{
+      const status=draftStatus(item);
+      const d=item.data||{};
+      const x=item.extraData||d.confirmedData||{};
+      const collectionsText=(item?.privateData?.collections||[]).slice(0,2).join(', ');
+      const stockAlert=lowStockState(item.privateData||{})?' · низкий остаток':'';
+      const secondary=(d.category||x.brand||'Локальный черновик')+(collectionsText?' · '+collectionsText:'')+stockAlert;
+      const when=item.updatedAt?new Date(item.updatedAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+      const ready=storedReadiness(item);
+      const nextAction=nextActionForItem(item,all);
+      const el=document.createElement('div');
+      el.className='history-item'+(selectedDraftIds.has(item.id)?' selected':'');
+      el.innerHTML=
+        '<input class="draft-select" type="checkbox" aria-label="Выбрать товар" '+(selectedDraftIds.has(item.id)?'checked':'')+'>'+
+        '<img src="'+esc(item.sourceDataUrl||'')+'" alt="">'+
+        '<div class="history-meta"><span class="draft-status '+status.key+'">'+esc(status.label)+'</span><small>'+esc(when)+'</small></div>'+
+        '<b>'+esc(item.title||d.seoTitle||'Черновик')+'</b>'+
+        '<small>'+esc(secondary)+(item.data?' · '+ready.done+'/'+ready.total:'')+'</small>'+
+        '<span class="queue-badge '+(nextAction.key==='ready'?'ready':nextAction.key==='sent'?'wait':'')+'">'+esc(nextAction.label)+'</span>'+
+        '<div class="history-actions">'+
+          '<button class="btn btn-ghost btn-small restore">Открыть</button>'+
+          '<button class="btn btn-ghost btn-small similar" '+(!item.data?'disabled':'')+'>Похожий</button>'+
+          '<button class="btn '+(item.published?'btn-ghost':'btn-primary')+' btn-small wide publish" '+(!item.published&&!ready.ready?'disabled':'')+'>'+(item.published?'Вернуть в черновик':'Отметить опубликованным')+'</button>'+
+          '<button class="btn btn-danger btn-small wide del">Удалить</button>'+
+        '</div>';
+
+      const selectBox=el.querySelector('.draft-select');
+      selectBox.onchange=()=>{
+        if(selectBox.checked)selectedDraftIds.add(item.id);else selectedDraftIds.delete(item.id);
+        el.classList.toggle('selected',selectBox.checked);
+        updateBulkBar();
+      };
+            el.querySelector('.restore').onclick=()=>restoreHistory(item);
+      el.querySelector('.similar').onclick=async()=>{
+        if(!item.data)return;
+        await restoreHistory(item);
+        beginSimilarProduct();
+        document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+      };
+      el.querySelector('.publish').onclick=()=>togglePublished(item.id);
+      el.querySelector('.del').onclick=async()=>{
+        if(confirm('Удалить этот локальный черновик?')){
+          await dbDelete(item.id);
+          if(currentHistoryId===item.id)resetProduct(false);
+          await renderHistory();
+        }
+      };
+      grid.appendChild(el);
+    });
+  }catch{
+    empty.textContent='Не удалось открыть локальный каталог.';
+  }
+}
+
+async function restoreHistory(item){
+  selectedFile=null;
+  sourceDataUrl=item.sourceDataUrl||null;
+  currentPhotoHash=String(item.photoHash||'');
+  currentHistoryId=item.id;
+  currentData=item.data||null;
+  currentSourceReference=item.sourceReference||null;
+  currentCards=item.cards||[];
+  currentScenes=Array.isArray(item.scenes)?item.scenes.slice(0,4):[];
+  currentQuality=item.quality||null;
+  currentVariations=Array.isArray(item.variations)?item.variations.map(normalizeVariation):[];
+  currentAdditionalPhotos=Array.isArray(item.additionalPhotos)?item.additionalPhotos.slice(0,4):[];
+  currentRevisions=Array.isArray(item.revisions)?item.revisions.slice(0,12):[];
+  currentModeration=normalizeModeration(item.moderation||{});
+  currentLabelSuggestions=Array.isArray(item.labelSuggestions)?item.labelSuggestions.slice(0,20):[];
+  currentActivity=Array.isArray(item.activity)?item.activity.slice(0,80):[];
+  currentAnalysisCache=item.analysisCache||null;
+  cardsStale=Boolean(item.cardsStale);
+  currentStaleCards=Array.isArray(item.staleCardIndexes)?item.staleCardIndexes.filter(x=>[0,1,2,3].includes(Number(x))).map(Number):[];
+  renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderModeration();renderActivity();renderSourceReference();
+  currentMode=item.mode||'full';
+  styleSelect.value=item.style||'minimal';
+  renderModeSelect.value=item.renderMode||'free';
+  currentDesignIntensity=item.designState?.intensity||'selling';
+  currentDesignSubstyle=item.designState?.substyle||'auto';
+  currentDesignVariant=Number.isInteger(item.designState?.variant)?item.designState.variant:0;
+  currentComposition={scale:Number(item.designState?.composition?.scale)||1,shiftX:Number(item.designState?.composition?.shiftX)||0,shiftY:Number(item.designState?.composition?.shiftY)||0};
+  currentPalette=Array.isArray(item.designState?.palette)?item.designState.palette.slice(0,4):[];
+  currentVisualOptions=normalizeClientVisualOptions(item.designState?.visualOptions||{});
+  currentDesignSnapshots=Array.isArray(item.designSnapshots)?item.designSnapshots.slice(0,8):[];
+  fillExtraData(item.extraData||item.data?.confirmedData||{});
+  fillPrivateData(item.privateData||{});
+  duplicateSkuId=null;duplicatePhotoId=null;
+  checkDuplicateSku();checkBarcodeState('product');checkPhotoDuplicate(currentPhotoHash);
+  document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
+  preview.src=sourceDataUrl||'';
+  preview.classList.toggle('show',!!sourceDataUrl);
+  drop.classList.toggle('has',!!sourceDataUrl);
+  dropText.style.display=sourceDataUrl?'none':'';
+  meta.textContent=item.data?'Восстановлено из локального каталога':'Черновик фото из локального каталога';
+  analyzeBtn.disabled=!sourceDataUrl;
+
+  if(!currentData){
+    workspace.classList.remove('show');
+    creative.classList.remove('show');
+    cardsPreview.innerHTML='';
+    renderYuvionExport();
+    updateWorkflow();
+    document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+
+  fillEditor(currentData);
+  renderAiQuality(currentData);
+  updatePlan();
+  renderCategoryMemory();
+  renderSpecTemplateHint();
+  renderYuvionExport();
+  confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');
+  workspace.classList.add('show');
+  syncModeUi();
+  renderDesignStudio();
+
+  if(currentCards.length===4){
+    renderCards();
+    creative.classList.toggle('show',currentMode==='full');
+    creativeStatus.className='creative-status show done';
+    creativeStatus.textContent=item.published?'Товар отмечен как опубликованный. Изменения переведут его обратно в черновик.':'Комплект восстановлен из локального каталога.';
+    if(currentQuality){
+      const notes=(currentQuality.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(Number(x.index)+1)+': '+issue));
+      qaSummary.style.display='block';
+      qaSummary.innerHTML='<b>Сохранённая AI-проверка: '+esc(currentQuality.overall||'готово')+'</b>'+(notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Критических проблем не обнаружено.');
+    }else qaSummary.style.display='none';
+    zipImages.disabled=false;zipFull.disabled=false;
+  }else{
+    creative.classList.remove('show');
+    zipImages.disabled=true;zipFull.disabled=true;
+  }
+  workspace.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function safeFileBase(value){
+  return String(value||'product')
+    .toLowerCase()
+    .replace(/[^a-zа-яё0-9_-]+/gi,'_')
+    .replace(/^_+|_+$/g,'')
+    .slice(0,60)||'product';
+}
+
+async function compressFileToDataUrl(file,max=1600,quality=.84){
+  const original=await fileToDataUrl(file);
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(1,max/Math.max(img.width,img.height));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      resolve(canvas.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>resolve(original);
+    img.src=original;
+  });
+}
+
+function batchRetailPrices(price1){
+  const p=moneyNumber(price1);
+  const d=loadSellerDefaults();
+  if(p<=0)return {price1:String(price1||''),price2:'',price3:''};
+  return {
+    price1:String(price1||''),
+    price2:String(Math.max(0,Math.round(p*(1-Number(d.discount2??5)/100)))),
+    price3:String(Math.max(0,Math.round(p*(1-Number(d.discount3??10)/100))))
+  };
+}
+
+function batchRender(){
+  batchList.innerHTML='';
+  batchFiles.forEach((item,index)=>{
+    const el=document.createElement('div');
+    el.className='batch-item';
+    el.innerHTML='<div class="batch-wizard">'+
+      '<img src="'+esc(item.preview)+'" alt="">'+
+      '<input data-batch-field="brand" placeholder="Бренд" value="'+esc(item.extraData?.brand||'')+'">'+
+      '<input data-batch-field="sku" placeholder="SKU / артикул" value="'+esc(item.extraData?.sku||'')+'">'+
+      '<input data-batch-field="price1" inputmode="decimal" placeholder="Цена, ₽" value="'+esc(item.extraData?.price1||'')+'">'+
+      '<input data-batch-field="category" placeholder="Категория Yuvion" value="'+esc(item.category||'')+'">'+
+      '<div class="batch-status '+esc(item.state||'wait')+'">'+esc(item.label||'Ожидает')+'</div>'+
+      '</div><small style="display:block;margin-top:5px;color:var(--muted)">'+esc(item.file.name)+' · '+((item.file.size/1024/1024).toFixed(2))+' МБ</small>';
+    el.querySelectorAll('[data-batch-field]').forEach(input=>input.addEventListener('input',()=>{
+      const field=input.dataset.batchField;
+      if(field==='category')item.category=input.value.trim();
+      else if(field==='price1')item.extraData={...(item.extraData||{}),...batchRetailPrices(input.value)};
+      else item.extraData={...(item.extraData||{}),[field]:input.value.trim()};
+    }));
+    batchList.appendChild(el);
+  });
+}
+
+batchFilesInput.addEventListener('change',async()=>{
+  const allowed=['image/jpeg','image/png','image/webp'];
+  const chosen=[...batchFilesInput.files].slice(0,20);
+  const defaults=loadSellerDefaults();
+  batchFiles=[];
+  for(const file of chosen.filter(file=>allowed.includes(file.type)&&file.size<=10*1024*1024)){
+    let sku='';
+    if(defaults.autoSku==='on'){
+      try{sku=await nextGeneratedSku(defaults.category||'')}catch{}
+    }
+    batchFiles.push({
+      file,
+      preview:URL.createObjectURL(file),
+      state:'wait',
+      label:'Ожидает',
+      category:defaults.category||'',
+      extraData:{brand:defaults.brand||'',sku,barcode:'',size:'',material:'',price1:'',price2:'',price3:'',oldPrice:''}
+    });
+  }
+  startBatch.disabled=!batchFiles.length||batchBusy;
+  batchRender();
+  if(batchFilesInput.files.length>20)alert('За один прямой фото-запуск обрабатываются первые 20 товаров. Для большого ассортимента используйте Excel-автопилот — он продолжает очередь автоматически.');
+});
+
+async function batchAnalyze(file,mode,extraData={},category=''){
+  const dataUrl=await fileToDataUrl(file);
+  const src={mimeType:file.type,image:dataUrl.split(',')[1]};
+  const response=await fetch('/api/analyze',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({...src,mode,extraData})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось проанализировать товар.');
+  if(String(category||'').trim())data.category=String(category).trim();
+  return {data,src,dataUrl};
+}
+
+async function batchQuality(cards,card){
+  const response=await fetch('/api/quality-check',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({cards,card,renderMode:'free'})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)return null;
+  return data;
+}
+
+async function packageCardsForBatch(cards,card,includeDescription=true,extraData={}){
+  const response=await fetch('/api/package',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({cards,card,extraData,includeDescription})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось собрать ZIP.');
+  return data;
+}
+
+function downloadBase64Zip(data,name){
+  const binary=atob(data);
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  const blob=new Blob([bytes],{type:'application/zip'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=name;a.style.display='none';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+
+async function saveBatchHistory({data,dataUrl,cards,scenes=[],quality=null,mode,style,extraData={}}){
+  const id=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+  const photoHash=await imageHashFromDataUrl(dataUrl);
+  const item={
+    id,updatedAt:Date.now(),title:data.seoTitle||'Товар',
+    data,extraData:{...extraData},privateData:{cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''},
+    sourceDataUrl:dataUrl,photoHash,additionalPhotos:[],cards:cards||[],scenes:scenes||[],quality,
+    cardsStale:false,staleCardIndexes:[],variations:[],revisions:[],moderation:{status:'none',reason:'',log:[]},
+    activity:[{at:Date.now(),type:'Batch Factory',detail:mode==='full'?'Анализ · 4 карточки · QA сохранён':'Текстовый анализ сохранён'}],
+    mode,style,renderMode:'free',published:false
+  };
+  await dbPut(item);
+  await trimCatalog();
+}
+
+startBatch.onclick=async()=>{
+  if(batchBusy||!batchFiles.length)return;
+  batchBusy=true;startBatch.disabled=true;batchFilesInput.disabled=true;
+  batchMode.disabled=true;batchStyle.disabled=true;
+  batchProgress.classList.add('show');
+  batchBar.style.width='0%';
+  const mode=batchMode.value;
+  const style=batchStyle.value;
+  const masterZip=typeof JSZip!=='undefined'?new JSZip():null;
+  let done=0,success=0;
+
+  try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:batchFiles.length})})}catch{}
+
+  for(let index=0;index<batchFiles.length;index++){
+    const item=batchFiles[index];
+    item.state='work';item.label='Анализ…';batchRender();
+    batchProgressText.textContent='Обрабатываем '+(index+1)+' из '+batchFiles.length+': '+item.file.name;
+
+    try{
+      const analyzed=await batchAnalyze(item.file,mode,item.extraData||{},item.category||'');
+      let cards=[],scenes=[],quality=null;
+      if(mode==='full'){
+        item.label='4 карточки…';batchRender();
+        const gen=await fetch('/api/generate-cards',{
+          method:'POST',headers:apiHeaders(),
+          body:JSON.stringify({...analyzed.src,card:analyzed.data,style,renderMode:'free'})
+        });
+        const genData=await gen.json().catch(()=>({}));
+        if(!gen.ok)throw new Error(genData.error||'Не удалось создать карточки.');
+        cards=genData.cards||[];
+        scenes=genData.scenes||[];
+
+        item.label='Проверка качества…';batchRender();
+        quality=await batchQuality(cards,analyzed.data);
+        const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,2);
+        for(const badIndex of bad){
+          item.label='Исправляем №'+(badIndex+1);batchRender();
+          const updated=await fetch('/api/regenerate-card',{
+            method:'POST',headers:apiHeaders(),
+            body:JSON.stringify({...analyzed.src,card:analyzed.data,style,index:badIndex,renderMode:'free'})
+          });
+          const updatedData=await updated.json().catch(()=>({}));
+          if(updated.ok&&updatedData.card){
+            cards[badIndex]=updatedData.card;
+            if(updatedData.scene)scenes[badIndex]=updatedData.scene;
+          }
+        }
+        if(bad.length){
+          item.label='Повторная QA…';batchRender();
+          quality=await batchQuality(cards,analyzed.data);
+        }
+      }
+
+      item.label='Сохраняем…';batchRender();
+      const storedSource=await compressFileToDataUrl(item.file);
+      await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,scenes,quality,mode,style,extraData:item.extraData||{}});
+
+      if(masterZip){
+        const base=(String(index+1).padStart(2,'0')+'_'+safeFileBase(analyzed.data.seoTitle||('product_'+(index+1))));
+        const folder=masterZip.folder(base);
+        const parsed=dataUrlParts(storedSource);
+        if(parsed)folder.file('source.'+extensionFromMime(parsed.mime),parsed.base64,{base64:true});
+        cards.forEach((card,cardIndex)=>{
+          if(card?.base64)folder.file(card.filename||String(cardIndex+1).padStart(2,'0')+'_card.png',card.base64,{base64:true});
+        });
+        const tempItem={
+          title:analyzed.data.seoTitle||'Товар',
+          data:analyzed.data,
+          extraData:item.extraData||{},
+          privateData:{},
+          cards,
+          variations:[]
+        };
+        folder.file('description.txt',itemDescriptionText(tempItem));
+        folder.file('yuvion-autofill.json',JSON.stringify(itemAutofillPayload(tempItem),null,2));
+      }
+
+      success++;
+      item.state='ok';
+      item.label=mode==='full'?'Готово':'Текст готов';
+    }catch(e){
+      item.state='fail';item.label=e.message||'Ошибка';
+    }
+
+    done++;
+    batchBar.style.width=Math.round(done/batchFiles.length*100)+'%';
+    batchRender();
+    await renderHistory();
+  }
+
+  if(masterZip&&success){
+    batchProgressText.textContent='Собираем один общий ZIP для '+success+' товаров…';
+    try{
+      masterZip.file('README.txt','Пакет Yuvion AI Cards. Товаров: '+success+'. Каждый товар находится в отдельной папке.');
+      const blob=await masterZip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+      downloadBlob(blob,'yuvion-batch-'+new Date().toISOString().slice(0,10)+'.zip');
+    }catch(e){
+      console.warn('Batch master ZIP failed',e);
+    }
+  }
+
+  batchProgressText.textContent='Очередь завершена: '+success+' успешно из '+batchFiles.length+'.'+(success?' Общий ZIP подготовлен.':'');
+  batchBusy=false;batchFilesInput.disabled=false;batchMode.disabled=false;batchStyle.disabled=false;startBatch.disabled=false;
+};
+
+
+
+/* YUVION_V6_MARKER */
+const STORE_RULES_KEY='yuvionStoreRulesV1';
+let lastPreflightAudit=null;
+let intakeConveyorSaved=0;
+
+function loadStoreRules(){
+  return String(localStorage.getItem(STORE_RULES_KEY)||'').slice(0,4000);
+}
+function renderStoreRules(){
+  const el=document.getElementById('storeRulesText');
+  if(el)el.value=loadStoreRules();
+}
+function currentRuleHints(){
+  const rules=loadStoreRules().split('\n').map(x=>x.trim()).filter(Boolean);
+  if(!rules.length||!currentData)return [];
+  const hay=[collectEdits().seoTitle,collectEdits().category,collectExtraData().brand].join(' ').toLocaleLowerCase('ru');
+  const matched=rules.filter(rule=>{
+    const words=rule.toLocaleLowerCase('ru').split(/[^a-zа-яё0-9]+/i).filter(x=>x.length>3);
+    return words.some(w=>hay.includes(w));
+  });
+  return (matched.length?matched:rules.slice(0,3)).slice(0,5);
+}
+
+function productProblems(item,allItems=[]){
+  const out=[];
+  const moderation=storedModeration(item);
+  if(moderation.status==='rejected')out.push({key:'rejected',label:'Отклонено модерацией',detail:moderation.reason||'Нужно разобрать причину отклонения.',bad:true});
+  if(!item?.sourceDataUrl)out.push({key:'photo',label:'Нет фотографии',detail:'Добавьте исходное фото товара.',bad:true});
+  if(!item?.data){out.push({key:'analysis',label:'Нет AI-анализа',detail:'Черновик содержит фото, но данные ещё не подготовлены.'});return out}
+  const d=item.data||{},x=item.extraData||d.confirmedData||{};
+  const sku=skuOfStoredItem(item);
+  if(!sku)out.push({key:'sku',label:'Нет SKU',detail:'Артикул обязателен для рабочего процесса Yuvion.'});
+  else if(duplicateSkuInCatalog(item,allItems))out.push({key:'sku',label:'Дублирующийся SKU',detail:sku,bad:true});
+  if(!d.category||!categoryValidity(d.category).valid)out.push({key:'category',label:'Проверьте категорию',detail:d.category||'Категория не указана.'});
+  const p1=moneyNumber(x.price1||x.price),p2=moneyNumber(x.price2),p3=moneyNumber(x.price3);
+  if(!(p1>0&&p2>0&&p2<=p1&&p3>0&&p3<=p2))out.push({key:'price',label:'Цены не готовы',detail:'Нужны корректные цены 1 / 2 / 3+ шт.'});
+  const barcode=barcodeOfStoredItem(item);
+  if(barcode&&!validateEan(barcode).valid)out.push({key:'barcode',label:'Некорректный EAN',detail:barcode,bad:true});
+  else if(barcode&&duplicateBarcodeInCatalog(item,allItems))out.push({key:'barcode',label:'Дублирующийся штрихкод',detail:barcode,bad:true});
+  const duplicatePhoto=duplicatePhotoInCatalog(item,allItems);
+  if(duplicatePhoto)out.push({key:'duplicate',label:'Дублирующееся главное фото',detail:duplicatePhoto.title||duplicatePhoto.data?.seoTitle||'Другой товар',bad:true});
+  if(Array.isArray(d.needsClarification)&&d.needsClarification.length)out.push({key:'clarify',label:'Есть неподтверждённые данные',detail:d.needsClarification.slice(0,2).join(' · ')});
+  const factIssues=storedFactBlockers(item);
+  if(factIssues.length)out.push({key:'facts',label:'Технические факты без подтверждения',detail:factIssues.slice(0,3).map(x=>x.name).join(', '),bad:true});
+  const requiredMissing=missingCategoryRequiredSpecs(d);
+  if(requiredMissing.length)out.push({key:'category-fields',label:'Не заполнены обязательные поля категории',detail:requiredMissing.slice(0,4).join(', '),bad:true});
+  const similar=similarCatalogProduct(item,allItems);
+  if(similar&&!duplicatePhoto&&!duplicateSkuInCatalog(item,allItems)&&!duplicateBarcodeInCatalog(item,allItems))out.push({key:'similar',label:'Похожий товар в каталоге',detail:(similar.item?.title||similar.item?.data?.seoTitle||'другой товар')+' · сходство '+Math.round(similar.score*100)+'%',bad:false});
+  if(item.cardsStale)out.push({key:'cards',label:'Изображения устарели',detail:'Данные товара менялись после генерации карточек.',bad:true});
+  const qaProblems=storedQaBlockers(item);
+  if(Array.isArray(item.cards)&&item.cards.length===4&&!item.quality)out.push({key:'cards',label:'Комплект ещё не прошёл QA',detail:'Запустите проверку качества изображений перед публикацией.',bad:true});
+  if(qaProblems.length)out.push({key:'cards',label:'QA изображений нашёл блокеры',detail:qaProblems.slice(0,2).flatMap(x=>x.issues||[]).slice(0,2).join(' · ')||'Нужно проверить готовые изображения.',bad:true});
+  if(!Array.isArray(item.cards)||item.cards.length!==4)out.push({key:'cards',label:'Нет полного комплекта изображений',detail:'Нужно 4 карточки 900×1200.'});
+  if(lowStockState(item.privateData||{}))out.push({key:'stock',label:'Низкий остаток',detail:'Остаток ниже локального минимального значения.'});
+  return out;
+}
+
+async function renderV6Panels(allItems){
+  const all=Array.isArray(allItems)?allItems:await dbAll();
+  const problemList=document.getElementById('problemList');
+  const problemCount=document.getElementById('problemCount');
+  const allProblems=all.flatMap(item=>productProblems(item,all).map(p=>({item,p})));
+  if(problemCount)problemCount.textContent=allProblems.length+' проблем';
+  if(problemList){
+    const visible=allProblems.slice(0,16);
+    problemList.innerHTML=visible.length?visible.map(({item,p})=>
+      '<div class="problem-item"><div><b>'+esc(item.title||item.data?.seoTitle||'Черновик')+' — '+esc(p.label)+'</b><small>'+esc(p.detail||'')+'</small></div><button class="problem-badge '+(p.bad?'bad':'')+'" data-problem-id="'+esc(item.id)+'">Открыть</button></div>'
+    ).join(''):'<div class="problem-empty">Критичных локальных проблем не найдено.</div>';
+    problemList.querySelectorAll('[data-problem-id]').forEach(btn=>btn.onclick=async()=>{
+      const item=all.find(x=>x.id===btn.dataset.problemId);if(item)await restoreHistory(item);
+    });
+  }
+  const now=Date.now(),day=86400000;
+  const ready=all.filter(item=>item.data&&storedReadiness(item).ready&&!item.published).length;
+  const published=all.filter(item=>item.published).length;
+  const rejected=all.filter(item=>storedModeration(item).status==='rejected').length;
+  const low=all.filter(item=>lowStockState(item.privateData||{})).length;
+  const recent=all.filter(item=>now-Number(item.updatedAt||0)<=7*day).length;
+  const today=all.filter(item=>now-Number(item.updatedAt||0)<=day).length;
+  const readinessValues=all.filter(x=>x.data).map(storedReadiness).map(x=>x.total?x.done/x.total*100:0);
+  const avg=readinessValues.length?Math.round(readinessValues.reduce((a,b)=>a+b,0)/readinessValues.length):0;
+  const metrics=[
+    [all.length,'Всего товаров'],[ready,'Готовы к Yuvion'],[published,'Опубликованы'],
+    [avg+'%','Средняя готовность'],[rejected,'Отклонены'],[low,'Низкий остаток'],
+    [today,'Активность 24 ч'],[recent,'Активность 7 дней']
+  ];
+  const grid=document.getElementById('analyticsGridV6');
+  if(grid)grid.innerHTML=metrics.map(x=>'<div class="analytics-cell"><b>'+esc(x[0])+'</b><span>'+esc(x[1])+'</span></div>').join('');
+}
+
+function currentPseudoItemV6(){
+  if(!currentData)return null;
+  return {
+    id:currentHistoryId,data:collectEdits(),extraData:collectExtraData(),privateData:collectPrivateData(),
+    sourceDataUrl:sourceDataUrl||(selectedFile?'selected-file':''),cards:currentCards,moderation:currentModeration
+  };
+}
+
+async function autopilotCurrentProduct(){
+  if(!currentData){
+    if(selectedFile||sourceDataUrl){analyzeBtn.click();return}
+    document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});return;
+  }
+  let action=nextActionForItem(currentPseudoItemV6(),[]);
+  if(duplicateSkuId)action={key:'sku',label:'Исправить SKU'};
+  if(duplicateBarcodeId)action={key:'sku',label:'Исправить штрихкод'};
+  if(duplicatePhotoId)action={key:'photo',label:'Проверить дубль главного фото'};
+  if(action.key==='rejected'){runModerationFix();return}
+  if(action.key==='sku'){
+    extraDataBox.open=true;
+    if(!extraFields.sku.value.trim())await assignGeneratedSku(false);
+    else (duplicateBarcodeId?extraFields.barcode:extraFields.sku).focus();
+    return;
+  }
+  if(action.key==='category'){editor.category.scrollIntoView({behavior:'smooth',block:'center'});editor.category.focus();return}
+  if(action.key==='brand'){extraDataBox.open=true;extraFields.brand.scrollIntoView({behavior:'smooth',block:'center'});extraFields.brand.focus();return}
+  if(action.key==='description'){editor.full.scrollIntoView({behavior:'smooth',block:'center'});editor.full.focus();return}
+  if(action.key==='specs'){editor.specs.scrollIntoView({behavior:'smooth',block:'center'});editor.specs.focus();return}
+  if(action.key==='oldPrice'){
+    extraDataBox.open=true;
+    extraFields.oldPrice.closest('.advanced-only-block')?.classList.add('force-visible');
+    extraFields.oldPrice.scrollIntoView({behavior:'smooth',block:'center'});extraFields.oldPrice.focus();return;
+  }
+  if(action.key==='price'){
+    extraDataBox.open=true;
+    const p1=moneyNumber(extraFields.price1.value),p2=moneyNumber(extraFields.price2.value),p3=moneyNumber(extraFields.price3.value);
+    if(p1>0&&(!(p2>0&&p2<=p1)||!(p3>0&&p3<=p2))){
+      const defaults=loadSellerDefaults();
+      setWholesalePreset(Number(defaults.discount2??5),Number(defaults.discount3??10));
+      renderYuvionExport();renderProductCockpit();
+      const retry=nextActionForItem(currentPseudoItemV6(),[]);
+      if(retry.key!=='price'){renderFocusPanel();return}
+    }
+    extraFields.price1.scrollIntoView({behavior:'smooth',block:'center'});extraFields.price1.focus();return;
+  }
+  if(action.key==='cards'){
+    currentMode='full';document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode==='full'));syncModeUi();
+    generateAll.scrollIntoView({behavior:'smooth',block:'center'});generateAll.click();return;
+  }
+  if(action.key==='sent'){document.getElementById('privateWork')?.scrollIntoView({behavior:'smooth',block:'start'});return}
+  await runPreflightCheck();
+}
+
+function renderPreflightAudit(audit,localHints=[]){
+  const box=document.getElementById('preflightResult');
+  if(!box)return;
+  lastPreflightAudit=audit||null;
+  const issues=Array.isArray(audit?.issues)?audit.issues:[];
+  const blockers=issues.filter(x=>x.severity==='blocker').length;
+  box.className='audit-box show '+(blockers?'bad':issues.length?'warn':'good');
+  const hints=localHints.length?'<div style="margin-top:9px"><b>Локальные правила:</b><ul class="audit-list">'+localHints.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'';
+  box.innerHTML='<b>'+(blockers?'Есть блокирующие замечания':issues.length?'Есть замечания':'Проверка пройдена')+'</b>'+
+    (issues.length?'<ul class="audit-list">'+issues.map(x=>'<li><b>'+esc(x.field||'Товар')+':</b> '+esc(x.message||'')+'</li>').join('')+'</ul>':'<div style="margin-top:5px">Явных противоречий и рискованных утверждений не найдено.</div>')+hints+
+    '<div class="audit-actions">'+
+      ((audit?.rewrittenTitle&&audit.rewrittenTitle!==collectEdits().seoTitle)||(audit?.rewrittenDescription&&audit.rewrittenDescription!==(collectEdits().fullDescription||collectEdits().shortDescription))?'<button class="btn btn-ghost btn-small" id="applyAuditRewrite">Применить безопасные текстовые правки</button>':'')+
+      '<button class="btn btn-ghost btn-small" id="closeAuditResult">Скрыть</button></div>';
+  box.querySelector('#closeAuditResult')?.addEventListener('click',()=>box.classList.remove('show'));
+  box.querySelector('#applyAuditRewrite')?.addEventListener('click',applyAuditRewrite);
+}
+
+function applyAuditRewrite(){
+  if(!lastPreflightAudit||!currentData)return;
+  if(lastPreflightAudit.rewrittenTitle)editor.title.value=lastPreflightAudit.rewrittenTitle;
+  if(lastPreflightAudit.rewrittenDescription)editor.full.value=lastPreflightAudit.rewrittenDescription;
+  currentData=collectEdits();updatePlan();renderYuvionExport();markCardsStale([0,3]);saveHistoryDebounced();
+  renderPreflightAudit({...lastPreflightAudit,issues:lastPreflightAudit.issues||[]},currentRuleHints());
+}
+
+async function runPreflightCheck(){
+  if(!currentData)return;
+  const btn=document.getElementById('preflightCheck');
+  const box=document.getElementById('preflightResult');
+  btn.disabled=true;
+  box.className='audit-box show';box.innerHTML='<b>Проверяем товар…</b><div style="margin-top:5px">Сверяем публичные данные между собой и, если доступно, с исходным фото.</div>';
+  try{
+    let src={};
+    try{src=await getSource()}catch{}
+    const response=await fetch('/api/preflight',{
+      method:'POST',headers:apiHeaders(),
+      body:JSON.stringify({card:collectEdits(),extraData:collectExtraData(),image:src.image||'',mimeType:src.mimeType||''})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось выполнить проверку.');
+    renderPreflightAudit(data,currentRuleHints());
+    addCurrentActivity('AI preflight',data.overall||'Проверка завершена');
+    saveHistoryDebounced();
+  }catch(e){
+    box.className='audit-box show warn';box.innerHTML='<b>AI-проверка недоступна</b><div style="margin-top:5px">'+esc(e.message||'Ошибка')+'. Базовая проверка готовности продолжает работать локально.</div>';
+  }finally{btn.disabled=false}
+}
+
+function runModerationFix(){
+  if(!currentData)return;
+  const reason=String(currentModeration?.reason||moderationReason.value||'').toLocaleLowerCase('ru');
+  const actions=[];
+  const focus=(el,label,extra=false)=>{if(extra)extraDataBox.open=true;actions.push(label);el?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>el?.focus(),300)};
+  if(/фото|изображ|картин|фон|обрез/.test(reason)){document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});actions.push('переснять или заменить фото')}
+  else if(/категор/.test(reason))focus(editor.category,'проверить категорию');
+  else if(/sku|артикул/.test(reason))focus(extraFields.sku,'проверить SKU',true);
+  else if(/штрих|ean|barcode/.test(reason))focus(extraFields.barcode,'проверить EAN',true);
+  else if(/цен/.test(reason))focus(extraFields.price1,'проверить цены',true);
+  else if(/опис|текст|назван/.test(reason))focus(editor.full,'исправить текст');
+  else {document.getElementById('preflightResult')?.scrollIntoView({behavior:'smooth',block:'center'});actions.push('провести полную проверку')}
+  const box=document.getElementById('preflightResult');
+  box.className='audit-box show warn';
+  box.innerHTML='<b>Разбор отклонения</b><div style="margin-top:5px">'+(reason?esc(currentModeration.reason):'Причина отклонения не указана.')+'</div><div style="margin-top:7px">Следующий безопасный шаг: '+esc(actions.join(', '))+'. Неподтверждённые характеристики автоматически не добавляются.</div>';
+}
+
+function matrixValues(value){
+  return [...new Set(String(value||'').split(',').map(x=>x.trim()).filter(Boolean))].slice(0,20);
+}
+function slugSkuPart(value){
+  return String(value||'').toLocaleUpperCase('ru').replace(/[^A-ZА-ЯЁ0-9]+/g,'').slice(0,6)||'V';
+}
+function generateMatrix(){
+  const a1=document.getElementById('matrixAxis1').value.trim()||'Вариант';
+  const a2=document.getElementById('matrixAxis2').value.trim();
+  const v1=matrixValues(document.getElementById('matrixValues1').value);
+  const v2=matrixValues(document.getElementById('matrixValues2').value);
+  if(!v1.length){alert('Укажите значения первой оси через запятую.');return}
+  const combos=[];
+  for(const x of v1)for(const y of (v2.length?v2:['']))combos.push([x,y]);
+  const limited=combos.slice(0,50);
+  const base=normalizeSku(extraFields.sku.value)||'VAR';
+  const price=extraFields.price1.value||'';
+  const existing=new Set(currentVariations.map(v=>String(v.name||'').toLocaleLowerCase('ru')));
+  limited.forEach(([x,y],i)=>{
+    const name=[x,y].filter(Boolean).join(' / ');
+    if(existing.has(name.toLocaleLowerCase('ru')))return;
+    currentVariations.push(normalizeVariation({
+      name,option:[a1,a2].filter(Boolean).join(' / '),
+      sku:base+'-'+String(i+1).padStart(2,'0')+'-'+slugSkuPart(x)+(y?'-'+slugSkuPart(y):''),
+      barcode:'',price
+    }));
+  });
+  currentVariations=currentVariations.slice(0,100);
+  variationsBox.open=true;renderVariations();renderProductCockpit();saveHistoryDebounced();
+}
+
+function photoHeuristic(dataUrl){
+  return new Promise(resolve=>{
+    if(!dataUrl){resolve({score:-1});return}
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');c.width=48;c.height=48;
+      const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,48,48);
+      const d=ctx.getImageData(0,0,48,48).data;let sum=0,sum2=0,n=0;
+      for(let i=0;i<d.length;i+=4){const g=.299*d[i]+.587*d[i+1]+.114*d[i+2];sum+=g;sum2+=g*g;n++}
+      const mean=sum/n,std=Math.sqrt(Math.max(0,sum2/n-mean*mean));
+      const resolution=Math.min(45,Math.min(img.width,img.height)/1200*45);
+      const brightness=Math.max(0,25-Math.abs(mean-150)/6);
+      const contrast=Math.min(20,std/3);
+      const ratio=img.width/img.height,aspect=(ratio>.42&&ratio<2.25)?10:0;
+      resolve({score:Math.round(resolution+brightness+contrast+aspect),width:img.width,height:img.height,mean:Math.round(mean),contrast:Math.round(std)});
+    };
+    img.onerror=()=>resolve({score:-1});img.src=dataUrl;
+  });
+}
+async function chooseBestMainPhoto(){
+  if(!currentAdditionalPhotos.length){localQuality.className='quality-box show warn';localQuality.innerHTML='<strong>Нет дополнительных ракурсов</strong>Добавьте фото, чтобы сервис смог выбрать лучший основной снимок.';return}
+  let mainUrl=sourceDataUrl;
+  if(!mainUrl&&selectedFile)mainUrl=await compressFileToDataUrl(selectedFile,1200,.82);
+  if(!mainUrl)return;
+  const candidates=[{kind:'main',dataUrl:mainUrl,name:selectedFile?.name||'Главное фото'},...currentAdditionalPhotos.map(x=>({kind:'extra',...x}))];
+  for(const item of candidates)item.metric=await photoHeuristic(item.dataUrl);
+  candidates.sort((a,b)=>b.metric.score-a.metric.score);
+  const best=candidates[0],oldMain=candidates.find(x=>x.kind==='main');
+  if(!best||best.kind==='main'||best.metric.score<=oldMain.metric.score+3){
+    localQuality.className='quality-box show good';localQuality.innerHTML='<strong>Главное фото уже лучшее</strong>Локальная оценка: '+oldMain.metric.score+'/100. Выбор основан на разрешении, экспозиции, контрасте и кадрировании.';
+    return;
+  }
+  currentAdditionalPhotos=currentAdditionalPhotos.filter(x=>x.id!==best.id);
+  currentAdditionalPhotos.push({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),name:'Предыдущее главное фото',mimeType:(mainUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',dataUrl:mainUrl});
+  currentAdditionalPhotos=currentAdditionalPhotos.slice(0,4);
+  selectedFile=null;sourceDataUrl=best.dataUrl;preview.src=sourceDataUrl;preview.classList.add('show');drop.classList.add('has');dropText.style.display='none';analyzeBtn.disabled=false;
+  renderExtraPhotos();markCardsStale();await saveHistory();
+  localQuality.className='quality-box show good';localQuality.innerHTML='<strong>Главное фото заменено автоматически</strong>Выбран ракурс «'+esc(best.name||'дополнительное фото')+'» с локальной оценкой '+best.metric.score+'/100. Перед публикацией визуально проверьте выбор.';
+}
+
+async function exportSecureCurrentProduct(){
+  if(!currentData)return;
+  if(!crypto?.subtle){alert('Шифрование недоступно в этом браузере.');return}
+  const password=prompt('Пароль для файла .yuvion (минимум 6 символов).');if(password===null)return;
+  if(password.length<6){alert('Пароль должен содержать минимум 6 символов.');return}
+  const item={id:currentHistoryId||crypto.randomUUID(),updatedAt:Date.now(),title:collectEdits().seoTitle||'Товар',data:collectEdits(),extraData:collectExtraData(),privateData:collectPrivateData(),sourceDataUrl:sourceDataUrl||'',photoHash:currentPhotoHash||'',additionalPhotos:currentAdditionalPhotos,cards:currentCards,variations:variationsForExport(),revisions:currentRevisions,moderation:currentModeration,mode:currentMode,style:styleSelect.value,renderMode:renderModeSelect.value,published:false};
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),iterations=210000;
+  const key=await deriveBackupKey(password,salt,iterations);
+  const plaintext=new TextEncoder().encode(JSON.stringify({type:'yuvion-secure-product',version:1,createdAt:new Date().toISOString(),product:item}));
+  const encrypted=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plaintext));
+  const envelope={format:'yuvion-product',version:1,cipher:'AES-GCM-256',kdf:'PBKDF2-SHA256',iterations,salt:bytesToBase64(salt),iv:bytesToBase64(iv),data:bytesToBase64(encrypted)};
+  downloadBlob(new Blob([JSON.stringify(envelope)],{type:'application/json'}),(safeFileBase(item.title)||'product')+'.yuvion');
+}
+async function importSecureProductFileNow(file){
+  if(!file)return;
+  const password=prompt('Пароль от файла .yuvion.');if(password===null)return;
+  try{
+    const envelope=JSON.parse(await file.text());
+    if(envelope?.format!=='yuvion-product'||!envelope.data)throw new Error('Неверный формат');
+    const key=await deriveBackupKey(password,base64ToBytes(envelope.salt),Number(envelope.iterations)||210000);
+    const decrypted=await crypto.subtle.decrypt({name:'AES-GCM',iv:base64ToBytes(envelope.iv)},key,base64ToBytes(envelope.data));
+    const payload=JSON.parse(new TextDecoder().decode(decrypted));
+    if(payload?.type!=='yuvion-secure-product'||!payload.product?.id)throw new Error('Повреждённый файл');
+    const item={...payload.product,id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),updatedAt:Date.now(),published:false};
+    await dbPut(item);await trimCatalog();await renderHistory();await restoreHistory(item);
+  }catch{alert('Не удалось открыть файл .yuvion. Проверьте пароль и файл.')}
+  finally{document.getElementById('importSecureProductFile').value=''}
+}
+
+
+document.getElementById('clearHistory').onclick=async()=>{if(confirm('Очистить локальный каталог товаров на этом устройстве?')){await dbClear();renderHistory()}};
+
+applySpecTemplateBtn.onclick=()=>applySpecTemplate();
+saveSpecTemplateBtn.onclick=()=>saveCurrentSpecTemplate();
+clearEmptySpecsBtn.onclick=()=>clearEmptySpecRows();
+addVariationBtn.onclick=()=>addVariation();
+variantsFromProductBtn.onclick=()=>seedMainProductVariation();
+
+scanBarcodeBtn.onclick=()=>startBarcodeScanner('product');
+scanIntakeBarcode.onclick=()=>startBarcodeScanner('intake');
+closeScannerBtn.onclick=()=>stopBarcodeScanner();
+openIntakeBtn.onclick=()=>openIntake();
+closeIntakeBtn.onclick=()=>closeIntakeModal();
+createIntakeDraft.onclick=()=>createIntakeDraftNow();
+intakeModal.addEventListener('click',e=>{if(e.target===intakeModal)closeIntakeModal()});
+closeDiff.onclick=()=>diffModal.classList.remove('show');
+diffModal.addEventListener('click',e=>{if(e.target===diffModal)diffModal.classList.remove('show')});
+scannerModal.addEventListener('click',e=>{if(e.target===scannerModal)stopBarcodeScanner()});
+
+document.querySelectorAll('[data-dash-status]').forEach(card=>card.addEventListener('click',()=>{
+  dashboardFilter=card.dataset.dashStatus||'all';
+  catalogStatus.value='all';
+  catalogSearch.value='';
+  document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+  renderHistory();
+}));
+
+saveRevisionBtn.onclick=()=>saveCurrentRevision();
+addModerationEntry.onclick=()=>recordModeration();
+moderationStatus.addEventListener('change',()=>{
+  cockpitModeration.textContent=moderationLabel(moderationStatus.value);
+  cockpitNext.textContent=moderationStatus.value==='rejected'
+    ? 'Следующее действие: исправить замечания после отклонения.'
+    : cockpitNext.textContent;
+});
+generateSkuBtn.onclick=()=>assignGeneratedSku(true);
+extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosInput.files));
+ocrMainPhoto.onclick=()=>runMainPhotoOcr();
+[privateCost,privateStock,privateBoxes,privateMinStock,privateLocation,privateCollections,privateNotes].forEach(el=>el.addEventListener('input',()=>{
+  currentPrivateData=collectPrivateData();
+  renderMargin();renderCollectionChips();renderProductCockpit();
+  if(currentData)saveHistoryDebounced();
+}));
+[extraFields.price1,extraFields.price2,extraFields.price3].forEach(el=>el.addEventListener('input',()=>renderMargin()));
+
+importProductsBtn.onclick=()=>importProductsFile.click();
+excelImportStart.onclick=()=>importProductsFile.click();
+importProductsFile.addEventListener('change',()=>importProductsFileNow(importProductsFile.files?.[0]));
+excelPhotoFiles.addEventListener('change',async()=>{
+  excelPhotoMatchText.textContent='Привязываем фотографии к SKU…';
+  try{
+    const result=await matchExcelPhotos(excelPhotoFiles.files);
+    excelPhotoMatchText.textContent='Привязано фото: '+result.matched+' к '+result.products+' товарам · без совпадения: '+result.unmatched+'.';
+  }catch(e){excelPhotoMatchText.textContent='Не удалось привязать фото: '+(e.message||'ошибка')}
+  finally{excelPhotoFiles.value=''}
+});
+runExcelAutopilot.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,spentImageUsd:0});runExcelAutopilotQueue();};
+resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,spentImageUsd:0});runExcelAutopilotQueue();};
+pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueueItems(await dbAll()).length>0;saveLargeQueueState({pending,paused:true});excelAutoProgressText.textContent=excelAutopilotBusy?'Очередь будет поставлена на паузу после текущего товара.':'Очередь на паузе.';await refreshDiagnosticsNow();};
+exportCatalogReport.onclick=()=>exportCatalogReportNow();
+projectArchive.onclick=()=>createEncryptedBackup();
+refreshDiagnostics.onclick=()=>refreshDiagnosticsNow();
+runBulkLabelOcr.onclick=()=>runBulkLabelOcrNow();
+storageManagerToggle.onclick=async()=>{storageManager.classList.toggle('show');if(storageManager.classList.contains('show'))await renderStorageManager()};
+compactStorage.onclick=()=>compactStorageNow();
+clearSceneCache.onclick=()=>clearAllSceneCacheNow();
+undoLastImport.onclick=()=>restoreLastImportSnapshot();
+openPhotographer.onclick=()=>openPhotographerMode();
+closePhotographer.onclick=()=>photographerModal.classList.remove('show');
+photographerProduct.addEventListener('change',()=>renderPhotographerProduct());
+photographerFile.addEventListener('change',async()=>{const file=photographerFile.files?.[0];photographerFile.value='';if(file)await attachPhotographerFile(file)});
+photographerNext.onclick=()=>{if(!photographerItems.length)return;const i=Math.max(0,photographerItems.findIndex(x=>x.id===photographerProduct.value));photographerProduct.value=photographerItems[(i+1)%photographerItems.length].id;renderPhotographerProduct()};
+publishCenterFilter.addEventListener('change',async()=>renderPublishCenter(await dbAll()));
+publishNextProblem.onclick=async()=>{
+  const all=await dbAll();
+  const item=all.filter(x=>!x.published).sort((a,b)=>Number(a.updatedAt||0)-Number(b.updatedAt||0)).find(x=>productProblems(x,all).some(p=>p.bad||p.key!=='stock'));
+  if(item)await restoreHistory(item);else alert('Проблемных товаров не найдено.');
+};
+cancelImportMap.onclick=()=>closeImportMapper();
+resetImportMap.onclick=()=>{if(pendingImportMap){pendingImportMap.diffReady=false;pendingImportMap.preparedRows=null}confirmImportMap.textContent='Проверить изменения';renderImportMapper({redetect:true})};
+confirmImportMap.onclick=async()=>{
+  confirmImportMap.disabled=true;
+  try{await confirmMappedImport()}catch(e){
+    importNote.className='import-note show';
+    importNote.textContent='Импорт не выполнен: '+(e.message||'ошибка сопоставления');
+    importMapModal.classList.add('show');
+  }finally{confirmImportMap.disabled=false}
+};
+importRulesBtn.onclick=()=>importRulesFile.click();
+importRulesFile.addEventListener('change',()=>importRulesFileNow(importRulesFile.files?.[0]));
+
+backupCatalogBtn.onclick=()=>createEncryptedBackup();
+restoreCatalogBtn.onclick=()=>restoreCatalogFile.click();
+restoreCatalogFile.addEventListener('change',()=>restoreEncryptedBackup(restoreCatalogFile.files?.[0]));
+
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  installAppBtn.style.display='';
+});
+installAppBtn.onclick=async()=>{
+  if(!deferredInstallPrompt)return;
+  deferredInstallPrompt.prompt();
+  try{await deferredInstallPrompt.userChoice}catch{}
+  deferredInstallPrompt=null;
+  installAppBtn.style.display='none';
+};
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  installAppBtn.style.display='none';
+});
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+}
+
+catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
+catalogStatus.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
+catalogCollection.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
+catalogQueue.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
+openNextTask.onclick=()=>openNextQueueItem();
+
+bulkSelectVisible.onclick=()=>{
+  if(!lastVisibleDraftIds.length)return;
+  const allSelected=lastVisibleDraftIds.every(id=>selectedDraftIds.has(id));
+  lastVisibleDraftIds.forEach(id=>allSelected?selectedDraftIds.delete(id):selectedDraftIds.add(id));
+  renderHistory();
+};
+bulkClear.onclick=()=>{selectedDraftIds.clear();renderHistory()};
+bulkDownload.onclick=()=>bulkDownloadLocalPackage();
+bulkEdit.onclick=()=>openBulkEditor();
+closeBulkEdit.onclick=()=>bulkEditModal.classList.remove('show');
+applyBulkEdit.onclick=()=>applyBulkEditorNow();
+bulkLabels.onclick=()=>bulkGenerateLabelsPdf();
+bulkPublish.onclick=()=>bulkSetPublished(true);
+bulkDraft.onclick=()=>bulkSetPublished(false);
+bulkDelete.onclick=()=>bulkDeleteSelected();
+
+document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
+jumpExcel.onclick=()=>{document.getElementById('excelAutopilot').open=true;document.getElementById('excelAutopilot').scrollIntoView({behavior:'smooth',block:'start'})};
+jumpTools.onclick=()=>{
+  document.body.classList.toggle('show-tools');
+  const open=document.body.classList.contains('show-tools');
+  jumpTools.textContent=open?'Скрыть инструменты':'Инструменты';
+  if(open){operationsV64.open=true;operationsV64.scrollIntoView({behavior:'smooth',block:'start'})}
+};
+document.getElementById('jumpHistory').onclick=()=>{
+  if(isSimpleUi())document.body.classList.add('show-catalog');
+  document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+};
+uiModeToggle.onclick=()=>applyUiMode(isSimpleUi()?'advanced':'simple');
+hideCatalogSimple.onclick=()=>{document.body.classList.remove('show-catalog');document.getElementById('focusPanel')?.scrollIntoView({behavior:'smooth',block:'start'})};
+toggleExportDetails.onclick=()=>{
+  document.body.classList.toggle('export-details-open');
+  toggleExportDetails.textContent=document.body.classList.contains('export-details-open')?'Скрыть поля':'Показать все поля';
+};
+focusAction.onclick=()=>{
+  const hasPhoto=Boolean(selectedFile||sourceDataUrl);
+  if(!hasPhoto){fileInput.click();return}
+  if(!currentData){analyzeBtn.click();return}
+  if(readinessInfo().percent===100){document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});return}
+  autopilotCurrentProduct();
+};
+document.getElementById('jumpProblems').onclick=()=>document.getElementById('problemCenter').scrollIntoView({behavior:'smooth',block:'start'});
+document.getElementById('jumpAnalytics').onclick=()=>{document.getElementById('analyticsPanel').open=true;document.getElementById('analyticsPanel').scrollIntoView({behavior:'smooth',block:'start'})};
+document.getElementById('autopilotAction').onclick=()=>autopilotCurrentProduct();
+document.getElementById('preflightCheck').onclick=()=>runPreflightCheck();
+errorsOnlyToggle.onclick=()=>{
+  document.body.classList.toggle('publish-errors-only');
+  const active=document.body.classList.contains('publish-errors-only');
+  errorsOnlyToggle.textContent=active?'Показать всё':'Только ошибки';
+  renderPublishIssues();
+};
+document.getElementById('moderationFix').onclick=()=>runModerationFix();
+document.getElementById('bestMainPhoto').onclick=()=>chooseBestMainPhoto();
+document.getElementById('generateVariationMatrix').onclick=()=>generateMatrix();
+document.getElementById('exportSecureProduct').onclick=()=>exportSecureCurrentProduct();
+document.getElementById('importSecureProduct').onclick=()=>document.getElementById('importSecureProductFile').click();
+document.getElementById('importSecureProductFile').addEventListener('change',()=>importSecureProductFileNow(document.getElementById('importSecureProductFile').files?.[0]));
+document.getElementById('saveStoreRules').onclick=()=>{localStorage.setItem(STORE_RULES_KEY,document.getElementById('storeRulesText').value.slice(0,4000));document.getElementById('saveStoreRules').textContent='Сохранено';setTimeout(()=>document.getElementById('saveStoreRules').textContent='Сохранить правила',900)};
+document.getElementById('clearStoreRules').onclick=()=>{localStorage.removeItem(STORE_RULES_KEY);renderStoreRules()};
+document.querySelectorAll('[data-product-jump]').forEach(btn=>btn.onclick=()=>{
+  const id=btn.dataset.productJump;
+  const target=id==='editor'?document.querySelector('.editor'):document.getElementById(id);
+  target?.scrollIntoView({behavior:'smooth',block:'start'});
+});
+dockData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
+dockCards.onclick=()=>document.getElementById('generateAll')?.scrollIntoView({behavior:'smooth',block:'center'});
+dockNext.onclick=()=>focusAction.click();
+dockYuvion.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepPhoto.onclick=()=>document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
+
+renderModeSelect.value='free';renderNetworkState();initUiMode();
+renderDesignStudio();syncRenderModeUi();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+</script>
+</body>
+</html>+spent.toFixed(2)+' из 
+      :largeQueuePaused&&remaining
+        ?'Очередь на паузе. Готово в этой порции: '+success+'. Осталось: '+remaining+'.'
+        :autoContinue
+          ?'Порция готова: '+success+' из '+done+'. Осталось '+remaining+'. Продолжаем автоматически…'
+          :'Очередь обработана: '+success+' из '+done+' в последней порции.';
+  await renderHistory();
+  if(autoContinue){
+    window.setTimeout(()=>{if(!largeQueuePaused&&!excelAutopilotBusy)runExcelAutopilotQueue()},500);
+    return;
+  }
+  if(!remaining&&!haltedByLimit){
+    document.getElementById('publishCenter').open=true;
+    publishCenterFilter.value='all';
+    renderPublishCenter(await dbAll());
+    document.getElementById('publishCenter').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+function csvCell(value){
+  const v=String(value??'');
+  return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+}
+async function exportCatalogReportNow(){
+  const all=await dbAll();
+  const rows=[[
+    'Название','Артикул','Бренд','Штрихкод','Категория','Цена за 1','Цена от 2','Цена от 3','Старая цена',
+    'Материал','Размеры','Описание','Себестоимость','Остаток','Коробки','Минимальный остаток','Место хранения','Коллекции',
+    'Статус Yuvion','Готовность','Фото','Карточки','QA пройден','QA блокеры','Источник данных','URL источника','Дубль главного фото','OCR ожидает','Последнее изменение'
+  ]];
+  for(const item of all){
+    const d=item.data||{},x=item.extraData||d.confirmedData||{},p=item.privateData||{},r=item.data?storedReadiness(item):{done:0,total:0};
+    rows.push([
+      item.title||d.seoTitle||'',skuOfStoredItem(item),x.brand||storedCharValue(d,'Бренд')||'',barcodeOfStoredItem(item),d.category||'',
+      x.price1||x.price||'',x.price2||'',x.price3||'',x.oldPrice||'',x.material||storedCharValue(d,'Материал')||'',x.size||storedCharValue(d,'Размеры')||'',
+      d.fullDescription||d.shortDescription||'',p.cost||'',p.stock||'',p.boxes||'',p.minStock||'',p.location||'',
+      Array.isArray(p.collections)?p.collections.join(', '):'',
+      draftStatus(item).label,item.data?(r.done+'/'+r.total):'0/0',item.sourceDataUrl?'Да':'Нет',Array.isArray(item.cards)?item.cards.length:0,
+      item.quality?'Да':'Нет',storedQaBlockers(item).length,item.sourceReference?.host||'Свои данные',item.sourceReference?.url||'',
+      duplicatePhotoInCatalog(item,all)?'Да':'Нет',Array.isArray(item.labelSuggestions)?item.labelSuggestions.length:0,item.updatedAt?new Date(item.updatedAt).toISOString():''
+    ]);
+  }
+  const csv='\uFEFF'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');
+  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'yuvion-roundtrip-'+new Date().toISOString().slice(0,10)+'.csv');
+}
+function approximateBase64Bytes(value){
+  const s=String(value||'');const comma=s.indexOf(',');const b64=comma>=0?s.slice(comma+1):s;
+  return Math.round(b64.length*.75);
+}
+function formatBytes(bytes){
+  const n=Number(bytes||0);if(n<1024)return n+' Б';if(n<1024*1024)return (n/1024).toFixed(1)+' КБ';return (n/1024/1024).toFixed(1)+' МБ';
+}
+function catalogStorageBreakdown(all){
+  let sources=0,cards=0,scenes=0,extras=0,revisions=0,caches=0;
+  for(const item of all||[]){
+    sources+=approximateBase64Bytes(item.sourceDataUrl);
+    for(const x of item.cards||[])cards+=approximateBase64Bytes(x?.base64);
+    for(const x of item.scenes||[])scenes+=approximateBase64Bytes(x?.base64);
+    for(const x of item.additionalPhotos||[])extras+=approximateBase64Bytes(x?.dataUrl);
+    revisions+=new Blob([JSON.stringify(item.revisions||[])]).size;
+    caches+=new Blob([JSON.stringify(item.analysisCache||{})]).size;
+  }
+  return {sources,cards,scenes,extras,revisions,caches,total:sources+cards+scenes+extras+revisions+caches};
+}
+async function renderStorageManager(allItems=null){
+  const all=Array.isArray(allItems)?allItems:await dbAll();
+  const b=catalogStorageBreakdown(all);
+  const cells=[['Исходные фото',b.sources],['Доп. фото',b.extras],['Финальные PNG',b.cards],['Чистые сцены',b.scenes],['Версии',b.revisions],['AI-кэш',b.caches]];
+  storageGrid.innerHTML=cells.map(x=>'<div class="storage-cell"><b>'+formatBytes(x[1])+'</b><span>'+x[0]+'</span></div>').join('');
+  const snaps=(await snapshotAll()).sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  storageManagerNote.textContent='Оценка данных каталога: '+formatBytes(b.total)+'. Снимков Excel для отката: '+snaps.length+'. Безопасная очистка сохраняет исходные фото и финальные PNG.';
+}
+async function compactStorageNow(){
+  if(!confirm('Выполнить безопасную очистку? У опубликованных товаров удалятся чистые сцены и AI-кэш, а версии сократятся до 3. Финальные PNG и исходные фото сохранятся.'))return;
+  const all=await dbAll();
+  for(const item of all){
+    let changed=false;
+    if(Array.isArray(item.revisions)&&item.revisions.length>3){item.revisions=item.revisions.slice(0,3);changed=true}
+    if(item.published&&Array.isArray(item.scenes)&&item.scenes.length){item.scenes=[];changed=true}
+    if(item.published&&item.analysisCache){item.analysisCache=null;item.generationFingerprint=null;changed=true}
+    if(item.published&&Array.isArray(item.labelSuggestions)&&item.labelSuggestions.length){item.labelSuggestions=[];changed=true}
+    if(changed)await dbPut(item);
+  }
+  await renderHistory();await renderStorageManager();
+}
+async function clearAllSceneCacheNow(){
+  if(!confirm('Удалить чистые сцены у всех товаров? Финальные PNG сохранятся, но следующая правка инфографики может снова потребовать AI-генерацию.'))return;
+  const all=await dbAll();
+  for(const item of all){if(Array.isArray(item.scenes)&&item.scenes.length){item.scenes=[];await dbPut(item)}}
+  if(currentHistoryId){currentScenes=[];await saveHistory()}
+  await renderStorageManager();
+}
+
+async function refreshDiagnosticsNow(allItems=null){
+  const all=Array.isArray(allItems)?allItems:await dbAll();
+  const queue=excelQueueItems(all);
+  if(!publicHealthCache){
+    try{
+      const response=await fetch('/api/health');
+      if(response.ok)publicHealthCache=await response.json();
+    }catch{}
+  }
+  const cached=all.filter(x=>Boolean(x.analysisCache)).length;
+  const errors=all.filter(x=>x?.excelAutopilot?.state==='error').length;
+  const imageRate=Number(publicHealthCache?.estimates?.imageOutputUsdPerCard||0);
+  const paidImageOutputs=all.reduce((sum,item)=>{
+    const paid=item?.renderMode==='ai'||!item?.renderMode;
+    return sum+(paid?(Number(item?.aiLocal?.cardBatches||0)*4+Number(item?.aiLocal?.regenerations||0)):0);
+  },0);
+  const localImageEstimate=imageRate?paidImageOutputs*imageRate:0;
+  const nextCount=Math.min(queue.length,EXCEL_AUTOPILOT_LIMIT);
+  const nextImageEstimate=0;
+  const moderationTop=topModerationPattern();
+  const styleStats=new Map();
+  for(const item of all){
+    const key=item.style||'minimal',x=styleStats.get(key)||{total:0,clean:0,regen:0};
+    x.total++;if(item.quality&&!storedQaBlockers(item).length)x.clean++;x.regen+=Number(item.aiLocal?.regenerations||0);styleStats.set(key,x);
+  }
+  const stableStyle=[...styleStats.entries()].filter(([,x])=>x.total>=2).sort((a,b)=>(b[1].clean/b[1].total)-(a[1].clean/a[1].total)||a[1].regen-b[1].regen)[0]||null;
+  const similarPairs=new Set();
+  for(const item of all){
+    const hit=similarCatalogProduct(item,all);
+    if(hit)similarPairs.add([item.id,hit.item.id].sort().join('|'));
+  }
+  opsQueueValue.textContent=String(queue.length);
+  opsCacheValue.textContent=String(cached);
+  opsErrorValue.textContent=String(errors);
+  let storageText='н/д',quotaText='н/д';
+  try{
+    const estimate=await navigator.storage?.estimate?.();
+    if(estimate){
+      const mb=n=>Math.round(Number(n||0)/1024/1024);
+      storageText=mb(estimate.usage)+' МБ';
+      quotaText=mb(estimate.quota)+' МБ';
+    }
+  }catch{}
+  opsStorageValue.textContent=storageText;
+  let sw='нет';
+  try{sw=('serviceWorker' in navigator)&&Boolean(await navigator.serviceWorker.getRegistration())?'активен':'не активен'}catch{}
+  const lsBytes=Object.keys(localStorage).reduce((sum,key)=>sum+String(localStorage.getItem(key)||'').length*2,0);
+  diagnosticList.innerHTML=[
+    ['Версия приложения','6.7.1'],['IndexedDB товаров',String(all.length)+' / '+CATALOG_LIMIT],
+    ['Хранилище',storageText+' из '+quotaText],['localStorage',Math.round(lsBytes/1024)+' КБ'],
+    ['PWA Service Worker',sw],['Сеть',navigator.onLine===false?'офлайн':'онлайн'],['AI-очередь',queue.length?queue.length+' ожидают':'пусто'],
+    ['Похожие товары',similarPairs.size?String(similarPairs.size):'не найдено'],
+    ['AI image outputs локально',String(localImageOutputs)+(localImageEstimate?' · ≈ $'+localImageEstimate.toFixed(2):'')],
+    ['Схема локальных данных','v'+ITEM_SCHEMA_VERSION],
+    ['Стабильный стиль',stableStyle?(stableStyle[0]+' · '+stableStyle[1].clean+'/'+stableStyle[1].total+' QA clean'):'недостаточно данных'],
+    ['Повторяемое отклонение',moderationTop?(moderationTop[0].slice(0,65)+' · '+moderationTop[1].count+'×'):'не накоплено'],
+    ['Следующий запуск',nextCount?(nextCount+' товаров'+(nextImageEstimate?' · image ≈ $'+nextImageEstimate.toFixed(2):'')):'очередь пуста']
+  ].map(x=>'<div class="diagnostic-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('');
+  if(storageManager.classList.contains('show'))await renderStorageManager(all);
+  const state=loadLargeQueueState();
+  const budgetLimit=queueBudgetLimit();
+  queueBudgetStatus.textContent='Excel-очередь создаёт изображения бесплатно: image-generation расход = $0. Лимит image-бюджета нужен только при ручном выборе «AI-фото · платно». Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
+  queueResumeNote.classList.toggle('show',Boolean(state.pending));
+  queueResumeNote.textContent=state.pending?'Сохранена незавершённая очередь. Последний запуск: '+new Date(state.updatedAt||Date.now()).toLocaleString('ru-RU')+'. Нажмите «Продолжить очередь».':'';
+}
+function loadLargeQueueState(){
+  try{return JSON.parse(localStorage.getItem(LARGE_QUEUE_KEY)||'{}')||{}}catch{return {}}
+}
+function saveLargeQueueState(patch={}){
+  const current=loadLargeQueueState();
+  const next={...current,...patch,updatedAt:Date.now()};
+  localStorage.setItem(LARGE_QUEUE_KEY,JSON.stringify(next));
+  return next;
+}
+
+function labelPhotoForStoredItem(item){
+  return (item?.additionalPhotos||[]).find(x=>['label','barcode','package'].includes(x?.role)&&x?.dataUrl)||null;
+}
+function renderConfirmationCenter(allItems=[]){
+  if(!confirmationList)return;
+  const pending=(allItems||[]).filter(item=>Array.isArray(item.labelSuggestions)&&item.labelSuggestions.length);
+  const total=pending.reduce((sum,item)=>sum+item.labelSuggestions.length,0);
+  confirmationSummary.textContent=total+' '+(total===1?'ожидает':'ожидают');
+  confirmationList.innerHTML=pending.length?pending.slice(0,30).map(item=>{
+    const fields=item.labelSuggestions.slice(0,5);
+    return '<div class="confirmation-row"><div><b>'+esc(item.title||item.data?.seoTitle||'Товар')+'</b><small>'+esc(skuOfStoredItem(item)||'без SKU')+' · найдено '+item.labelSuggestions.length+'</small><div class="confirmation-pills">'+fields.map(x=>'<span class="confirmation-pill">'+esc(x.name)+': '+esc(x.value)+'</span>').join('')+'</div></div><button class="btn btn-primary btn-small" data-confirm-open="'+esc(item.id)+'">Проверить</button></div>';
+  }).join(''):'<div class="muted" style="font-size:10px">Неподтверждённых OCR-фактов нет.</div>';
+  confirmationList.querySelectorAll('[data-confirm-open]').forEach(btn=>btn.onclick=async()=>{
+    const item=(allItems||[]).find(x=>x.id===btn.dataset.confirmOpen);if(item)await restoreHistory(item);
+  });
+}
+async function runBulkLabelOcrNow(){
+  if(excelAutopilotBusy)return;
+  const all=await dbAll();
+  const candidates=all.filter(item=>labelPhotoForStoredItem(item)&&!(item.labelSuggestions||[]).length).slice(0,10);
+  if(!candidates.length){alert('Нет товаров с фото маркировки, ожидающих OCR. Назначьте снимку роль «Маркировка», «Штрихкод» или «Упаковка».');return}
+  runBulkLabelOcr.disabled=true;runBulkLabelOcr.textContent='OCR работает…';
+  let done=0,found=0;
+  try{
+    for(const item of candidates){
+      const photo=labelPhotoForStoredItem(item);const parts=dataUrlParts(photo.dataUrl);if(!parts)continue;
+      const {response,data}=await fetchJsonRetry('/api/label-ocr',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:parts.base64,mimeType:parts.mime})},2);
+      if(response.status===429){break}
+      if(response.ok){
+        item.labelSuggestions=(data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||''}));
+        item.activity=[{at:Date.now(),type:'Массовый OCR маркировки',detail:'Найдено полей: '+item.labelSuggestions.length},...(item.activity||[])].slice(0,80);
+        item.updatedAt=Date.now();await dbPut(item);found+=item.labelSuggestions.length;
+      }
+      done++;
+    }
+  }finally{
+    runBulkLabelOcr.disabled=false;runBulkLabelOcr.textContent='OCR маркировок очереди';
+    const refreshed=await dbAll();renderConfirmationCenter(refreshed);await renderHistory();
+    confirmationCenter.open=true;confirmationCenter.scrollIntoView({behavior:'smooth',block:'start'});
+    if(done)confirmationSummary.textContent=found+' найдено в '+done+' товарах';
+  }
+}
+
+function renderDashboard(allItems){
+  const all=Array.isArray(allItems)?allItems:[];
+  const skuCounts=new Map();
+  for(const item of all){
+    const sku=skuOfStoredItem(item);
+    if(sku)skuCounts.set(sku,(skuCounts.get(sku)||0)+1);
+  }
+  const duplicates=all.filter(item=>{
+    const sku=skuOfStoredItem(item);
+    return (sku&&(skuCounts.get(sku)||0)>1)||Boolean(duplicateBarcodeInCatalog(item,all))||Boolean(duplicatePhotoInCatalog(item,all));
+  }).length;
+  const photo=all.filter(item=>!item.data).length;
+  const ready=all.filter(item=>item.data&&storedReadiness(item).ready&&!item.published).length;
+  const needs=all.filter(item=>item.data&&!storedReadiness(item).ready).length;
+  const lowStock=all.filter(item=>lowStockState(item.privateData||{})).length;
+  dashAll.textContent=String(all.length);
+  dashPhoto.textContent=String(photo);
+  dashNeeds.textContent=String(needs);
+  dashDuplicates.textContent=String(duplicates);
+  dashReady.textContent=String(ready);
+  dashLowStock.textContent=String(lowStock);
+}
+
+function dashboardMatches(item,allItems){
+  if(dashboardFilter==='all')return true;
+  if(dashboardFilter==='photo')return !item.data;
+  if(dashboardFilter==='needs')return Boolean(item.data)&&!storedReadiness(item).ready;
+  if(dashboardFilter==='duplicate')return Boolean(duplicateSkuInCatalog(item,allItems)||duplicateBarcodeInCatalog(item,allItems)||duplicatePhotoInCatalog(item,allItems));
+  if(dashboardFilter==='ready')return Boolean(item.data)&&storedReadiness(item).ready&&!item.published;
+  if(dashboardFilter==='lowstock')return lowStockState(item.privateData||{});
+  return true;
+}
+
+async function renderHistory(){
+  const grid=document.getElementById('historyGrid'),empty=document.getElementById('emptyHistory');
+  try{
+    const all=(await dbAll()).sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
+    renderDashboard(all);
+    renderExcelAutopilot(all);
+    renderPublishCenter(all);
+    renderConfirmationCenter(all);
+    if(unmatchedPhotoPool.length)renderUnmatchedPhotoManager(excelImportedItems(all));
+    refreshDiagnosticsNow(all);
+    await renderV6Panels(all);
+    const collections=[...new Set(all.flatMap(item=>Array.isArray(item?.privateData?.collections)?item.privateData.collections:[]))].sort((a,b)=>a.localeCompare(b,'ru'));
+    const previousCollection=catalogCollection.value||'all';
+    catalogCollection.innerHTML='<option value="all">Все коллекции</option>'+collections.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');
+    catalogCollection.value=collections.includes(previousCollection)?previousCollection:'all';
+    const query=String(catalogSearch?.value||'').trim().toLocaleLowerCase('ru');
+    const statusFilter=catalogStatus?.value||'all';
+    const collectionFilter=catalogCollection?.value||'all';
+    const queueFilter=catalogQueue?.value||'all';
+    const filtered=all.filter(item=>{
+      const status=draftStatus(item);
+      if(statusFilter!=='all'&&status.key!==statusFilter)return false;
+      if(collectionFilter!=='all'&&!(item?.privateData?.collections||[]).includes(collectionFilter))return false;
+      if(queueFilter!=='all'&&nextActionForItem(item,all).key!==queueFilter)return false;
+      if(!dashboardMatches(item,all))return false;
+      if(query&&!draftSearchText(item).includes(query))return false;
+      return true;
+    });
+
+    const validIds=new Set(all.map(item=>item.id));
+    for(const id of [...selectedDraftIds])if(!validIds.has(id))selectedDraftIds.delete(id);
+    lastVisibleDraftIds=filtered.map(item=>item.id);
+    catalogCount.textContent=filtered.length+' из '+all.length+' товаров';
+    updateBulkBar();
+    grid.innerHTML='';
+    empty.style.display=filtered.length?'none':'block';
+    empty.textContent=all.length
+      ? 'По выбранному фильтру товары не найдены.'
+      : 'Каталог пока пуст. Добавьте фотографию — черновик сохранится локально автоматически.';
+
+    filtered.forEach(item=>{
+      const status=draftStatus(item);
+      const d=item.data||{};
+      const x=item.extraData||d.confirmedData||{};
+      const collectionsText=(item?.privateData?.collections||[]).slice(0,2).join(', ');
+      const stockAlert=lowStockState(item.privateData||{})?' · низкий остаток':'';
+      const secondary=(d.category||x.brand||'Локальный черновик')+(collectionsText?' · '+collectionsText:'')+stockAlert;
+      const when=item.updatedAt?new Date(item.updatedAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+      const ready=storedReadiness(item);
+      const nextAction=nextActionForItem(item,all);
+      const el=document.createElement('div');
+      el.className='history-item'+(selectedDraftIds.has(item.id)?' selected':'');
+      el.innerHTML=
+        '<input class="draft-select" type="checkbox" aria-label="Выбрать товар" '+(selectedDraftIds.has(item.id)?'checked':'')+'>'+
+        '<img src="'+esc(item.sourceDataUrl||'')+'" alt="">'+
+        '<div class="history-meta"><span class="draft-status '+status.key+'">'+esc(status.label)+'</span><small>'+esc(when)+'</small></div>'+
+        '<b>'+esc(item.title||d.seoTitle||'Черновик')+'</b>'+
+        '<small>'+esc(secondary)+(item.data?' · '+ready.done+'/'+ready.total:'')+'</small>'+
+        '<span class="queue-badge '+(nextAction.key==='ready'?'ready':nextAction.key==='sent'?'wait':'')+'">'+esc(nextAction.label)+'</span>'+
+        '<div class="history-actions">'+
+          '<button class="btn btn-ghost btn-small restore">Открыть</button>'+
+          '<button class="btn btn-ghost btn-small similar" '+(!item.data?'disabled':'')+'>Похожий</button>'+
+          '<button class="btn '+(item.published?'btn-ghost':'btn-primary')+' btn-small wide publish" '+(!item.published&&!ready.ready?'disabled':'')+'>'+(item.published?'Вернуть в черновик':'Отметить опубликованным')+'</button>'+
+          '<button class="btn btn-danger btn-small wide del">Удалить</button>'+
+        '</div>';
+
+      const selectBox=el.querySelector('.draft-select');
+      selectBox.onchange=()=>{
+        if(selectBox.checked)selectedDraftIds.add(item.id);else selectedDraftIds.delete(item.id);
+        el.classList.toggle('selected',selectBox.checked);
+        updateBulkBar();
+      };
+            el.querySelector('.restore').onclick=()=>restoreHistory(item);
+      el.querySelector('.similar').onclick=async()=>{
+        if(!item.data)return;
+        await restoreHistory(item);
+        beginSimilarProduct();
+        document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+      };
+      el.querySelector('.publish').onclick=()=>togglePublished(item.id);
+      el.querySelector('.del').onclick=async()=>{
+        if(confirm('Удалить этот локальный черновик?')){
+          await dbDelete(item.id);
+          if(currentHistoryId===item.id)resetProduct(false);
+          await renderHistory();
+        }
+      };
+      grid.appendChild(el);
+    });
+  }catch{
+    empty.textContent='Не удалось открыть локальный каталог.';
+  }
+}
+
+async function restoreHistory(item){
+  selectedFile=null;
+  sourceDataUrl=item.sourceDataUrl||null;
+  currentPhotoHash=String(item.photoHash||'');
+  currentHistoryId=item.id;
+  currentData=item.data||null;
+  currentSourceReference=item.sourceReference||null;
+  currentCards=item.cards||[];
+  currentScenes=Array.isArray(item.scenes)?item.scenes.slice(0,4):[];
+  currentQuality=item.quality||null;
+  currentVariations=Array.isArray(item.variations)?item.variations.map(normalizeVariation):[];
+  currentAdditionalPhotos=Array.isArray(item.additionalPhotos)?item.additionalPhotos.slice(0,4):[];
+  currentRevisions=Array.isArray(item.revisions)?item.revisions.slice(0,12):[];
+  currentModeration=normalizeModeration(item.moderation||{});
+  currentLabelSuggestions=Array.isArray(item.labelSuggestions)?item.labelSuggestions.slice(0,20):[];
+  currentActivity=Array.isArray(item.activity)?item.activity.slice(0,80):[];
+  currentAnalysisCache=item.analysisCache||null;
+  cardsStale=Boolean(item.cardsStale);
+  currentStaleCards=Array.isArray(item.staleCardIndexes)?item.staleCardIndexes.filter(x=>[0,1,2,3].includes(Number(x))).map(Number):[];
+  renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderModeration();renderActivity();renderSourceReference();
+  currentMode=item.mode||'full';
+  styleSelect.value=item.style||'minimal';
+  renderModeSelect.value=item.renderMode||'free';
+  currentDesignIntensity=item.designState?.intensity||'selling';
+  currentDesignSubstyle=item.designState?.substyle||'auto';
+  currentDesignVariant=Number.isInteger(item.designState?.variant)?item.designState.variant:0;
+  currentComposition={scale:Number(item.designState?.composition?.scale)||1,shiftX:Number(item.designState?.composition?.shiftX)||0,shiftY:Number(item.designState?.composition?.shiftY)||0};
+  currentPalette=Array.isArray(item.designState?.palette)?item.designState.palette.slice(0,4):[];
+  currentVisualOptions=normalizeClientVisualOptions(item.designState?.visualOptions||{});
+  currentDesignSnapshots=Array.isArray(item.designSnapshots)?item.designSnapshots.slice(0,8):[];
+  fillExtraData(item.extraData||item.data?.confirmedData||{});
+  fillPrivateData(item.privateData||{});
+  duplicateSkuId=null;duplicatePhotoId=null;
+  checkDuplicateSku();checkBarcodeState('product');checkPhotoDuplicate(currentPhotoHash);
+  document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
+  preview.src=sourceDataUrl||'';
+  preview.classList.toggle('show',!!sourceDataUrl);
+  drop.classList.toggle('has',!!sourceDataUrl);
+  dropText.style.display=sourceDataUrl?'none':'';
+  meta.textContent=item.data?'Восстановлено из локального каталога':'Черновик фото из локального каталога';
+  analyzeBtn.disabled=!sourceDataUrl;
+
+  if(!currentData){
+    workspace.classList.remove('show');
+    creative.classList.remove('show');
+    cardsPreview.innerHTML='';
+    renderYuvionExport();
+    updateWorkflow();
+    document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+
+  fillEditor(currentData);
+  renderAiQuality(currentData);
+  updatePlan();
+  renderCategoryMemory();
+  renderSpecTemplateHint();
+  renderYuvionExport();
+  confidence.textContent='Уверенность распознавания: '+(currentData.confidence||'не указана');
+  workspace.classList.add('show');
+  syncModeUi();
+  renderDesignStudio();
+
+  if(currentCards.length===4){
+    renderCards();
+    creative.classList.toggle('show',currentMode==='full');
+    creativeStatus.className='creative-status show done';
+    creativeStatus.textContent=item.published?'Товар отмечен как опубликованный. Изменения переведут его обратно в черновик.':'Комплект восстановлен из локального каталога.';
+    if(currentQuality){
+      const notes=(currentQuality.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(Number(x.index)+1)+': '+issue));
+      qaSummary.style.display='block';
+      qaSummary.innerHTML='<b>Сохранённая AI-проверка: '+esc(currentQuality.overall||'готово')+'</b>'+(notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Критических проблем не обнаружено.');
+    }else qaSummary.style.display='none';
+    zipImages.disabled=false;zipFull.disabled=false;
+  }else{
+    creative.classList.remove('show');
+    zipImages.disabled=true;zipFull.disabled=true;
+  }
+  workspace.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function safeFileBase(value){
+  return String(value||'product')
+    .toLowerCase()
+    .replace(/[^a-zа-яё0-9_-]+/gi,'_')
+    .replace(/^_+|_+$/g,'')
+    .slice(0,60)||'product';
+}
+
+async function compressFileToDataUrl(file,max=1600,quality=.84){
+  const original=await fileToDataUrl(file);
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(1,max/Math.max(img.width,img.height));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      resolve(canvas.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>resolve(original);
+    img.src=original;
+  });
+}
+
+function batchRetailPrices(price1){
+  const p=moneyNumber(price1);
+  const d=loadSellerDefaults();
+  if(p<=0)return {price1:String(price1||''),price2:'',price3:''};
+  return {
+    price1:String(price1||''),
+    price2:String(Math.max(0,Math.round(p*(1-Number(d.discount2??5)/100)))),
+    price3:String(Math.max(0,Math.round(p*(1-Number(d.discount3??10)/100))))
+  };
+}
+
+function batchRender(){
+  batchList.innerHTML='';
+  batchFiles.forEach((item,index)=>{
+    const el=document.createElement('div');
+    el.className='batch-item';
+    el.innerHTML='<div class="batch-wizard">'+
+      '<img src="'+esc(item.preview)+'" alt="">'+
+      '<input data-batch-field="brand" placeholder="Бренд" value="'+esc(item.extraData?.brand||'')+'">'+
+      '<input data-batch-field="sku" placeholder="SKU / артикул" value="'+esc(item.extraData?.sku||'')+'">'+
+      '<input data-batch-field="price1" inputmode="decimal" placeholder="Цена, ₽" value="'+esc(item.extraData?.price1||'')+'">'+
+      '<input data-batch-field="category" placeholder="Категория Yuvion" value="'+esc(item.category||'')+'">'+
+      '<div class="batch-status '+esc(item.state||'wait')+'">'+esc(item.label||'Ожидает')+'</div>'+
+      '</div><small style="display:block;margin-top:5px;color:var(--muted)">'+esc(item.file.name)+' · '+((item.file.size/1024/1024).toFixed(2))+' МБ</small>';
+    el.querySelectorAll('[data-batch-field]').forEach(input=>input.addEventListener('input',()=>{
+      const field=input.dataset.batchField;
+      if(field==='category')item.category=input.value.trim();
+      else if(field==='price1')item.extraData={...(item.extraData||{}),...batchRetailPrices(input.value)};
+      else item.extraData={...(item.extraData||{}),[field]:input.value.trim()};
+    }));
+    batchList.appendChild(el);
+  });
+}
+
+batchFilesInput.addEventListener('change',async()=>{
+  const allowed=['image/jpeg','image/png','image/webp'];
+  const chosen=[...batchFilesInput.files].slice(0,20);
+  const defaults=loadSellerDefaults();
+  batchFiles=[];
+  for(const file of chosen.filter(file=>allowed.includes(file.type)&&file.size<=10*1024*1024)){
+    let sku='';
+    if(defaults.autoSku==='on'){
+      try{sku=await nextGeneratedSku(defaults.category||'')}catch{}
+    }
+    batchFiles.push({
+      file,
+      preview:URL.createObjectURL(file),
+      state:'wait',
+      label:'Ожидает',
+      category:defaults.category||'',
+      extraData:{brand:defaults.brand||'',sku,barcode:'',size:'',material:'',price1:'',price2:'',price3:'',oldPrice:''}
+    });
+  }
+  startBatch.disabled=!batchFiles.length||batchBusy;
+  batchRender();
+  if(batchFilesInput.files.length>20)alert('За один прямой фото-запуск обрабатываются первые 20 товаров. Для большого ассортимента используйте Excel-автопилот — он продолжает очередь автоматически.');
+});
+
+async function batchAnalyze(file,mode,extraData={},category=''){
+  const dataUrl=await fileToDataUrl(file);
+  const src={mimeType:file.type,image:dataUrl.split(',')[1]};
+  const response=await fetch('/api/analyze',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({...src,mode,extraData})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось проанализировать товар.');
+  if(String(category||'').trim())data.category=String(category).trim();
+  return {data,src,dataUrl};
+}
+
+async function batchQuality(cards,card){
+  const response=await fetch('/api/quality-check',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({cards,card,renderMode:'free'})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)return null;
+  return data;
+}
+
+async function packageCardsForBatch(cards,card,includeDescription=true,extraData={}){
+  const response=await fetch('/api/package',{
+    method:'POST',headers:apiHeaders(),
+    body:JSON.stringify({cards,card,extraData,includeDescription})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось собрать ZIP.');
+  return data;
+}
+
+function downloadBase64Zip(data,name){
+  const binary=atob(data);
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  const blob=new Blob([bytes],{type:'application/zip'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=name;a.style.display='none';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+
+async function saveBatchHistory({data,dataUrl,cards,scenes=[],quality=null,mode,style,extraData={}}){
+  const id=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+  const photoHash=await imageHashFromDataUrl(dataUrl);
+  const item={
+    id,updatedAt:Date.now(),title:data.seoTitle||'Товар',
+    data,extraData:{...extraData},privateData:{cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''},
+    sourceDataUrl:dataUrl,photoHash,additionalPhotos:[],cards:cards||[],scenes:scenes||[],quality,
+    cardsStale:false,staleCardIndexes:[],variations:[],revisions:[],moderation:{status:'none',reason:'',log:[]},
+    activity:[{at:Date.now(),type:'Batch Factory',detail:mode==='full'?'Анализ · 4 карточки · QA сохранён':'Текстовый анализ сохранён'}],
+    mode,style,renderMode:'free',published:false
+  };
+  await dbPut(item);
+  await trimCatalog();
+}
+
+startBatch.onclick=async()=>{
+  if(batchBusy||!batchFiles.length)return;
+  batchBusy=true;startBatch.disabled=true;batchFilesInput.disabled=true;
+  batchMode.disabled=true;batchStyle.disabled=true;
+  batchProgress.classList.add('show');
+  batchBar.style.width='0%';
+  const mode=batchMode.value;
+  const style=batchStyle.value;
+  const masterZip=typeof JSZip!=='undefined'?new JSZip():null;
+  let done=0,success=0;
+
+  try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:batchFiles.length})})}catch{}
+
+  for(let index=0;index<batchFiles.length;index++){
+    const item=batchFiles[index];
+    item.state='work';item.label='Анализ…';batchRender();
+    batchProgressText.textContent='Обрабатываем '+(index+1)+' из '+batchFiles.length+': '+item.file.name;
+
+    try{
+      const analyzed=await batchAnalyze(item.file,mode,item.extraData||{},item.category||'');
+      let cards=[],scenes=[],quality=null;
+      if(mode==='full'){
+        item.label='4 карточки…';batchRender();
+        const gen=await fetch('/api/generate-cards',{
+          method:'POST',headers:apiHeaders(),
+          body:JSON.stringify({...analyzed.src,card:analyzed.data,style,renderMode:'free'})
+        });
+        const genData=await gen.json().catch(()=>({}));
+        if(!gen.ok)throw new Error(genData.error||'Не удалось создать карточки.');
+        cards=genData.cards||[];
+        scenes=genData.scenes||[];
+
+        item.label='Проверка качества…';batchRender();
+        quality=await batchQuality(cards,analyzed.data);
+        const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,2);
+        for(const badIndex of bad){
+          item.label='Исправляем №'+(badIndex+1);batchRender();
+          const updated=await fetch('/api/regenerate-card',{
+            method:'POST',headers:apiHeaders(),
+            body:JSON.stringify({...analyzed.src,card:analyzed.data,style,index:badIndex,renderMode:'free'})
+          });
+          const updatedData=await updated.json().catch(()=>({}));
+          if(updated.ok&&updatedData.card){
+            cards[badIndex]=updatedData.card;
+            if(updatedData.scene)scenes[badIndex]=updatedData.scene;
+          }
+        }
+        if(bad.length){
+          item.label='Повторная QA…';batchRender();
+          quality=await batchQuality(cards,analyzed.data);
+        }
+      }
+
+      item.label='Сохраняем…';batchRender();
+      const storedSource=await compressFileToDataUrl(item.file);
+      await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,scenes,quality,mode,style,extraData:item.extraData||{}});
+
+      if(masterZip){
+        const base=(String(index+1).padStart(2,'0')+'_'+safeFileBase(analyzed.data.seoTitle||('product_'+(index+1))));
+        const folder=masterZip.folder(base);
+        const parsed=dataUrlParts(storedSource);
+        if(parsed)folder.file('source.'+extensionFromMime(parsed.mime),parsed.base64,{base64:true});
+        cards.forEach((card,cardIndex)=>{
+          if(card?.base64)folder.file(card.filename||String(cardIndex+1).padStart(2,'0')+'_card.png',card.base64,{base64:true});
+        });
+        const tempItem={
+          title:analyzed.data.seoTitle||'Товар',
+          data:analyzed.data,
+          extraData:item.extraData||{},
+          privateData:{},
+          cards,
+          variations:[]
+        };
+        folder.file('description.txt',itemDescriptionText(tempItem));
+        folder.file('yuvion-autofill.json',JSON.stringify(itemAutofillPayload(tempItem),null,2));
+      }
+
+      success++;
+      item.state='ok';
+      item.label=mode==='full'?'Готово':'Текст готов';
+    }catch(e){
+      item.state='fail';item.label=e.message||'Ошибка';
+    }
+
+    done++;
+    batchBar.style.width=Math.round(done/batchFiles.length*100)+'%';
+    batchRender();
+    await renderHistory();
+  }
+
+  if(masterZip&&success){
+    batchProgressText.textContent='Собираем один общий ZIP для '+success+' товаров…';
+    try{
+      masterZip.file('README.txt','Пакет Yuvion AI Cards. Товаров: '+success+'. Каждый товар находится в отдельной папке.');
+      const blob=await masterZip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+      downloadBlob(blob,'yuvion-batch-'+new Date().toISOString().slice(0,10)+'.zip');
+    }catch(e){
+      console.warn('Batch master ZIP failed',e);
+    }
+  }
+
+  batchProgressText.textContent='Очередь завершена: '+success+' успешно из '+batchFiles.length+'.'+(success?' Общий ZIP подготовлен.':'');
+  batchBusy=false;batchFilesInput.disabled=false;batchMode.disabled=false;batchStyle.disabled=false;startBatch.disabled=false;
+};
+
+
+
+/* YUVION_V6_MARKER */
+const STORE_RULES_KEY='yuvionStoreRulesV1';
+let lastPreflightAudit=null;
+let intakeConveyorSaved=0;
+
+function loadStoreRules(){
+  return String(localStorage.getItem(STORE_RULES_KEY)||'').slice(0,4000);
+}
+function renderStoreRules(){
+  const el=document.getElementById('storeRulesText');
+  if(el)el.value=loadStoreRules();
+}
+function currentRuleHints(){
+  const rules=loadStoreRules().split('\n').map(x=>x.trim()).filter(Boolean);
+  if(!rules.length||!currentData)return [];
+  const hay=[collectEdits().seoTitle,collectEdits().category,collectExtraData().brand].join(' ').toLocaleLowerCase('ru');
+  const matched=rules.filter(rule=>{
+    const words=rule.toLocaleLowerCase('ru').split(/[^a-zа-яё0-9]+/i).filter(x=>x.length>3);
+    return words.some(w=>hay.includes(w));
+  });
+  return (matched.length?matched:rules.slice(0,3)).slice(0,5);
+}
+
+function productProblems(item,allItems=[]){
+  const out=[];
+  const moderation=storedModeration(item);
+  if(moderation.status==='rejected')out.push({key:'rejected',label:'Отклонено модерацией',detail:moderation.reason||'Нужно разобрать причину отклонения.',bad:true});
+  if(!item?.sourceDataUrl)out.push({key:'photo',label:'Нет фотографии',detail:'Добавьте исходное фото товара.',bad:true});
+  if(!item?.data){out.push({key:'analysis',label:'Нет AI-анализа',detail:'Черновик содержит фото, но данные ещё не подготовлены.'});return out}
+  const d=item.data||{},x=item.extraData||d.confirmedData||{};
+  const sku=skuOfStoredItem(item);
+  if(!sku)out.push({key:'sku',label:'Нет SKU',detail:'Артикул обязателен для рабочего процесса Yuvion.'});
+  else if(duplicateSkuInCatalog(item,allItems))out.push({key:'sku',label:'Дублирующийся SKU',detail:sku,bad:true});
+  if(!d.category||!categoryValidity(d.category).valid)out.push({key:'category',label:'Проверьте категорию',detail:d.category||'Категория не указана.'});
+  const p1=moneyNumber(x.price1||x.price),p2=moneyNumber(x.price2),p3=moneyNumber(x.price3);
+  if(!(p1>0&&p2>0&&p2<=p1&&p3>0&&p3<=p2))out.push({key:'price',label:'Цены не готовы',detail:'Нужны корректные цены 1 / 2 / 3+ шт.'});
+  const barcode=barcodeOfStoredItem(item);
+  if(barcode&&!validateEan(barcode).valid)out.push({key:'barcode',label:'Некорректный EAN',detail:barcode,bad:true});
+  else if(barcode&&duplicateBarcodeInCatalog(item,allItems))out.push({key:'barcode',label:'Дублирующийся штрихкод',detail:barcode,bad:true});
+  const duplicatePhoto=duplicatePhotoInCatalog(item,allItems);
+  if(duplicatePhoto)out.push({key:'duplicate',label:'Дублирующееся главное фото',detail:duplicatePhoto.title||duplicatePhoto.data?.seoTitle||'Другой товар',bad:true});
+  if(Array.isArray(d.needsClarification)&&d.needsClarification.length)out.push({key:'clarify',label:'Есть неподтверждённые данные',detail:d.needsClarification.slice(0,2).join(' · ')});
+  const factIssues=storedFactBlockers(item);
+  if(factIssues.length)out.push({key:'facts',label:'Технические факты без подтверждения',detail:factIssues.slice(0,3).map(x=>x.name).join(', '),bad:true});
+  const requiredMissing=missingCategoryRequiredSpecs(d);
+  if(requiredMissing.length)out.push({key:'category-fields',label:'Не заполнены обязательные поля категории',detail:requiredMissing.slice(0,4).join(', '),bad:true});
+  const similar=similarCatalogProduct(item,allItems);
+  if(similar&&!duplicatePhoto&&!duplicateSkuInCatalog(item,allItems)&&!duplicateBarcodeInCatalog(item,allItems))out.push({key:'similar',label:'Похожий товар в каталоге',detail:(similar.item?.title||similar.item?.data?.seoTitle||'другой товар')+' · сходство '+Math.round(similar.score*100)+'%',bad:false});
+  if(item.cardsStale)out.push({key:'cards',label:'Изображения устарели',detail:'Данные товара менялись после генерации карточек.',bad:true});
+  const qaProblems=storedQaBlockers(item);
+  if(Array.isArray(item.cards)&&item.cards.length===4&&!item.quality)out.push({key:'cards',label:'Комплект ещё не прошёл QA',detail:'Запустите проверку качества изображений перед публикацией.',bad:true});
+  if(qaProblems.length)out.push({key:'cards',label:'QA изображений нашёл блокеры',detail:qaProblems.slice(0,2).flatMap(x=>x.issues||[]).slice(0,2).join(' · ')||'Нужно проверить готовые изображения.',bad:true});
+  if(!Array.isArray(item.cards)||item.cards.length!==4)out.push({key:'cards',label:'Нет полного комплекта изображений',detail:'Нужно 4 карточки 900×1200.'});
+  if(lowStockState(item.privateData||{}))out.push({key:'stock',label:'Низкий остаток',detail:'Остаток ниже локального минимального значения.'});
+  return out;
+}
+
+async function renderV6Panels(allItems){
+  const all=Array.isArray(allItems)?allItems:await dbAll();
+  const problemList=document.getElementById('problemList');
+  const problemCount=document.getElementById('problemCount');
+  const allProblems=all.flatMap(item=>productProblems(item,all).map(p=>({item,p})));
+  if(problemCount)problemCount.textContent=allProblems.length+' проблем';
+  if(problemList){
+    const visible=allProblems.slice(0,16);
+    problemList.innerHTML=visible.length?visible.map(({item,p})=>
+      '<div class="problem-item"><div><b>'+esc(item.title||item.data?.seoTitle||'Черновик')+' — '+esc(p.label)+'</b><small>'+esc(p.detail||'')+'</small></div><button class="problem-badge '+(p.bad?'bad':'')+'" data-problem-id="'+esc(item.id)+'">Открыть</button></div>'
+    ).join(''):'<div class="problem-empty">Критичных локальных проблем не найдено.</div>';
+    problemList.querySelectorAll('[data-problem-id]').forEach(btn=>btn.onclick=async()=>{
+      const item=all.find(x=>x.id===btn.dataset.problemId);if(item)await restoreHistory(item);
+    });
+  }
+  const now=Date.now(),day=86400000;
+  const ready=all.filter(item=>item.data&&storedReadiness(item).ready&&!item.published).length;
+  const published=all.filter(item=>item.published).length;
+  const rejected=all.filter(item=>storedModeration(item).status==='rejected').length;
+  const low=all.filter(item=>lowStockState(item.privateData||{})).length;
+  const recent=all.filter(item=>now-Number(item.updatedAt||0)<=7*day).length;
+  const today=all.filter(item=>now-Number(item.updatedAt||0)<=day).length;
+  const readinessValues=all.filter(x=>x.data).map(storedReadiness).map(x=>x.total?x.done/x.total*100:0);
+  const avg=readinessValues.length?Math.round(readinessValues.reduce((a,b)=>a+b,0)/readinessValues.length):0;
+  const metrics=[
+    [all.length,'Всего товаров'],[ready,'Готовы к Yuvion'],[published,'Опубликованы'],
+    [avg+'%','Средняя готовность'],[rejected,'Отклонены'],[low,'Низкий остаток'],
+    [today,'Активность 24 ч'],[recent,'Активность 7 дней']
+  ];
+  const grid=document.getElementById('analyticsGridV6');
+  if(grid)grid.innerHTML=metrics.map(x=>'<div class="analytics-cell"><b>'+esc(x[0])+'</b><span>'+esc(x[1])+'</span></div>').join('');
+}
+
+function currentPseudoItemV6(){
+  if(!currentData)return null;
+  return {
+    id:currentHistoryId,data:collectEdits(),extraData:collectExtraData(),privateData:collectPrivateData(),
+    sourceDataUrl:sourceDataUrl||(selectedFile?'selected-file':''),cards:currentCards,moderation:currentModeration
+  };
+}
+
+async function autopilotCurrentProduct(){
+  if(!currentData){
+    if(selectedFile||sourceDataUrl){analyzeBtn.click();return}
+    document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});return;
+  }
+  let action=nextActionForItem(currentPseudoItemV6(),[]);
+  if(duplicateSkuId)action={key:'sku',label:'Исправить SKU'};
+  if(duplicateBarcodeId)action={key:'sku',label:'Исправить штрихкод'};
+  if(duplicatePhotoId)action={key:'photo',label:'Проверить дубль главного фото'};
+  if(action.key==='rejected'){runModerationFix();return}
+  if(action.key==='sku'){
+    extraDataBox.open=true;
+    if(!extraFields.sku.value.trim())await assignGeneratedSku(false);
+    else (duplicateBarcodeId?extraFields.barcode:extraFields.sku).focus();
+    return;
+  }
+  if(action.key==='category'){editor.category.scrollIntoView({behavior:'smooth',block:'center'});editor.category.focus();return}
+  if(action.key==='brand'){extraDataBox.open=true;extraFields.brand.scrollIntoView({behavior:'smooth',block:'center'});extraFields.brand.focus();return}
+  if(action.key==='description'){editor.full.scrollIntoView({behavior:'smooth',block:'center'});editor.full.focus();return}
+  if(action.key==='specs'){editor.specs.scrollIntoView({behavior:'smooth',block:'center'});editor.specs.focus();return}
+  if(action.key==='oldPrice'){
+    extraDataBox.open=true;
+    extraFields.oldPrice.closest('.advanced-only-block')?.classList.add('force-visible');
+    extraFields.oldPrice.scrollIntoView({behavior:'smooth',block:'center'});extraFields.oldPrice.focus();return;
+  }
+  if(action.key==='price'){
+    extraDataBox.open=true;
+    const p1=moneyNumber(extraFields.price1.value),p2=moneyNumber(extraFields.price2.value),p3=moneyNumber(extraFields.price3.value);
+    if(p1>0&&(!(p2>0&&p2<=p1)||!(p3>0&&p3<=p2))){
+      const defaults=loadSellerDefaults();
+      setWholesalePreset(Number(defaults.discount2??5),Number(defaults.discount3??10));
+      renderYuvionExport();renderProductCockpit();
+      const retry=nextActionForItem(currentPseudoItemV6(),[]);
+      if(retry.key!=='price'){renderFocusPanel();return}
+    }
+    extraFields.price1.scrollIntoView({behavior:'smooth',block:'center'});extraFields.price1.focus();return;
+  }
+  if(action.key==='cards'){
+    currentMode='full';document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode==='full'));syncModeUi();
+    generateAll.scrollIntoView({behavior:'smooth',block:'center'});generateAll.click();return;
+  }
+  if(action.key==='sent'){document.getElementById('privateWork')?.scrollIntoView({behavior:'smooth',block:'start'});return}
+  await runPreflightCheck();
+}
+
+function renderPreflightAudit(audit,localHints=[]){
+  const box=document.getElementById('preflightResult');
+  if(!box)return;
+  lastPreflightAudit=audit||null;
+  const issues=Array.isArray(audit?.issues)?audit.issues:[];
+  const blockers=issues.filter(x=>x.severity==='blocker').length;
+  box.className='audit-box show '+(blockers?'bad':issues.length?'warn':'good');
+  const hints=localHints.length?'<div style="margin-top:9px"><b>Локальные правила:</b><ul class="audit-list">'+localHints.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'';
+  box.innerHTML='<b>'+(blockers?'Есть блокирующие замечания':issues.length?'Есть замечания':'Проверка пройдена')+'</b>'+
+    (issues.length?'<ul class="audit-list">'+issues.map(x=>'<li><b>'+esc(x.field||'Товар')+':</b> '+esc(x.message||'')+'</li>').join('')+'</ul>':'<div style="margin-top:5px">Явных противоречий и рискованных утверждений не найдено.</div>')+hints+
+    '<div class="audit-actions">'+
+      ((audit?.rewrittenTitle&&audit.rewrittenTitle!==collectEdits().seoTitle)||(audit?.rewrittenDescription&&audit.rewrittenDescription!==(collectEdits().fullDescription||collectEdits().shortDescription))?'<button class="btn btn-ghost btn-small" id="applyAuditRewrite">Применить безопасные текстовые правки</button>':'')+
+      '<button class="btn btn-ghost btn-small" id="closeAuditResult">Скрыть</button></div>';
+  box.querySelector('#closeAuditResult')?.addEventListener('click',()=>box.classList.remove('show'));
+  box.querySelector('#applyAuditRewrite')?.addEventListener('click',applyAuditRewrite);
+}
+
+function applyAuditRewrite(){
+  if(!lastPreflightAudit||!currentData)return;
+  if(lastPreflightAudit.rewrittenTitle)editor.title.value=lastPreflightAudit.rewrittenTitle;
+  if(lastPreflightAudit.rewrittenDescription)editor.full.value=lastPreflightAudit.rewrittenDescription;
+  currentData=collectEdits();updatePlan();renderYuvionExport();markCardsStale([0,3]);saveHistoryDebounced();
+  renderPreflightAudit({...lastPreflightAudit,issues:lastPreflightAudit.issues||[]},currentRuleHints());
+}
+
+async function runPreflightCheck(){
+  if(!currentData)return;
+  const btn=document.getElementById('preflightCheck');
+  const box=document.getElementById('preflightResult');
+  btn.disabled=true;
+  box.className='audit-box show';box.innerHTML='<b>Проверяем товар…</b><div style="margin-top:5px">Сверяем публичные данные между собой и, если доступно, с исходным фото.</div>';
+  try{
+    let src={};
+    try{src=await getSource()}catch{}
+    const response=await fetch('/api/preflight',{
+      method:'POST',headers:apiHeaders(),
+      body:JSON.stringify({card:collectEdits(),extraData:collectExtraData(),image:src.image||'',mimeType:src.mimeType||''})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось выполнить проверку.');
+    renderPreflightAudit(data,currentRuleHints());
+    addCurrentActivity('AI preflight',data.overall||'Проверка завершена');
+    saveHistoryDebounced();
+  }catch(e){
+    box.className='audit-box show warn';box.innerHTML='<b>AI-проверка недоступна</b><div style="margin-top:5px">'+esc(e.message||'Ошибка')+'. Базовая проверка готовности продолжает работать локально.</div>';
+  }finally{btn.disabled=false}
+}
+
+function runModerationFix(){
+  if(!currentData)return;
+  const reason=String(currentModeration?.reason||moderationReason.value||'').toLocaleLowerCase('ru');
+  const actions=[];
+  const focus=(el,label,extra=false)=>{if(extra)extraDataBox.open=true;actions.push(label);el?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>el?.focus(),300)};
+  if(/фото|изображ|картин|фон|обрез/.test(reason)){document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});actions.push('переснять или заменить фото')}
+  else if(/категор/.test(reason))focus(editor.category,'проверить категорию');
+  else if(/sku|артикул/.test(reason))focus(extraFields.sku,'проверить SKU',true);
+  else if(/штрих|ean|barcode/.test(reason))focus(extraFields.barcode,'проверить EAN',true);
+  else if(/цен/.test(reason))focus(extraFields.price1,'проверить цены',true);
+  else if(/опис|текст|назван/.test(reason))focus(editor.full,'исправить текст');
+  else {document.getElementById('preflightResult')?.scrollIntoView({behavior:'smooth',block:'center'});actions.push('провести полную проверку')}
+  const box=document.getElementById('preflightResult');
+  box.className='audit-box show warn';
+  box.innerHTML='<b>Разбор отклонения</b><div style="margin-top:5px">'+(reason?esc(currentModeration.reason):'Причина отклонения не указана.')+'</div><div style="margin-top:7px">Следующий безопасный шаг: '+esc(actions.join(', '))+'. Неподтверждённые характеристики автоматически не добавляются.</div>';
+}
+
+function matrixValues(value){
+  return [...new Set(String(value||'').split(',').map(x=>x.trim()).filter(Boolean))].slice(0,20);
+}
+function slugSkuPart(value){
+  return String(value||'').toLocaleUpperCase('ru').replace(/[^A-ZА-ЯЁ0-9]+/g,'').slice(0,6)||'V';
+}
+function generateMatrix(){
+  const a1=document.getElementById('matrixAxis1').value.trim()||'Вариант';
+  const a2=document.getElementById('matrixAxis2').value.trim();
+  const v1=matrixValues(document.getElementById('matrixValues1').value);
+  const v2=matrixValues(document.getElementById('matrixValues2').value);
+  if(!v1.length){alert('Укажите значения первой оси через запятую.');return}
+  const combos=[];
+  for(const x of v1)for(const y of (v2.length?v2:['']))combos.push([x,y]);
+  const limited=combos.slice(0,50);
+  const base=normalizeSku(extraFields.sku.value)||'VAR';
+  const price=extraFields.price1.value||'';
+  const existing=new Set(currentVariations.map(v=>String(v.name||'').toLocaleLowerCase('ru')));
+  limited.forEach(([x,y],i)=>{
+    const name=[x,y].filter(Boolean).join(' / ');
+    if(existing.has(name.toLocaleLowerCase('ru')))return;
+    currentVariations.push(normalizeVariation({
+      name,option:[a1,a2].filter(Boolean).join(' / '),
+      sku:base+'-'+String(i+1).padStart(2,'0')+'-'+slugSkuPart(x)+(y?'-'+slugSkuPart(y):''),
+      barcode:'',price
+    }));
+  });
+  currentVariations=currentVariations.slice(0,100);
+  variationsBox.open=true;renderVariations();renderProductCockpit();saveHistoryDebounced();
+}
+
+function photoHeuristic(dataUrl){
+  return new Promise(resolve=>{
+    if(!dataUrl){resolve({score:-1});return}
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');c.width=48;c.height=48;
+      const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,48,48);
+      const d=ctx.getImageData(0,0,48,48).data;let sum=0,sum2=0,n=0;
+      for(let i=0;i<d.length;i+=4){const g=.299*d[i]+.587*d[i+1]+.114*d[i+2];sum+=g;sum2+=g*g;n++}
+      const mean=sum/n,std=Math.sqrt(Math.max(0,sum2/n-mean*mean));
+      const resolution=Math.min(45,Math.min(img.width,img.height)/1200*45);
+      const brightness=Math.max(0,25-Math.abs(mean-150)/6);
+      const contrast=Math.min(20,std/3);
+      const ratio=img.width/img.height,aspect=(ratio>.42&&ratio<2.25)?10:0;
+      resolve({score:Math.round(resolution+brightness+contrast+aspect),width:img.width,height:img.height,mean:Math.round(mean),contrast:Math.round(std)});
+    };
+    img.onerror=()=>resolve({score:-1});img.src=dataUrl;
+  });
+}
+async function chooseBestMainPhoto(){
+  if(!currentAdditionalPhotos.length){localQuality.className='quality-box show warn';localQuality.innerHTML='<strong>Нет дополнительных ракурсов</strong>Добавьте фото, чтобы сервис смог выбрать лучший основной снимок.';return}
+  let mainUrl=sourceDataUrl;
+  if(!mainUrl&&selectedFile)mainUrl=await compressFileToDataUrl(selectedFile,1200,.82);
+  if(!mainUrl)return;
+  const candidates=[{kind:'main',dataUrl:mainUrl,name:selectedFile?.name||'Главное фото'},...currentAdditionalPhotos.map(x=>({kind:'extra',...x}))];
+  for(const item of candidates)item.metric=await photoHeuristic(item.dataUrl);
+  candidates.sort((a,b)=>b.metric.score-a.metric.score);
+  const best=candidates[0],oldMain=candidates.find(x=>x.kind==='main');
+  if(!best||best.kind==='main'||best.metric.score<=oldMain.metric.score+3){
+    localQuality.className='quality-box show good';localQuality.innerHTML='<strong>Главное фото уже лучшее</strong>Локальная оценка: '+oldMain.metric.score+'/100. Выбор основан на разрешении, экспозиции, контрасте и кадрировании.';
+    return;
+  }
+  currentAdditionalPhotos=currentAdditionalPhotos.filter(x=>x.id!==best.id);
+  currentAdditionalPhotos.push({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),name:'Предыдущее главное фото',mimeType:(mainUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',dataUrl:mainUrl});
+  currentAdditionalPhotos=currentAdditionalPhotos.slice(0,4);
+  selectedFile=null;sourceDataUrl=best.dataUrl;preview.src=sourceDataUrl;preview.classList.add('show');drop.classList.add('has');dropText.style.display='none';analyzeBtn.disabled=false;
+  renderExtraPhotos();markCardsStale();await saveHistory();
+  localQuality.className='quality-box show good';localQuality.innerHTML='<strong>Главное фото заменено автоматически</strong>Выбран ракурс «'+esc(best.name||'дополнительное фото')+'» с локальной оценкой '+best.metric.score+'/100. Перед публикацией визуально проверьте выбор.';
+}
+
+async function exportSecureCurrentProduct(){
+  if(!currentData)return;
+  if(!crypto?.subtle){alert('Шифрование недоступно в этом браузере.');return}
+  const password=prompt('Пароль для файла .yuvion (минимум 6 символов).');if(password===null)return;
+  if(password.length<6){alert('Пароль должен содержать минимум 6 символов.');return}
+  const item={id:currentHistoryId||crypto.randomUUID(),updatedAt:Date.now(),title:collectEdits().seoTitle||'Товар',data:collectEdits(),extraData:collectExtraData(),privateData:collectPrivateData(),sourceDataUrl:sourceDataUrl||'',photoHash:currentPhotoHash||'',additionalPhotos:currentAdditionalPhotos,cards:currentCards,variations:variationsForExport(),revisions:currentRevisions,moderation:currentModeration,mode:currentMode,style:styleSelect.value,renderMode:renderModeSelect.value,published:false};
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),iterations=210000;
+  const key=await deriveBackupKey(password,salt,iterations);
+  const plaintext=new TextEncoder().encode(JSON.stringify({type:'yuvion-secure-product',version:1,createdAt:new Date().toISOString(),product:item}));
+  const encrypted=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plaintext));
+  const envelope={format:'yuvion-product',version:1,cipher:'AES-GCM-256',kdf:'PBKDF2-SHA256',iterations,salt:bytesToBase64(salt),iv:bytesToBase64(iv),data:bytesToBase64(encrypted)};
+  downloadBlob(new Blob([JSON.stringify(envelope)],{type:'application/json'}),(safeFileBase(item.title)||'product')+'.yuvion');
+}
+async function importSecureProductFileNow(file){
+  if(!file)return;
+  const password=prompt('Пароль от файла .yuvion.');if(password===null)return;
+  try{
+    const envelope=JSON.parse(await file.text());
+    if(envelope?.format!=='yuvion-product'||!envelope.data)throw new Error('Неверный формат');
+    const key=await deriveBackupKey(password,base64ToBytes(envelope.salt),Number(envelope.iterations)||210000);
+    const decrypted=await crypto.subtle.decrypt({name:'AES-GCM',iv:base64ToBytes(envelope.iv)},key,base64ToBytes(envelope.data));
+    const payload=JSON.parse(new TextDecoder().decode(decrypted));
+    if(payload?.type!=='yuvion-secure-product'||!payload.product?.id)throw new Error('Повреждённый файл');
+    const item={...payload.product,id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),updatedAt:Date.now(),published:false};
+    await dbPut(item);await trimCatalog();await renderHistory();await restoreHistory(item);
+  }catch{alert('Не удалось открыть файл .yuvion. Проверьте пароль и файл.')}
+  finally{document.getElementById('importSecureProductFile').value=''}
+}
+
+
+document.getElementById('clearHistory').onclick=async()=>{if(confirm('Очистить локальный каталог товаров на этом устройстве?')){await dbClear();renderHistory()}};
+
+applySpecTemplateBtn.onclick=()=>applySpecTemplate();
+saveSpecTemplateBtn.onclick=()=>saveCurrentSpecTemplate();
+clearEmptySpecsBtn.onclick=()=>clearEmptySpecRows();
+addVariationBtn.onclick=()=>addVariation();
+variantsFromProductBtn.onclick=()=>seedMainProductVariation();
+
+scanBarcodeBtn.onclick=()=>startBarcodeScanner('product');
+scanIntakeBarcode.onclick=()=>startBarcodeScanner('intake');
+closeScannerBtn.onclick=()=>stopBarcodeScanner();
+openIntakeBtn.onclick=()=>openIntake();
+closeIntakeBtn.onclick=()=>closeIntakeModal();
+createIntakeDraft.onclick=()=>createIntakeDraftNow();
+intakeModal.addEventListener('click',e=>{if(e.target===intakeModal)closeIntakeModal()});
+closeDiff.onclick=()=>diffModal.classList.remove('show');
+diffModal.addEventListener('click',e=>{if(e.target===diffModal)diffModal.classList.remove('show')});
+scannerModal.addEventListener('click',e=>{if(e.target===scannerModal)stopBarcodeScanner()});
+
+document.querySelectorAll('[data-dash-status]').forEach(card=>card.addEventListener('click',()=>{
+  dashboardFilter=card.dataset.dashStatus||'all';
+  catalogStatus.value='all';
+  catalogSearch.value='';
+  document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+  renderHistory();
+}));
+
+saveRevisionBtn.onclick=()=>saveCurrentRevision();
+addModerationEntry.onclick=()=>recordModeration();
+moderationStatus.addEventListener('change',()=>{
+  cockpitModeration.textContent=moderationLabel(moderationStatus.value);
+  cockpitNext.textContent=moderationStatus.value==='rejected'
+    ? 'Следующее действие: исправить замечания после отклонения.'
+    : cockpitNext.textContent;
+});
+generateSkuBtn.onclick=()=>assignGeneratedSku(true);
+extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosInput.files));
+ocrMainPhoto.onclick=()=>runMainPhotoOcr();
+[privateCost,privateStock,privateBoxes,privateMinStock,privateLocation,privateCollections,privateNotes].forEach(el=>el.addEventListener('input',()=>{
+  currentPrivateData=collectPrivateData();
+  renderMargin();renderCollectionChips();renderProductCockpit();
+  if(currentData)saveHistoryDebounced();
+}));
+[extraFields.price1,extraFields.price2,extraFields.price3].forEach(el=>el.addEventListener('input',()=>renderMargin()));
+
+importProductsBtn.onclick=()=>importProductsFile.click();
+excelImportStart.onclick=()=>importProductsFile.click();
+importProductsFile.addEventListener('change',()=>importProductsFileNow(importProductsFile.files?.[0]));
+excelPhotoFiles.addEventListener('change',async()=>{
+  excelPhotoMatchText.textContent='Привязываем фотографии к SKU…';
+  try{
+    const result=await matchExcelPhotos(excelPhotoFiles.files);
+    excelPhotoMatchText.textContent='Привязано фото: '+result.matched+' к '+result.products+' товарам · без совпадения: '+result.unmatched+'.';
+  }catch(e){excelPhotoMatchText.textContent='Не удалось привязать фото: '+(e.message||'ошибка')}
+  finally{excelPhotoFiles.value=''}
+});
+runExcelAutopilot.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,spentImageUsd:0});runExcelAutopilotQueue();};
+resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,spentImageUsd:0});runExcelAutopilotQueue();};
+pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueueItems(await dbAll()).length>0;saveLargeQueueState({pending,paused:true});excelAutoProgressText.textContent=excelAutopilotBusy?'Очередь будет поставлена на паузу после текущего товара.':'Очередь на паузе.';await refreshDiagnosticsNow();};
+exportCatalogReport.onclick=()=>exportCatalogReportNow();
+projectArchive.onclick=()=>createEncryptedBackup();
+refreshDiagnostics.onclick=()=>refreshDiagnosticsNow();
+runBulkLabelOcr.onclick=()=>runBulkLabelOcrNow();
+storageManagerToggle.onclick=async()=>{storageManager.classList.toggle('show');if(storageManager.classList.contains('show'))await renderStorageManager()};
+compactStorage.onclick=()=>compactStorageNow();
+clearSceneCache.onclick=()=>clearAllSceneCacheNow();
+undoLastImport.onclick=()=>restoreLastImportSnapshot();
+openPhotographer.onclick=()=>openPhotographerMode();
+closePhotographer.onclick=()=>photographerModal.classList.remove('show');
+photographerProduct.addEventListener('change',()=>renderPhotographerProduct());
+photographerFile.addEventListener('change',async()=>{const file=photographerFile.files?.[0];photographerFile.value='';if(file)await attachPhotographerFile(file)});
+photographerNext.onclick=()=>{if(!photographerItems.length)return;const i=Math.max(0,photographerItems.findIndex(x=>x.id===photographerProduct.value));photographerProduct.value=photographerItems[(i+1)%photographerItems.length].id;renderPhotographerProduct()};
+publishCenterFilter.addEventListener('change',async()=>renderPublishCenter(await dbAll()));
+publishNextProblem.onclick=async()=>{
+  const all=await dbAll();
+  const item=all.filter(x=>!x.published).sort((a,b)=>Number(a.updatedAt||0)-Number(b.updatedAt||0)).find(x=>productProblems(x,all).some(p=>p.bad||p.key!=='stock'));
+  if(item)await restoreHistory(item);else alert('Проблемных товаров не найдено.');
+};
+cancelImportMap.onclick=()=>closeImportMapper();
+resetImportMap.onclick=()=>{if(pendingImportMap){pendingImportMap.diffReady=false;pendingImportMap.preparedRows=null}confirmImportMap.textContent='Проверить изменения';renderImportMapper({redetect:true})};
+confirmImportMap.onclick=async()=>{
+  confirmImportMap.disabled=true;
+  try{await confirmMappedImport()}catch(e){
+    importNote.className='import-note show';
+    importNote.textContent='Импорт не выполнен: '+(e.message||'ошибка сопоставления');
+    importMapModal.classList.add('show');
+  }finally{confirmImportMap.disabled=false}
+};
+importRulesBtn.onclick=()=>importRulesFile.click();
+importRulesFile.addEventListener('change',()=>importRulesFileNow(importRulesFile.files?.[0]));
+
+backupCatalogBtn.onclick=()=>createEncryptedBackup();
+restoreCatalogBtn.onclick=()=>restoreCatalogFile.click();
+restoreCatalogFile.addEventListener('change',()=>restoreEncryptedBackup(restoreCatalogFile.files?.[0]));
+
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  installAppBtn.style.display='';
+});
+installAppBtn.onclick=async()=>{
+  if(!deferredInstallPrompt)return;
+  deferredInstallPrompt.prompt();
+  try{await deferredInstallPrompt.userChoice}catch{}
+  deferredInstallPrompt=null;
+  installAppBtn.style.display='none';
+};
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  installAppBtn.style.display='none';
+});
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+}
+
+catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
+catalogStatus.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
+catalogCollection.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
+catalogQueue.addEventListener('change',()=>{dashboardFilter='all';renderHistory()});
+openNextTask.onclick=()=>openNextQueueItem();
+
+bulkSelectVisible.onclick=()=>{
+  if(!lastVisibleDraftIds.length)return;
+  const allSelected=lastVisibleDraftIds.every(id=>selectedDraftIds.has(id));
+  lastVisibleDraftIds.forEach(id=>allSelected?selectedDraftIds.delete(id):selectedDraftIds.add(id));
+  renderHistory();
+};
+bulkClear.onclick=()=>{selectedDraftIds.clear();renderHistory()};
+bulkDownload.onclick=()=>bulkDownloadLocalPackage();
+bulkEdit.onclick=()=>openBulkEditor();
+closeBulkEdit.onclick=()=>bulkEditModal.classList.remove('show');
+applyBulkEdit.onclick=()=>applyBulkEditorNow();
+bulkLabels.onclick=()=>bulkGenerateLabelsPdf();
+bulkPublish.onclick=()=>bulkSetPublished(true);
+bulkDraft.onclick=()=>bulkSetPublished(false);
+bulkDelete.onclick=()=>bulkDeleteSelected();
+
+document.getElementById('jumpBatch').onclick=()=>document.getElementById('batch').scrollIntoView({behavior:'smooth',block:'start'});
+jumpExcel.onclick=()=>{document.getElementById('excelAutopilot').open=true;document.getElementById('excelAutopilot').scrollIntoView({behavior:'smooth',block:'start'})};
+jumpTools.onclick=()=>{
+  document.body.classList.toggle('show-tools');
+  const open=document.body.classList.contains('show-tools');
+  jumpTools.textContent=open?'Скрыть инструменты':'Инструменты';
+  if(open){operationsV64.open=true;operationsV64.scrollIntoView({behavior:'smooth',block:'start'})}
+};
+document.getElementById('jumpHistory').onclick=()=>{
+  if(isSimpleUi())document.body.classList.add('show-catalog');
+  document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+};
+uiModeToggle.onclick=()=>applyUiMode(isSimpleUi()?'advanced':'simple');
+hideCatalogSimple.onclick=()=>{document.body.classList.remove('show-catalog');document.getElementById('focusPanel')?.scrollIntoView({behavior:'smooth',block:'start'})};
+toggleExportDetails.onclick=()=>{
+  document.body.classList.toggle('export-details-open');
+  toggleExportDetails.textContent=document.body.classList.contains('export-details-open')?'Скрыть поля':'Показать все поля';
+};
+focusAction.onclick=()=>{
+  const hasPhoto=Boolean(selectedFile||sourceDataUrl);
+  if(!hasPhoto){fileInput.click();return}
+  if(!currentData){analyzeBtn.click();return}
+  if(readinessInfo().percent===100){document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});return}
+  autopilotCurrentProduct();
+};
+document.getElementById('jumpProblems').onclick=()=>document.getElementById('problemCenter').scrollIntoView({behavior:'smooth',block:'start'});
+document.getElementById('jumpAnalytics').onclick=()=>{document.getElementById('analyticsPanel').open=true;document.getElementById('analyticsPanel').scrollIntoView({behavior:'smooth',block:'start'})};
+document.getElementById('autopilotAction').onclick=()=>autopilotCurrentProduct();
+document.getElementById('preflightCheck').onclick=()=>runPreflightCheck();
+errorsOnlyToggle.onclick=()=>{
+  document.body.classList.toggle('publish-errors-only');
+  const active=document.body.classList.contains('publish-errors-only');
+  errorsOnlyToggle.textContent=active?'Показать всё':'Только ошибки';
+  renderPublishIssues();
+};
+document.getElementById('moderationFix').onclick=()=>runModerationFix();
+document.getElementById('bestMainPhoto').onclick=()=>chooseBestMainPhoto();
+document.getElementById('generateVariationMatrix').onclick=()=>generateMatrix();
+document.getElementById('exportSecureProduct').onclick=()=>exportSecureCurrentProduct();
+document.getElementById('importSecureProduct').onclick=()=>document.getElementById('importSecureProductFile').click();
+document.getElementById('importSecureProductFile').addEventListener('change',()=>importSecureProductFileNow(document.getElementById('importSecureProductFile').files?.[0]));
+document.getElementById('saveStoreRules').onclick=()=>{localStorage.setItem(STORE_RULES_KEY,document.getElementById('storeRulesText').value.slice(0,4000));document.getElementById('saveStoreRules').textContent='Сохранено';setTimeout(()=>document.getElementById('saveStoreRules').textContent='Сохранить правила',900)};
+document.getElementById('clearStoreRules').onclick=()=>{localStorage.removeItem(STORE_RULES_KEY);renderStoreRules()};
+document.querySelectorAll('[data-product-jump]').forEach(btn=>btn.onclick=()=>{
+  const id=btn.dataset.productJump;
+  const target=id==='editor'?document.querySelector('.editor'):document.getElementById(id);
+  target?.scrollIntoView({behavior:'smooth',block:'start'});
+});
+dockData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
+dockCards.onclick=()=>document.getElementById('generateAll')?.scrollIntoView({behavior:'smooth',block:'center'});
+dockNext.onclick=()=>focusAction.click();
+dockYuvion.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepPhoto.onclick=()=>document.querySelector('.upload')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
+stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
+
+renderModeSelect.value='free';renderNetworkState();initUiMode();
+renderDesignStudio();syncRenderModeUi();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+</script>
+</body>
+</html>+budget.toFixed(2)+'.'
       :largeQueuePaused&&remaining
         ?'Очередь на паузе. Готово в этой порции: '+success+'. Осталось: '+remaining+'.'
         :autoContinue
