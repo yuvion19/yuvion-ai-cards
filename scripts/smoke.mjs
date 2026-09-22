@@ -116,7 +116,15 @@ const features=[
   ['analysisRetries','analysis retry path'],
   ['reasoning: { effort: "none" }','fast analysis reasoning'],
   ['OPENAI_FAST_MODEL','fast analysis retry model'],
-  ['currentCards.length!==4||cardsStale','stale immediate cards refresh']
+  ['currentCards.length!==4||cardsStale','stale immediate cards refresh'],
+  ['smartBackgroundCutout','smart light-background cutout'],
+  ['enhanceProductSource','adaptive source photo enhancement'],
+  ['makeProductShadow','adaptive product shadow'],
+  ['normalizeRenderAdditionalImages','multi-photo render input'],
+  ['renderSelections = [0, 1, 2, 3]','card-specific source routing'],
+  ['powerLocalRenderer: true','power renderer health metadata'],
+  ['multiPhotoScenes: true','multi-photo health metadata'],
+  ['additionalPhotosForRender','client render-photo payload']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
@@ -145,4 +153,4 @@ if(healthVersion!==pkg.version)fail('package/server version mismatch: '+pkg.vers
 if(process.exitCode)process.exit(process.exitCode);
 
 if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
-if(!server.includes('version: "7.5.2"'))fail('server health version is not 7.5.2');else ok('server health version 7.5.2');
+if(!server.includes('version: "7.6.0'))fail('server health version is not 7.6.0');else ok('server health version 7.6.0');
