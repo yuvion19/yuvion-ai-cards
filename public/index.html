@@ -139,7 +139,7 @@
     .simple-ui .cockpit-tabs,.simple-ui .private-work,.simple-ui .plan,.simple-ui .variations,.simple-ui .mode-row{display:none!important}
     .simple-ui .cockpit-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.simple-ui .cockpit-grid .cockpit-stat:nth-child(n+4){display:none}
     .simple-ui #moderationFix,.simple-ui #exportSecureProduct,.simple-ui #saveRevision{display:none!important}
-    .simple-ui .advanced-only-block,.simple-ui .advanced-only-inline{display:none!important}
+    .simple-ui .advanced-only-block,.simple-ui .advanced-only-inline{display:none!important}.simple-ui .advanced-only-block.force-visible{display:flex!important}
     .simple-ui .editor{padding:20px}.simple-ui .editor-sub{margin-bottom:12px}.simple-ui .form-grid{grid-template-columns:1fr 1fr}
     .simple-ui #yuvionExportGrid,.simple-ui .export-tip{display:none}.simple-ui.export-details-open #yuvionExportGrid{display:grid}.simple-ui.export-details-open .export-tip{display:block}
     .simple-ui .helper-box{background:#F8FBFC}.simple-ui .export-head h2{font-size:23px}.simple-ui .yuvion-export{margin-top:14px;padding:20px}
@@ -1674,11 +1674,16 @@ function nextActionForItem(item,allItems=[]){
 
   const d=item.data||{};
   const x=item.extraData||d.confirmedData||{};
+  const brand=x.brand||storedCharValue(d,'Бренд');
   const sku=skuOfStoredItem(item);
   if(!sku||duplicateSkuInCatalog(item,allItems))return {key:'sku',label:'Проверить SKU'};
   if(!d.category||!categoryValidity(d.category).valid)return {key:'category',label:'Выбрать категорию'};
+  if(!brand)return {key:'brand',label:'Указать бренд'};
+  if(!(d.fullDescription||d.shortDescription))return {key:'description',label:'Проверить описание'};
+  if(duplicateCharacteristicNames(d).length)return {key:'specs',label:'Исправить характеристики'};
   const p1=moneyNumber(x.price1||x.price),p2=moneyNumber(x.price2),p3=moneyNumber(x.price3);
   if(!(p1>0&&p2>0&&p2<=p1&&p3>0&&p3<=p2))return {key:'price',label:'Заполнить цены'};
+  if(x.oldPrice&&moneyNumber(x.oldPrice)<=p1)return {key:'oldPrice',label:'Проверить старую цену'};
   const barcode=barcodeOfStoredItem(item);
   if(barcode&&(!validateEan(barcode).valid||duplicateBarcodeInCatalog(item,allItems)))return {key:'sku',label:'Проверить штрихкод'};
   if(!Array.isArray(item.cards)||item.cards.length!==4)return {key:'cards',label:'Создать карточки'};
@@ -1982,6 +1987,7 @@ function markAdvancedFields(){
 function isSimpleUi(){return document.body.classList.contains('simple-ui')}
 function applyUiMode(mode,{save=true}={}){
   const simple=mode!=='advanced';
+  document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
   document.body.classList.toggle('simple-ui',simple);
   if(!simple){document.body.classList.remove('show-catalog','export-details-open')}
   if(uiModeToggle)uiModeToggle.textContent=simple?'Расширенный режим':'Простой режим';
@@ -2827,6 +2833,7 @@ document.getElementById('copyText').onclick=async()=>{
 document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
+  document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
   selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderRevisionList();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
@@ -4267,7 +4274,26 @@ async function autopilotCurrentProduct(){
     return;
   }
   if(action.key==='category'){editor.category.scrollIntoView({behavior:'smooth',block:'center'});editor.category.focus();return}
-  if(action.key==='price'){extraDataBox.open=true;extraFields.price1.scrollIntoView({behavior:'smooth',block:'center'});extraFields.price1.focus();return}
+  if(action.key==='brand'){extraDataBox.open=true;extraFields.brand.scrollIntoView({behavior:'smooth',block:'center'});extraFields.brand.focus();return}
+  if(action.key==='description'){editor.full.scrollIntoView({behavior:'smooth',block:'center'});editor.full.focus();return}
+  if(action.key==='specs'){editor.specs.scrollIntoView({behavior:'smooth',block:'center'});editor.specs.focus();return}
+  if(action.key==='oldPrice'){
+    extraDataBox.open=true;
+    extraFields.oldPrice.closest('.advanced-only-block')?.classList.add('force-visible');
+    extraFields.oldPrice.scrollIntoView({behavior:'smooth',block:'center'});extraFields.oldPrice.focus();return;
+  }
+  if(action.key==='price'){
+    extraDataBox.open=true;
+    const p1=moneyNumber(extraFields.price1.value),p2=moneyNumber(extraFields.price2.value),p3=moneyNumber(extraFields.price3.value);
+    if(p1>0&&(!(p2>0&&p2<=p1)||!(p3>0&&p3<=p2))){
+      const defaults=loadSellerDefaults();
+      setWholesalePreset(Number(defaults.discount2??5),Number(defaults.discount3??10));
+      renderYuvionExport();renderProductCockpit();
+      const retry=nextActionForItem(currentPseudoItemV6(),[]);
+      if(retry.key!=='price'){renderFocusPanel();return}
+    }
+    extraFields.price1.scrollIntoView({behavior:'smooth',block:'center'});extraFields.price1.focus();return;
+  }
   if(action.key==='cards'){
     currentMode='full';document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode==='full'));syncModeUi();
     generateAll.scrollIntoView({behavior:'smooth',block:'center'});generateAll.click();return;
