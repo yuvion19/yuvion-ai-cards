@@ -310,6 +310,7 @@ app.get("/m/reminders", (_req,res) => {
       <label>Время отправки</label>
       <input id="remTime" class="field" type="time" value="09:00">
       <p class="muted">Время применяется в часовом поясе вашего устройства.</p>
+      <div class="check"><input id="urgentAlerts" type="checkbox"><span><b>Срочные похоронные объявления</b><br><span class="muted">Получать однократное уведомление сразу после одобрения срочного объявления.</span></span></div>
     </div>
 
     <div class="card">
@@ -388,7 +389,7 @@ app.get("/m/reminders", (_req,res) => {
         const d=await r.json(); if(!d)return;
         const last=d.last_delivery||{},names={push:"Push",email:"Email",telegram:"Telegram",whatsapp:"WhatsApp",sms:"SMS"};
         const rows=Object.keys(names).map(k=>names[k]+": "+(last[k]?new Date(last[k]).toLocaleString("ru-RU"):"ещё не отправлялось"));
-        document.getElementById("deviceDelivery").innerHTML=rows.join("<br>")+"<br>Время отправки: "+(d.reminder_time||"09:00");
+        document.getElementById("deviceDelivery").innerHTML=rows.join("<br>")+"<br>Время отправки: "+(d.reminder_time||"09:00")+"<br>Срочные похоронные объявления: "+(d.urgent_alerts?"включены":"выключены");
         document.getElementById("deviceDeliveryCard").style.display="block";
       }catch{}
     }
@@ -452,7 +453,8 @@ app.get("/m/reminders", (_req,res) => {
         telegram_value:document.getElementById("remTelegram").value.trim(),
         whatsapp_value:normPhone(document.getElementById("remWhatsapp").value),
         sms_value:normPhone(document.getElementById("remSms").value),
-        reminder_time:document.getElementById("remTime").value||"09:00"
+        reminder_time:document.getElementById("remTime").value||"09:00",
+        urgent_alerts:document.getElementById("urgentAlerts").checked
       };
     }
     function restore(){
@@ -470,6 +472,7 @@ app.get("/m/reminders", (_req,res) => {
         document.getElementById("remWhatsapp").value=x.whatsapp_value||"";
         document.getElementById("remSms").value=x.sms_value||"";
         document.getElementById("remTime").value=x.reminder_time||"09:00";
+        document.getElementById("urgentAlerts").checked=Boolean(x.urgent_alerts);
       }catch{}
     }
     async function save(){
@@ -487,6 +490,7 @@ app.get("/m/reminders", (_req,res) => {
           locale:navigator.language||"ru",
           reminder_days:x.days,
           reminder_time:x.reminder_time,
+          urgent_alerts:x.urgent_alerts,
           push_enabled:x.push,
           email:x.email_value||null,email_enabled:x.email,
           telegram_chat_id:x.telegram_value||null,telegram_enabled:x.telegram,
@@ -1904,6 +1908,7 @@ app.post("/api/reminders/subscribe", rateLimit("reminder-subscribe",12,60*60*100
         p_sms_phone:smsPhone||null,p_sms_enabled:smsEnabled
       }
     });
+    await sb("rpc/memorial_reminder_set_urgent",{method:"POST",body:{p_device_token:token,p_enabled:Boolean(b.urgent_alerts)}});
     const p=reminderProviderStatus(),waiting=[];
     if(pushEnabled&&!p.push)waiting.push("Push");
     if(emailEnabled&&!p.email)waiting.push("Email");
@@ -2002,7 +2007,7 @@ async function logDelivery(item, channel, result) {
   });
 }
 function notificationText(item) {
-  const when = item.reminder_days === 0 ? "сегодня" : item.reminder_days === 1 ? "завтра" : "через " + item.reminder_days + " дн.";
+  const when = item.reminder_days === -1 ? "срочное объявление" : item.reminder_days === 0 ? "сегодня" : item.reminder_days === 1 ? "завтра" : "через " + item.reminder_days + " дн.";
   return { title: item.event_type + " — " + when, body: item.full_name + " · " + item.event_date + (item.place ? " · " + item.place : "") };
 }
 async function sendEmailAddress(address, text) {
@@ -2083,8 +2088,11 @@ async function runNotificationCycle() {
   if (notificationCycleRunning || !ADMIN_TOKEN) return;
   notificationCycleRunning = true;
   try {
-    const due = await sb("rpc/memorial_due_notifications", { method: "POST", body: { p_token: ADMIN_TOKEN, p_now: new Date().toISOString() } });
-    for (const item of due || []) {
+    const nowIso=new Date().toISOString();
+    const regular = await sb("rpc/memorial_due_notifications", { method: "POST", body: { p_token: ADMIN_TOKEN, p_now: nowIso } });
+    const urgent = await sb("rpc/memorial_due_urgent_notifications", { method: "POST", body: { p_token: ADMIN_TOKEN, p_now: nowIso } });
+    const due=[...(regular||[]),...(urgent||[])];
+    for (const item of due) {
       const text = notificationText(item);
       const run=async(channel,fn)=>{
         try{
