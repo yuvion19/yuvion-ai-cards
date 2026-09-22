@@ -473,6 +473,30 @@ function normalizeDesignVariant(value, card) {
   return Math.abs(hash) % 4;
 }
 
+function normalizeComposition(raw) {
+  const data = raw && typeof raw === "object" ? raw : {};
+  return {
+    scale: Math.max(0.78, Math.min(1.22, Number(data.scale) || 1)),
+    shiftX: Math.max(-110, Math.min(110, Math.round(Number(data.shiftX) || 0))),
+    shiftY: Math.max(-110, Math.min(110, Math.round(Number(data.shiftY) || 0)))
+  };
+}
+
+function adjustedFreeLayout(index, composition = {}) {
+  const base = freeSceneLayouts[index] || freeSceneLayouts[0];
+  const tune = normalizeComposition(composition);
+  const width = Math.round(base.width * tune.scale);
+  const height = Math.round(base.height * tune.scale);
+  const x = Math.round(base.x - (width - base.width) / 2 + tune.shiftX);
+  const y = Math.round(base.y - (height - base.height) / 2 + tune.shiftY);
+  return {
+    x: Math.max(-80, Math.min(880 - Math.max(80, width * 0.2), x)),
+    y: Math.max(-80, Math.min(1120 - Math.max(80, height * 0.2), y)),
+    width,
+    height
+  };
+}
+
 function normalizeExtraData(raw) {
   const data = raw && typeof raw === "object" ? raw : {};
   const price1 = compact(data.price1 || data.price || "", 80);
@@ -1126,7 +1150,8 @@ app.get("/api/health", (_req, res) => {
     designEngine: {
       paletteFromProduct: true,
       categoryThemes: Object.keys(styleProfiles).length,
-      layoutVariants: 4
+      layoutVariants: 4,
+      manualComposition: true
     },
     imageRendering: {
       defaultMode: "free",
@@ -1708,8 +1733,8 @@ async function edgeWhiteCutout(sourceBuffer, layout) {
     .toBuffer();
 }
 
-async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], designVariant = 0) {
-  const layout = freeSceneLayouts[index] || freeSceneLayouts[0];
+async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], designVariant = 0, composition = {}) {
+  const layout = adjustedFreeLayout(index, composition);
   let product;
   try {
     product = await edgeWhiteCutout(sourceBuffer, layout);
@@ -1975,7 +2000,7 @@ app.post("/api/generate-cards", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = cardRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0 } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0, composition = {} } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? cardRequestsByIp : freeCardRequestsByIp;
 
@@ -2005,6 +2030,7 @@ app.post("/api/generate-cards", async (req, res) => {
     const suppliedPalette = normalizePalette(palette);
     const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
     const variant = normalizeDesignVariant(designVariant, normalized);
+    const renderComposition = normalizeComposition(composition);
     let scenes = [];
 
     if (mode === "ai") {
@@ -2020,7 +2046,7 @@ app.post("/api/generate-cards", async (req, res) => {
       stats.aiSceneRenders += 4;
       stats.estimatedImageOutputUsd += 4 * IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey, renderPalette, variant)));
+      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey, renderPalette, variant, renderComposition)));
       stats.freeSceneRenders += 4;
     }
 
@@ -2051,6 +2077,7 @@ app.post("/api/generate-cards", async (req, res) => {
       aiImageCalls: mode === "ai" ? 4 : 0,
       palette: renderPalette,
       designVariant: variant,
+      composition: renderComposition,
       description: descriptionText(normalized)
     });
   } catch (error) {
@@ -2063,7 +2090,7 @@ app.post("/api/regenerate-card", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = regenRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0 } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0, composition = {} } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? regenRequestsByIp : freeRegenRequestsByIp;
 
@@ -2095,6 +2122,7 @@ app.post("/api/regenerate-card", async (req, res) => {
     const suppliedPalette = normalizePalette(palette);
     const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
     const variant = normalizeDesignVariant(designVariant, normalized);
+    const renderComposition = normalizeComposition(composition);
     let scene;
 
     if (mode === "ai") {
@@ -2103,7 +2131,7 @@ app.post("/api/regenerate-card", async (req, res) => {
       stats.aiSceneRenders += 1;
       stats.estimatedImageOutputUsd += IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey, renderPalette, variant);
+      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey, renderPalette, variant, renderComposition);
       stats.freeSceneRenders += 1;
     }
 
@@ -2129,7 +2157,8 @@ app.post("/api/regenerate-card", async (req, res) => {
       renderMode: mode,
       aiImageCalls: mode === "ai" ? 1 : 0,
       palette: renderPalette,
-      designVariant: variant
+      designVariant: variant,
+      composition: renderComposition
     });
   } catch (error) {
     console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
