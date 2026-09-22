@@ -1328,6 +1328,8 @@ app.get("/api/health", (_req, res) => {
       designEngineV5: true,
       fullSeriesChooser: true,
       autoSeriesRegeneration: true,
+      localVisualQaV2: true,
+      entropyAndContrastChecks: true,
       darkWorkbench: true,
       wideWorkbench: true,
       manualComposition: true
@@ -1585,6 +1587,28 @@ const qualityCheckSchema = {
   }
 };
 
+async function localCardVisualMetrics(buffer) {
+  const image = sharp(buffer, { failOn: "error" });
+  const [meta, statsResult] = await Promise.all([image.metadata(), image.stats()]);
+  const channels = Array.isArray(statsResult.channels) ? statsResult.channels.slice(0, 3) : [];
+  const means = channels.map((channel) => Number(channel.mean || 0));
+  const stdevs = channels.map((channel) => Number(channel.stdev || 0));
+  const luminance = means.length >= 3
+    ? 0.2126 * means[0] + 0.7152 * means[1] + 0.0722 * means[2]
+    : (means.reduce((sum, value) => sum + value, 0) / Math.max(1, means.length));
+  const contrast = stdevs.reduce((sum, value) => sum + value, 0) / Math.max(1, stdevs.length);
+  return {
+    width: Number(meta.width || 0),
+    height: Number(meta.height || 0),
+    format: String(meta.format || ""),
+    sizeBytes: buffer.length,
+    luminance,
+    contrast,
+    entropy: Number(statsResult.entropy || 0),
+    sharpness: Number(statsResult.sharpness || 0)
+  };
+}
+
 async function makeQualityPreview(base64) {
   return sharp(Buffer.from(base64, "base64"))
     .resize(480, 640, { fit: "inside", withoutEnlargement: true })
@@ -1605,34 +1629,64 @@ app.post("/api/quality-check", async (req, res) => {
 
     const previews = [];
     const deterministicIssues = Array.from({ length: 4 }, () => []);
+    const deterministicWarnings = Array.from({ length: 4 }, () => []);
+    const localMetrics = [];
     for (let i = 0; i < 4; i += 1) {
       if (!cards[i] || typeof cards[i].base64 !== "string") {
         return res.status(400).json({ error: "Одна из карточек повреждена." });
       }
       const buffer = Buffer.from(cards[i].base64, "base64");
-      const meta = await sharp(buffer).metadata();
-      if (Number(meta.width) !== 900 || Number(meta.height) !== 1200) {
+      const metrics = await localCardVisualMetrics(buffer);
+      localMetrics.push(metrics);
+      if (metrics.width !== 900 || metrics.height !== 1200) {
         deterministicIssues[i].push("Неверный размер изображения: требуется 900×1200 px.");
+      }
+      if (!["png", "jpeg", "webp"].includes(metrics.format)) {
+        deterministicIssues[i].push("Файл карточки имеет неподдерживаемый или повреждённый формат.");
+      }
+      if (metrics.sizeBytes < 12_000) {
+        deterministicIssues[i].push("Файл карточки подозрительно мал и может быть пустым или повреждённым.");
+      }
+      if (metrics.luminance < 14) {
+        deterministicIssues[i].push("Карточка почти полностью тёмная.");
+      } else if (metrics.luminance > 250) {
+        deterministicIssues[i].push("Карточка почти полностью белая или пересвеченная.");
+      }
+      if (metrics.entropy > 0 && metrics.entropy < 0.85) {
+        deterministicIssues[i].push("На карточке слишком мало визуальной информации — возможен пустой рендер.");
+      } else if (metrics.entropy > 0 && metrics.entropy < 1.45) {
+        deterministicWarnings[i].push("Карточка выглядит очень однотонной; стоит проверить товар в уменьшенном виде.");
+      }
+      if (metrics.contrast < 7) {
+        deterministicWarnings[i].push("Очень низкий локальный контраст; мелкий текст или границы товара могут читаться хуже.");
       }
       const thumb = await makeQualityPreview(cards[i].base64);
       previews.push("data:image/jpeg;base64," + thumb.toString("base64"));
     }
 
     if (localOnly) {
-      const cardsResult = deterministicIssues.map((issues, index) => ({
-        index,
-        status: issues.length ? "Переделать" : "OK",
-        issues,
-        needsRegeneration: issues.length > 0
-      }));
+      const cardsResult = deterministicIssues.map((hardIssues, index) => {
+        const warnings = deterministicWarnings[index] || [];
+        const issues = [...hardIssues, ...warnings];
+        return {
+          index,
+          status: hardIssues.length ? "Переделать" : warnings.length ? "Замечание" : "OK",
+          issues,
+          warnings,
+          metrics: localMetrics[index],
+          needsRegeneration: hardIssues.length > 0
+        };
+      });
       const failures = cardsResult.filter((item) => item.needsRegeneration).length;
+      const warningsCount = cardsResult.filter((item) => !item.needsRegeneration && item.warnings.length).length;
       stats.qualityChecks += 1;
       stats.qualityFailures += failures;
       return res.json({
-        overall: failures ? "Нужно исправить" : "Отлично",
+        overall: failures ? "Нужно исправить" : warningsCount ? "Есть замечания" : "Отлично",
         cards: cardsResult,
         local: true,
-        note: "Бесплатная локальная проверка: размеры, формат и целостность файлов. Генеративная AI-проверка не вызывалась."
+        visualQaVersion: 2,
+        note: "Бесплатная локальная QA v2: размер, формат, целостность, яркость, контраст и визуальная информативность. Платный vision/image API не вызывается."
       });
     }
 
@@ -1688,14 +1742,20 @@ app.post("/api/quality-check", async (req, res) => {
 
     parsed.cards = parsed.cards.map((item, index) => {
       const extraIssues = deterministicIssues[index] || [];
-      const issues = [...new Set([...(Array.isArray(item.issues) ? item.issues : []), ...extraIssues])].slice(0, 12);
+      const localWarnings = deterministicWarnings[index] || [];
+      const issues = [...new Set([...(Array.isArray(item.issues) ? item.issues : []), ...extraIssues, ...localWarnings])].slice(0, 12);
       const needsRegeneration = Boolean(item.needsRegeneration || extraIssues.length);
+      const status = needsRegeneration
+        ? "Переделать"
+        : (item.status === "OK" && localWarnings.length ? "Замечание" : item.status);
       return {
         ...item,
         index,
         issues,
+        localWarnings,
+        localMetrics: localMetrics[index],
         needsRegeneration,
-        status: needsRegeneration ? "Переделать" : item.status
+        status
       };
     });
     if (parsed.cards.some((x) => x.needsRegeneration)) parsed.overall = "Нужно исправить";

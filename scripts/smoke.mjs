@@ -149,7 +149,11 @@ const features=[
   ['fullSeriesChooser: true','full series chooser health metadata'],
   ['autoSeriesRegeneration: true','series auto-regeneration metadata'],
   ['markCardsStale([0,1,2,3])','series forces full-card refresh'],
-  ['Power Render v5','current renderer UI marker']
+  ['Power Render v5','current renderer UI marker'],
+  ['localCardVisualMetrics','local visual QA metrics'],
+  ['visualQaVersion: 2','local QA v2 response'],
+  ['localVisualQaV2: true','local visual QA v2 health metadata'],
+  ['entropyAndContrastChecks: true','entropy and contrast QA metadata']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
