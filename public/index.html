@@ -2236,6 +2236,7 @@ function moderationChecks(){
     {label:'Старая цена выше текущей или пустая',ok:!x.oldPrice||old>p1,target:'extraOldPrice',extra:true},
     {label:'Характеристики без дублей',ok:dupes.length===0,target:'edSpecs'},
     {label:'Технические факты подтверждены',ok:factBlockers(d).length===0,target:'factSourcesPanel'},
+    {label:'Обязательные поля категории заполнены',ok:missingCategoryRequiredSpecs(d).length===0,target:'edSpecs'},
     {label:'Изображения соответствуют текущим данным',ok:!cardsStale,target:'generateAll'},
     {label:'Нет известных критических ошибок изображений',ok:knownQaBlockers().length===0,target:'creative'},
     ...(variationValidation().enabled?[
@@ -3200,6 +3201,37 @@ function storedFactBlockers(item){
   return (d.characteristics||[]).filter(spec=>isTechnicalFactName(spec.name)&&!['Продавец','Маркировка'].includes(sourceFor(spec)));
 }
 
+function missingCategoryRequiredSpecs(data){
+  const d=data||{};
+  const rule=categoryRuleFor(d.category);
+  const required=Array.isArray(rule?.requiredSpecs)?rule.requiredSpecs:[];
+  if(!required.length)return [];
+  const byName=new Map((d.characteristics||[]).map(x=>[normalizedFactText(x.name),String(x.value||'').trim()]));
+  return required.filter(name=>!byName.get(normalizedFactText(name)));
+}
+
+function normalizedTitleTokens(value){
+  return [...new Set(String(value||'').toLocaleLowerCase('ru').replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/g,' ').split(/\s+/).filter(x=>x.length>2))];
+}
+function titleSimilarity(a,b){
+  const A=new Set(normalizedTitleTokens(a)),B=new Set(normalizedTitleTokens(b));
+  if(A.size<2||B.size<2)return 0;
+  let inter=0;for(const x of A)if(B.has(x))inter++;
+  const union=new Set([...A,...B]).size;
+  return union?inter/union:0;
+}
+function similarCatalogProduct(item,allItems=[]){
+  const title=item?.data?.seoTitle||item?.title||'';
+  let best=null,bestScore=0;
+  for(const other of allItems){
+    if(!other||other.id===item?.id)continue;
+    let score=titleSimilarity(title,other?.data?.seoTitle||other?.title||'');
+    if(item?.photoHash&&other.photoHash&&hammingHex(item.photoHash,other.photoHash)<=5)score=Math.max(score,.96);
+    if(score>bestScore){bestScore=score;best=other}
+  }
+  return bestScore>=.78?{item:best,score:bestScore}:null;
+}
+
 function storedQaBlockers(item){
   return Array.isArray(item?.quality?.cards)?item.quality.cards.filter(x=>Boolean(x?.needsRegeneration)):[];
 }
@@ -3230,6 +3262,7 @@ function storedReadiness(item){
     barcodeOk,
     duplicateCharacteristicNames(d).length===0,
     storedFactBlockers(item).length===0,
+    missingCategoryRequiredSpecs(d).length===0,
     storedQaBlockers(item).length===0,
     !item?.cardsStale,
     Array.isArray(item?.cards)&&item.cards.length===4
@@ -4245,11 +4278,13 @@ async function importRuleRows(rows,filename='правила'){
     const category=pickImported(record,['категория','category','раздел']);
     if(!category)continue;
     const specs=parseSpecNames(pickImported(record,['шаблон характеристик','характеристики шаблон','spec template','характеристики']));
+    const requiredSpecs=parseSpecNames(pickImported(record,['обязательные характеристики','обязательные поля','required specs','required fields']));
     const skuPrefix=pickImported(record,['префикс sku','sku prefix','префикс артикула']);
     const style=normalizeStyleRule(pickImported(record,['стиль карточек','стиль','style']));
     const rule={
       category:category.slice(0,180),
       specs,
+      requiredSpecs,
       skuPrefix:String(skuPrefix||'').slice(0,32),
       style,
       source:String(filename||'правила').slice(0,120),
@@ -4261,7 +4296,7 @@ async function importRuleRows(rows,filename='правила'){
   saveCategoryRules([...byCategory.values()]);
   renderSpecTemplateHint();
   importNote.className='import-note show';
-  importNote.textContent='Импортировано локальных правил категорий: '+imported+'. Правила могут задавать шаблон характеристик, префикс SKU и стиль карточек. Ценовые формулы не импортируются.';
+  importNote.textContent='Импортировано локальных правил категорий: '+imported+'. Правила могут задавать шаблон и обязательные характеристики, префикс SKU и стиль карточек. Ценовые формулы не импортируются.';
 }
 
 async function importRulesFileNow(file){
@@ -4460,7 +4495,7 @@ async function processExcelAutopilotItem(item,style){
   const analysisFp=await analysisFingerprintForItem(item);
   let analyzed=null,analysisFromCache=false;
   if(item.analysisCache?.fingerprint===analysisFp&&item.analysisCache?.data){
-    analyzed=structuredClone?structuredClone(item.analysisCache.data):JSON.parse(JSON.stringify(item.analysisCache.data));
+    analyzed=typeof structuredClone==='function'?structuredClone(item.analysisCache.data):JSON.parse(JSON.stringify(item.analysisCache.data));
     analysisFromCache=true;
   }else{
     const analyze=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,mode:'full',extraData,additionalImages})});
@@ -4590,6 +4625,11 @@ async function refreshDiagnosticsNow(allItems=null){
   const queue=excelQueueItems(all);
   const cached=all.filter(x=>Boolean(x.analysisCache)).length;
   const errors=all.filter(x=>x?.excelAutopilot?.state==='error').length;
+  const similarPairs=new Set();
+  for(const item of all){
+    const hit=similarCatalogProduct(item,all);
+    if(hit)similarPairs.add([item.id,hit.item.id].sort().join('|'));
+  }
   opsQueueValue.textContent=String(queue.length);
   opsCacheValue.textContent=String(cached);
   opsErrorValue.textContent=String(errors);
@@ -4609,7 +4649,8 @@ async function refreshDiagnosticsNow(allItems=null){
   diagnosticList.innerHTML=[
     ['Версия приложения','6.4.0'],['IndexedDB товаров',String(all.length)+' / '+CATALOG_LIMIT],
     ['Хранилище',storageText+' из '+quotaText],['localStorage',Math.round(lsBytes/1024)+' КБ'],
-    ['PWA Service Worker',sw],['AI-очередь',queue.length?queue.length+' ожидают':'пусто']
+    ['PWA Service Worker',sw],['AI-очередь',queue.length?queue.length+' ожидают':'пусто'],
+    ['Похожие товары',similarPairs.size?String(similarPairs.size):'не найдено']
   ].map(x=>'<div class="diagnostic-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('');
   const state=loadLargeQueueState();
   queueResumeNote.classList.toggle('show',Boolean(state.pending));
@@ -5099,6 +5140,10 @@ function productProblems(item,allItems=[]){
   if(Array.isArray(d.needsClarification)&&d.needsClarification.length)out.push({key:'clarify',label:'Есть неподтверждённые данные',detail:d.needsClarification.slice(0,2).join(' · ')});
   const factIssues=storedFactBlockers(item);
   if(factIssues.length)out.push({key:'facts',label:'Технические факты без подтверждения',detail:factIssues.slice(0,3).map(x=>x.name).join(', '),bad:true});
+  const requiredMissing=missingCategoryRequiredSpecs(d);
+  if(requiredMissing.length)out.push({key:'category-fields',label:'Не заполнены обязательные поля категории',detail:requiredMissing.slice(0,4).join(', '),bad:true});
+  const similar=similarCatalogProduct(item,allItems);
+  if(similar&&!duplicateSkuInCatalog(item,allItems)&&!duplicateBarcodeInCatalog(item,allItems))out.push({key:'similar',label:'Похожий товар в каталоге',detail:(similar.item?.title||similar.item?.data?.seoTitle||'другой товар')+' · сходство '+Math.round(similar.score*100)+'%',bad:false});
   if(item.cardsStale)out.push({key:'cards',label:'Изображения устарели',detail:'Данные товара менялись после генерации карточек.',bad:true});
   const qaProblems=storedQaBlockers(item);
   if(qaProblems.length)out.push({key:'cards',label:'QA изображений нашёл блокеры',detail:qaProblems.slice(0,2).flatMap(x=>x.issues||[]).slice(0,2).join(' · ')||'Нужно проверить готовые изображения.',bad:true});
