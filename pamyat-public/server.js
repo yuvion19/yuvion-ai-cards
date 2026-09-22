@@ -4425,11 +4425,23 @@ async function runMaintenanceCycle(){
   if(maintenanceRunning||!ADMIN_TOKEN)return;maintenanceRunning=true;
   try{
     const now=new Date(),year=now.getUTCFullYear();
-    const [published,annual]=await Promise.all([
+    const [published,annual,list]=await Promise.all([
       sb("rpc/memorial_admin_publish_due",{method:"POST",body:{p_token:ADMIN_TOKEN,p_now:now.toISOString()}}),
-      sb("rpc/memorial_admin_ensure_annual",{method:"POST",body:{p_token:ADMIN_TOKEN,p_year:year}})
+      sb("rpc/memorial_admin_ensure_annual",{method:"POST",body:{p_token:ADMIN_TOKEN,p_year:year}}),
+      sb("rpc/memorial_admin_events_list",{method:"POST",body:{p_token:ADMIN_TOKEN,p_status:"approved",p_query:"",p_limit:500}})
     ]);
-    if(Number(published||0)||Number(annual||0))console.log("maintenance",JSON.stringify({published,annual}));
+    const seen=new Set();let yahrzeitCreated=0;
+    for(const e of list?.rows||[]){
+      if(!e.death_date||!["standard","adar_i","adar_ii"].includes(e.yahrzeit_rule||"standard"))continue;
+      const k=String(e.full_name||"").toLowerCase()+"|"+e.death_date;if(seen.has(k))continue;seen.add(k);
+      const source=e.hebrew_after_sunset?addDays(e.death_date,1):e.death_date;
+      const target=nextYahrzeit(source,now,e.yahrzeit_rule||"standard");if(!target)continue;
+      const r=await sb("rpc/memorial_admin_ensure_yahrzeit",{method:"POST",body:{
+        p_token:ADMIN_TOKEN,p_anchor_id:e.id,p_event_date:target,p_hebrew_label:hebrewLabel(target)
+      }});
+      if(r?.created)yahrzeitCreated++;
+    }
+    if(Number(published||0)||Number(annual||0)||yahrzeitCreated)console.log("maintenance",JSON.stringify({published,annual,yahrzeitCreated}));
   }catch(e){console.error("maintenance",e.data||e)}
   finally{maintenanceRunning=false}
 }
