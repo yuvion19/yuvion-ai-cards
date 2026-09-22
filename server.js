@@ -11,7 +11,8 @@ import net from "node:net";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const AI_ANALYZE_TIMEOUT_MS = 45_000;
+const AI_ANALYZE_TIMEOUT_MS = 24_000;
+const AI_ANALYZE_RETRY_TIMEOUT_MS = 16_000;
 
 async function withTimeout(promise, ms, message = "Операция заняла слишком много времени.") {
   let timer;
@@ -1260,6 +1261,8 @@ app.get("/api/health", (_req, res) => {
     freeImageMode: true,
     freeImageAiCalls: 0,
     analyzeTimeoutSeconds: AI_ANALYZE_TIMEOUT_MS / 1000,
+    analyzeRetryTimeoutSeconds: AI_ANALYZE_RETRY_TIMEOUT_MS / 1000,
+    analyzeFastVision: true,
     designEngine: {
       paletteFromProduct: true,
       categoryThemes: Object.keys(styleProfiles).length,
@@ -1340,18 +1343,19 @@ app.post("/api/analyze", async (req, res) => {
           "Не считай различия освещения, ракурса или упаковки отдельными вариантами товара и не выдумывай характеристики.\n\n" +
           confirmedDataText(extraData)
       },
-      { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "high" }
+      { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "low" }
     ];
     extraViews.forEach((view) => {
-      analyzeContent.push({ type: "input_image", image_url: `data:${view.mimeType};base64,${view.image}`, detail: "high" });
+      analyzeContent.push({ type: "input_image", image_url: `data:${view.mimeType};base64,${view.image}`, detail: "low" });
     });
 
-    const response = await withTimeout(client.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
+    const makeAnalyzeRequest = (content, model, maxOutputTokens) => client.responses.create({
+      model,
+      reasoning: { effort: "none" },
       instructions,
       input: [{
         role: "user",
-        content: analyzeContent
+        content
       }],
       text: {
         format: {
@@ -1361,8 +1365,35 @@ app.post("/api/analyze", async (req, res) => {
           schema: productCardSchema
         }
       },
-      max_output_tokens: 2600
-    }), AI_ANALYZE_TIMEOUT_MS, "AI-анализ превысил 45 секунд.");
+      max_output_tokens: maxOutputTokens
+    });
+
+    let response;
+    try {
+      response = await withTimeout(
+        makeAnalyzeRequest(analyzeContent, process.env.OPENAI_MODEL || "gpt-5.6-luna", 1700),
+        AI_ANALYZE_TIMEOUT_MS,
+        "Первичный AI-анализ превысил 24 секунды."
+      );
+    } catch (firstError) {
+      const retryable = firstError?.code === "operation_timeout" || Number(firstError?.status || 0) >= 500;
+      if (!retryable) throw firstError;
+      stats.analysisRetries = Number(stats.analysisRetries || 0) + 1;
+      const retryContent = [
+        {
+          type: "input_text",
+          text:
+            "Быстро определи товар по фото и заполни карточку Yuvion. Ничего не выдумывай: точные характеристики добавляй только если они читаются на фото или переданы продавцом. " +
+            "Описание сделай продающим, но фактическим. " + confirmedDataText(extraData)
+        },
+        { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "low" }
+      ];
+      response = await withTimeout(
+        makeAnalyzeRequest(retryContent, process.env.OPENAI_FAST_MODEL || "gpt-5.6-luna", 1300),
+        AI_ANALYZE_RETRY_TIMEOUT_MS,
+        "Повторный AI-анализ превысил 16 секунд."
+      );
+    }
 
     recordTextUsage(response);
     const raw = response.output_text;
@@ -1384,7 +1415,7 @@ app.post("/api/analyze", async (req, res) => {
     stats.analysisErrors += 1;
     recordError("analysis", error);
     console.error("AI analyze error:", { message: error?.message, status: error?.status, code: error?.code });
-    if (error?.code === "operation_timeout") return res.status(504).json({ error: "AI-анализ занял слишком много времени. Бесплатные изображения можно создавать без ожидания анализа." });
+    if (error?.code === "operation_timeout") return res.status(504).json({ error: "Не удалось вовремя получить описание и характеристики. Изображения уже готовы; текстовый анализ можно повторить." });
     if (error?.code === "credit_balance_exhausted") return res.status(402).json({ error: "На балансе OpenAI API закончились кредиты." });
     if (error?.status === 401) return res.status(503).json({ error: "AI-ключ недействителен." });
     if (error?.status === 429) return res.status(429).json({ error: "Достигнут лимит OpenAI API. Попробуйте немного позже." });
