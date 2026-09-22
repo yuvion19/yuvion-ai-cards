@@ -2527,6 +2527,17 @@ app.get("/api/events/:eventId/rsvp", rateLimit("rsvp-read",60,60*60*1000), async
     res.setHeader("Cache-Control","no-store");res.json(d);
   }catch(e){res.status(500).json({error:"rsvp_failed"})}
 });
+app.post("/api/events/:eventId/privacy-request", rateLimit("privacy-request",5,24*60*60*1000), async (req,res)=>{
+  try{
+    const contact=clean(req.body?.requester_contact,180),name=clean(req.body?.requester_name,120),details=clean(req.body?.details,1000);
+    if(!contact)return res.status(400).json({error:"contact_required"});
+    const id=await sb("rpc/memorial_privacy_request_create",{method:"POST",body:{
+      p_event_id:req.params.eventId,p_requester_name:name||null,p_requester_contact:contact,p_details:details||null
+    }});
+    res.status(201).json({ok:true,id});
+  }catch(e){res.status(400).json({error:"privacy_request_failed"})}
+});
+
 app.post("/api/events/:eventId/rsvp", rateLimit("rsvp-write",20,60*60*1000), async (req,res)=>{
   try{
     const t=clean(req.body?.device_token,80),response=clean(req.body?.response,20),key=clean(req.body?.key,80);
@@ -3824,6 +3835,87 @@ async function deliverAdminBroadcast(target,e,text,marker){
   return {sent,failed};
 }
 
+app.get("/api/admin/system-status", requireAdmin, async (_req,res)=>{
+  try{
+    const [db,failed,snapshots,events]=await Promise.all([
+      sb("rpc/memorial_selftest",{method:"POST",body:{}}).catch(e=>({ok:false,error:e.message})),
+      sb("rpc/memorial_admin_failed_targets",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:300}}).catch(()=>[]),
+      sb("rpc/memorial_admin_snapshots_list",{method:"POST",body:{p_token:ADMIN_TOKEN}}).catch(()=>[]),
+      sb("rpc/memorial_admin_events_list",{method:"POST",body:{p_token:ADMIN_TOKEN,p_status:"all",p_query:"",p_limit:1}}).catch(()=>({counts:{}}))
+    ]);
+    const p=reminderProviderStatus(),warnings=[];
+    if(!db?.ok)warnings.push("База данных не прошла самопроверку");
+    if(!p.push)warnings.push("Push не настроен");
+    if(!p.email)warnings.push("Email не настроен");
+    if(!p.telegram)warnings.push("Telegram не настроен");
+    if(!p.whatsapp)warnings.push("WhatsApp не настроен");
+    if(!p.sms)warnings.push("SMS не настроен");
+    if((failed||[]).length)warnings.push("Есть неудачные отправки: "+failed.length);
+    if(!(snapshots||[]).length)warnings.push("Нет внутренних снимков базы");
+    res.json({
+      ok:Boolean(db?.ok),database:db,providers:p,
+      offsite_backup:Boolean(BACKUP_WEBHOOK_URL&&BACKUP_WEBHOOK_TOKEN),
+      failed_notifications:(failed||[]).length,
+      last_snapshot:(snapshots||[])[0]||null,
+      event_counts:events?.counts||{},
+      uptime_seconds:Math.round(process.uptime()),warnings
+    });
+  }catch(e){res.status(500).json({error:"system_status_failed"})}
+});
+
+app.post("/api/admin/drafts", requireAdminRole, async (req,res)=>{
+  try{
+    const b=req.body||{},name=clean(b.full_name,180);
+    if(!name)return res.status(400).json({error:"full_name_required"});
+    let publishAt=null;
+    if(b.publish_at){
+      const d=new Date(String(b.publish_at));if(!Number.isFinite(d.getTime()))return res.status(400).json({error:"bad_publish_at"});
+      publishAt=d.toISOString();
+    }
+    const data=await sb("rpc/memorial_admin_create_draft",{method:"POST",body:{
+      p_token:ADMIN_TOKEN,p_full_name:name,p_death_date:validDate(b.death_date)?b.death_date:null,
+      p_event_type:clean(b.event_type,80)||"Памятная дата",p_event_date:validDate(b.event_date)?b.event_date:null,
+      p_event_time:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(b.event_time||""))?b.event_time:null,
+      p_city:clean(b.city,120)||null,p_place:clean(b.place,180)||null,p_note:clean(b.note,1500)||null,
+      p_visibility:["public","link","invited"].includes(b.visibility)?b.visibility:"public",p_publish_at:publishAt
+    }});
+    res.status(201).json(data);
+  }catch(e){console.error("draft create",e.data||e);res.status(500).json({error:"draft_create_failed"})}
+});
+
+app.get("/api/admin/snapshots", requireAdmin, async (_req,res)=>{
+  try{res.json(await sb("rpc/memorial_admin_snapshots_list",{method:"POST",body:{p_token:ADMIN_TOKEN}})||[])}
+  catch(e){res.status(500).json({error:"snapshots_failed"})}
+});
+app.post("/api/admin/snapshots", requireOwner, async (req,res)=>{
+  try{
+    const date=validDate(req.body?.date)?req.body.date:new Date().toISOString().slice(0,10);
+    res.json(await sb("rpc/memorial_admin_snapshot_create",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:date}}));
+  }catch(e){res.status(500).json({error:"snapshot_create_failed"})}
+});
+app.post("/api/admin/snapshots/:date/restore", requireOwner, async (req,res)=>{
+  try{
+    if(req.body?.confirm!=="RESTORE")return res.status(400).json({error:"confirm_restore_required"});
+    res.json(await sb("rpc/memorial_admin_snapshot_restore",{method:"POST",body:{p_token:ADMIN_TOKEN,p_date:req.params.date,p_confirm:"RESTORE"}}));
+  }catch(e){console.error("snapshot restore",e.data||e);res.status(500).json({error:"snapshot_restore_failed"})}
+});
+
+app.get("/api/admin/privacy-requests", requireAdmin, async (_req,res)=>{
+  try{res.json(await sb("rpc/memorial_admin_privacy_requests",{method:"POST",body:{p_token:ADMIN_TOKEN}})||[])}
+  catch(e){res.status(500).json({error:"privacy_requests_failed"})}
+});
+app.post("/api/admin/privacy-requests/:id/:action", requireAdminRole, async (req,res)=>{
+  try{
+    const act=["approve","reject"].includes(req.params.action)?req.params.action:null;
+    if(!act)return res.status(400).json({error:"bad_action"});
+    res.json(await sb("rpc/memorial_admin_privacy_action",{method:"POST",body:{p_token:ADMIN_TOKEN,p_request_id:req.params.id,p_action:act}}));
+  }catch(e){res.status(500).json({error:"privacy_action_failed"})}
+});
+app.post("/api/admin/events/:eventId/redact-personal", requireAdminRole, async (req,res)=>{
+  try{res.json(await sb("rpc/memorial_admin_redact_personal_data",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}}))}
+  catch(e){res.status(500).json({error:"redact_failed"})}
+});
+
 app.get("/api/admin/notification-groups", requireAdmin, async (_req,res)=>{
   try{res.json(await sb("rpc/memorial_admin_groups_list",{method:"POST",body:{p_token:ADMIN_TOKEN}}))}
   catch(e){res.status(500).json({error:"groups_failed"})}
@@ -3867,6 +3959,51 @@ app.post("/api/admin/events/:eventId/broadcast", requireAdminRole, async (req,re
     for(const target of targets){const x=await deliverAdminBroadcast(target,e,text,marker);sent+=x.sent;failed+=x.failed}
     res.json({ok:true,subscriptions:targets.length,sent,failed,groups:d?.groups||groups,mode,only_previous:onlyPrevious});
   }catch(e){console.error("admin broadcast",e.data||e);res.status(500).json({error:"broadcast_failed"})}
+});
+
+app.post("/api/admin/events/:eventId/test-broadcast", requireAdminRole, async (req,res)=>{
+  try{
+    const email=clean(req.adminIdentity?.email,180).toLowerCase();
+    if(!validReminderEmail(email))return res.status(400).json({error:"admin_email_required"});
+    const d=await sb("rpc/memorial_admin_event_detail",{method:"POST",body:{p_token:ADMIN_TOKEN,p_event_id:req.params.eventId}});
+    const e=d?.event;if(!e)return res.status(404).json({error:"not_found"});
+    const mode=req.body?.mode==="update"?"update":"announcement",text=adminBroadcastText(e,mode);
+    text.title="[ТЕСТ] "+text.title;
+    await sendEmailAddress(email,text);
+    res.json({ok:true,channel:"email",to:email});
+  }catch(e){console.error("test broadcast",e.data||e);res.status(500).json({error:"test_broadcast_failed"})}
+});
+
+app.get("/api/admin/notifications/failed", requireAdmin, async (req,res)=>{
+  try{
+    const limit=Math.max(1,Math.min(Number(req.query.limit||100),300));
+    res.json(await sb("rpc/memorial_admin_failed_targets",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:limit}})||[]);
+  }catch(e){res.status(500).json({error:"failed_targets_failed"})}
+});
+app.post("/api/admin/notifications/retry-failed", requireAdminRole, async (req,res)=>{
+  try{
+    const limit=Math.max(1,Math.min(Number(req.body?.limit||100),300));
+    const rows=await sb("rpc/memorial_admin_failed_targets",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:limit}})||[];
+    let sent=0,failed=0;
+    for(const t of rows){
+      const item={...t,timezone:t.timezone||"UTC"};
+      const text=notificationText(item);
+      const run=async(fn)=>{
+        try{const result=await fn();if(result){sent++;await logAttempt(item,t.channel,true,"retry:"+result);await logDelivery(item,t.channel,result)}}
+        catch(err){failed++;await logAttempt(item,t.channel,false,"retry:"+String(err.message||err))}
+      };
+      if(t.channel==="push"&&t.endpoint)await run(async()=>{
+        if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)throw new Error("push_not_configured");
+        await webpush.sendNotification({endpoint:t.endpoint,keys:{p256dh:t.p256dh,auth:t.auth}},JSON.stringify({title:text.title,body:text.body,url:text.url,event_id:t.event_id}),{TTL:86400});return"sent";
+      });
+      else if(t.channel==="email"&&t.email)await run(()=>sendEmailAddress(t.email,text));
+      else if(t.channel==="telegram"&&t.telegram_chat_id)await run(()=>telegramSend(t.telegram_chat_id,text.title+"\n"+text.body+"\n"+text.url));
+      else if(t.channel==="whatsapp"&&t.whatsapp_phone)await run(()=>whatsappSend(t.whatsapp_phone,text));
+      else if(t.channel==="sms"&&t.sms_phone)await run(()=>smsSend(t.sms_phone,text));
+      else failed++;
+    }
+    res.json({ok:true,targets:rows.length,sent,failed});
+  }catch(e){console.error("retry failed",e.data||e);res.status(500).json({error:"retry_failed"})}
 });
 
 app.get("/api/admin/notifications", requireAdmin, async (req,res) => {
