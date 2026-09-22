@@ -1361,15 +1361,31 @@ function requireRoles(...roles){
 const requireOwner=requireRoles("owner");
 const requireAdminRole=requireRoles("owner","admin");
 
-function adminPasswordOk(user,password){
-  if(!ADMIN_LOGIN_USER||!ADMIN_LOGIN_SALT||!ADMIN_LOGIN_PASSWORD_HASH)return false;
-  if(String(user||"").trim().toLowerCase()!==ADMIN_LOGIN_USER.trim().toLowerCase())return false;
+function securePasswordCompare(password,salt,expectedHash){
+  if(!salt||!expectedHash)return false;
   try{
-    const got=crypto.scryptSync(String(password||""),ADMIN_LOGIN_SALT,64).toString("hex");
-    const expected=ADMIN_LOGIN_PASSWORD_HASH.trim().toLowerCase();
+    const got=crypto.scryptSync(String(password||""),String(salt),64).toString("hex");
+    const expected=String(expectedHash).trim().toLowerCase();
     if(got.length!==expected.length)return false;
     return crypto.timingSafeEqual(Buffer.from(got,"hex"),Buffer.from(expected,"hex"));
   }catch{return false}
+}
+async function adminPasswordIdentity(user,password){
+  const email=String(user||"").trim().toLowerCase();
+  if(!email||!password)return null;
+
+  if(ADMIN_LOGIN_USER && email===ADMIN_LOGIN_USER.trim().toLowerCase() &&
+     securePasswordCompare(password,ADMIN_LOGIN_SALT,ADMIN_LOGIN_PASSWORD_HASH)){
+    const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
+    return allowed?.allowed?allowed:null;
+  }
+
+  const record=await sb("rpc/memorial_admin_password_record",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
+  if(!record?.found||!record.active||!securePasswordCompare(password,record.password_salt,record.password_hash))return null;
+  return {
+    allowed:true,email:record.email,role:record.role,session_version:record.session_version,
+    display_name:record.display_name||null
+  };
 }
 
 async function sb(pathname, { method = "GET", body, prefer } = {}) {
@@ -2364,12 +2380,11 @@ app.post("/api/admin/auth/password", rateLimit("admin-password-login",8,15*60*10
   try{
     const user=clean(req.body?.user,180).toLowerCase();
     const password=String(req.body?.password||"");
-    if(!adminPasswordOk(user,password))return res.status(401).json({error:"invalid_login"});
-    const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:user}});
-    if(!allowed?.allowed)return res.status(403).json({error:"admin_not_allowed"});
-    const cookie=adminSessionSign(user,allowed.role||"admin",allowed.session_version||1);
+    const identity=await adminPasswordIdentity(user,password);
+    if(!identity?.allowed)return res.status(401).json({error:"invalid_login"});
+    const cookie=adminSessionSign(identity.email,identity.role||"moderator",identity.session_version||1);
     res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
-    res.json({ok:true,email:user,role:allowed.role||"admin",provider:"password"});
+    res.json({ok:true,email:identity.email,role:identity.role||"moderator",display_name:identity.display_name||null,provider:"password"});
   }catch(e){
     console.error("admin password login",e.data||e);
     res.status(500).json({error:"login_failed"});
