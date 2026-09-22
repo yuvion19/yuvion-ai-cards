@@ -314,15 +314,15 @@
 
 
   <details class="excel-autopilot" id="excelAutopilot">
-    <summary class="v63-panel-summary"><span><b>Excel → фото → 4 карточки</b><small>массовый автопилот ассортимента</small></span><span>Открыть</span></summary>
+    <summary class="v63-panel-summary"><span><b>Excel → фото/ссылки → 4 карточки</b><small>массовый автопилот ассортимента</small></span><span>Открыть</span></summary>
     <div class="excel-auto-head">
-      <div><div class="section-kicker">Автопилот ассортимента</div><h2>Excel → фото → 4 карточки</h2><p>Загрузите таблицу товаров и цен, затем пачку фотографий. Фото автоматически привязываются к товару по SKU/артикулу в имени файла. После этого очередь сама выполняет AI-анализ, создаёт 4 изображения, проверяет качество и сохраняет готовые товары локально.</p></div>
+      <div><div class="section-kicker">Автопилот ассортимента</div><h2>Excel → фото или ссылки → 4 карточки</h2><p>Таблица может содержать цены, SKU и колонку со ссылкой на товар. Фото привязываются по SKU, а публичные ссылки могут автоматически дать данные и исходные изображения. Дальше очередь создаёт карточки и выполняет QA.</p></div>
       <div class="excel-auto-actions"><button class="btn btn-ghost" id="excelImportStart">1. Excel / CSV</button><label class="btn btn-ghost" for="excelPhotoFiles" style="cursor:pointer">2. Фото по SKU</label><input id="excelPhotoFiles" type="file" multiple accept="image/jpeg,image/png,image/webp" hidden><button class="btn btn-primary" id="runExcelAutopilot" disabled>3. Запустить автопилот</button></div>
     </div>
     <div class="excel-auto-body">
       <div class="excel-auto-steps">
         <div class="excel-auto-step"><span>Шаг 1</span><b>Товары и цены</b><small>Excel/CSV распознаётся локально. Перед импортом можно проверить соответствие колонок.</small></div>
-        <div class="excel-auto-step"><span>Шаг 2</span><b>Фото с SKU в имени</b><small>Пример: <code>AB-124.jpg</code>, <code>AB-124_2.jpg</code>. Первое фото станет главным, остальные — дополнительными.</small></div>
+        <div class="excel-auto-step"><span>Шаг 2</span><b>Фото или URL товара</b><small>Фото: <code>AB-124.jpg</code>. Либо добавьте в Excel колонку «Ссылка / URL товара» — публичная страница будет разобрана автопилотом.</small></div>
         <div class="excel-auto-step"><span>Шаг 3</span><b>Автоматическая очередь</b><small>До 10 товаров за запуск: анализ → 4 карточки → QA → готовность к Yuvion.</small></div>
       </div>
       <div class="excel-auto-stats">
@@ -4379,6 +4379,7 @@ function normalizeImportHeader(value){
 
 const IMPORT_MAP_FIELDS=[
   {key:'title',label:'Название',canonical:'Название',aliases:['название','наименование','товар','имя товара','product name','name','title']},
+  {key:'sourceUrl',label:'Ссылка на товар',canonical:'Ссылка',aliases:['ссылка','ссылка на товар','ссылка товара','url','url товара','product url','product link','link']},
   {key:'sku',label:'Артикул / SKU',canonical:'Артикул',aliases:['артикул','sku','код товара','код позиции','vendor code','article']},
   {key:'brand',label:'Бренд',canonical:'Бренд',aliases:['бренд','brand','марка']},
   {key:'barcode',label:'EAN / штрихкод',canonical:'Штрихкод',aliases:['штрихкод','ean','ean13','ean 13','barcode','gtin']},
@@ -4473,7 +4474,7 @@ function closeImportMapper(){
 async function previewMappedImportDiff(rows){
   const headers=rows[0].map(v=>String(v||'').trim());
   const existing=await dbAll();
-  const skuIndex=new Map(),barcodeIndex=new Map();
+  const skuIndex=new Map(),barcodeIndex=new Map(),urlIndex=new Map();
   for(const item of existing){
     const sku=skuOfStoredItem(item),barcode=barcodeOfStoredItem(item);
     if(sku){if(!skuIndex.has(sku))skuIndex.set(sku,[]);skuIndex.get(sku).push(item)}
@@ -4644,6 +4645,7 @@ function importRecordFromRow(headers,row){
   headers.forEach((header,index)=>record[normalizeImportHeader(header)]=String(row[index]??'').trim());
   return {
     title:pickImported(record,['название','наименование','товар','name','title']),
+    sourceUrl:pickImported(record,['ссылка','ссылка на товар','url','url товара','product url','product link','link']),
     sku:pickImported(record,['артикул','sku']),
     brand:pickImported(record,['бренд','brand']),
     barcode:pickImported(record,['штрихкод','ean','barcode','gtin']),
@@ -4664,6 +4666,23 @@ function importRecordFromRow(headers,row){
   };
 }
 
+function normalizeProductUrlKey(value){
+  try{
+    const url=new URL(String(value||'').trim());
+    if(!['http:','https:'].includes(url.protocol))return '';
+    url.hash='';
+    return url.href;
+  }catch{return ''}
+}
+function excelProvidedFromRecord(record={}){
+  return {
+    title:Boolean(record.title),sourceUrl:Boolean(record.sourceUrl),sku:Boolean(record.sku),brand:Boolean(record.brand),
+    barcode:Boolean(record.barcode),category:Boolean(record.category),price1:Boolean(record.price1),price2:Boolean(record.price2),
+    price3:Boolean(record.price3),oldPrice:Boolean(record.oldPrice),material:Boolean(record.material),size:Boolean(record.size),
+    description:Boolean(record.description)
+  };
+}
+
 async function importProductRows(rows,filename='таблица',importBatchId=''){
   if(!Array.isArray(rows)||rows.length<2)throw new Error('В таблице нужны заголовки и хотя бы одна строка товара.');
   const headers=rows[0].map(v=>String(v||'').trim());
@@ -4681,6 +4700,11 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
     if(barcode){
       if(!barcodeIndex.has(barcode))barcodeIndex.set(barcode,[]);
       barcodeIndex.get(barcode).push(item);
+    }
+    const sourceKey=normalizeProductUrlKey(item.pendingSourceUrl||item.sourceReference?.requestedUrl||item.sourceReference?.url||'');
+    if(sourceKey){
+      if(!urlIndex.has(sourceKey))urlIndex.set(sourceKey,[]);
+      urlIndex.get(sourceKey).push(item);
     }
   }
   const seenIds=new Set();
@@ -4704,9 +4728,11 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
 
     const normalizedSku=normalizeSku(record.sku);
     const normalizedBarcode=normalizeBarcode(record.barcode);
+    const normalizedSourceUrl=normalizeProductUrlKey(record.sourceUrl);
     const candidates=[
       ...(normalizedSku?(skuIndex.get(normalizedSku)||[]):[]),
-      ...(normalizedBarcode?(barcodeIndex.get(normalizedBarcode)||[]):[])
+      ...(normalizedBarcode?(barcodeIndex.get(normalizedBarcode)||[]):[]),
+      ...(normalizedSourceUrl?(urlIndex.get(normalizedSourceUrl)||[]):[])
     ];
     const uniqueCandidates=[...new Map(candidates.map(x=>[x.id,x])).values()];
     if(uniqueCandidates.length>1){conflicts++;continue}
@@ -4730,6 +4756,10 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
       const oldData=old.data||{};
       const oldExtra=old.extraData||oldData.confirmedData||{};
       const extraData=makeExtra(oldExtra);
+      const provided={...(old.excelProvided||{}),...excelProvidedFromRecord(record)};
+      const previousSourceUrl=normalizeProductUrlKey(old.pendingSourceUrl||old.sourceReference?.requestedUrl||old.sourceReference?.url||'');
+      const nextSourceUrl=normalizedSourceUrl||previousSourceUrl;
+      const sourceUrlChanged=Boolean(normalizedSourceUrl&&normalizedSourceUrl!==previousSourceUrl);
       const title=record.title||old.title||oldData.seoTitle||[extraData.brand,extraData.sku].filter(Boolean).join(' ')||'Импортированный товар';
       const category=record.category||oldData.category||importedCategory||'';
       const description=record.description||oldData.fullDescription||oldData.shortDescription||'';
@@ -4772,7 +4802,7 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
         location:record.location||old.privateData?.location||'',
         collections:record.collections?parseCollections(record.collections):(old.privateData?.collections||[])
       };
-      const changedAny=JSON.stringify({data,extraData,privateData})!==JSON.stringify({data:oldData,extraData:oldExtra,privateData:old.privateData||{}});
+      const changedAny=sourceUrlChanged||JSON.stringify({data,extraData,privateData})!==JSON.stringify({data:oldData,extraData:oldExtra,privateData:old.privateData||{}});
       if(!changedAny){unchanged++;continue}
 
       const activity=[{at:Date.now(),type:'Excel обновлён',detail:changedPublic?'Изменены публичные данные товара':'Изменены цены или локальные данные'},...(old.activity||[])].slice(0,80);
@@ -4784,7 +4814,11 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
         generationFingerprint:changedPublic?null:(old.generationFingerprint||null),
         importedFrom:String(filename||'таблица').slice(0,120),
         importedAt:Date.now(),updatedAt:Date.now(),lastImportBatchId:importBatchId||old.lastImportBatchId||null,
-        excelAutopilot:changedPublic&&old.sourceDataUrl?{state:'matched',error:''}:(old.excelAutopilot||{state:'waiting',error:''})
+        pendingSourceUrl:nextSourceUrl,
+        urlImportPending:Boolean(sourceUrlChanged||(nextSourceUrl&&!old.sourceReference)),
+        sourceReference:sourceUrlChanged?null:(old.sourceReference||null),
+        excelProvided:provided,
+        excelAutopilot:(sourceUrlChanged||changedPublic&&old.sourceDataUrl)?{state:'matched',error:''}:(old.excelAutopilot||{state:'waiting',error:''})
       };
       await dbPut(updatedItem);
       updated++;
@@ -4802,8 +4836,8 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
     const data={
       seoTitle:title,category:importedCategory,shortDescription:record.description||'',fullDescription:record.description||'',
       characteristics,keywords:[],benefits:[],usage:[],
-      needsClarification:['Добавьте фотографию товара и выполните AI-анализ, чтобы дополнить карточку только подтверждёнными данными.'],
-      confidence:'импорт из таблицы',photoQuality:{score:0,issues:['Основная фотография ещё не добавлена.']},confirmedData:extraData
+      needsClarification:[record.sourceUrl?'Ссылка на товар будет обработана автопилотом; проверьте импортированные данные после загрузки.':'Добавьте фотографию товара и выполните AI-анализ, чтобы дополнить карточку только подтверждёнными данными.'],
+      confidence:'импорт из таблицы',photoQuality:{score:0,issues:[record.sourceUrl?'Ожидается импорт изображения по ссылке.':'Основная фотография ещё не добавлена.']},confirmedData:extraData
     };
     const item={
       id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
@@ -4812,7 +4846,9 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
       sourceDataUrl:'',additionalPhotos:[],cards:[],scenes:[],quality:null,cardsStale:false,variations:[],revisions:[],
       activity:[{at:Date.now(),type:'Импортирован из Excel',detail:String(filename||'таблица').slice(0,120)}],
       labelSuggestions:[],analysisCache:null,mode:defaults.mode||'full',style:importedRule?.style||defaults.style||'minimal',
-      published:false,importedFrom:String(filename||'таблица').slice(0,120),importedAt:Date.now(),lastImportBatchId:importBatchId||null,excelAutopilot:{state:'waiting',error:''}
+      published:false,importedFrom:String(filename||'таблица').slice(0,120),importedAt:Date.now(),lastImportBatchId:importBatchId||null,
+      pendingSourceUrl:normalizedSourceUrl,urlImportPending:Boolean(normalizedSourceUrl),sourceReference:null,excelProvided:excelProvidedFromRecord(record),
+      excelAutopilot:{state:'waiting',error:''}
     };
     await dbPut(item);
     seenIds.add(item.id);
@@ -4824,6 +4860,10 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
       if(!barcodeIndex.has(normalizedBarcode))barcodeIndex.set(normalizedBarcode,[]);
       barcodeIndex.get(normalizedBarcode).push(item);
     }
+    if(normalizedSourceUrl){
+      if(!urlIndex.has(normalizedSourceUrl))urlIndex.set(normalizedSourceUrl,[]);
+      urlIndex.get(normalizedSourceUrl).push(item);
+    }
     created++;
   }
 
@@ -4832,7 +4872,7 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
   await renderHistory();
   const truncated=Math.max(0,rows.length-1-CATALOG_LIMIT);
   importNote.className='import-note show';
-  importNote.textContent='Excel синхронизирован: новых '+created+', обновлено '+updated+', без изменений '+unchanged+', конфликтов SKU/EAN '+conflicts+', пустых строк '+skipped+(missingFromFile?' · отсутствуют в новом файле: '+missingFromFile:'')+(truncated?' · строк сверх лимита: '+truncated:'')+'. Удаление отсутствующих товаров автоматически не выполняется.';
+  importNote.textContent='Excel синхронизирован: новых '+created+', обновлено '+updated+', без изменений '+unchanged+', конфликтов SKU/EAN/URL '+conflicts+', пустых строк '+skipped+(missingFromFile?' · отсутствуют в новом файле: '+missingFromFile:'')+(truncated?' · строк сверх лимита: '+truncated:'')+'. Удаление отсутствующих товаров автоматически не выполняется.';
   if(isSimpleUi()){
     document.getElementById('excelAutopilot').open=true;
     document.getElementById('excelAutopilot').scrollIntoView({behavior:'smooth',block:'start'});
@@ -4939,10 +4979,11 @@ function excelImportedItems(all){
 }
 function excelQueueItems(all){
   return excelImportedItems(all).filter(item=>{
-    if(!item.sourceDataUrl)return false;
+    const needsUrl=Boolean(item.urlImportPending&&item.pendingSourceUrl);
+    if(!item.sourceDataUrl&&!needsUrl)return false;
     const needsAnalyze=!item.data||item.data.confidence==='импорт из таблицы';
     const needsCards=!Array.isArray(item.cards)||item.cards.length!==4||Boolean(item.cardsStale);
-    return needsAnalyze||needsCards;
+    return needsUrl||needsAnalyze||needsCards;
   });
 }
 function photoMatchCandidates(item){
@@ -5215,9 +5256,74 @@ async function generationFingerprintForItem(item,analyzed,style){
   }));
 }
 
+async function hydrateExcelItemFromUrl(item){
+  if(!item?.urlImportPending||!item?.pendingSourceUrl)return item;
+  const {response,data:payload}=await fetchJsonRetry('/api/import-url',{
+    method:'POST',headers:apiHeaders(),body:JSON.stringify({url:item.pendingSourceUrl})
+  },1);
+  if(!response.ok)throw new Error(payload.error||'Не удалось импортировать товар по ссылке из Excel.');
+  const remoteData=payload.data||{};
+  const remoteExtra={...(payload.extraData||{})};
+  const sourceCurrency=String(remoteExtra.currency||'').trim().toUpperCase();
+  if(remoteExtra.price1&&sourceCurrency&&!['RUB','RUR','₽','РУБ','РУБ.'].includes(sourceCurrency)){
+    remoteData.sourcePrice={price:String(remoteExtra.price1||''),oldPrice:String(remoteExtra.oldPrice||''),currency:sourceCurrency};
+    remoteExtra.price1='';remoteExtra.price2='';remoteExtra.price3='';remoteExtra.oldPrice='';
+  }
+  const provided=item.excelProvided||{};
+  const existingData=item.data||{};
+  const existingExtra=item.extraData||existingData.confirmedData||{};
+  const mergedExtra={...remoteExtra};
+  for(const key of ['name','brand','sku','barcode','size','material','price1','price2','price3','oldPrice']){
+    if(provided[key]&&existingExtra[key])mergedExtra[key]=existingExtra[key];
+  }
+  if(provided.title&&existingData.seoTitle)remoteData.seoTitle=existingData.seoTitle;
+  if(provided.category&&existingData.category)remoteData.category=existingData.category;
+  if(provided.description){
+    if(existingData.shortDescription)remoteData.shortDescription=existingData.shortDescription;
+    if(existingData.fullDescription)remoteData.fullDescription=existingData.fullDescription;
+  }
+  const sellerNames=new Set();
+  const sellerSpecs=[];
+  const addSeller=(name,key)=>{
+    if(!provided[key]||!mergedExtra[key])return;
+    sellerNames.add(normalizedFactText(name));
+    sellerSpecs.push({name,value:String(mergedExtra[key]),source:'Продавец'});
+    remoteData.factProvenance={...(remoteData.factProvenance||{}),[normalizedFactText(name)]:'Продавец'};
+  };
+  addSeller('Бренд','brand');addSeller('Артикул','sku');addSeller('Штрихкод/EAN','barcode');addSeller('Размеры','size');addSeller('Материал','material');
+  remoteData.characteristics=[...sellerSpecs,...(remoteData.characteristics||[]).filter(x=>!sellerNames.has(normalizedFactText(x.name)))].slice(0,20);
+  remoteData.confirmedData=mergedExtra;
+
+  const images=Array.isArray(payload.images)?payload.images:[];
+  if(!item.sourceDataUrl&&images[0]?.dataUrl){
+    item.sourceDataUrl=images[0].dataUrl;
+    item.sourceFilename='url-import.jpg';
+    item.photoHash=await imageHashFromDataUrl(item.sourceDataUrl);
+  }
+  if(!(item.additionalPhotos||[]).length&&images.length>1){
+    item.additionalPhotos=images.slice(1,5).map((img,index)=>({
+      id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+index,
+      name:'url-import-'+String(index+2)+'.jpg',mimeType:'image/jpeg',dataUrl:img.dataUrl,role:img.role||'angle',remoteUrl:img.remoteUrl||''
+    }));
+  }
+  item.data=remoteData;
+  item.title=remoteData.seoTitle||item.title||'Товар';
+  item.extraData=mergedExtra;
+  item.sourceReference=payload.source||null;
+  item.pendingSourceUrl='';
+  item.urlImportPending=false;
+  item.urlDataReady=true;
+  item.analysisCache=null;item.generationFingerprint=null;
+  item.activity=[{at:Date.now(),type:'Ссылка из Excel обработана',detail:item.sourceReference?.url||''},...(item.activity||[])].slice(0,80);
+  item.updatedAt=Date.now();
+  await dbPut(item);
+  return item;
+}
+
 async function processExcelAutopilotItem(item,style){
+  if(item.urlImportPending&&item.pendingSourceUrl)item=await hydrateExcelItemFromUrl(item);
   const src=dataUrlParts(item.sourceDataUrl);
-  if(!src)throw new Error('Фото товара повреждено.');
+  if(!src)throw new Error(item.sourceReference?'Данные по ссылке импортированы, но публичное фото получить не удалось. Добавьте фотографию вручную.':'Фото товара повреждено.');
   const extraData={...(item.extraData||item.data?.confirmedData||{})};
   const additionalImages=(item.additionalPhotos||[]).slice(0,4).map(photo=>{
     const p=dataUrlParts(photo.dataUrl);return p?{mimeType:p.mime,image:p.base64}:null;
@@ -5225,7 +5331,10 @@ async function processExcelAutopilotItem(item,style){
 
   const analysisFp=await analysisFingerprintForItem(item);
   let analyzed=null,analysisFromCache=false;
-  if(item.analysisCache?.fingerprint===analysisFp&&item.analysisCache?.data){
+  if(item.urlDataReady&&item.data){
+    analyzed=typeof structuredClone==='function'?structuredClone(item.data):JSON.parse(JSON.stringify(item.data));
+    analysisFromCache=true;
+  }else if(item.analysisCache?.fingerprint===analysisFp&&item.analysisCache?.data){
     analyzed=typeof structuredClone==='function'?structuredClone(item.analysisCache.data):JSON.parse(JSON.stringify(item.analysisCache.data));
     analysisFromCache=true;
   }else{
