@@ -46,6 +46,8 @@ app.use((req,res,next)=>{
   const p=req.path;
   const cemeteryPublic =
     p.startsWith("/api/cemetery/") ||
+    p.startsWith("/api/admin/cemetery/") ||
+    p.startsWith("/api/admin/identification") ||
     p.startsWith("/qr/cemetery/") ||
     p==="/m/catalog" ||
     p==="/m/map" ||
