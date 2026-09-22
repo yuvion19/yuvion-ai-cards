@@ -4690,8 +4690,7 @@ function storedReadiness(item){
     duplicateCharacteristicNames(d).length===0,
     storedFactBlockers(item).length===0,
     missingCategoryRequiredSpecs(d).length===0,
-    Boolean(item?.quality),
-    storedQaBlockers(item).length===0,
+    batchQaPassed(item?.quality),
     !item?.cardsStale,
     Array.isArray(item?.cards)&&item.cards.length===4
   ];
@@ -4704,6 +4703,8 @@ function draftStatus(item){
   const cardsReady=Array.isArray(item.cards)&&item.cards.length===4;
   if(!cardsReady)return {key:'text',label:'Текст готов'};
   if(storedReadiness(item).ready)return {key:'ready',label:'Готов к Yuvion'};
+  if(item?.quality&&!batchQaPassed(item.quality))return {key:'cards',label:'QA: исправить'};
+  if(!item?.quality)return {key:'cards',label:'Карточки · нужна QA'};
   return {key:'cards',label:'Карточки готовы'};
 }
 
@@ -5962,9 +5963,12 @@ function excelQueueItems(all){
   return excelImportedItems(all).filter(item=>{
     const needsUrl=Boolean(item.urlImportPending&&item.pendingSourceUrl);
     if(!item.sourceDataUrl&&!needsUrl)return false;
+    if(item.excelAutopilot?.state==='qa_blocked')return false;
     const needsAnalyze=!item.data||item.data.confidence==='импорт из таблицы';
-    const needsCards=!Array.isArray(item.cards)||item.cards.length!==4||Boolean(item.cardsStale);
-    return needsUrl||needsAnalyze||needsCards;
+    const cardsReady=Array.isArray(item.cards)&&item.cards.length===4&&!item.cardsStale;
+    const needsCards=!cardsReady;
+    const needsQa=cardsReady&&!batchQaPassed(item.quality);
+    return needsUrl||needsAnalyze||needsCards||needsQa;
   });
 }
 function photoMatchCandidates(item){
@@ -6326,56 +6330,71 @@ async function processExcelAutopilotItem(item,style){
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
 
   const generationFp=await generationFingerprintForItem(item,analyzed,style);
-  if(item.cardRenderSchema===CARD_RENDER_SCHEMA&&item.generationFingerprint===generationFp&&Array.isArray(item.cards)&&item.cards.length===4&&item.quality&&!item.cardsStale){
+  const reusableCards=item.cardRenderSchema===CARD_RENDER_SCHEMA&&item.generationFingerprint===generationFp&&Array.isArray(item.cards)&&item.cards.length===4&&!item.cardsStale;
+
+  if(reusableCards&&batchQaPassed(item.quality)){
     item.data=analyzed;
     item.analysisCache={fingerprint:analysisFp,data:analyzed,at:Date.now()};
     item.updatedAt=Date.now();
     item.excelAutopilot={state:'done',error:'',completedAt:Date.now(),cacheHit:true};
-    item.activity=[{at:Date.now(),type:'AI-кэш использован',detail:'Анализ и изображения не запускались повторно'},...(item.activity||[])].slice(0,80);
+    item.activity=[{at:Date.now(),type:'Автопилот · кэш',detail:'Анализ, изображения и QA v3 уже актуальны'},...(item.activity||[])].slice(0,80);
     await dbPut(item);
     return item;
   }
 
-  const {response:gen,data:generated}=await fetchJsonRetry('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,renderMode:'free'})},1);
-  if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
-  let cards=generated.cards||[];
-  let scenes=generated.scenes||[];
-  if(cards.length!==4)throw new Error('Генерация вернула неполный комплект изображений.');
-  const qaCall=async()=> {
-    const {response:q,data}=await fetchJsonRetry('/api/quality-check',{method:'POST',headers:apiHeaders(),body:JSON.stringify({cards,card:analyzed,sourceImage:src.base64,sourceMimeType:src.mime,renderMode:'free'})},2);
-    if(!q.ok)return null;return data;
-  };
-  let quality=await qaCall();
-  const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,2);
-  let regenerated=0;
-  for(const index of bad){
-    const {response:regen,data:payload}=await fetchJsonRetry('/api/regenerate-card',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,index,renderMode:'free'})},1);
-    if(regen.ok&&payload.card){cards[index]=payload.card;if(payload.scene)scenes[index]=payload.scene;regenerated++}
+  let cards=[],scenes=[],generatedFresh=false;
+  if(reusableCards){
+    cards=item.cards.slice();
+    scenes=Array.isArray(item.scenes)?item.scenes.slice():[];
+  }else{
+    const {response:gen,data:generated}=await fetchJsonRetry('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:src.base64,mimeType:src.mime,card:analyzed,style,renderMode:'free',additionalImages})},1);
+    if(!gen.ok)throw new Error(generated.error||'Не удалось создать 4 карточки.');
+    cards=generated.cards||[];
+    scenes=generated.scenes||[];
+    if(cards.length!==4)throw new Error('Генерация вернула неполный комплект изображений.');
+    generatedFresh=true;
   }
-  if(bad.length)quality=await qaCall();
+
+  const repaired=await repairBatchCardsToQa({
+    cards,scenes,card:analyzed,src:{base64:src.base64,mime:src.mime},style,maxRounds:2
+  });
+  cards=repaired.cards;
+  scenes=repaired.scenes;
+  const quality=repaired.quality;
+  const qaBlocked=!repaired.passed;
+
   item.data=analyzed;
   item.title=analyzed.seoTitle||item.title||'Товар';
   item.cards=cards;
   item.scenes=scenes;
   item.quality=quality;
-  item.cardsStale=false;
-  item.staleCardIndexes=[];
+  item.cardsStale=qaBlocked;
+  item.staleCardIndexes=qaBlocked?repaired.blockers.map(x=>x.index):[];
   item.analysisCache={fingerprint:analysisFp,data:analyzed,at:Date.now()};
   item.generationFingerprint=generationFp;
   item.aiLocal={
     ...(item.aiLocal||{}),
     analyses:Number(item.aiLocal?.analyses||0)+(analysisFromCache?0:1),
-    cardBatches:Number(item.aiLocal?.cardBatches||0)+1,
-    qualityChecks:Number(item.aiLocal?.qualityChecks||0)+(bad.length?2:1),
-    regenerations:Number(item.aiLocal?.regenerations||0)+regenerated
+    cardBatches:Number(item.aiLocal?.cardBatches||0)+(generatedFresh?1:0),
+    qualityChecks:Number(item.aiLocal?.qualityChecks||0)+repaired.qualityChecks,
+    regenerations:Number(item.aiLocal?.regenerations||0)+repaired.regenerated
   };
   item.mode='full';
   item.style=style;
   item.renderMode='free';
   item.cardRenderSchema=CARD_RENDER_SCHEMA;
   item.updatedAt=Date.now();
-  item.activity=[{at:Date.now(),type:'Автопилот завершён',detail:(analysisFromCache?'Анализ из кэша · ':'')+'4 карточки · QA · перегенераций '+regenerated},...(item.activity||[])].slice(0,80);
-  item.excelAutopilot={state:'done',error:'',completedAt:Date.now()};
+  item.activity=[{
+    at:Date.now(),
+    type:qaBlocked?'Автопилот · QA карантин':'Автопилот завершён',
+    detail:(analysisFromCache?'Анализ из кэша · ':'')+
+      (generatedFresh?'4 карточки · ':'существующие карточки · ')+
+      'QA v3 · проверок '+repaired.qualityChecks+' · перегенераций '+repaired.regenerated+
+      (qaBlocked?' · блокеров '+repaired.blockers.length:'')
+  },...(item.activity||[])].slice(0,80);
+  item.excelAutopilot=qaBlocked
+    ?{state:'qa_blocked',error:'QA v3 не пройдена после автоматического исправления.',completedAt:Date.now()}
+    :{state:'done',error:'',completedAt:Date.now()};
   await dbPut(item);
   return item;
 }
@@ -6396,7 +6415,7 @@ async function runExcelAutopilotQueue(){
   const imageRate=0;
   const budget=0;
   let spent=0;
-  let done=0,success=0,haltedByLimit=false,haltedByBudget=false;
+  let done=0,success=0,qaBlocked=0,haltedByLimit=false,haltedByBudget=false;
   try{await fetch('/api/batch-track',{method:'POST',headers:apiHeaders(),body:JSON.stringify({count:queue.length})})}catch{}
   for(let i=0;i<queue.length;i++){
     const item=queue[i];
@@ -6410,7 +6429,8 @@ async function runExcelAutopilotQueue(){
     excelAutoBar.style.width=Math.round(i/queue.length*100)+'%';
     await renderHistory();
     try{
-      const processed=await processExcelAutopilotItem(item,style);success++;
+      const processed=await processExcelAutopilotItem(item,style);
+      if(processed.excelAutopilot?.state==='qa_blocked')qaBlocked++;else success++;
       const deltaBatches=Math.max(0,Number(processed.aiLocal?.cardBatches||0)-beforeBatches);
       const deltaRegens=Math.max(0,Number(processed.aiLocal?.regenerations||0)-beforeRegens);
       spent+=imageRate*(deltaBatches*4+deltaRegens);
@@ -6440,7 +6460,7 @@ async function runExcelAutopilotQueue(){
         ?'Очередь на паузе. Готово в этой порции: '+success+'. Осталось: '+remaining+'.'
         :autoContinue
           ?'Порция готова: '+success+' из '+done+'. Осталось '+remaining+'. Продолжаем автоматически…'
-          :'Очередь обработана: '+success+' из '+done+' в последней порции.';
+          :'Очередь обработана: '+success+' готово из '+done+'.'+(qaBlocked?' В QA-карантине: '+qaBlocked+'.':'');
   await renderHistory();
   if(autoContinue){
     window.setTimeout(()=>{if(!largeQueuePaused&&!excelAutopilotBusy)runExcelAutopilotQueue()},500);
@@ -6472,7 +6492,7 @@ async function exportCatalogReportNow(){
       d.fullDescription||d.shortDescription||'',p.cost||'',p.stock||'',p.boxes||'',p.minStock||'',p.location||'',
       Array.isArray(p.collections)?p.collections.join(', '):'',
       draftStatus(item).label,item.data?(r.done+'/'+r.total):'0/0',item.sourceDataUrl?'Да':'Нет',Array.isArray(item.cards)?item.cards.length:0,
-      item.quality?'Да':'Нет',storedQaBlockers(item).length,item.sourceReference?.host||'Свои данные',item.sourceReference?.url||'',
+      batchQaPassed(item.quality)?'Да':'Нет',storedQaBlockers(item).length,item.sourceReference?.host||'Свои данные',item.sourceReference?.url||'',
       Number(item.sourceReference?.audit?.verifiedFieldCount||0),(item.sourceReference?.audit?.notProvided||[]).join(', '),
       duplicatePhotoInCatalog(item,all)?'Да':'Нет',Array.isArray(item.labelSuggestions)?item.labelSuggestions.length:0,item.updatedAt?new Date(item.updatedAt).toISOString():''
     ]);
@@ -6955,14 +6975,78 @@ async function batchAnalyze(file,mode,extraData={},category=''){
   return {data,src,dataUrl};
 }
 
-async function batchQuality(cards,card){
+function batchQaBlockers(quality){
+  return Array.isArray(quality?.cards)
+    ? quality.cards.filter(x=>Boolean(x?.needsRegeneration)&&Number.isInteger(x?.index))
+    : [];
+}
+
+function batchQaPassed(quality){
+  return Boolean(quality&&Number(quality.visualQaVersion||0)>=3&&batchQaBlockers(quality).length===0);
+}
+
+async function batchQuality(cards,card,source=null){
   const response=await fetch('/api/quality-check',{
     method:'POST',headers:apiHeaders(),
-    body:JSON.stringify({cards,card,renderMode:'free'})
+    body:JSON.stringify({
+      cards,
+      card,
+      sourceImage:source?.image||'',
+      sourceMimeType:source?.mimeType||'',
+      renderMode:'free'
+    })
   });
   const data=await response.json().catch(()=>({}));
-  if(!response.ok)return null;
+  if(!response.ok)throw new Error(data.error||'Не удалось выполнить пакетную QA.');
+  if(!data||!Array.isArray(data.cards)||data.cards.length!==4)throw new Error('QA вернула неполный результат.');
   return data;
+}
+
+async function repairBatchCardsToQa({cards,scenes,card,src,style,onStatus=()=>{},maxRounds=2}){
+  let workingCards=Array.isArray(cards)?cards.slice():[];
+  let workingScenes=Array.isArray(scenes)?scenes.slice():[];
+  let quality=await batchQuality(workingCards,card,{image:src.image||src.base64||'',mimeType:src.mimeType||src.mime||''});
+  let qualityChecks=1;
+  let regenerated=0;
+  const attempted=new Set();
+
+  for(let round=1;round<=maxRounds&&!batchQaPassed(quality);round+=1){
+    const bad=batchQaBlockers(quality)
+      .map(x=>x.index)
+      .filter(index=>!attempted.has(index))
+      .slice(0,2);
+    if(!bad.length)break;
+
+    onStatus('QA v3 · исправление '+round+'/'+maxRounds+': №'+bad.map(x=>x+1).join(', '));
+    for(const index of bad){
+      attempted.add(index);
+      const {response:regen,data:payload}=await fetchJsonRetry('/api/regenerate-card',{
+        method:'POST',headers:apiHeaders(),
+        body:JSON.stringify({
+          image:src.image||src.base64||'',
+          mimeType:src.mimeType||src.mime||'',
+          card,style,index,renderMode:'free'
+        })
+      },1);
+      if(!regen.ok||!payload.card)throw new Error(payload.error||'Не удалось автоматически исправить карточку №'+(index+1)+'.');
+      workingCards[index]=payload.card;
+      if(payload.scene)workingScenes[index]=payload.scene;
+      regenerated+=1;
+    }
+    onStatus('QA v3 · повторная проверка…');
+    quality=await batchQuality(workingCards,card,{image:src.image||src.base64||'',mimeType:src.mimeType||src.mime||''});
+    qualityChecks+=1;
+  }
+
+  return {
+    cards:workingCards,
+    scenes:workingScenes,
+    quality,
+    passed:batchQaPassed(quality),
+    blockers:batchQaBlockers(quality),
+    regenerated,
+    qualityChecks
+  };
 }
 
 async function packageCardsForBatch(cards,card,includeDescription=true,extraData={}){
@@ -6987,15 +7071,15 @@ function downloadBase64Zip(data,name){
   setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 
-async function saveBatchHistory({data,dataUrl,cards,scenes=[],quality=null,mode,style,extraData={}}){
+async function saveBatchHistory({data,dataUrl,cards,scenes=[],quality=null,mode,style,extraData={},qaBlocked=false}){
   const id=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
   const photoHash=await imageHashFromDataUrl(dataUrl);
   const item={
     id,updatedAt:Date.now(),title:data.seoTitle||'Товар',
     data,extraData:{...extraData},privateData:{cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''},
     sourceDataUrl:dataUrl,photoHash,additionalPhotos:[],cards:cards||[],scenes:scenes||[],quality,
-    cardsStale:false,staleCardIndexes:[],variations:[],revisions:[],moderation:{status:'none',reason:'',log:[]},
-    activity:[{at:Date.now(),type:'Batch Factory',detail:mode==='full'?'Анализ · 4 карточки · QA сохранён':'Текстовый анализ сохранён'}],
+    cardsStale:Boolean(qaBlocked),staleCardIndexes:qaBlocked?batchQaBlockers(quality).map(x=>x.index):[],variations:[],revisions:[],moderation:{status:'none',reason:'',log:[]},
+    activity:[{at:Date.now(),type:qaBlocked?'Batch Factory · QA карантин':'Batch Factory',detail:mode==='full'?(qaBlocked?'4 карточки сохранены локально · QA v3 не пройдена':'Анализ · 4 карточки · QA v3 пройдена'):'Текстовый анализ сохранён'}],
     mode,style,renderMode:'free',cardRenderSchema:CARD_RENDER_SCHEMA,published:false
   };
   await dbPut(item);
@@ -7034,30 +7118,28 @@ startBatch.onclick=async()=>{
         cards=genData.cards||[];
         scenes=genData.scenes||[];
 
-        item.label='Проверка качества…';batchRender();
-        quality=await batchQuality(cards,analyzed.data);
-        const bad=(quality?.cards||[]).filter(x=>x.needsRegeneration).map(x=>x.index).filter(Number.isInteger).slice(0,2);
-        for(const badIndex of bad){
-          item.label='Исправляем №'+(badIndex+1);batchRender();
-          const updated=await fetch('/api/regenerate-card',{
-            method:'POST',headers:apiHeaders(),
-            body:JSON.stringify({...analyzed.src,card:analyzed.data,style,index:badIndex,renderMode:'free'})
+        item.label='QA v3…';batchRender();
+        const repaired=await repairBatchCardsToQa({
+          cards,scenes,card:analyzed.data,src:analyzed.src,style,
+          onStatus:(label)=>{item.label=label;batchRender()}
+        });
+        cards=repaired.cards;
+        scenes=repaired.scenes;
+        quality=repaired.quality;
+        if(!repaired.passed){
+          item.label='QA карантин';batchRender();
+          const quarantinedSource=await compressFileToDataUrl(item.file);
+          await saveBatchHistory({
+            data:analyzed.data,dataUrl:quarantinedSource,cards,scenes,quality,mode,style,
+            extraData:item.extraData||{},qaBlocked:true
           });
-          const updatedData=await updated.json().catch(()=>({}));
-          if(updated.ok&&updatedData.card){
-            cards[badIndex]=updatedData.card;
-            if(updatedData.scene)scenes[badIndex]=updatedData.scene;
-          }
-        }
-        if(bad.length){
-          item.label='Повторная QA…';batchRender();
-          quality=await batchQuality(cards,analyzed.data);
+          throw new Error('QA v3 не пройдена после автоисправления. Товар сохранён локально в карантин и не добавлен в общий ZIP.');
         }
       }
 
       item.label='Сохраняем…';batchRender();
       const storedSource=await compressFileToDataUrl(item.file);
-      await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,scenes,quality,mode,style,extraData:item.extraData||{}});
+      await saveBatchHistory({data:analyzed.data,dataUrl:storedSource,cards,scenes,quality,mode,style,extraData:item.extraData||{},qaBlocked:false});
 
       if(masterZip){
         const base=(String(index+1).padStart(2,'0')+'_'+safeFileBase(analyzed.data.seoTitle||('product_'+(index+1))));
@@ -7081,7 +7163,7 @@ startBatch.onclick=async()=>{
 
       success++;
       item.state='ok';
-      item.label=mode==='full'?'Готово':'Текст готов';
+      item.label=mode==='full'?'Готово · QA v3':'Текст готов';
     }catch(e){
       item.state='fail';item.label=e.message||'Ошибка';
     }

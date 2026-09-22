@@ -135,6 +135,11 @@ const features=[
   ['duplicatePhotoGuard: true','duplicate photo health metadata'],
   ['simpleProfessionalModes: true','simple/professional health metadata'],
   ['batchFactoryV2: true','Batch Factory v2 health metadata'],
+  ['batchQaV3: true','Batch Factory QA v3 metadata'],
+  ['batchQaHardGate: true','batch QA hard export gate metadata'],
+  ['excelQaQuarantine: true','Excel QA quarantine metadata'],
+  ['repairBatchCardsToQa','shared batch QA repair loop'],
+  ['batchQaPassed','strict batch QA pass predicate'],
   ['autoQueueContinuation: true','automatic Excel queue continuation metadata'],
   ['persistedBatchQA: true','persisted batch QA metadata'],
   ['provenanceExport: true','provenance export metadata'],
@@ -243,3 +248,8 @@ if(!server.includes('visualQaVersion: 3'))fail('local QA v3 response marker miss
 if(!html.includes('syncQualityDownloadState'))fail('QA download gate missing');else ok('QA download gate present');
 if(!html.includes('Скачивание заблокировано: QA нашла карточки'))fail('blocked package messaging missing');else ok('blocked package messaging present');
 if(!html.includes('for(let round=0;round<2;round+=1)'))fail('bounded multi-round auto-fix missing');else ok('bounded multi-round auto-fix present');
+
+if(!html.includes("state:'qa_blocked'"))fail('Excel QA quarantine state missing');else ok('Excel QA quarantine state present');
+if(!html.includes("Товар сохранён локально в карантин и не добавлен в общий ZIP"))fail('Batch ZIP quarantine gate missing');else ok('Batch ZIP quarantine gate present');
+if(!html.includes("batchQaPassed(item.quality)?'Да':'Нет'"))fail('catalog QA report must require passed QA');else ok('catalog QA report requires passed QA');
+if(!html.includes("needsQa=cardsReady&&!batchQaPassed(item.quality)"))fail('Excel queue must refresh stale QA schemas');else ok('Excel queue refreshes stale QA schemas');
