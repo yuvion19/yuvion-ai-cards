@@ -295,3 +295,13 @@ if(!server.includes('name === "index.html" || name === "sw.js" || name === "loca
 if(!html.includes("register('/sw.js?v=17',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=3'))fail('Studio Director v10.3 old-card invalidation missing');else ok('Studio Director v10.3 old-card invalidation present');
+
+if(!server.includes('smolVlmWasmFallback: true'))fail('SmolVLM WASM fallback metadata missing');else ok('SmolVLM WASM fallback metadata present');
+if(!server.includes('perCardSceneVariants: true'))fail('per-card scene variants metadata missing');else ok('per-card scene variants metadata present');
+if(!server.includes('transformProductForScene'))fail('safe product scene transform missing');else ok('safe product scene transform present');
+if(!server.includes('sceneVariant=Number.isInteger'))fail('scene-specific background variant missing');else ok('scene-specific background variant present');
+if(!html.includes("local-vision-worker.js?v=10.4.0"))fail('vision worker cache bust missing');else ok('vision worker cache bust present');
+if(!worker.includes('/+esm'))fail('worker ESM CDN endpoint missing');else ok('worker ESM CDN endpoint present');
+if(!worker.includes('dtype:"q8"'))fail('worker WASM q8 fallback missing');else ok('worker WASM q8 fallback present');
+if(!worker.includes('sequences[0].slice(inputLength)'))fail('generated-only vision decode missing');else ok('generated-only vision decode present');
+if(!sw.includes("url.pathname==='/local-vision-worker.js'"))fail('service worker vision bypass missing');else ok('service worker vision bypass present');

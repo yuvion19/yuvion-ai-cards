@@ -1,4 +1,4 @@
-const CACHE='yuvion-ai-shell-v17';
+const CACHE='yuvion-ai-shell-v18';
 const SHELL=['/','/manifest.webmanifest','/icons/yuvion-icon.svg','/vendor/jszip.min.js','/vendor/jspdf.umd.min.js','/vendor/jsbarcode.all.min.js'];
 
 self.addEventListener('install',event=>{
@@ -19,6 +19,18 @@ self.addEventListener('fetch',event=>{
   const url=new URL(req.url);
   if(url.origin!==self.location.origin)return;
   if(url.pathname.startsWith('/api/')||url.pathname==='/admin'||url.pathname.startsWith('/downloads/'))return;
+  if(url.pathname==='/local-vision-worker.js'){
+    event.respondWith(
+      fetch(req,{cache:'no-store'}).then(res=>{
+        if(res.ok){
+          const copy=res.clone();
+          caches.open(CACHE).then(cache=>cache.put(req,copy)).catch(()=>{});
+        }
+        return res;
+      }).catch(()=>caches.match(req))
+    );
+    return;
+  }
 
   if(req.mode==='navigate'){
     event.respondWith(

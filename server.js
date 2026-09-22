@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.3.2
+// Production release marker: v10.4.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1412,7 +1412,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.3.2",
+    version: "10.4.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1467,6 +1467,10 @@ app.get("/api/health", (_req, res) => {
       zeroCreditTextFallback: true,
       browserVisionFallback: true,
       smolVlmWebGpu: true,
+      smolVlmWasmFallback: true,
+      visionWorkerCacheBypass: true,
+      perCardSceneVariants: true,
+      safeProductSceneTransform: true,
       uniqueMultiAngleRouting: true,
       fullSceneRefreshAfterAnalysis: true,
       proceduralStudioLighting: true,
@@ -2317,7 +2321,12 @@ function textDensityPolicy(cardRaw){
 function smartSceneDirector(cardRaw,styleKey,variant=0,geometry="compact",material={key:"generic"}){
   const a=categoryArtDirector(cardRaw,styleKey);variant=Math.max(0,Math.min(3,Number(variant)||0));
   const gs=geometry==="wide"?.91:geometry==="tall"?.94:geometry==="flat"?.92:geometry==="compact"?1.03:1;
-  const x=[{key:"hero-stage",variant,scale:1.02*gs,shiftX:0,shiftY:-12,light:"left"},{key:"orbit-panel",variant:(variant+1)%4,scale:gs,shiftX:a==="tech"||a==="tools"?16:-10,shiftY:-2,light:"right"},{key:"spec-desk",variant:(variant+2)%4,scale:.96*gs,shiftX:geometry==="wide"?-18:8,shiftY:-14,light:"top"},{key:"lifestyle-surface",variant:(variant+3)%4,scale:gs,shiftX:10,shiftY:4,light:"left"}];
+  const x=[
+    {key:"hero-stage",variant,scale:1.06*gs,shiftX:-18,shiftY:-18,light:"left"},
+    {key:"orbit-panel",variant:(variant+1)%4,scale:.94*gs,shiftX:a==="tech"||a==="tools"?52:38,shiftY:26,light:"right"},
+    {key:"spec-desk",variant:(variant+2)%4,scale:.90*gs,shiftX:geometry==="wide"?-46:-34,shiftY:-28,light:"top"},
+    {key:"lifestyle-surface",variant:(variant+3)%4,scale:1.01*gs,shiftX:34,shiftY:36,light:"left"}
+  ];
   if(a==="kids")x[1].scale*=1.06;if(a==="beauty"||material.key==="glass")x[0].scale*=.96;if(a==="tools")x[2].scale*=1.04;return x;
 }
 function buildStudioProfile(cardRaw,styleKey,variant=0,aspect=1){
@@ -2946,6 +2955,22 @@ async function makeProductReflection(productBuffer, targetWidth, targetHeight, o
     .toBuffer();
 }
 
+async function transformProductForScene(productBuffer,index=0){
+  const angles=[0,-4,3,-2];
+  const angle=angles[Math.max(0,Math.min(3,Number(index)||0))]||0;
+  if(!angle)return productBuffer;
+  try{
+    const meta=await sharp(productBuffer).metadata();
+    const width=Number(meta.width||0),height=Number(meta.height||0);
+    if(!width||!height)return productBuffer;
+    return sharp(productBuffer)
+      .rotate(angle,{background:{r:255,g:255,b:255,alpha:0}})
+      .resize(width,height,{fit:"contain",background:{r:255,g:255,b:255,alpha:0}})
+      .png({compressionLevel:9,adaptiveFiltering:true})
+      .toBuffer();
+  }catch{return productBuffer}
+}
+
 async function renderFreeScene(
   sourceBuffer,
   index,
@@ -2969,7 +2994,10 @@ async function renderFreeScene(
   let layout = adjustedFreeLayout(index, composition, designVariant, intensity, sourceAspect, styleKey);
   layout = applySceneLayout(layout, studioProfile?.scenes?.[index] || {});
   let visual = await prepareProductVisual(sourceBuffer, layout, intensity, primaryRole);
-  if (visual.cutout) { try { visual = { ...visual, product: await relightProductVisual(visual.product, studioProfile, index) }; } catch {} }
+  if (visual.cutout) {
+    try { visual = { ...visual, product: await relightProductVisual(visual.product, studioProfile, index) }; } catch {}
+    try { visual = { ...visual, product: await transformProductForScene(visual.product,index) }; } catch {}
+  }
   const composites = [];
 
   if (secondarySourceBuffer && ["package", "detail", "angle"].includes(secondaryRole)) {
@@ -3018,7 +3046,10 @@ async function renderFreeScene(
   }
   composites.push({ input: visual.product, left: layout.x, top: layout.y });
 
-  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, designVariant, intensity, substyle, visualOptions)))
+  const sceneVariant=Number.isInteger(Number(studioProfile?.scenes?.[index]?.variant))
+    ? Number(studioProfile.scenes[index].variant)
+    : designVariant;
+  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, sceneVariant, intensity, substyle, visualOptions)))
     .composite(composites)
     .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer();
@@ -3856,5 +3887,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.3.2 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.4.0 listening on port ${port}`);
 });

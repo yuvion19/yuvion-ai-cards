@@ -4003,8 +4003,7 @@ function parseLocalVisionJson(text){
 
 function ensureLocalVisionWorker(){
   if(localVisionWorker)return localVisionWorker;
-  if(!('gpu' in navigator))throw new Error('WebGPU недоступен');
-  localVisionWorker=new Worker('/local-vision-worker.js',{type:'module'});
+  localVisionWorker=new Worker('/local-vision-worker.js?v=10.4.0',{type:'module'});
   return localVisionWorker;
 }
 
@@ -4038,7 +4037,9 @@ async function runLocalVisionAnalysis(src){
   const worker=ensureLocalVisionWorker();
   const dataUrl='data:'+src.mimeType+';base64,'+src.image;
   loadingTitle.textContent='Распознаём товар локально';
-  loadingText.textContent='SmolVLM анализирует само фото в браузере без платного API.';
+  loadingText.textContent=('gpu' in navigator)
+    ?'SmolVLM анализирует фото локально через WebGPU без платного API.'
+    :'SmolVLM анализирует фото локально через CPU/WASM без платного API — это может быть медленнее.';
   return new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>{cleanup();reject(new Error('Локальное распознавание заняло слишком много времени'))},120000);
     const onMessage=(event)=>{
@@ -4056,7 +4057,7 @@ async function runLocalVisionAnalysis(src){
 }
 
 async function upgradeFallbackWithBrowserVision(data,src){
-  if(data?.analysisMode!=='local-fallback'||!('gpu' in navigator))return data;
+  if(data?.analysisMode!=='local-fallback')return data;
   try{
     const vision=await runLocalVisionAnalysis(src);
     const response=await fetch('/api/local-vision-normalize',{
@@ -4282,7 +4283,7 @@ styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPe
 function syncRenderModeUi(){
   renderModeSelect.value='free';
   generateAll.textContent='Создать 4 Studio-карточки бесплатно';
-  generateAll.title='Studio Director v10.3: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
+  generateAll.title='Studio Director v10.4: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4470,7 +4471,7 @@ generateAll.onclick=async()=>{
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       const renderDetail=/studio-(local|director)-/i.test(String(data.renderEngine||''))
-        ?('Studio Director v10.3 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+        ?('Studio Director v10.4 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);

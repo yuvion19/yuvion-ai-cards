@@ -2,7 +2,7 @@ import {
   AutoProcessor,
   AutoModelForVision2Seq,
   load_image,
-} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.1";
+} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.1/+esm";
 
 class LocalVision {
   static modelId = "HuggingFaceTB/SmolVLM-256M-Instruct";
@@ -10,9 +10,11 @@ class LocalVision {
   static model = null;
   static async get(progress_callback=null){
     this.processor ??= AutoProcessor.from_pretrained(this.modelId,{progress_callback});
-    this.model ??= AutoModelForVision2Seq.from_pretrained(this.modelId,{
-      dtype:"fp32",device:"webgpu",progress_callback
-    });
+    const hasWebGPU=Boolean(self.navigator?.gpu);
+    const options=hasWebGPU
+      ? {dtype:"fp32",device:"webgpu",progress_callback}
+      : {dtype:"q8",progress_callback};
+    this.model ??= AutoModelForVision2Seq.from_pretrained(this.modelId,options);
     return Promise.all([this.processor,this.model]);
   }
 }
@@ -44,11 +46,23 @@ async function analyze(imageUrl){
     const output=await model.generate({
       ...inputs,do_sample:false,repetition_penalty:1.08,max_new_tokens:260
     });
-    const decoded=processor.batch_decode(output,{skip_special_tokens:true});
-    let answer=String(decoded?.[0]||"");
-    const marker="Assistant:";
-    if(answer.includes(marker))answer=answer.split(marker).pop().trim();
-    self.postMessage({status:"complete",output:answer});
+    let answer="";
+    try{
+      const sequences=typeof output?.tolist==="function"?output.tolist():null;
+      const inputLength=Number(inputs?.input_ids?.dims?.at?.(-1)||0);
+      if(Array.isArray(sequences?.[0])&&inputLength>0){
+        const generated=sequences[0].slice(inputLength);
+        answer=processor.tokenizer.decode(generated,{skip_special_tokens:true});
+      }
+    }catch{}
+    if(!answer){
+      const decoded=processor.batch_decode(output,{skip_special_tokens:true});
+      answer=String(decoded?.[0]||"");
+      for(const marker of ["<|im_start|>assistant","Assistant:","assistant\n"]){
+        if(answer.includes(marker))answer=answer.split(marker).pop().trim();
+      }
+    }
+    self.postMessage({status:"complete",output:String(answer||"").trim()});
   }catch(e){
     self.postMessage({status:"error",data:String(e?.message||e)});
   }
