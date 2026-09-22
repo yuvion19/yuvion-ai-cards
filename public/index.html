@@ -1031,6 +1031,7 @@ let currentLabelSuggestions=[];
 let currentActivity=[];
 let currentAnalysisCache=null;
 let unmatchedPhotoPool=[];
+let publicHealthCache=null;
 let largeQueuePaused=true;
 const EXCEL_AUTOPILOT_LIMIT=10;
 const LARGE_QUEUE_KEY='yuvionLargeQueueV1';
@@ -2092,7 +2093,10 @@ async function createEncryptedBackup(){
         sellerDefaults:loadSellerDefaults(),
         categoryMemory:loadCategoryMemory(),
         specTemplates:loadSpecTemplates(),
-        categoryRules:loadCategoryRules()
+        categoryRules:loadCategoryRules(),
+        storeRules:localStorage.getItem('yuvionStoreRulesV1')||'',
+        largeQueue:loadLargeQueueState(),
+        uiMode:localStorage.getItem('yuvionUiModeV1')||'simple'
       }
     };
     const salt=crypto.getRandomValues(new Uint8Array(16));
@@ -2111,7 +2115,7 @@ async function createEncryptedBackup(){
       iv:bytesToBase64(iv),
       data:bytesToBase64(encrypted)
     };
-    downloadBlob(new Blob([JSON.stringify(envelope)],{type:'application/json'}),'yuvion-catalog-'+new Date().toISOString().slice(0,10)+'.yuvion-backup');
+    downloadBlob(new Blob([JSON.stringify(envelope)],{type:'application/json'}),'yuvion-project-'+new Date().toISOString().slice(0,10)+'.yuvion-backup');
   }catch(e){
     alert('Не удалось создать резервную копию: '+(e.message||'ошибка'));
   }
@@ -2139,6 +2143,9 @@ async function restoreEncryptedBackup(file){
     if(Array.isArray(payload.settings?.categoryMemory))localStorage.setItem(CATEGORY_MEMORY_KEY,JSON.stringify(payload.settings.categoryMemory.slice(0,30)));
     if(payload.settings?.specTemplates&&typeof payload.settings.specTemplates==='object')localStorage.setItem(SPEC_TEMPLATE_KEY,JSON.stringify(payload.settings.specTemplates));
     if(Array.isArray(payload.settings?.categoryRules))saveCategoryRules(payload.settings.categoryRules);
+    if(typeof payload.settings?.storeRules==='string')localStorage.setItem('yuvionStoreRulesV1',payload.settings.storeRules);
+    if(payload.settings?.largeQueue)localStorage.setItem(LARGE_QUEUE_KEY,JSON.stringify(payload.settings.largeQueue));
+    if(['simple','advanced'].includes(payload.settings?.uiMode))localStorage.setItem('yuvionUiModeV1',payload.settings.uiMode);
     await trimCatalog();
     renderProfile();renderCategoryMemory();renderCategoryValidation();await renderHistory();
     alert('Резервная копия восстановлена локально.');
@@ -4483,7 +4490,9 @@ function renderExcelAutopilot(allItems){
   runExcelAutopilot.textContent=excelAutopilotBusy?'Автопилот работает…':queue.length>EXCEL_AUTOPILOT_LIMIT?'Обработать следующие '+EXCEL_AUTOPILOT_LIMIT:'Запустить автопилот';
   if(queue.length&&!excelAutopilotBusy){
     const n=Math.min(queue.length,EXCEL_AUTOPILOT_LIMIT);
-    excelPhotoMatchText.textContent='Следующий запуск: до '+n+' товаров · примерно '+n+' анализов + '+n+' комплектов изображений + '+n+' QA. Кэшированные этапы будут пропущены.';
+    const rate=Number(publicHealthCache?.estimates?.imageOutputUsdPerCard||0);
+    const estimate=rate?n*4*rate:0;
+    excelPhotoMatchText.textContent='Следующий запуск: до '+n+' товаров · '+n+' анализов + '+n+' комплектов + '+n+' QA'+(estimate?' · image output ориентир ≈ $'+estimate.toFixed(2):'')+'. Кэшированные этапы будут пропущены.';
   }
   const visible=imported.slice().sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0)).slice(0,12);
   excelAutoQueue.innerHTML=visible.length?visible.map(item=>{
@@ -4682,8 +4691,19 @@ async function exportCatalogReportNow(){
 async function refreshDiagnosticsNow(allItems=null){
   const all=Array.isArray(allItems)?allItems:await dbAll();
   const queue=excelQueueItems(all);
+  if(!publicHealthCache){
+    try{
+      const response=await fetch('/api/health');
+      if(response.ok)publicHealthCache=await response.json();
+    }catch{}
+  }
   const cached=all.filter(x=>Boolean(x.analysisCache)).length;
   const errors=all.filter(x=>x?.excelAutopilot?.state==='error').length;
+  const imageRate=Number(publicHealthCache?.estimates?.imageOutputUsdPerCard||0);
+  const localImageOutputs=all.reduce((sum,item)=>sum+Number(item?.aiLocal?.cardBatches||0)*4+Number(item?.aiLocal?.regenerations||0),0);
+  const localImageEstimate=imageRate?localImageOutputs*imageRate:0;
+  const nextCount=Math.min(queue.length,EXCEL_AUTOPILOT_LIMIT);
+  const nextImageEstimate=imageRate?nextCount*4*imageRate:0;
   const similarPairs=new Set();
   for(const item of all){
     const hit=similarCatalogProduct(item,all);
@@ -4709,7 +4729,9 @@ async function refreshDiagnosticsNow(allItems=null){
     ['Версия приложения','6.4.0'],['IndexedDB товаров',String(all.length)+' / '+CATALOG_LIMIT],
     ['Хранилище',storageText+' из '+quotaText],['localStorage',Math.round(lsBytes/1024)+' КБ'],
     ['PWA Service Worker',sw],['AI-очередь',queue.length?queue.length+' ожидают':'пусто'],
-    ['Похожие товары',similarPairs.size?String(similarPairs.size):'не найдено']
+    ['Похожие товары',similarPairs.size?String(similarPairs.size):'не найдено'],
+    ['AI image outputs локально',String(localImageOutputs)+(localImageEstimate?' · ≈ $'+localImageEstimate.toFixed(2):'')],
+    ['Следующий запуск',nextCount?(nextCount+' товаров'+(nextImageEstimate?' · image ≈ $'+nextImageEstimate.toFixed(2):'')):'очередь пуста']
   ].map(x=>'<div class="diagnostic-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('');
   const state=loadLargeQueueState();
   queueResumeNote.classList.toggle('show',Boolean(state.pending));
