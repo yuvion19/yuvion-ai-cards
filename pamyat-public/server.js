@@ -1893,6 +1893,29 @@ app.post("/api/admin/auth/logout", (_req,res) => {
   res.json({ok:true});
 });
 
+
+app.get("/api/admin/stats", requireAdmin, async (_req,res) => {
+  try{res.json(await sb("rpc/memorial_admin_stats",{method:"POST",body:{p_token:ADMIN_TOKEN}}))}
+  catch(e){console.error("admin stats",e.data||e);res.status(500).json({error:"stats_failed"})}
+});
+
+app.get("/api/admin/notifications", requireAdmin, async (req,res) => {
+  try{
+    const limit=Math.max(1,Math.min(Number(req.query.limit||100),500));
+    res.json(await sb("rpc/memorial_admin_notification_log",{method:"POST",body:{p_token:ADMIN_TOKEN,p_limit:limit}}));
+  }catch(e){console.error("admin notification log",e.data||e);res.status(500).json({error:"notification_log_failed"})}
+});
+
+app.post("/api/admin/events/group/:action", requireAdmin, async (req,res) => {
+  try{
+    const ids=(Array.isArray(req.body?.ids)?req.body.ids:[]).filter(x=>/^[0-9a-f-]{36}$/i.test(String(x))).slice(0,50);
+    if(!ids.length)return res.status(400).json({error:"ids_required"});
+    const action=clean(req.params.action,20);
+    const data=await sb("rpc/memorial_admin_group_action",{method:"POST",body:{p_token:ADMIN_TOKEN,p_ids:ids,p_action:action}});
+    res.json(data);
+  }catch(e){console.error("admin group action",e.data||e);res.status(400).json({error:"group_action_failed"})}
+});
+
 app.get("/api/admin/events/list", requireAdmin, async (req,res) => {
   try {
     const data=await sb("rpc/memorial_admin_events_list",{
