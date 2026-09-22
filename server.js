@@ -193,10 +193,11 @@ const productCardSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "value"],
+        required: ["name", "value", "source"],
         properties: {
           name: { type: "string" },
-          value: { type: "string" }
+          value: { type: "string" },
+          source: { type: "string", enum: ["Продавец", "Маркировка", "Фото"] }
         }
       }
     },
@@ -234,6 +235,11 @@ const instructions = `
 Нельзя утверждать размеры, вес, материал, состав, мощность, емкость, бренд, модель, страну производства, комплектность, сертификацию, цветовой код, возрастное назначение и любые другие параметры, если они не читаются на фотографии или не определяются визуально с высокой уверенностью.
 
 Если параметр нельзя достоверно определить по фото, не добавляй его в characteristics. Вместо этого добавь понятный пункт в needsClarification.
+Для КАЖДОЙ characteristics обязательно укажи source:
+- "Продавец" — только если это значение прямо передано в подтвержденных данных продавца;
+- "Маркировка" — только если значение реально читается на товаре или упаковке;
+- "Фото" — только для безопасного визуально очевидного свойства, не требующего точного технического знания.
+Точные размеры, вес, материал, состав, мощность, емкость, модель, страна производства, комплектность и подобные технические факты нельзя помечать "Фото" только по внешнему виду. Для них допустимы "Продавец" или "Маркировка", иначе параметр нужно исключить и запросить уточнение.
 benefits должны содержать только фактически подтвержденные или безопасно описательные преимущества, вытекающие из видимого товара.
 usage должны содержать только очевидные сценарии применения, которые напрямую следуют из типа товара.
 Если сам тип товара неясен, выбери максимально общую категорию и укажи низкую уверенность.
@@ -349,7 +355,7 @@ function mergeConfirmedData(cardRaw, extraRaw) {
   for (const pair of confirmed) {
     const name = pair[0];
     const value = pair[1];
-    byName.set(name.toLocaleLowerCase("ru"), { name, value });
+    byName.set(name.toLocaleLowerCase("ru"), { name, value, source: "Продавец" });
   }
   card.characteristics = [...byName.values()].slice(0, 12);
 
@@ -377,6 +383,10 @@ function mergeConfirmedData(cardRaw, extraRaw) {
   return { ...card, confirmedData: extra };
 }
 
+function normalizeCharacteristicSource(value) {
+  return ["Продавец", "Маркировка", "Фото"].includes(value) ? value : "Фото";
+}
+
 function normalizeCard(raw) {
   const card = raw && typeof raw === "object" ? raw : {};
   return {
@@ -388,7 +398,7 @@ function normalizeCard(raw) {
       ? card.characteristics
           .filter((x) => x && x.name && x.value)
           .slice(0, 12)
-          .map((x) => ({ name: compact(x.name, 60), value: compact(x.value, 100) }))
+          .map((x) => ({ name: compact(x.name, 60), value: compact(x.value, 100), source: normalizeCharacteristicSource(x.source) }))
       : [],
     keywords: Array.isArray(card.keywords) ? card.keywords.filter(Boolean).slice(0, 30).map((x) => compact(x, 60)) : [],
     benefits: Array.isArray(card.benefits) ? card.benefits.filter(Boolean).slice(0, 5).map((x) => compact(x, 80)) : [],
@@ -574,7 +584,7 @@ async function makeQualityPreview(base64) {
 
 app.post("/api/quality-check", async (req, res) => {
   try {
-    const { cards, card } = req.body ?? {};
+    const { cards, card, sourceImage = "", sourceMimeType = "" } = req.body ?? {};
     if (!Array.isArray(cards) || cards.length !== 4) {
       return res.status(400).json({ error: "Для проверки нужны четыре карточки." });
     }
@@ -583,12 +593,29 @@ app.post("/api/quality-check", async (req, res) => {
     }
 
     const previews = [];
+    const deterministicIssues = Array.from({ length: 4 }, () => []);
     for (let i = 0; i < 4; i += 1) {
       if (!cards[i] || typeof cards[i].base64 !== "string") {
         return res.status(400).json({ error: "Одна из карточек повреждена." });
       }
+      const buffer = Buffer.from(cards[i].base64, "base64");
+      const meta = await sharp(buffer).metadata();
+      if (Number(meta.width) !== 900 || Number(meta.height) !== 1200) {
+        deterministicIssues[i].push("Неверный размер изображения: требуется 900×1200 px.");
+      }
       const thumb = await makeQualityPreview(cards[i].base64);
       previews.push("data:image/jpeg;base64," + thumb.toString("base64"));
+    }
+
+    let sourcePreview = "";
+    if (sourceImage) {
+      if (!ALLOWED_TYPES.has(sourceMimeType)) {
+        return res.status(400).json({ error: "Исходное фото для QA имеет неподдерживаемый формат." });
+      }
+      if (decodedImageSize(sourceImage) > MAX_IMAGE_BYTES) {
+        return res.status(413).json({ error: "Исходное фото для QA должно быть не больше 10 МБ." });
+      }
+      sourcePreview = "data:image/jpeg;base64," + (await makeQualityPreview(sourceImage)).toString("base64");
     }
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -597,12 +624,15 @@ app.post("/api/quality-check", async (req, res) => {
       text:
         "Проверь четыре готовые товарные карточки Yuvion. Сопоставь их с данными товара: " +
         JSON.stringify(normalizeCard(card || {})) +
-        "\\nПроверяй: товар не обрезан; товар визуально правдоподобен; нет явных искажений; " +
-        "текст и инфографика читаемы; нет явной бессмыслицы или противоречия данным товара; " +
-        "нет лишних водяных знаков или случайных надписей. " +
-        "Статус Переделать ставь только при серьезной визуальной проблеме. Мелкие эстетические замечания — Замечание."
+        (sourcePreview ? "\\nПервое приложенное изображение — исходное фото товара. Следующие четыре — готовые карточки." : "\\nПриложены четыре готовые карточки.") +
+        "\\nПроверяй строго: товар не обрезан; текст читаем; текст не перекрывает критически сам товар; " +
+        "нет водяных знаков, случайных символов и бессмысленного текста; визуальный товар не изменил форму, цвет, количество элементов, кнопки, разъемы, логотип, рисунок упаковки или важные конструктивные детали; " +
+        "четыре карточки изображают один и тот же товар и не противоречат друг другу; на изображениях нет технических характеристик, которых нет в данных товара или которые имеют неподтвержденный источник. " +
+        "Если исходное фото приложено, сравнивай идентичность товара прежде всего с ним. " +
+        "Статус Переделать ставь при изменении товара, нечитаемом/ошибочном тексте, обрезании, критическом перекрытии или выдуманных фактах. Мелкие эстетические замечания — Замечание."
     }];
 
+    if (sourcePreview) content.push({ type: "input_image", image_url: sourcePreview, detail: "high" });
     previews.forEach((url) => content.push({ type: "input_image", image_url: url, detail: "high" }));
 
     const response = await client.responses.create({
@@ -616,7 +646,7 @@ app.post("/api/quality-check", async (req, res) => {
           schema: qualityCheckSchema
         }
       },
-      max_output_tokens: 1200
+      max_output_tokens: 1400
     });
 
     recordTextUsage(response);
@@ -624,6 +654,20 @@ app.post("/api/quality-check", async (req, res) => {
     if (!Array.isArray(parsed.cards) || parsed.cards.length !== 4) {
       throw new Error("Invalid quality-check response");
     }
+
+    parsed.cards = parsed.cards.map((item, index) => {
+      const extraIssues = deterministicIssues[index] || [];
+      const issues = [...new Set([...(Array.isArray(item.issues) ? item.issues : []), ...extraIssues])].slice(0, 12);
+      const needsRegeneration = Boolean(item.needsRegeneration || extraIssues.length);
+      return {
+        ...item,
+        index,
+        issues,
+        needsRegeneration,
+        status: needsRegeneration ? "Переделать" : item.status
+      };
+    });
+    if (parsed.cards.some((x) => x.needsRegeneration)) parsed.overall = "Нужно исправить";
 
     stats.qualityChecks += 1;
     stats.qualityFailures += parsed.cards.filter((x) => x.needsRegeneration).length;
