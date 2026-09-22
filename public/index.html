@@ -3575,6 +3575,109 @@ function normalizeImportHeader(value){
     .replace(/[^a-zа-я0-9]+/g,' ');
 }
 
+const IMPORT_MAP_FIELDS=[
+  {key:'title',label:'Название',canonical:'Название',aliases:['название','наименование','товар','имя товара','product name','name','title']},
+  {key:'sku',label:'Артикул / SKU',canonical:'Артикул',aliases:['артикул','sku','код товара','код позиции','vendor code','article']},
+  {key:'brand',label:'Бренд',canonical:'Бренд',aliases:['бренд','brand','марка']},
+  {key:'barcode',label:'EAN / штрихкод',canonical:'Штрихкод',aliases:['штрихкод','ean','ean13','ean 13','barcode','gtin']},
+  {key:'category',label:'Категория',canonical:'Категория',aliases:['категория','раздел','category','категория yuvion']},
+  {key:'price1',label:'Цена 1 шт.',canonical:'Цена за 1',aliases:['цена','цена за 1','розница','розничная цена','цена 1','retail price','price']},
+  {key:'price2',label:'Цена от 2',canonical:'Цена от 2',aliases:['цена от 2','цена 2','опт 2','2 шт','price 2']},
+  {key:'price3',label:'Цена от 3',canonical:'Цена от 3',aliases:['цена от 3','цена 3','опт 3','3 шт','price 3']},
+  {key:'oldPrice',label:'Старая цена',canonical:'Старая цена',aliases:['старая цена','old price','oldprice']},
+  {key:'material',label:'Материал',canonical:'Материал',aliases:['материал','material','состав материала']},
+  {key:'size',label:'Размеры',canonical:'Размеры',aliases:['размеры','размер','габариты','dimensions','size']},
+  {key:'description',label:'Описание',canonical:'Описание',aliases:['описание','description','полное описание','description full']},
+  {key:'cost',label:'Себестоимость',canonical:'Себестоимость',aliases:['себестоимость','закупочная цена','закупка','cost','cost price']},
+  {key:'stock',label:'Остаток',canonical:'Остаток',aliases:['остаток','количество','stock','qty','quantity']},
+  {key:'boxes',label:'Коробки',canonical:'Коробки',aliases:['коробок','коробки','boxes','box count']},
+  {key:'minStock',label:'Мин. остаток',canonical:'Минимальный остаток',aliases:['минимальный остаток','мин остаток','min stock','minimum stock']},
+  {key:'location',label:'Место хранения',canonical:'Место хранения',aliases:['место хранения','ячейка','стеллаж','location','shelf']},
+  {key:'collections',label:'Коллекции / метки',canonical:'Коллекции',aliases:['коллекции','группы','метки','collections','tags','теги']}
+];
+
+function importHeaderScore(header,aliases){
+  const h=normalizeImportHeader(header);
+  if(!h)return 0;
+  let best=0;
+  for(const alias of aliases){
+    const a=normalizeImportHeader(alias);
+    if(!a)continue;
+    if(h===a)best=Math.max(best,100);
+    else if(h.includes(a)||a.includes(h))best=Math.max(best,78);
+    else{
+      const ht=new Set(h.split(' ').filter(Boolean)),at=a.split(' ').filter(Boolean);
+      const overlap=at.filter(x=>ht.has(x)).length;
+      if(overlap)best=Math.max(best,Math.round(55*overlap/Math.max(at.length,ht.size)));
+    }
+  }
+  return best;
+}
+function detectImportMapping(headers){
+  const used=new Set(),mapping={};
+  for(const field of IMPORT_MAP_FIELDS){
+    let bestIndex=-1,bestScore=0;
+    headers.forEach((header,index)=>{
+      if(used.has(index))return;
+      const score=importHeaderScore(header,field.aliases);
+      if(score>bestScore){bestScore=score;bestIndex=index}
+    });
+    if(bestScore>=45){mapping[field.key]=bestIndex;used.add(bestIndex)}
+    else mapping[field.key]=-1;
+  }
+  return mapping;
+}
+function updateImportMapPreview(){
+  if(!pendingImportMap)return;
+  const sample=pendingImportMap.rows[1]||[];
+  const pairs=IMPORT_MAP_FIELDS.map(field=>{
+    const idx=Number(pendingImportMap.mapping[field.key]);
+    return idx>=0?field.label+': '+String(sample[idx]??'').slice(0,80):'';
+  }).filter(Boolean);
+  const mapped=pairs.length;
+  importMapSubtitle.textContent='Файл: '+pendingImportMap.filename+' · строк товаров: '+Math.max(0,pendingImportMap.rows.length-1)+' · сопоставлено полей: '+mapped;
+  importMapPreview.textContent=pairs.length?'Пример первой строки → '+pairs.join(' · '):'Автораспознавание не нашло подходящих колонок. Выберите их вручную.';
+}
+function renderImportMapper({redetect=false}={}){
+  if(!pendingImportMap)return;
+  const headers=pendingImportMap.rows[0].map(v=>String(v||'').trim());
+  if(redetect||!pendingImportMap.mapping)pendingImportMap.mapping=detectImportMapping(headers);
+  importMapGrid.innerHTML=IMPORT_MAP_FIELDS.map(field=>{
+    const current=Number(pendingImportMap.mapping[field.key]??-1);
+    const options=['<option value="-1">Не импортировать</option>',...headers.map((header,index)=>'<option value="'+index+'" '+(index===current?'selected':'')+'>'+esc(header||('Колонка '+(index+1)))+'</option>')].join('');
+    return '<div class="import-map-field"><label>'+esc(field.label)+'</label><select data-import-map="'+esc(field.key)+'">'+options+'</select></div>';
+  }).join('');
+  importMapGrid.querySelectorAll('[data-import-map]').forEach(select=>select.onchange=()=>{
+    pendingImportMap.mapping[select.dataset.importMap]=Number(select.value);
+    updateImportMapPreview();
+  });
+  updateImportMapPreview();
+}
+function openImportMapper(rows,filename){
+  if(!Array.isArray(rows)||rows.length<2)throw new Error('В таблице нужны заголовки и хотя бы одна строка товара.');
+  pendingImportMap={rows,filename:String(filename||'таблица'),mapping:null};
+  renderImportMapper({redetect:true});
+  importMapModal.classList.add('show');
+}
+function closeImportMapper(){
+  pendingImportMap=null;
+  importMapModal.classList.remove('show');
+}
+async function confirmMappedImport(){
+  if(!pendingImportMap)return;
+  const source=pendingImportMap;
+  const headers=IMPORT_MAP_FIELDS.map(field=>field.canonical);
+  const mappedRows=[headers,...source.rows.slice(1).map(row=>IMPORT_MAP_FIELDS.map(field=>{
+    const idx=Number(source.mapping[field.key]??-1);
+    return idx>=0?String(row[idx]??''):'';
+  }))];
+  importMapModal.classList.remove('show');
+  pendingImportMap=null;
+  importNote.className='import-note show';
+  importNote.textContent='Импортируем сопоставленные данные локально…';
+  await importProductRows(mappedRows,source.filename);
+}
+
 function parseCsvText(text){
   const sample=String(text||'').split(/\r?\n/).slice(0,4).join('\n');
   const counts={',':0,';':0,'\t':0};
@@ -3863,7 +3966,9 @@ async function importProductsFileNow(file){
   importNote.className='import-note show';
   importNote.textContent='Читаем таблицу локально в браузере…';
   try{
-    await importProductRows(await rowsFromImportFile(file),file.name);
+    openImportMapper(await rowsFromImportFile(file),file.name);
+    importNote.className='import-note show';
+    importNote.textContent='Таблица прочитана локально. Проверьте сопоставление колонок перед импортом.';
   }catch(e){
     importNote.className='import-note show';
     importNote.textContent='Импорт не выполнен: '+(e.message||'ошибка файла');
@@ -4634,6 +4739,16 @@ extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosIn
 
 importProductsBtn.onclick=()=>importProductsFile.click();
 importProductsFile.addEventListener('change',()=>importProductsFileNow(importProductsFile.files?.[0]));
+cancelImportMap.onclick=()=>closeImportMapper();
+resetImportMap.onclick=()=>renderImportMapper({redetect:true});
+confirmImportMap.onclick=async()=>{
+  confirmImportMap.disabled=true;
+  try{await confirmMappedImport()}catch(e){
+    importNote.className='import-note show';
+    importNote.textContent='Импорт не выполнен: '+(e.message||'ошибка сопоставления');
+    importMapModal.classList.add('show');
+  }finally{confirmImportMap.disabled=false}
+};
 importRulesBtn.onclick=()=>importRulesFile.click();
 importRulesFile.addEventListener('change',()=>importRulesFileNow(importRulesFile.files?.[0]));
 
