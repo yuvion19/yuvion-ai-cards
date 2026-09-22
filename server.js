@@ -147,6 +147,19 @@ function compact(value, max = 160) {
   return text.slice(0, Math.max(0, max - 1)).trimEnd() + "…";
 }
 
+const sellerMentionPattern = /(продав(?:ец|ца|цу|цом|це)|арендатор(?:а|у|ом|е)?|поставщик(?:а|у|ом|е)?|наш(?:его|ему|им|ем)?\s+магазин|наша\s+компания|мы\s+(?:предлагаем|рекомендуем|прода[её]м)|у\s+нас\s+(?:можно|в\s+наличии|представлен|представлена|представлены)|сайт[- ]источник|источник\s+товара)/i;
+
+function sellerNeutralCopy(value, max = 2000) {
+  const source = compact(value || "", max);
+  if (!source) return "";
+  const sentences = source
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => !sellerMentionPattern.test(part));
+  return compact(sentences.join(" "), max);
+}
+
 function wrapWords(value, maxChars = 28, maxLines = 3) {
   const words = compact(value, 500).split(" ").filter(Boolean);
   const lines = [];
@@ -265,7 +278,11 @@ usage должны содержать только очевидные сцена
 Не упоминай Ozon, Wildberries или другие маркетплейсы.
 Пиши на русском языке, в деловом e-commerce стиле.
 SEO-заголовок должен быть естественным, без спама, капслока и неподтвержденных брендов.
-Полное описание должно продавать через видимые свойства и сценарии использования, но не придумывать технические факты.\nЕсли пользователь передал подтвержденные данные о товаре (название, бренд, артикул, штрихкод/EAN, размеры, материал, цена), используй их как достоверные факты. Не пытайся опровергать, угадывать заново или переносить их в needsClarification.
+Полное описание должно продавать через видимые свойства и сценарии использования, но не придумывать технические факты.
+Описание предназначено для покупателя. Никогда не упоминай продавца, арендатора, поставщика, магазин, компанию, сайт-источник, источник товара или происхождение данных. Не используй фразы "наш магазин", "мы предлагаем", "мы рекомендуем", "у нас". Не добавляй служебные сведения о том, кто предоставил характеристики.
+Пиши продающе, но без рекламных обещаний, которых нельзя подтвердить: сначала понятная польза товара, затем 2–4 подтверждённых преимущества и естественные сценарии использования. Не повторяй SEO-заголовок дословно в каждом предложении.
+Краткое описание — 1–2 содержательных предложения для покупателя без продавца и без внутренних терминов Yuvion.
+Если пользователь передал подтвержденные данные о товаре (название, бренд, артикул, штрихкод/EAN, размеры, материал, цена), используй их как достоверные факты. Не пытайся опровергать, угадывать заново или переносить их в needsClarification.
 Поле category предназначено для поиска категории в личном кабинете admin.yuvion.ru. Категории там иерархические и отображаются как путь вида "Раздел / Подраздел / Категория". Если уверен в пути — верни максимально полезный поисковый путь. Если не уверен в точном листе — верни только уверенную часть пути и НЕ выдумывай дочернюю категорию.
 По видео кабинета подтверждены, среди прочего, разделы: Обувь; Электроника; Дом и сад; Красота и здоровье; Спорт и отдых; Строительство и ремонт; Туризм и отдых на природе; Хобби и творчество; Канцелярские товары; Бытовая химия и гигиена. Это НЕ полный перечень и он не должен ограничивать классификацию.
 Slug в личном кабинете формируется автоматически из названия товара — не добавляй slug в характеристики, описание или needsClarification.
@@ -313,6 +330,14 @@ const styleProfiles = {
     text: "#2E2523",
     panel: "#FFFDFB",
     scene: "Светлая уютная предметная съемка в нейтральных теплых оттенках, натуральная поверхность, мягкий дневной свет, без людей."
+  },
+  kids: {
+    name: "Игрушки и детские товары",
+    accent: "#6B32D9",
+    accent2: "#FFB800",
+    text: "#17131F",
+    panel: "#FFFDF2",
+    scene: "Яркая дружелюбная предметная съемка для детского товара: энергичный желто-фиолетовый фон, крупный товар, мягкие игровые формы, без неподтвержденных надписей."
   }
 };
 
@@ -407,11 +432,13 @@ function normalizeCharacteristicSource(value) {
 
 function normalizeCard(raw) {
   const card = raw && typeof raw === "object" ? raw : {};
+  const safeShort = sellerNeutralCopy(card.shortDescription || "", 500);
+  const safeFull = sellerNeutralCopy(card.fullDescription || "", 2000) || safeShort;
   return {
     seoTitle: compact(card.seoTitle || card.category || "Товар", 180),
     category: compact(card.category || "Товар", 80),
-    shortDescription: compact(card.shortDescription || "", 500),
-    fullDescription: compact(card.fullDescription || "", 2000),
+    shortDescription: safeShort,
+    fullDescription: safeFull,
     characteristics: Array.isArray(card.characteristics)
       ? card.characteristics
           .filter((x) => x && x.name && x.value)
@@ -419,8 +446,8 @@ function normalizeCard(raw) {
           .map((x) => ({ name: compact(x.name, 60), value: compact(x.value, 100), source: normalizeCharacteristicSource(x.source) }))
       : [],
     keywords: Array.isArray(card.keywords) ? card.keywords.filter(Boolean).slice(0, 30).map((x) => compact(x, 60)) : [],
-    benefits: Array.isArray(card.benefits) ? card.benefits.filter(Boolean).slice(0, 5).map((x) => compact(x, 80)) : [],
-    usage: Array.isArray(card.usage) ? card.usage.filter(Boolean).slice(0, 4).map((x) => compact(x, 100)) : [],
+    benefits: Array.isArray(card.benefits) ? card.benefits.filter(Boolean).map((x) => sellerNeutralCopy(x, 80)).filter(Boolean).slice(0, 5) : [],
+    usage: Array.isArray(card.usage) ? card.usage.filter(Boolean).map((x) => sellerNeutralCopy(x, 100)).filter(Boolean).slice(0, 4) : [],
     needsClarification: Array.isArray(card.needsClarification) ? card.needsClarification.filter(Boolean).slice(0, 20).map((x) => compact(x, 120)) : [],
     confidence: ["Высокая", "Средняя", "Низкая"].includes(card.confidence) ? card.confidence : "Средняя",
     photoQuality: card.photoQuality && typeof card.photoQuality === "object"
@@ -960,7 +987,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "6.7.1",
+    version: "6.8.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1415,52 +1442,130 @@ const cardScenes = [
 ];
 
 const freeSceneLayouts = [
-  { x: 105, y: 118, width: 690, height: 620 },
-  { x: 548, y: 145, width: 300, height: 760 },
-  { x: 105, y: 88, width: 690, height: 520 },
-  { x: 105, y: 90, width: 690, height: 560 }
+  { x: 90, y: 126, width: 720, height: 610 },
+  { x: 520, y: 160, width: 330, height: 720 },
+  { x: 110, y: 92, width: 680, height: 500 },
+  { x: 105, y: 105, width: 690, height: 535 }
 ];
 
 function freeSceneBackgroundSvg(index, styleKey) {
   const style = styleProfiles[styleKey] || styleProfiles.minimal;
-  const layout = freeSceneLayouts[index] || freeSceneLayouts[0];
-  const frameX = Math.max(28, layout.x - 24);
-  const frameY = Math.max(28, layout.y - 24);
-  const frameW = Math.min(844, layout.width + 48);
-  const frameH = Math.min(920, layout.height + 48);
-  const accentX = index === 1 ? 690 : index === 2 ? 110 : 700;
-  const accentY = index === 1 ? 980 : index === 2 ? 90 : 115;
+  const playful = styleKey === "kids";
+  const bright = styleKey === "bright" || playful;
+  const bgA = playful ? "#FFF000" : bright ? "#FFF7F2" : "#FFFDFD";
+  const bgB = playful ? "#FFB800" : bright ? "#FFE4DE" : style.panel;
+  const bgC = playful ? "#7B3FE4" : style.accent;
+  const burst = index === 0 || index === 3;
+  const dots = Array.from({ length: 12 }, (_, n) => {
+    const cx = 65 + (n % 4) * 58;
+    const cy = 76 + Math.floor(n / 4) * 58;
+    return `<circle cx="${cx}" cy="${cy}" r="${6 + (n % 3) * 3}" fill="${bgC}" fill-opacity="${playful ? 0.55 : 0.12}"/>`;
+  }).join("");
   return `
     <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#FFFDFD"/>
-          <stop offset="62%" stop-color="${style.panel}"/>
-          <stop offset="100%" stop-color="#F8EFF1"/>
+          <stop offset="0%" stop-color="${bgA}"/>
+          <stop offset="68%" stop-color="${bgB}"/>
+          <stop offset="100%" stop-color="${playful ? "#FF8A00" : "#F8EFF1"}"/>
         </linearGradient>
-        <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#5B2730" flood-opacity="0.12"/>
-        </filter>
+        <radialGradient id="glow">
+          <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+          <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+        </radialGradient>
       </defs>
       <rect width="900" height="1200" fill="url(#bg)"/>
-      <circle cx="${accentX}" cy="${accentY}" r="210" fill="${style.accent}" fill-opacity="0.07"/>
-      <circle cx="${index === 1 ? 760 : 120}" cy="${index === 1 ? 120 : 1040}" r="120" fill="${style.accent2}" fill-opacity="0.05"/>
-      <rect x="${frameX}" y="${frameY}" width="${frameW}" height="${frameH}" rx="38" fill="#FFFFFF" filter="url(#shadow)"/>
-      <rect x="${frameX}" y="${frameY}" width="${frameW}" height="${frameH}" rx="38" fill="none" stroke="${style.accent}" stroke-opacity="0.10" stroke-width="2"/>
+      ${burst ? `<path d="M450 90 L505 500 L760 180 L570 550 L890 420 L590 625 L900 760 L555 700 L710 1040 L480 760 L330 1120 L365 740 L60 970 L315 665 L0 610 L330 590 L70 305 L380 520 Z" fill="${bgC}" fill-opacity="${playful ? 0.10 : 0.055}"/>` : ""}
+      <circle cx="${index === 1 ? 750 : 665}" cy="${index === 1 ? 220 : 180}" r="${playful ? 250 : 205}" fill="${bgC}" fill-opacity="${playful ? 0.12 : 0.07}"/>
+      <ellipse cx="450" cy="560" rx="390" ry="330" fill="url(#glow)"/>
+      ${playful ? dots : ""}
+      <path d="M0 1090 C190 1015 315 1155 490 1090 C665 1025 765 1055 900 1000 L900 1200 L0 1200 Z" fill="${style.accent}" fill-opacity="${playful ? 0.18 : 0.06}"/>
     </svg>`;
+}
+
+async function edgeWhiteCutout(sourceBuffer, layout) {
+  const prepared = await sharp(sourceBuffer)
+    .rotate()
+    .resize(1200, 1200, { fit: "inside", withoutEnlargement: false })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const data = prepared.data;
+  const { width, height, channels } = prepared.info;
+  const total = width * height;
+  const seen = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let head = 0;
+  let tail = 0;
+  const whiteish = (idx) => {
+    const p = idx * channels;
+    const r = data[p], g = data[p + 1], b = data[p + 2], a = data[p + 3];
+    const hi = Math.max(r, g, b), lo = Math.min(r, g, b);
+    return a > 0 && lo >= 236 && hi - lo <= 24;
+  };
+  const push = (idx) => {
+    if (idx < 0 || idx >= total || seen[idx] || !whiteish(idx)) return;
+    seen[idx] = 1;
+    queue[tail++] = idx;
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    push(x);
+    push((height - 1) * width + x);
+  }
+  for (let y = 0; y < height; y += 1) {
+    push(y * width);
+    push(y * width + width - 1);
+  }
+
+  while (head < tail) {
+    const idx = queue[head++];
+    const x = idx % width;
+    if (x > 0) push(idx - 1);
+    if (x + 1 < width) push(idx + 1);
+    if (idx >= width) push(idx - width);
+    if (idx + width < total) push(idx + width);
+  }
+
+  let minX = width, minY = height, maxX = -1, maxY = -1;
+  for (let idx = 0; idx < total; idx += 1) {
+    const p = idx * channels;
+    if (seen[idx]) data[p + 3] = 0;
+    if (data[p + 3] > 8) {
+      const x = idx % width;
+      const y = Math.floor(idx / width);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  if (maxX < minX || maxY < minY) throw new Error("cutout-empty");
+  return sharp(data, { raw: { width, height, channels } })
+    .extract({ left: minX, top: minY, width: maxX - minX + 1, height: maxY - minY + 1 })
+    .resize(layout.width, layout.height, { fit: "contain", withoutEnlargement: false })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 }
 
 async function renderFreeScene(sourceBuffer, index, styleKey) {
   const layout = freeSceneLayouts[index] || freeSceneLayouts[0];
-  const product = await sharp(sourceBuffer)
-    .rotate()
-    .resize(layout.width, layout.height, {
-      fit: "contain",
-      withoutEnlargement: false,
-      background: { r: 255, g: 255, b: 255, alpha: 1 }
-    })
-    .png({ compressionLevel: 9 })
-    .toBuffer();
+  let product;
+  try {
+    product = await edgeWhiteCutout(sourceBuffer, layout);
+  } catch {
+    product = await sharp(sourceBuffer)
+      .rotate()
+      .resize(layout.width, layout.height, {
+        fit: "contain",
+        withoutEnlargement: false,
+        background: { r: 255, g: 255, b: 255, alpha: 1 }
+      })
+      .png({ compressionLevel: 9 })
+      .toBuffer();
+  }
 
   return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey)))
     .composite([{ input: product, left: layout.x, top: layout.y }])
@@ -1525,69 +1630,71 @@ function overlayForCard(index, cardRaw, styleKey) {
   const title = compact(card.seoTitle || card.category || "Товар", 120);
   const category = compact(card.category || "Товар", 50);
   const characteristics = card.characteristics || [];
+  const benefits = card.benefits.length ? card.benefits : characteristics.slice(0, 4).map((x) => `${x.name}: ${x.value}`);
 
   if (index === 0) {
-    const titleLines = wrapWords(title, 26, 3);
-    const quick = characteristics.slice(0, 3).map((item) => `${compact(item.name, 22)}: ${compact(item.value, 34)}`);
+    const titleLines = wrapWords(title, 25, 3);
+    const quick = benefits.slice(0, 3);
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
         <rect width="900" height="1200" fill="none"/>
-        <rect x="46" y="48" rx="22" ry="22" width="192" height="54" fill="${style.accent}"/>
-        <text x="142" y="84" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="24" font-weight="800" fill="#FFFFFF">YUVION</text>
-        <rect x="38" y="805" rx="34" ry="34" width="824" height="350" fill="${style.panel}" fill-opacity="0.96"/>
-        <text x="78" y="860" font-family="DejaVu Sans, Arial, sans-serif" font-size="24" font-weight="800" fill="${style.accent2}">${escapeXml(category.toUpperCase())}</text>
-        ${textLines(titleLines, { x: 78, y: 920, size: 46, lineHeight: 56, weight: 800, fill: style.text })}
-        ${quick.length ? bulletGroups(quick, { x: 88, y: 1080, maxChars: 36, maxItems: 3, size: 22, lineHeight: 28, gap: 8, accent: style.accent, text: style.text }) : ""}
+        <rect x="46" y="46" rx="24" width="154" height="54" fill="${style.accent}"/>
+        <text x="123" y="82" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="#FFFFFF">YUVION</text>
+        <rect x="38" y="790" rx="38" width="824" height="372" fill="${style.panel}" fill-opacity="0.97"/>
+        <rect x="72" y="824" rx="18" width="250" height="42" fill="${style.accent}" fill-opacity="0.12"/>
+        <text x="92" y="853" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="800" fill="${style.accent2}">${escapeXml(category.toUpperCase())}</text>
+        ${textLines(titleLines, { x: 72, y: 918, size: 47, lineHeight: 55, weight: 850, fill: style.text })}
+        ${quick.length ? bulletGroups(quick, { x: 84, y: 1080, maxChars: 35, maxItems: 3, size: 22, lineHeight: 27, gap: 7, accent: style.accent, text: style.text }) : ""}
       </svg>`;
   }
 
   if (index === 1) {
-    const benefits = card.benefits.length ? card.benefits : characteristics.slice(0, 4).map((x) => `${x.name}: ${x.value}`);
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
         <rect width="900" height="1200" fill="none"/>
-        <rect x="30" y="70" rx="34" ry="34" width="500" height="1050" fill="${style.panel}" fill-opacity="0.95"/>
-        <text x="74" y="145" font-family="DejaVu Sans, Arial, sans-serif" font-size="26" font-weight="800" fill="${style.accent}">YUVION</text>
-        <text x="74" y="220" font-family="DejaVu Sans, Arial, sans-serif" font-size="52" font-weight="850" fill="${style.text}">Преимущества</text>
-        ${bulletGroups(benefits, { x: 86, y: 320, maxChars: 24, maxItems: 5, size: 31, lineHeight: 42, gap: 30, accent: style.accent, text: style.text })}
+        <rect x="28" y="66" rx="40" width="498" height="1066" fill="${style.panel}" fill-opacity="0.97"/>
+        <text x="70" y="135" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="${style.accent}">ГЛАВНОЕ О ТОВАРЕ</text>
+        <text x="70" y="210" font-family="DejaVu Sans, Arial, sans-serif" font-size="50" font-weight="850" fill="${style.text}">Преимущества</text>
+        ${bulletGroups(benefits, { x: 84, y: 315, maxChars: 24, maxItems: 5, size: 30, lineHeight: 40, gap: 30, accent: style.accent, text: style.text })}
       </svg>`;
   }
 
   if (index === 2) {
     const specs = characteristics.slice(0, 5);
-    let y = 830;
+    let y = 825;
     let rows = "";
     if (specs.length) {
       for (const item of specs) {
         rows += `
-          <text x="78" y="${y}" font-family="DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="700" fill="${style.accent2}">${escapeXml(compact(item.name, 30))}</text>
-          <text x="78" y="${y + 34}" font-family="DejaVu Sans, Arial, sans-serif" font-size="29" font-weight="750" fill="${style.text}">${escapeXml(compact(item.value, 43))}</text>
+          <rect x="72" y="${y - 29}" width="10" height="46" rx="5" fill="${style.accent}"/>
+          <text x="100" y="${y - 4}" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" fill="${style.accent2}">${escapeXml(compact(item.name, 28))}</text>
+          <text x="100" y="${y + 30}" font-family="DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="800" fill="${style.text}">${escapeXml(compact(item.value, 40))}</text>
         `;
         y += 68;
       }
     } else {
-      rows = textLines(["Подробные характеристики", "уточняйте у продавца"], { x: 78, y: 850, size: 34, lineHeight: 46, weight: 700, fill: style.text });
+      rows = textLines(["Точные характеристики", "не указаны в исходных данных"], { x: 78, y: 860, size: 31, lineHeight: 44, weight: 700, fill: style.text });
     }
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
         <rect width="900" height="1200" fill="none"/>
-        <rect x="38" y="650" rx="34" ry="34" width="824" height="510" fill="${style.panel}" fill-opacity="0.96"/>
-        <text x="78" y="720" font-family="DejaVu Sans, Arial, sans-serif" font-size="24" font-weight="800" fill="${style.accent}">YUVION</text>
-        <text x="78" y="775" font-family="DejaVu Sans, Arial, sans-serif" font-size="46" font-weight="850" fill="${style.text}">Характеристики</text>
+        <rect x="38" y="640" rx="38" width="824" height="520" fill="${style.panel}" fill-opacity="0.97"/>
+        <text x="76" y="710" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="${style.accent}">БЕЗ ЛИШНИХ ОБЕЩАНИЙ</text>
+        <text x="76" y="770" font-family="DejaVu Sans, Arial, sans-serif" font-size="46" font-weight="850" fill="${style.text}">Что важно знать</text>
         ${rows}
       </svg>`;
   }
 
-  const usage = card.usage.length ? card.usage : [card.shortDescription || category];
-  const desc = wrapWords(card.shortDescription || card.fullDescription || category, 42, 3);
+  const usage = card.usage.length ? card.usage : benefits.slice(0, 3);
+  const desc = wrapWords(card.shortDescription || card.fullDescription || category, 43, 3);
   return `
     <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
       <rect width="900" height="1200" fill="none"/>
-      <rect x="38" y="690" rx="34" ry="34" width="824" height="470" fill="${style.panel}" fill-opacity="0.96"/>
-      <text x="78" y="750" font-family="DejaVu Sans, Arial, sans-serif" font-size="24" font-weight="800" fill="${style.accent}">YUVION</text>
-      <text x="78" y="805" font-family="DejaVu Sans, Arial, sans-serif" font-size="46" font-weight="850" fill="${style.text}">Для чего подойдет</text>
-      ${bulletGroups(usage, { x: 88, y: 880, maxChars: 42, maxItems: 3, size: 28, lineHeight: 36, gap: 16, accent: style.accent, text: style.text })}
-      ${textLines(desc, { x: 78, y: 1080, size: 20, lineHeight: 28, weight: 500, fill: "#776B6E" })}
+      <rect x="38" y="675" rx="38" width="824" height="485" fill="${style.panel}" fill-opacity="0.97"/>
+      <text x="76" y="742" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="${style.accent}">ИДЕИ ИСПОЛЬЗОВАНИЯ</text>
+      <text x="76" y="805" font-family="DejaVu Sans, Arial, sans-serif" font-size="47" font-weight="850" fill="${style.text}">Подойдёт для</text>
+      ${bulletGroups(usage, { x: 88, y: 882, maxChars: 40, maxItems: 3, size: 28, lineHeight: 35, gap: 17, accent: style.accent, text: style.text })}
+      ${textLines(desc, { x: 76, y: 1086, size: 20, lineHeight: 28, weight: 550, fill: "#6D6165" })}
     </svg>`;
 }
 
@@ -2033,5 +2140,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v6.7.1 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v6.8.0 listening on port ${port}`);
 });
