@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v9.0.1
+// Production release marker: v10.0.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1351,7 +1351,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "9.0.1",
+    version: "10.0.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1387,6 +1387,19 @@ app.get("/api/health", (_req, res) => {
       textlessCoverMode: true,
       powerLocalRenderer: true,
       studioLocalV6: true,
+      studioDirectorV10: true,
+      materialAwareLighting: true,
+      productGeometryRouting: true,
+      localRelighting: true,
+      safeUpscalePipeline: true,
+      semanticCardPlanner: true,
+      textDensityLimiter: true,
+      automaticCoverOptimizer: true,
+      bestSourcePhotoRouter: true,
+      qualityScoreV2: true,
+      catalogSeriesDiversity: true,
+      batchArtDirector: true,
+      brandSeriesDNA: true,
       proceduralStudioLighting: true,
       depthOfFieldBackdrop: true,
       acrylicStageSets: true,
@@ -1557,6 +1570,8 @@ app.post("/api/analyze", async (req, res) => {
     let parsed;
     try {
       parsed = mergeConfirmedData(JSON.parse(raw), extraData);
+      const sourceAudit = await assessSourcePhoto(Buffer.from(image, "base64"));
+      parsed.photoQuality = { score: sourceAudit.score, issues: sourceAudit.issues };
     } catch {
       return res.status(502).json({ error: "Не удалось разобрать ответ AI." });
     }
@@ -2063,6 +2078,75 @@ function designArchetype(styleKey) {
   return "clean";
 }
 
+function cardSemanticText(cardRaw) {
+  const card = normalizeCard(cardRaw || {});
+  return [card.seoTitle,card.category,card.shortDescription,card.fullDescription,
+    ...(card.characteristics||[]).flatMap(x=>[x.name,x.value]),...(card.keywords||[])]
+    .filter(Boolean).join(" ").toLocaleLowerCase("ru");
+}
+function categoryArtDirector(cardRaw, styleKey="minimal") {
+  const t=cardSemanticText(cardRaw);
+  if(/игруш|детск|реб[её]н|конструктор|кукл|антистресс|настольн/.test(t))return "kids";
+  if(/космет|крем|сыворот|шампун|макияж|парфюм|уход/.test(t))return "beauty";
+  if(/электрон|гаджет|кабель|заряд|науш|смартф|ламп|техник/.test(t))return "tech";
+  if(/инструмент|дрел|шуруп|ключ|отв[её]рт|ремонт|строител/.test(t))return "tools";
+  if(/еда|напит|чай|кофе|слад|печень|соус|круп|продукт/.test(t))return "food";
+  if(/спорт|фитнес|туризм|поход|мяч|гантел|велосип|трениров/.test(t))return "sport";
+  if(/одеж|обув|футбол|плать|куртк|брюк|сумк|рюкзак|текстил/.test(t))return "fashion";
+  if(/дом|кухн|интерьер|декор|посуда|хранен|уборк|мебел/.test(t))return "home";
+  return styleKey==="bright"?"general":styleKey;
+}
+function confirmedMaterial(cardRaw){
+  const card=normalizeCard(cardRaw||{}),direct=compact(card.confirmedData?.material||"",160);
+  if(direct)return direct.toLocaleLowerCase("ru");
+  const x=(card.characteristics||[]).find(i=>/материал|состав|корпус|ткан/.test(String(i?.name||"").toLocaleLowerCase("ru")));
+  return String(x?.value||"").toLocaleLowerCase("ru");
+}
+function inferMaterialProfile(cardRaw){
+  const t=[confirmedMaterial(cardRaw),cardSemanticText(cardRaw)].join(" ");
+  if(/стекл|хрустал|прозрач/.test(t))return{key:"glass",highlight:.22,shadow:.12,reflection:.19};
+  if(/металл|сталь|алюмин|желез|хром/.test(t))return{key:"metal",highlight:.18,shadow:.20,reflection:.16};
+  if(/ткан|хлоп|полиэстер|шерст|текстил|велюр|кож/.test(t))return{key:"fabric",highlight:.08,shadow:.14,reflection:.04};
+  if(/дерев|бамбук|мдф|фанер/.test(t))return{key:"wood",highlight:.09,shadow:.16,reflection:.07};
+  if(/керами|фарфор|фаянс/.test(t))return{key:"ceramic",highlight:.16,shadow:.16,reflection:.13};
+  if(/картон|бумаг|упаков/.test(t))return{key:"paper",highlight:.07,shadow:.13,reflection:.03};
+  if(/пласт|силикон|полимер|акрил/.test(t))return{key:"plastic",highlight:.13,shadow:.15,reflection:.10};
+  return{key:"generic",highlight:.11,shadow:.15,reflection:.08};
+}
+function inferProductGeometry(aspect=1,cardRaw={}){
+  aspect=Number(aspect)>0?Number(aspect):1;const t=cardSemanticText(cardRaw);
+  if(/тарел|мяч|часы|кольц|колес|кругл/.test(t))return"round";
+  if(/коврик|полотен|плед|простын|панел|картина/.test(t))return"flat";
+  if(aspect>=1.55)return"wide";if(aspect<=.64)return"tall";if(aspect>=1.18)return"landscape";if(aspect<=.82)return"portrait";return"compact";
+}
+function semanticCardPlan(cardRaw){
+  const a=categoryArtDirector(cardRaw);
+  if(a==="tech"||a==="tools")return[{role:"hero",kicker:"01 · ОБЛОЖКА",title:"Главное"},{role:"features",kicker:"02 · ФУНКЦИИ",title:"Что умеет"},{role:"specs",kicker:"03 · ХАРАКТЕРИСТИКИ",title:"Ключевые параметры"},{role:"usage",kicker:"04 · ПРИМЕНЕНИЕ",title:"Где пригодится"}];
+  if(a==="food")return[{role:"hero",kicker:"01 · ОБЛОЖКА",title:"Главное"},{role:"benefits",kicker:"02 · ОСОБЕННОСТИ",title:"Почему выбирают"},{role:"specs",kicker:"03 · СОСТАВ И ДАННЫЕ",title:"Что важно знать"},{role:"usage",kicker:"04 · ПОДАЧА",title:"Как использовать"}];
+  if(a==="kids")return[{role:"hero",kicker:"01 · ОБЛОЖКА",title:"Главное"},{role:"benefits",kicker:"02 · ПРЕИМУЩЕСТВА",title:"Почему понравится"},{role:"specs",kicker:"03 · О ТОВАРЕ",title:"Важные детали"},{role:"usage",kicker:"04 · СЦЕНАРИИ",title:"Как играть"}];
+  if(a==="beauty"||a==="fashion")return[{role:"hero",kicker:"01 · ОБЛОЖКА",title:"Главное"},{role:"benefits",kicker:"02 · АКЦЕНТЫ",title:"Что выделяет"},{role:"specs",kicker:"03 · ДЕТАЛИ",title:"Что важно знать"},{role:"usage",kicker:"04 · СЦЕНАРИЙ",title:"В образе и в жизни"}];
+  return[{role:"hero",kicker:"01 · ОБЛОЖКА",title:"Главное"},{role:"benefits",kicker:"02 · ПРЕИМУЩЕСТВА",title:"Почему удобно"},{role:"specs",kicker:"03 · ХАРАКТЕРИСТИКИ",title:"Главное в цифрах и фактах"},{role:"usage",kicker:"04 · СЦЕНАРИИ",title:"Где пригодится"}];
+}
+function textDensityPolicy(cardRaw){
+  const c=normalizeCard(cardRaw||{}),n=String(c.seoTitle||"").length,d=n>72||(c.characteristics||[]).length>=7||(c.benefits||[]).length>=6;
+  return{dense:d,coverBenefits:n>82?1:d?2:3,benefits:d?4:5,specs:d?4:5,usage:d?2:3,titleMax:n>96?82:120};
+}
+function smartSceneDirector(cardRaw,styleKey,variant=0,geometry="compact",material={key:"generic"}){
+  const a=categoryArtDirector(cardRaw,styleKey);variant=Math.max(0,Math.min(3,Number(variant)||0));
+  const gs=geometry==="wide"?.91:geometry==="tall"?.94:geometry==="flat"?.92:geometry==="compact"?1.03:1;
+  const x=[{key:"hero-stage",variant,scale:1.02*gs,shiftX:0,shiftY:-12,light:"left"},{key:"orbit-panel",variant:(variant+1)%4,scale:gs,shiftX:a==="tech"||a==="tools"?16:-10,shiftY:-2,light:"right"},{key:"spec-desk",variant:(variant+2)%4,scale:.96*gs,shiftX:geometry==="wide"?-18:8,shiftY:-14,light:"top"},{key:"lifestyle-surface",variant:(variant+3)%4,scale:gs,shiftX:10,shiftY:4,light:"left"}];
+  if(a==="kids")x[1].scale*=1.06;if(a==="beauty"||material.key==="glass")x[0].scale*=.96;if(a==="tools")x[2].scale*=1.04;return x;
+}
+function buildStudioProfile(cardRaw,styleKey,variant=0,aspect=1){
+  const material=inferMaterialProfile(cardRaw),geometry=inferProductGeometry(aspect,cardRaw);
+  return{version:10,artDirector:categoryArtDirector(cardRaw,styleKey),material,geometry,cardPlan:semanticCardPlan(cardRaw),textDensity:textDensityPolicy(cardRaw),scenes:smartSceneDirector(cardRaw,styleKey,variant,geometry,material)};
+}
+function applySceneLayout(layout,scene={}){
+  const scale=Math.max(.88,Math.min(1.10,Number(scene.scale)||1)),width=Math.round(layout.width*scale),height=Math.round(layout.height*scale);
+  return{x:Math.round(layout.x-(width-layout.width)/2+(Number(scene.shiftX)||0)),y:Math.round(layout.y-(height-layout.height)/2+(Number(scene.shiftY)||0)),width,height};
+}
+
+
 const freeSceneLayouts = [
   { x: 90, y: 120, width: 720, height: 610 },
   { x: 520, y: 150, width: 330, height: 720 },
@@ -2261,22 +2345,12 @@ function normalizeRenderAdditionalImages(raw) {
   return out;
 }
 
-function pickRenderSource(index, mainBuffer, additional, mainMimeType = "image/jpeg") {
-  const priorities = [
-    [],
-    ["detail", "angle", "package"],
-    ["package", "detail", "angle", "label"],
-    ["angle", "detail", "package"]
-  ][index] || [];
-  const slot = Math.max(0, index - 1);
-  for (const role of priorities) {
-    const candidates = additional.filter((item) => item.role === role);
-    if (candidates.length) {
-      const found = candidates[slot % candidates.length];
-      return { ...found, source: "extra" };
-    }
-  }
-  return { buffer: mainBuffer, mimeType: mainMimeType, role: "main", source: "main" };
+function pickRenderSource(index,mainBuffer,additional,mainMimeType="image/jpeg",mainQuality=70,mainAudit=null){
+  const priorities=[["angle"],["detail","angle","package"],["package","detail","angle","label"],["angle","detail","package"]][index]||[];
+  const main={buffer:mainBuffer,mimeType:mainMimeType,role:"main",source:"main",qualityScore:mainQuality,audit:mainAudit};
+  if(index===0){const best=(additional||[]).filter(x=>x.role==="angle").sort((a,b)=>Number(b.qualityScore||0)-Number(a.qualityScore||0))[0];return best&&Number(best.qualityScore||0)>=mainQuality+6?{...best,source:"extra"}:main}
+  for(const role of priorities){const list=(additional||[]).filter(x=>x.role===role).sort((a,b)=>Number(b.qualityScore||0)-Number(a.qualityScore||0));if(list.length)return{...list[0],source:"extra"}}
+  return main;
 }
 
 function pickInsetSource(index, primary, additional) {
@@ -2349,6 +2423,18 @@ async function sourceToneStats(sourceBuffer) {
   }
 }
 
+async function assessSourcePhoto(sourceBuffer){
+  const [tone,meta]=await Promise.all([sourceToneStats(sourceBuffer),sharp(sourceBuffer).rotate().metadata().catch(()=>({}))]);
+  const width=Number(meta.width||0),height=Number(meta.height||0),shortSide=Math.min(width||0,height||0),aspect=width&&height?width/height:1;
+  const score=Math.round(Math.max(0,Math.min(100,Math.min(32,shortSide/1200*32)+Math.max(0,26-Math.abs(tone.mean-150)/5.6)+Math.min(20,tone.contrast/2.4)+Math.min(16,tone.edge/1.25)+(aspect>.34&&aspect<2.8?6:2))));
+  const issues=[];if(shortSide&&shortSide<720)issues.push("Низкое разрешение исходного фото — upscale не создаёт новых деталей.");if(tone.mean<58)issues.push("Исходное фото слишком тёмное.");if(tone.mean>232||tone.highlightRatio>.30)issues.push("Исходное фото пересвечено.");if(tone.contrast<14)issues.push("Низкий контраст исходного фото.");if(tone.edge<4.2)issues.push("Фото выглядит мягким или слегка размытым.");if(aspect<=.34||aspect>=2.8)issues.push("Необычное кадрирование исходного фото.");
+  return{score,issues,width,height,aspect,tone};
+}
+async function enrichRenderSources(additional){return Promise.all((additional||[]).map(async item=>{const audit=await assessSourcePhoto(item.buffer);return{...item,qualityScore:audit.score,audit}}))}
+function coverVisualScore(m={}){
+  const lum=Number(m.luminance||0),contrast=Number(m.contrast||0),entropy=Number(m.entropy||0),sharpness=Number(m.sharpness||0);
+  return Math.round(Math.max(0,Math.min(100,Math.max(0,30-Math.abs(lum-165)/4.5)+Math.min(25,contrast*1.05)+(entropy<=0?0:Math.max(0,24-Math.abs(entropy-4.7)*5.2))+Math.min(21,sharpness*2.8))));
+}
 async function enhanceProductSource(sourceBuffer, intensity = "selling", role = "main") {
   const stats = await sourceToneStats(sourceBuffer);
   const level = normalizeDesignIntensity(intensity);
@@ -2383,7 +2469,7 @@ async function enhanceProductSource(sourceBuffer, intensity = "selling", role = 
 
   return sharp(sourceBuffer)
     .rotate()
-    .resize(1800, 1800, { fit: "inside", withoutEnlargement: false, kernel: sharp.kernel.lanczos3 })
+    .resize(2200, 2200, { fit: "inside", withoutEnlargement: false, kernel: sharp.kernel.lanczos3 })
     .linear(gain, offset)
     .modulate({ saturation })
     .sharpen(sigma)
@@ -2623,6 +2709,17 @@ async function prepareInsetVisual(sourceBuffer, width, height, intensity = "sell
   return roundedPhotoPanel(enhanced, width, height, 28);
 }
 
+async function relightProductVisual(productBuffer,studioProfile={},index=0){
+  const meta=await sharp(productBuffer).metadata(),width=Number(meta.width||0),height=Number(meta.height||0);if(!width||!height)return productBuffer;
+  const material=studioProfile?.material||{highlight:.11,shadow:.15},scene=studioProfile?.scenes?.[index]||{},right=scene.light==="right",top=scene.light==="top";
+  const lo=Math.max(.05,Math.min(.24,Number(material.highlight||.11))),so=Math.max(.04,Math.min(.20,Number(material.shadow||.15)));
+  const x1=right?"100%":top?"50%":"0%",y1=top?"0%":"45%",x2=right?"0%":top?"50%":"100%",y2=top?"100%":"55%";
+  const alpha=await sharp(productBuffer).ensureAlpha().extractChannel("alpha").toBuffer();
+  const svg=Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="${lo}"/><stop offset="58%" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="100%" stop-color="#000000" stop-opacity="${so}"/></linearGradient></defs><rect width="${width}" height="${height}" fill="url(#g)"/></svg>`);
+  const masked=await sharp(svg).ensureAlpha().composite([{input:alpha,blend:"dest-in"}]).png().toBuffer();
+  return sharp(productBuffer).composite([{input:masked,blend:"soft-light"}]).png({compressionLevel:9,adaptiveFiltering:true}).toBuffer();
+}
+
 async function makeProductReflection(productBuffer, targetWidth, targetHeight, opacity = 0.14) {
   const width = Math.max(80, Math.round(Number(targetWidth) || 320));
   const height = Math.max(48, Math.round((Number(targetHeight) || 420) * 0.22));
@@ -2661,15 +2758,18 @@ async function renderFreeScene(
   visualOptions = {},
   secondarySourceBuffer = null,
   primaryRole = "main",
-  secondaryRole = ""
+  secondaryRole = "",
+  studioProfile = {}
 ) {
   let sourceAspect = 1;
   try {
     const meta = await sharp(sourceBuffer).rotate().metadata();
     if (meta.width && meta.height) sourceAspect = meta.width / meta.height;
   } catch {}
-  const layout = adjustedFreeLayout(index, composition, designVariant, intensity, sourceAspect, styleKey);
-  const visual = await prepareProductVisual(sourceBuffer, layout, intensity, primaryRole);
+  let layout = adjustedFreeLayout(index, composition, designVariant, intensity, sourceAspect, styleKey);
+  layout = applySceneLayout(layout, studioProfile?.scenes?.[index] || {});
+  let visual = await prepareProductVisual(sourceBuffer, layout, intensity, primaryRole);
+  if (visual.cutout) { try { visual = { ...visual, product: await relightProductVisual(visual.product, studioProfile, index) }; } catch {} }
   const composites = [];
 
   if (secondarySourceBuffer && ["package", "detail", "angle"].includes(secondaryRole)) {
@@ -2775,16 +2875,18 @@ async function generateScene(client, sourceBuffer, mimeType, scenePrompt, index,
   throw lastError;
 }
 
-function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "selling", substyle = "auto", visualOptions = {}) {
+function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "selling", substyle = "auto", visualOptions = {}, studioProfile = {}) {
   const card = normalizeCard(cardRaw);
   const level = normalizeDesignIntensity(intensity);
   const visual = normalizeVisualOptions(visualOptions);
   const style = resolveRenderStyle(styleKey, palette, level, substyle);
   const archetype = designArchetype(styleKey);
-  const title = compact(visual.coverTitle || card.seoTitle || card.category || "Товар", 120);
+  const density = studioProfile?.textDensity || textDensityPolicy(card);
+  const plan = (studioProfile?.cardPlan || semanticCardPlan(card))[index] || { kicker:"", title:"" };
+  const title = compact(visual.coverTitle || card.seoTitle || card.category || "Товар", density.titleMax || 120);
   const category = compact(card.category || "Товар", 50);
   const characteristics = card.characteristics || [];
-  const benefits = card.benefits.length ? card.benefits : characteristics.slice(0, 4).map((x) => `${x.name}: ${x.value}`);
+  const benefits = (card.benefits.length ? card.benefits : characteristics.slice(0, 4).map((x) => `${x.name}: ${x.value}`)).filter(Boolean).slice(0,density.benefits||5);
   const font = "DejaVu Sans, Arial, sans-serif";
   const softText = mixHex(style.text, "#FFFFFF", 0.38);
   const border = mixHex(style.accent, "#FFFFFF", 0.70);
@@ -2794,7 +2896,7 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
     const titleLines = wrapWords(title, level === "bold" ? 21 : level === "calm" ? 29 : 25, 3);
     const baseTitleSize = level === "bold" ? 54 : level === "calm" ? 44 : 49;
     const titleSize = Math.max(34, baseTitleSize - (title.length > 82 ? 12 : title.length > 62 ? 7 : title.length > 44 ? 3 : 0));
-    const quick = benefits.filter(Boolean).slice(0, 3);
+    const quick = benefits.filter(Boolean).slice(0, density.coverBenefits || 3);
     const price = compact(card.confirmedData?.price1 || "", 32);
     const oldPrice = compact(card.confirmedData?.oldPrice || "", 32);
     const chipWidth = quick.length <= 2 ? 354 : 230;
@@ -2821,7 +2923,7 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
   }
 
   if (index === 1) {
-    const visibleBenefits = benefits.filter(Boolean).slice(0, level === "calm" ? 4 : 5);
+    const visibleBenefits = benefits.filter(Boolean).slice(0, Math.min(density.benefits || 5, level === "calm" ? 4 : 5));
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
         <defs><filter id="shadow1"><feGaussianBlur stdDeviation="13"/></filter></defs>
@@ -2829,8 +2931,8 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
         <rect x="38" y="78" rx="44" width="494" height="1050" fill="#17191F" fill-opacity=".09" filter="url(#shadow1)"/>
         <rect x="28" y="66" rx="44" width="504" height="1058" fill="${style.panel}" fill-opacity="${panelOpacity}" stroke="${border}" stroke-width="1.5"/>
         <rect x="28" y="66" rx="44" width="18" height="1058" fill="${style.accent}"/>
-        <text x="76" y="132" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">02 · ПРЕИМУЩЕСТВА</text>
-        <text x="76" y="206" font-family="${font}" font-size="47" font-weight="880" fill="${style.text}">Почему удобно</text>
+        <text x="76" y="132" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">${escapeXml(plan.kicker || "02 · ПРЕИМУЩЕСТВА")}</text>
+        <text x="76" y="206" font-family="${font}" font-size="47" font-weight="880" fill="${style.text}">${escapeXml(plan.title || "Почему удобно")}</text>
         <path d="M76 238 H450" stroke="${border}" stroke-width="2"/>
         ${visual.showBenefits ? iconBenefitGroups(visibleBenefits, { x: 62, y: 318, width: 430, maxItems: 5, accent: style.accent, text: style.text }) : textLines(["Чистая карточка", "без лишних обещаний"], { x: 82, y: 350, size: 28, lineHeight: 38, weight: 650, fill: style.text })}
         <text x="76" y="1080" font-family="${font}" font-size="16" font-weight="650" fill="${softText}">Только подтверждённые и безопасно описательные преимущества</text>
@@ -2838,7 +2940,7 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
   }
 
   if (index === 2) {
-    const specs = visual.showSpecs ? characteristics.slice(0, 5) : [];
+    const specs = visual.showSpecs ? characteristics.slice(0, density.specs || 5) : [];
     let cards = "";
     if (specs.length) {
       specs.forEach((item, i) => {
@@ -2864,15 +2966,15 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
         <rect width="900" height="1200" fill="none"/>
         <rect x="48" y="670" rx="42" width="804" height="478" fill="#17191F" fill-opacity=".09" filter="url(#shadow2)"/>
         <rect x="38" y="658" rx="42" width="824" height="500" fill="${style.panel}" fill-opacity="${panelOpacity}" stroke="${border}" stroke-width="1.5"/>
-        <text x="74" y="716" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">03 · ХАРАКТЕРИСТИКИ</text>
-        <text x="74" y="775" font-family="${font}" font-size="43" font-weight="880" fill="${style.text}">Главное в цифрах и фактах</text>
+        <text x="74" y="716" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">${escapeXml(plan.kicker || "03 · ХАРАКТЕРИСТИКИ")}</text>
+        <text x="74" y="775" font-family="${font}" font-size="43" font-weight="880" fill="${style.text}">${escapeXml(plan.title || "Главное в цифрах и фактах")}</text>
         ${cards}
       </svg>`;
   }
 
   const usage = visual.showUsage ? (card.usage.length ? card.usage : benefits.slice(0, 3)) : [];
   const desc = visual.showDescription ? wrapWords(card.shortDescription || card.fullDescription || category, 54, 2) : [];
-  const usageCards = usage.filter(Boolean).slice(0, 3).map((item, i) => {
+  const usageCards = usage.filter(Boolean).slice(0, density.usage || 3).map((item, i) => {
     const y = 836 + i * 82;
     return `<rect x="72" y="${y}" width="756" height="64" rx="22" fill="#FFFFFF" fill-opacity=".70" stroke="${border}" stroke-width="1.2"/>
       <circle cx="106" cy="${y + 32}" r="20" fill="${style.accent}"/>
@@ -2885,8 +2987,8 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
       <rect width="900" height="1200" fill="none"/>
       <rect x="48" y="680" rx="42" width="804" height="468" fill="#17191F" fill-opacity=".09" filter="url(#shadow3)"/>
       <rect x="38" y="668" rx="42" width="824" height="490" fill="${style.panel}" fill-opacity="${panelOpacity}" stroke="${border}" stroke-width="1.5"/>
-      <text x="74" y="726" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">04 · СЦЕНАРИИ</text>
-      <text x="74" y="786" font-family="${font}" font-size="44" font-weight="880" fill="${style.text}">Где пригодится</text>
+      <text x="74" y="726" font-family="${font}" font-size="18" font-weight="900" letter-spacing="2.2" fill="${style.accent}">${escapeXml(plan.kicker || "04 · СЦЕНАРИИ")}</text>
+      <text x="74" y="786" font-family="${font}" font-size="44" font-weight="880" fill="${style.text}">${escapeXml(plan.title || "Где пригодится")}</text>
       ${usageCards || textLines(["Сценарии применения", "уточняются по типу товара"], { x: 78, y: 874, size: 28, lineHeight: 40, weight: 700, fill: style.text })}
       ${desc.length ? textLines(desc, { x: 74, y: 1120, size: 18, lineHeight: 25, weight: 550, fill: softText }) : ""}
     </svg>`;
@@ -3516,5 +3618,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v9.0.1 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v10.0.0 listening on port ${port}`);
 });
