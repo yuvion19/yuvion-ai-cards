@@ -5,7 +5,8 @@
   "type": "module",
   "packageManager": "npm@10.9.2",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node scripts/smoke.mjs"
   },
   "engines": {
     "node": ">=20"
