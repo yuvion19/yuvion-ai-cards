@@ -175,6 +175,10 @@ const features=[
   ['fontRenderingReady','font rendering health flag'],
   ['svgTextSelfTest: true','SVG text self-test health metadata'],
   ['textOverlayHealthGate: true','text overlay health gate metadata'],
+  ['CARD_RENDER_SCHEMA=2','card render cache schema'],
+  ['legacyCardCacheMigration: true','legacy card cache migration metadata'],
+  ['automaticTextOverlayRepair: true','automatic text overlay repair metadata'],
+  ['Старый комплект создан до исправления текстовых оверлеев','old-card auto repair UI'],
   ['subject-touches-frame','safe fallback when subject touches source edge'],
   ['firstRing','two-stage alpha feather implementation']
 ];

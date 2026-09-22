@@ -4477,7 +4477,7 @@ function resetProduct(keepSimilar=false){
 
 /* IndexedDB history */
 const DB_NAME='YuvionCardsHistoryV1',STORE='items',SNAPSHOT_STORE='snapshots';
-const CATALOG_LIMIT=500,ITEM_SCHEMA_VERSION=2;
+const CATALOG_LIMIT=500,ITEM_SCHEMA_VERSION=2,CARD_RENDER_SCHEMA=2;
 function migrateStoredItem(raw){
   const item=raw&&typeof raw==='object'?raw:{};
   if(!Array.isArray(item.cards))item.cards=[];
@@ -4490,6 +4490,12 @@ function migrateStoredItem(raw){
   if(!Array.isArray(item.staleCardIndexes))item.staleCardIndexes=[];
   if(!Array.isArray(item.designSnapshots))item.designSnapshots=[];
   if(!item.designState||typeof item.designState!=='object')item.designState={};
+  const renderSchema=Number(item.cardRenderSchema||0);
+  if(item.cards.length===4&&renderSchema<CARD_RENDER_SCHEMA){
+    item.cardsStale=true;
+    item.staleCardIndexes=[0,1,2,3];
+    item.quality=null;
+  }
   item.schemaVersion=ITEM_SCHEMA_VERSION;
   return item;
 }
@@ -4853,6 +4859,7 @@ async function saveHistory(){
       mode:currentMode,
       style:styleSelect.value,
       renderMode:renderModeSelect.value,
+      cardRenderSchema:(currentCards.length===4&&!cardsStale)?CARD_RENDER_SCHEMA:Number(previous?.cardRenderSchema||0),
       published:false,
       publishedAt:null
     };
@@ -6259,7 +6266,7 @@ async function processExcelAutopilotItem(item,style){
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
 
   const generationFp=await generationFingerprintForItem(item,analyzed,style);
-  if(item.generationFingerprint===generationFp&&Array.isArray(item.cards)&&item.cards.length===4&&item.quality&&!item.cardsStale){
+  if(item.cardRenderSchema===CARD_RENDER_SCHEMA&&item.generationFingerprint===generationFp&&Array.isArray(item.cards)&&item.cards.length===4&&item.quality&&!item.cardsStale){
     item.data=analyzed;
     item.analysisCache={fingerprint:analysisFp,data:analyzed,at:Date.now()};
     item.updatedAt=Date.now();
@@ -6305,6 +6312,7 @@ async function processExcelAutopilotItem(item,style){
   item.mode='full';
   item.style=style;
   item.renderMode='free';
+  item.cardRenderSchema=CARD_RENDER_SCHEMA;
   item.updatedAt=Date.now();
   item.activity=[{at:Date.now(),type:'Автопилот завершён',detail:(analysisFromCache?'Анализ из кэша · ':'')+'4 карточки · QA · перегенераций '+regenerated},...(item.activity||[])].slice(0,80);
   item.excelAutopilot={state:'done',error:'',completedAt:Date.now()};
@@ -6779,6 +6787,11 @@ async function restoreHistory(item){
       qaSummary.innerHTML='<b>Сохранённая AI-проверка: '+esc(currentQuality.overall||'готово')+'</b>'+(notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Критических проблем не обнаружено.');
     }else qaSummary.style.display='none';
     zipImages.disabled=false;zipFull.disabled=false;
+    if(cardsStale&&sourceDataUrl&&currentMode==='full'&&autoCards?.checked){
+      creativeStatus.className='creative-status show stale';
+      creativeStatus.textContent='Старый комплект создан до исправления текстовых оверлеев. Автоматически пересобираем 4 карточки с текстом.';
+      window.setTimeout(()=>{if(currentHistoryId===item.id&&!cardsBusy)generateAll.click()},180);
+    }
   }else{
     creative.classList.remove('show');
     zipImages.disabled=true;zipFull.disabled=true;
@@ -6923,7 +6936,7 @@ async function saveBatchHistory({data,dataUrl,cards,scenes=[],quality=null,mode,
     sourceDataUrl:dataUrl,photoHash,additionalPhotos:[],cards:cards||[],scenes:scenes||[],quality,
     cardsStale:false,staleCardIndexes:[],variations:[],revisions:[],moderation:{status:'none',reason:'',log:[]},
     activity:[{at:Date.now(),type:'Batch Factory',detail:mode==='full'?'Анализ · 4 карточки · QA сохранён':'Текстовый анализ сохранён'}],
-    mode,style,renderMode:'free',published:false
+    mode,style,renderMode:'free',cardRenderSchema:CARD_RENDER_SCHEMA,published:false
   };
   await dbPut(item);
   await trimCatalog();
