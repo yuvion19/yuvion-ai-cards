@@ -371,7 +371,7 @@ app.post("/api/admin/claims/:claimId/approve", requireAdmin, async (req,res)=>{
   res.json({ok:true});
 });
 
-app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.use((_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 initDb()
   .then(() => app.listen(PORT, "0.0.0.0", () => console.log(`Memorial app listening on ${PORT}`)))
