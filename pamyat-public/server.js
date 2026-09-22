@@ -415,8 +415,11 @@ function parseDMY(v) {
   const s = String(v ?? "").replaceAll("*","").trim();
   const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (!m) return null;
-  const iso = m[3] + "-" + m[2].padStart(2,"0") + "-" + m[1].padStart(2,"0");
-  return validDate(iso) ? iso : null;
+  const day = Number(m[1]), month = Number(m[2]), year = Number(m[3]);
+  if (day < 1 || month < 1 || month > 12 || year < 1) return null;
+  const d = new Date(Date.UTC(year, month - 1, day, 12));
+  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) return null;
+  return String(year).padStart(4,"0") + "-" + String(month).padStart(2,"0") + "-" + String(day).padStart(2,"0");
 }
 function roman(n) {
   const map = [[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
