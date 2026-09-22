@@ -2911,15 +2911,18 @@ async function logDelivery(item, channel, result) {
 }
 function notificationText(item) {
   const when = item.reminder_days === -1 ? "срочное объявление" : item.reminder_days === 0 ? "сегодня" : item.reminder_days === 1 ? "завтра" : "через " + item.reminder_days + " дн.";
-  return { title: item.event_type + " — " + when, body: item.full_name + " · " + item.event_date + (item.place ? " · " + item.place : "") };
+  const privateKey=/^[0-9a-f-]{36}$/i.test(String(item.share_token||""))?String(item.share_token):"";
+  const url=(APP_PUBLIC_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(item.event_id)+(privateKey?"?key="+encodeURIComponent(privateKey):"");
+  return { title: item.event_type + " — " + when, body: item.full_name + " · " + item.event_date + (item.place ? " · " + item.place : ""), url };
 }
 async function sendEmailAddress(address, text) {
   if (!RESEND_API_KEY || !RESEND_FROM) throw new Error("email_not_configured");
   const safeBody=String(text.body||"").replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));
+  const openUrl=String(text.url||APP_PUBLIC_URL||"").replace(/"/g,"%22");
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { authorization: "Bearer " + RESEND_API_KEY, "content-type": "application/json" },
-    body: JSON.stringify({ from: RESEND_FROM, to: [address], subject: text.title, html: "<p>" + safeBody + "</p><p><a href='" + APP_PUBLIC_URL + "'>Открыть календарь</a></p>" })
+    body: JSON.stringify({ from: RESEND_FROM, to: [address], subject: text.title, html: "<p>" + safeBody + "</p><p><a href='" + openUrl + "'>Открыть событие</a></p>" })
   });
   if (!r.ok) throw new Error("email_" + r.status);
   return "sent";
@@ -2956,7 +2959,7 @@ async function whatsappSend(phone,text){
         components:[{type:"body",parameters:[
           {type:"text",text:text.title},
           {type:"text",text:text.body},
-          {type:"text",text:APP_PUBLIC_URL}
+          {type:"text",text:text.url||APP_PUBLIC_URL}
         ]}]
       }
     })
@@ -2967,7 +2970,7 @@ async function whatsappSend(phone,text){
 async function smsSend(phone,text){
   if(!reminderProviderStatus().sms)throw new Error("sms_not_configured");
   if(!phone)throw new Error("sms_phone_required");
-  const form=new URLSearchParams({To:phone,From:TWILIO_FROM_NUMBER,Body:text.title+"\\n"+text.body+"\\n"+APP_PUBLIC_URL});
+  const form=new URLSearchParams({To:phone,From:TWILIO_FROM_NUMBER,Body:text.title+"\\n"+text.body+"\\n"+(text.url||APP_PUBLIC_URL)});
   const r=await fetch("https://api.twilio.com/2010-04-01/Accounts/"+encodeURIComponent(TWILIO_ACCOUNT_SID)+"/Messages.json",{
     method:"POST",
     headers:{authorization:"Basic "+Buffer.from(TWILIO_ACCOUNT_SID+":"+TWILIO_AUTH_TOKEN).toString("base64"),"content-type":"application/x-www-form-urlencoded"},
@@ -3009,11 +3012,11 @@ async function runNotificationCycle() {
       if (item.push_enabled && !item.push_sent && item.endpoint) await run("push",async()=>{
         if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)throw new Error("push_not_configured");
         await webpush.sendNotification({ endpoint: item.endpoint, keys: { p256dh: item.p256dh, auth: item.auth } },
-          JSON.stringify({ title: text.title, body: text.body, url: APP_PUBLIC_URL + "/#event=" + item.event_id, event_id: item.event_id }),
+          JSON.stringify({ title: text.title, body: text.body, url: text.url, event_id: item.event_id }),
           { TTL: 86400 }); return "sent";
       });
       if (item.email_enabled && !item.email_sent && item.email) await run("email",()=>sendEmail(item,text));
-      if (item.telegram_enabled && !item.telegram_sent && item.telegram_chat_id) await run("telegram",()=>telegramSend(item.telegram_chat_id,text.title+"\n"+text.body+"\n"+APP_PUBLIC_URL));
+      if (item.telegram_enabled && !item.telegram_sent && item.telegram_chat_id) await run("telegram",()=>telegramSend(item.telegram_chat_id,text.title+"\n"+text.body+"\n"+text.url));
       if (item.whatsapp_enabled && !item.whatsapp_sent && item.whatsapp_phone) await run("whatsapp",()=>whatsappSend(item.whatsapp_phone,text));
       if (item.sms_enabled && !item.sms_sent && item.sms_phone) await run("sms",()=>smsSend(item.sms_phone,text));
     }
