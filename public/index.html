@@ -195,6 +195,7 @@
     .label-ocr-box{display:none;margin-top:10px;border:1px solid #E7DADD;border-radius:12px;background:#FFFBFC;padding:10px}.label-ocr-box.show{display:block}.label-ocr-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.label-ocr-head b{font-size:11px}.label-ocr-head span{font-size:9px;color:var(--muted)}.label-ocr-list{display:grid;gap:6px;margin-top:8px}.label-ocr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:9px;background:#fff}.label-ocr-row b{font-size:10px}.label-ocr-row small{display:block;font-size:9px;color:var(--muted);margin-top:2px}.label-ocr-confirm{border:0;border-radius:8px;padding:6px 8px;font-size:9px;font-weight:900;cursor:pointer;background:#EAF8EE;color:#226B38}
     .ops-v64{max-width:1100px;margin:16px auto;border:1px solid var(--line);border-radius:22px;background:#fff;overflow:hidden}.ops-v64-body{padding:16px 18px 18px}.ops-v64-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.ops-v64-card{border:1px solid var(--line);border-radius:12px;padding:11px;background:#FCFAFA}.ops-v64-card b{display:block;font-size:11px}.ops-v64-card span{display:block;margin-top:3px;font-size:9px;color:var(--muted);line-height:1.4}.ops-v64-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.diagnostic-list,.activity-list{display:grid;gap:5px;margin-top:10px}.diagnostic-row,.activity-row{display:flex;justify-content:space-between;gap:12px;padding:7px 8px;border-radius:8px;background:#F7F7F8;font-size:9px}.activity-row{display:block}.activity-row b{font-size:9px}.activity-row small{display:block;color:var(--muted);margin-top:2px}
     .queue-resume-note{margin-top:8px;padding:8px 9px;border-radius:9px;background:#FFF8E8;color:#7D5700;font-size:9px;display:none}.queue-resume-note.show{display:block}
+    .unmatched-manager{display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}.unmatched-manager.show{display:block}.unmatched-manager h4{margin:0 0 7px;font-size:11px}.unmatched-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,1fr) auto;gap:7px;align-items:center;padding:7px;border:1px solid var(--line);border-radius:9px;margin-top:6px}.unmatched-row b{font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unmatched-row select{border:1px solid var(--line);border-radius:8px;padding:6px;font-size:9px;background:#fff}
     @media(max-width:760px){.ops-v64-grid{grid-template-columns:repeat(2,1fr)}}
 
   </style>
@@ -274,6 +275,7 @@
       <div class="excel-auto-progress" id="excelAutoProgress"><div class="progress-track"><div class="progress-bar" id="excelAutoBar"></div></div><div class="muted" id="excelAutoProgressText" style="margin-top:7px;font-size:11px"></div></div>
       <div class="excel-auto-note">Для точной автоматической привязки у товара должен быть SKU/артикул. Если одинаковый SKU используется у нескольких товаров, фото к нему автоматически не привязывается. Все таблицы, фото и очередь каталога остаются локальными; на сервер отправляется только текущий товар во время AI-обработки.</div>
       <div class="excel-auto-queue" id="excelAutoQueue"></div>
+      <div class="unmatched-manager" id="unmatchedPhotoManager"><h4>Фото без уверенного совпадения</h4><div class="muted" style="font-size:9px">Назначьте товар вручную. Файл остаётся только в памяти этой вкладки, пока не будет назначен.</div><div id="unmatchedPhotoList"></div></div>
     </div>
   </details>
 
@@ -957,6 +959,8 @@ const excelAutoProgress=document.getElementById('excelAutoProgress');
 const excelAutoBar=document.getElementById('excelAutoBar');
 const excelAutoProgressText=document.getElementById('excelAutoProgressText');
 const excelAutoQueue=document.getElementById('excelAutoQueue');
+const unmatchedPhotoManager=document.getElementById('unmatchedPhotoManager');
+const unmatchedPhotoList=document.getElementById('unmatchedPhotoList');
 const publishCenterFilter=document.getElementById('publishCenterFilter');
 const publishCenterList=document.getElementById('publishCenterList');
 const publishReadyCount=document.getElementById('publishReadyCount');
@@ -1026,6 +1030,7 @@ let excelAutopilotBusy=false;
 let currentLabelSuggestions=[];
 let currentActivity=[];
 let currentAnalysisCache=null;
+let unmatchedPhotoPool=[];
 let largeQueuePaused=true;
 const EXCEL_AUTOPILOT_LIMIT=10;
 const LARGE_QUEUE_KEY='yuvionLargeQueueV1';
@@ -4357,6 +4362,58 @@ function photoMatchScore(file,item){
   }
   return best;
 }
+function inferPhotoRole(filename){
+  const n=String(filename||'').toLocaleLowerCase('ru');
+  if(/barcode|штрих|ean|gtin/.test(n))return 'barcode';
+  if(/label|маркир|этикет|характерист/.test(n))return 'label';
+  if(/pack|упаков/.test(n))return 'package';
+  if(/detail|детал/.test(n))return 'detail';
+  return 'angle';
+}
+async function attachPhotoFileToItem(file,item,{asMain=false}={}){
+  const dataUrl=await compressFileToDataUrl(file);
+  if(asMain||!item.sourceDataUrl){
+    if(item.sourceDataUrl){
+      item.additionalPhotos=[...(item.additionalPhotos||[]),{id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),name:item.sourceFilename||'Предыдущее главное',dataUrl:item.sourceDataUrl,mimeType:(item.sourceDataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role:'angle'}].slice(0,4);
+    }
+    item.sourceDataUrl=dataUrl;
+    item.sourceFilename=file.name;
+  }else{
+    const extras=Array.isArray(item.additionalPhotos)?item.additionalPhotos:[];
+    if(extras.length>=4)throw new Error('У товара уже 4 дополнительных фото.');
+    extras.push({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),name:file.name,dataUrl,mimeType:(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role:inferPhotoRole(file.name)});
+    item.additionalPhotos=extras;
+  }
+  item.cards=[];item.quality=null;item.cardsStale=false;item.analysisCache=null;item.generationFingerprint=null;
+  item.excelAutopilot={state:'matched',error:''};item.updatedAt=Date.now();
+  item.activity=[{at:Date.now(),type:'Фото назначено вручную',detail:file.name},...(item.activity||[])].slice(0,80);
+  await dbPut(item);
+}
+function renderUnmatchedPhotoManager(importedItems=[]){
+  if(!unmatchedPhotoManager||!unmatchedPhotoList)return;
+  unmatchedPhotoManager.classList.toggle('show',unmatchedPhotoPool.length>0);
+  if(!unmatchedPhotoPool.length){unmatchedPhotoList.innerHTML='';return}
+  const options=importedItems.slice().sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''),'ru')).map(item=>{
+    const sku=skuOfStoredItem(item)||'без SKU';
+    return '<option value="'+esc(item.id)+'">'+esc(sku+' · '+(item.title||item.data?.seoTitle||'Товар'))+'</option>';
+  }).join('');
+  unmatchedPhotoList.innerHTML=unmatchedPhotoPool.map((entry,index)=>
+    '<div class="unmatched-row"><b>'+esc(entry.file.name)+'</b><select data-unmatched-select="'+index+'"><option value="">Выберите товар</option>'+options+'</select><button class="btn btn-ghost btn-small" data-unmatched-assign="'+index+'">Назначить</button></div>'
+  ).join('');
+  unmatchedPhotoList.querySelectorAll('[data-unmatched-assign]').forEach(btn=>btn.onclick=async()=>{
+    const index=Number(btn.dataset.unmatchedAssign),entry=unmatchedPhotoPool[index];if(!entry)return;
+    const select=unmatchedPhotoList.querySelector('[data-unmatched-select="'+index+'"]');
+    const item=importedItems.find(x=>x.id===select?.value);if(!item)return;
+    btn.disabled=true;
+    try{
+      await attachPhotoFileToItem(entry.file,item);
+      unmatchedPhotoPool.splice(index,1);
+      const all=await dbAll();renderUnmatchedPhotoManager(excelImportedItems(all));await renderHistory();
+    }catch(e){alert(e.message||'Не удалось назначить фото.')}
+    finally{btn.disabled=false}
+  });
+}
+
 async function matchExcelPhotos(files){
   const chosen=[...(files||[])].filter(file=>['image/jpeg','image/png','image/webp'].includes(file.type)&&file.size<=10*1024*1024);
   if(!chosen.length)return {matched:0,unmatched:0,products:0};
@@ -4364,6 +4421,7 @@ async function matchExcelPhotos(files){
   const imported=excelImportedItems(all);
   const groups=new Map();
   let unmatched=0;
+  unmatchedPhotoPool=[];
   for(const file of chosen){
     let best=null,bestScore=0,tie=false;
     for(const item of imported){
@@ -4371,7 +4429,7 @@ async function matchExcelPhotos(files){
       if(score>bestScore){best=item;bestScore=score;tie=false}
       else if(score>0&&score===bestScore){tie=true}
     }
-    if(!best||bestScore<70||tie){unmatched++;continue}
+    if(!best||bestScore<70||tie){unmatched++;unmatchedPhotoPool.push({file,reason:tie?'Неоднозначное совпадение':'SKU/EAN не найден'});continue}
     if(!groups.has(best.id))groups.set(best.id,[]);
     groups.get(best.id).push(file);
   }
@@ -4384,7 +4442,7 @@ async function matchExcelPhotos(files){
     if(!photos.length)continue;
     item.sourceDataUrl=photos[0].dataUrl;
     item.sourceFilename=photos[0].file.name;
-    item.additionalPhotos=photos.slice(1).map(x=>({dataUrl:x.dataUrl,name:x.file.name}));
+    item.additionalPhotos=photos.slice(1).map(x=>({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),dataUrl:x.dataUrl,name:x.file.name,mimeType:(x.dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',role:inferPhotoRole(x.file.name)}));
     item.photoHash='';
     item.cards=[];
     item.quality=null;
@@ -4398,6 +4456,7 @@ async function matchExcelPhotos(files){
     matched+=photos.length;
   }
   await renderHistory();
+  renderUnmatchedPhotoManager(imported);
   return {matched,unmatched,products:groups.size};
 }
 function excelItemState(item){
@@ -4706,6 +4765,7 @@ async function renderHistory(){
     renderDashboard(all);
     renderExcelAutopilot(all);
     renderPublishCenter(all);
+    if(unmatchedPhotoPool.length)renderUnmatchedPhotoManager(excelImportedItems(all));
     refreshDiagnosticsNow(all);
     await renderV6Panels(all);
     const collections=[...new Set(all.flatMap(item=>Array.isArray(item?.privateData?.collections)?item.privateData.collections:[]))].sort((a,b)=>a.localeCompare(b,'ru'));
