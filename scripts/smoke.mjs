@@ -112,7 +112,11 @@ const features=[
   ['AbortController','client analysis timeout'],
   ['hadImmediateCards','preserve cards during analysis'],
   ['AI_ANALYZE_TIMEOUT_MS','server analysis timeout'],
-  ['analyzeTimeoutSeconds','health analysis timeout metadata']
+  ['analyzeTimeoutSeconds','health analysis timeout metadata'],
+  ['analysisRetries','analysis retry path'],
+  ['reasoning: { effort: "none" }','fast analysis reasoning'],
+  ['OPENAI_FAST_MODEL','fast analysis retry model'],
+  ['currentCards.length!==4||cardsStale','stale immediate cards refresh']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
@@ -141,4 +145,4 @@ if(healthVersion!==pkg.version)fail('package/server version mismatch: '+pkg.vers
 if(process.exitCode)process.exit(process.exitCode);
 
 if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
-if(!server.includes('version: "7.5.1"'))fail('server health version is not 7.5.1');else ok('server health version 7.5.1');
+if(!server.includes('version: "7.5.2"'))fail('server health version is not 7.5.2');else ok('server health version 7.5.2');
