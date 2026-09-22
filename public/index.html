@@ -156,6 +156,24 @@
       .simple-ui .form-grid{grid-template-columns:1fr}.simple-ui .readiness-list{grid-template-columns:1fr}
     }
 
+  
+    /* YUVION_V62_GUARD */
+    .fact-sources{margin-top:10px;padding:11px;border:1px solid var(--line);border-radius:12px;background:#FCFAFA}
+    .fact-sources-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}.fact-sources-head b{font-size:11px}.fact-sources-head span{font-size:9px;color:var(--muted)}
+    .fact-source-list{display:grid;gap:6px}.fact-source-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 8px;border-radius:9px;background:#fff;border:1px solid #EEE4E6;font-size:10px}
+    .fact-source-row.blocked{border-color:#F0B8BE;background:#FFF7F8}.fact-source-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.source-badge{display:inline-flex;padding:4px 6px;border-radius:999px;font-size:9px;font-weight:900;white-space:nowrap}
+    .source-badge.seller{background:#EAF8EE;color:#226B38}.source-badge.label{background:#EEF4FA;color:#315F84}.source-badge.photo{background:#FFF3E8;color:#8A5A00}.source-badge.blocked{background:#FFF0F0;color:#A62A2A}
+    .fact-blocker-note{margin-top:8px;padding:8px 9px;border-radius:9px;background:#FFF0F0;color:#8E2C35;font-size:10px;line-height:1.4}
+    .publish-issues{display:none;margin-top:12px;border:1px solid var(--line);border-radius:13px;padding:12px;background:#FCFAFA}.publish-errors-only .publish-issues{display:block}.publish-issues.good{background:#EEF9F1;color:#226B38}.publish-issues.bad{background:#FFF7F8;color:#8E2C35}.publish-issues ul{margin:7px 0 0;padding-left:18px}.publish-issues li{margin:4px 0;font-size:11px}
+    .publish-errors-only #yuvionExportGrid,.publish-errors-only .export-media,.publish-errors-only .helper-box,.publish-errors-only .export-tip{display:none!important}.publish-errors-only .ready-item.ok{display:none!important}
+    .qa-mini-issues{font-size:9px;line-height:1.35;color:#8D3039;margin:5px 2px 7px}
+    .import-map-modal{position:fixed;inset:0;background:rgba(7,14,20,.78);z-index:110;display:none;align-items:center;justify-content:center;padding:18px}.import-map-modal.show{display:flex}
+    .import-map-card{width:min(850px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:22px;padding:18px;box-shadow:0 30px 90px rgba(0,0,0,.35)}
+    .import-map-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.import-map-head h3{margin:0 0 4px}.import-map-head p{margin:0;color:var(--muted);font-size:11px}
+    .import-map-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}.import-map-field{display:grid;grid-template-columns:145px minmax(0,1fr);gap:7px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:10px}.import-map-field label{font-size:10px;font-weight:850}.import-map-field select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px;background:#fff;font-size:10px}
+    .import-preview{margin-top:12px;padding:10px;border-radius:10px;background:#F7F7F8;font-size:10px;color:#635B5D;overflow:auto;white-space:nowrap}.import-map-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+    @media(max-width:700px){.import-map-grid{grid-template-columns:1fr}.import-map-field{grid-template-columns:115px minmax(0,1fr)}}
+
   </style>
 </head>
 <body class="simple-ui">
@@ -397,7 +415,7 @@
         <div class="field"><label>Ключевые слова через запятую</label><input id="edKeywords" /></div>
         <div class="field full"><label>Краткое описание</label><textarea id="edShort"></textarea></div>
         <div class="field full"><label>Полное описание</label><textarea id="edFull"></textarea></div>
-        <div class="field"><label>Характеристики — одна строка «Название: значение»</label><textarea id="edSpecs"></textarea><div class="template-tools"><button type="button" class="template-chip primary" id="applySpecTemplate">Шаблон категории</button><button type="button" class="template-chip" id="saveSpecTemplate">Запомнить этот шаблон</button><button type="button" class="template-chip" id="clearEmptySpecs">Убрать пустые строки</button></div><div class="muted" id="specTemplateHint" style="font-size:10px;margin-top:5px">Шаблон добавляет только названия полей — значения не выдумываются.</div></div>
+        <div class="field"><label>Характеристики — одна строка «Название: значение»</label><textarea id="edSpecs"></textarea><div class="fact-sources" id="factSourcesPanel"><div class="fact-sources-head"><b>Источник характеристик</b><span>Продавец / маркировка / фото</span></div><div class="fact-source-list" id="factSourceList"></div><div id="factBlockerNote"></div></div><div class="template-tools"><button type="button" class="template-chip primary" id="applySpecTemplate">Шаблон категории</button><button type="button" class="template-chip" id="saveSpecTemplate">Запомнить этот шаблон</button><button type="button" class="template-chip" id="clearEmptySpecs">Убрать пустые строки</button></div><div class="muted" id="specTemplateHint" style="font-size:10px;margin-top:5px">Шаблон добавляет только названия полей — значения не выдумываются.</div></div>
         <div class="field"><label>Преимущества — по одному на строку</label><textarea id="edBenefits"></textarea></div>
         <div class="field full"><label>Сценарии применения — по одному на строку</label><textarea id="edUsage"></textarea></div>
       </div>
@@ -453,11 +471,13 @@
           <p>Поля расположены в логике формы admin.yuvion.ru. Slug не выводим — он создаётся в кабинете автоматически из названия.</p>
         </div>
         <div class="export-actions">
+          <button class="btn btn-ghost" id="errorsOnlyToggle">Только ошибки</button>
           <button class="btn btn-ghost simple-only" id="toggleExportDetails">Показать все поля</button>
           <button class="btn btn-ghost" id="copyYuvionAll">Скопировать всё</button>
           <a class="btn btn-primary" href="https://admin.yuvion.ru/" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Открыть кабинет</a>
         </div>
       </div>
+      <div class="publish-issues" id="publishIssuesPanel"></div>
       <div class="readiness" id="readiness">
         <div class="readiness-top">
           <div class="readiness-ring" id="readinessRing"><b id="readinessPercent">0%</b></div>
@@ -616,6 +636,15 @@
     <label class="intake-conveyor"><input id="intakeConveyor" type="checkbox"> Конвейерный режим: после сохранения сразу принимать следующий товар</label>
     <div class="conveyor-status" id="intakeConveyorStatus"></div>
     <div class="intake-actions"><button class="btn btn-primary" id="createIntakeDraft">Создать черновик</button></div>
+  </div>
+</div>
+
+<div class="import-map-modal" id="importMapModal">
+  <div class="import-map-card">
+    <div class="import-map-head"><div><h3>Сопоставление колонок</h3><p id="importMapSubtitle">Проверьте, какие колонки таблицы соответствуют полям Yuvion.</p></div><button class="btn btn-ghost btn-small" id="cancelImportMap">Закрыть</button></div>
+    <div class="import-map-grid" id="importMapGrid"></div>
+    <div class="import-preview" id="importMapPreview"></div>
+    <div class="import-map-actions"><button class="btn btn-ghost" id="resetImportMap">Автораспознавание</button><button class="btn btn-primary" id="confirmImportMap">Импортировать</button></div>
   </div>
 </div>
 
@@ -829,6 +858,18 @@ const importProductsBtn=document.getElementById('importProducts');
 const importProductsFile=document.getElementById('importProductsFile');
 const importNote=document.getElementById('importNote');
 const bulkLabels=document.getElementById('bulkLabels');
+const factSourcesPanel=document.getElementById('factSourcesPanel');
+const factSourceList=document.getElementById('factSourceList');
+const factBlockerNote=document.getElementById('factBlockerNote');
+const errorsOnlyToggle=document.getElementById('errorsOnlyToggle');
+const publishIssuesPanel=document.getElementById('publishIssuesPanel');
+const importMapModal=document.getElementById('importMapModal');
+const importMapGrid=document.getElementById('importMapGrid');
+const importMapPreview=document.getElementById('importMapPreview');
+const importMapSubtitle=document.getElementById('importMapSubtitle');
+const cancelImportMap=document.getElementById('cancelImportMap');
+const resetImportMap=document.getElementById('resetImportMap');
+const confirmImportMap=document.getElementById('confirmImportMap');
 
 let selectedFile=null;
 let sourceDataUrl=null;
@@ -860,6 +901,7 @@ let currentPhotoHash='';
 let scannerTarget='product';
 let dashboardCollection='all';
 let currentModeration={status:'none',reason:'',log:[]};
+let pendingImportMap=null;
 
 localStorage.removeItem('yuvionSessionId');
 function apiHeaders(){return {'Content-Type':'application/json'}}
@@ -1894,6 +1936,61 @@ function setSaveState(state='saved'){
   saveState.textContent=state==='saving'?'Сохраняем изменения…':state==='saved'?'Изменения сохранены':'Локальное сохранение недоступно';
 }
 
+const TECH_FACT_WORDS=['размер','габарит','вес','масса','материал','состав','мощност','ёмкост','емкост','объем','объём','модель','страна','производ','комплект','напряж','ток','частот','возраст'];
+
+function normalizedFactText(value){return String(value||'').trim().toLocaleLowerCase('ru').replace(/\s+/g,' ')}
+function confirmedSourceForSpec(spec,data=currentData){
+  const x=data?.confirmedData||collectExtraData();
+  const n=normalizedFactText(spec?.name),v=normalizedFactText(spec?.value);
+  const known=[
+    ['бренд',x?.brand],['артикул',x?.sku],['штрихкод/ean',x?.barcode],['размеры',x?.size],['материал',x?.material]
+  ];
+  if(known.some(([name,value])=>normalizedFactText(name)===n&&value&&normalizedFactText(value)===v))return 'Продавец';
+  return '';
+}
+function factSourceOf(spec,data=currentData){
+  return confirmedSourceForSpec(spec,data)||(['Продавец','Маркировка','Фото'].includes(spec?.source)?spec.source:'Фото');
+}
+function isTechnicalFactName(name){
+  const n=normalizedFactText(name);
+  return TECH_FACT_WORDS.some(word=>n.includes(word));
+}
+function factBlockers(data=currentData){
+  const d=data||{};
+  return (d.characteristics||[]).filter(spec=>isTechnicalFactName(spec.name)&&!['Продавец','Маркировка'].includes(factSourceOf(spec,d))).map(spec=>({
+    name:spec.name,value:spec.value,source:factSourceOf(spec,d),
+    message:spec.name+': точный технический факт требует подтверждения продавцом или читаемой маркировкой.'
+  }));
+}
+function renderFactSources(){
+  if(!factSourceList)return;
+  if(!currentData){factSourceList.innerHTML='<div class="muted" style="font-size:10px">Источники появятся после анализа.</div>';factBlockerNote.innerHTML='';return}
+  const d=collectEdits();
+  const blockers=factBlockers(d);
+  const blockedKeys=new Set(blockers.map(x=>normalizedFactText(x.name)+'|'+normalizedFactText(x.value)));
+  const specs=d.characteristics||[];
+  factSourceList.innerHTML=specs.length?specs.map(spec=>{
+    const source=factSourceOf(spec,d);
+    const blocked=blockedKeys.has(normalizedFactText(spec.name)+'|'+normalizedFactText(spec.value));
+    const cls=source==='Продавец'?'seller':source==='Маркировка'?'label':'photo';
+    return '<div class="fact-source-row '+(blocked?'blocked':'')+'"><div class="fact-source-name"><b>'+esc(spec.name)+':</b> '+esc(spec.value)+'</div><span class="source-badge '+(blocked?'blocked':cls)+'">'+esc(blocked?'Нужно подтвердить':source)+'</span></div>';
+  }).join(''):'<div class="muted" style="font-size:10px">Подтверждённые характеристики пока не указаны.</div>';
+  factBlockerNote.innerHTML=blockers.length?'<div class="fact-blocker-note"><b>Публикация заблокирована:</b> '+blockers.map(x=>esc(x.name)).join(', ')+'. Уточните значение вручную или используйте читаемую маркировку.</div>':'';
+}
+function knownQaBlockers(){
+  return currentQuality?.cards?.flatMap(card=>(card.needsRegeneration?(card.issues||[]).map(issue=>'Карточка '+(card.index+1)+': '+issue):[]))||[];
+}
+function renderPublishIssues(){
+  if(!publishIssuesPanel)return;
+  const missing=moderationChecks().filter(x=>!x.ok).map(x=>x.label);
+  const facts=factBlockers(collectEdits()).map(x=>x.message);
+  const qa=knownQaBlockers();
+  const audit=(typeof lastPreflightAudit!=='undefined'&&Array.isArray(lastPreflightAudit?.issues))?lastPreflightAudit.issues.filter(x=>x.severity==='blocker').map(x=>x.field+': '+x.message):[];
+  const issues=[...new Set([...missing,...facts,...qa,...audit])];
+  publishIssuesPanel.className='publish-issues '+(issues.length?'bad':'good');
+  publishIssuesPanel.innerHTML=issues.length?'<b>Исправьте перед Yuvion:</b><ul>'+issues.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'<b>Блокирующих ошибок не найдено.</b>';
+}
+
 function moderationChecks(){
   if(!currentData)return [];
   const d=collectEdits();
@@ -1924,6 +2021,9 @@ function moderationChecks(){
     {label:'Цена от 3 шт. ≤ цене от 2 шт.',ok:p3>0&&p3<=p2,target:'extraPrice3',extra:true},
     {label:'Старая цена выше текущей или пустая',ok:!x.oldPrice||old>p1,target:'extraOldPrice',extra:true},
     {label:'Характеристики без дублей',ok:dupes.length===0,target:'edSpecs'},
+    {label:'Технические факты подтверждены',ok:factBlockers(d).length===0,target:'factSourcesPanel'},
+    {label:'Изображения соответствуют текущим данным',ok:!cardsStale,target:'generateAll'},
+    {label:'Нет известных критических ошибок изображений',ok:knownQaBlockers().length===0,target:'creative'},
     ...(variationValidation().enabled?[
       {label:'Вариации заполнены',ok:variationValidation().complete,target:'variationsBox'},
       {label:'SKU вариаций уникальны',ok:variationValidation().unique,target:'variationsBox'},
@@ -1958,6 +2058,8 @@ function renderReadiness(){
     const missing=info.checks.filter(x=>!x.ok).map(x=>x.label);
     readinessText.textContent='Не хватает: '+missing.join(', ')+'.';
   }
+  renderFactSources();
+  renderPublishIssues();
   readinessList.querySelectorAll('[data-ready-index]').forEach(el=>{
     const activate=()=>{
       const item=info.checks[Number(el.dataset.readyIndex)];
@@ -2584,9 +2686,12 @@ function fillEditor(d){
 
 function parseLines(v){return String(v||'').split('\n').map(x=>x.trim()).filter(Boolean)}
 function collectEdits(){
+  const previous=Array.isArray(currentData?.characteristics)?currentData.characteristics:[];
   const specs=parseLines(editor.specs.value).map(line=>{
     const i=line.indexOf(':');
-    return i>0?{name:line.slice(0,i).trim(),value:line.slice(i+1).trim()}:{name:'Характеристика',value:line};
+    const base=i>0?{name:line.slice(0,i).trim(),value:line.slice(i+1).trim()}:{name:'Характеристика',value:line};
+    const old=previous.find(x=>normalizedFactText(x.name)===normalizedFactText(base.name)&&normalizedFactText(x.value)===normalizedFactText(base.value));
+    return {...base,source:old?factSourceOf(old,currentData):'Продавец'};
   }).filter(x=>x.value);
   return {
     ...(currentData||{}),
@@ -2619,7 +2724,7 @@ function updatePlan(){
 
 Object.values(editor).forEach(el=>el.addEventListener('input',()=>{
   if(!currentData)return;
-  currentData=collectEdits();updatePlan();renderYuvionExport();renderProductCockpit();markCardsStale();saveHistoryDebounced();
+  currentData=collectEdits();updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();markCardsStale();saveHistoryDebounced();
 }));
 editor.category.addEventListener('input',()=>{renderCategoryValidation();renderSpecTemplateHint()});
 editor.category.addEventListener('blur',()=>{
@@ -2645,10 +2750,12 @@ async function checkQualityAndAutofix(autoFix=true){
   qaSummary.style.display='block';
   qaSummary.innerHTML='<b>AI-проверка качества:</b> анализируем готовые карточки…';
   try{
+    let qaSource={};
+    try{qaSource=await getSource()}catch{}
     const response=await fetch('/api/quality-check',{
       method:'POST',
       headers:apiHeaders(),
-      body:JSON.stringify({cards:currentCards,card:collectEdits()})
+      body:JSON.stringify({cards:currentCards,card:collectEdits(),sourceImage:qaSource.image||'',sourceMimeType:qaSource.mimeType||''})
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проверить качество.');
@@ -2673,7 +2780,7 @@ async function checkQualityAndAutofix(autoFix=true){
 
       const second=await fetch('/api/quality-check',{
         method:'POST',headers:apiHeaders(),
-        body:JSON.stringify({cards:currentCards,card:collectEdits()})
+        body:JSON.stringify({cards:currentCards,card:collectEdits(),sourceImage:qaSource.image||'',sourceMimeType:qaSource.mimeType||''})
       });
       const secondData=await second.json().catch(()=>({}));
       if(second.ok){
@@ -2683,6 +2790,7 @@ async function checkQualityAndAutofix(autoFix=true){
         qaSummary.innerHTML='<b>Повторная AI-проверка: '+esc(secondData.overall||'готово')+'</b>'+(secondNotes.length?'<br>'+secondNotes.map(esc).join('<br>'):'<br>Серьёзных проблем не обнаружено.');
       }
     }
+    await saveHistory();
     return currentQuality;
   }catch(e){
     qaSummary.style.display='block';
@@ -2756,6 +2864,7 @@ function renderCards(){
     el.innerHTML=
       '<img alt="'+esc(card.title)+'" src="data:image/png;base64,'+card.base64+'">'+
       '<strong>'+(index+1)+'. '+esc(card.title)+'</strong>'+badge+
+      (q?.issues?.length?'<div class="qa-mini-issues">'+q.issues.slice(0,2).map(esc).join('<br>')+'</div>':'')+
       '<div class="reorder-hint">Перетащите карточку или используйте стрелки, чтобы изменить порядок загрузки.</div>'+
       '<div class="reorder-actions"><button class="btn btn-ghost btn-small move-left" '+(index===0?'disabled':'')+'>←</button><button class="btn btn-ghost btn-small move-right" '+(index===currentCards.length-1?'disabled':'')+'>→</button></div>'+
       '<div class="card-actions"><button class="btn btn-ghost btn-small download-one">PNG</button><button class="btn btn-primary btn-small regen-one">Переделать</button></div>';
@@ -2834,7 +2943,7 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderRevisionList();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentCards=[];currentQuality=null;currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderRevisionList();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;currentBarcodeValid=true;fileInput.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
   renderModeration();
@@ -2862,6 +2971,18 @@ function storedCharValue(data,name){
   return item?.value||'';
 }
 
+function storedFactBlockers(item){
+  const d=item?.data||{};
+  const x=item?.extraData||d.confirmedData||{};
+  const sourceFor=spec=>{
+    const n=normalizedFactText(spec?.name),v=normalizedFactText(spec?.value);
+    const known=[['бренд',x.brand],['артикул',x.sku],['штрихкод/ean',x.barcode],['размеры',x.size],['материал',x.material]];
+    if(known.some(([name,value])=>normalizedFactText(name)===n&&value&&normalizedFactText(value)===v))return 'Продавец';
+    return ['Продавец','Маркировка','Фото'].includes(spec?.source)?spec.source:'Фото';
+  };
+  return (d.characteristics||[]).filter(spec=>isTechnicalFactName(spec.name)&&!['Продавец','Маркировка'].includes(sourceFor(spec)));
+}
+
 function storedReadiness(item){
   const d=item?.data||{};
   const x=item?.extraData||d.confirmedData||{};
@@ -2887,6 +3008,8 @@ function storedReadiness(item){
     !x.oldPrice||old>p1,
     barcodeOk,
     duplicateCharacteristicNames(d).length===0,
+    storedFactBlockers(item).length===0,
+    !item?.cardsStale,
     Array.isArray(item?.cards)&&item.cards.length===4
   ];
   return {done:checks.filter(Boolean).length,total:checks.length,ready:checks.every(Boolean)};
@@ -2928,6 +3051,8 @@ async function savePhotoDraft(file){
       photoHash:currentPhotoHash||'',
       additionalPhotos:currentAdditionalPhotos,
       cards:currentCards,
+      quality:currentQuality,
+      cardsStale:Boolean(cardsStale),
       variations:variationsForExport(),
       revisions:currentRevisions,
       moderation:currentModeration,
@@ -3455,6 +3580,112 @@ function normalizeImportHeader(value){
     .replace(/[^a-zа-я0-9]+/g,' ');
 }
 
+const IMPORT_MAP_FIELDS=[
+  {key:'title',label:'Название',canonical:'Название',aliases:['название','наименование','товар','имя товара','product name','name','title']},
+  {key:'sku',label:'Артикул / SKU',canonical:'Артикул',aliases:['артикул','sku','код товара','код позиции','vendor code','article']},
+  {key:'brand',label:'Бренд',canonical:'Бренд',aliases:['бренд','brand','марка']},
+  {key:'barcode',label:'EAN / штрихкод',canonical:'Штрихкод',aliases:['штрихкод','ean','ean13','ean 13','barcode','gtin']},
+  {key:'category',label:'Категория',canonical:'Категория',aliases:['категория','раздел','category','категория yuvion']},
+  {key:'price1',label:'Цена 1 шт.',canonical:'Цена за 1',aliases:['цена','цена за 1','розница','розничная цена','цена 1','retail price','price']},
+  {key:'price2',label:'Цена от 2',canonical:'Цена от 2',aliases:['цена от 2','цена 2','опт 2','2 шт','price 2']},
+  {key:'price3',label:'Цена от 3',canonical:'Цена от 3',aliases:['цена от 3','цена 3','опт 3','3 шт','price 3']},
+  {key:'oldPrice',label:'Старая цена',canonical:'Старая цена',aliases:['старая цена','old price','oldprice']},
+  {key:'material',label:'Материал',canonical:'Материал',aliases:['материал','material','состав материала']},
+  {key:'size',label:'Размеры',canonical:'Размеры',aliases:['размеры','размер','габариты','dimensions','size']},
+  {key:'description',label:'Описание',canonical:'Описание',aliases:['описание','description','полное описание','description full']},
+  {key:'cost',label:'Себестоимость',canonical:'Себестоимость',aliases:['себестоимость','закупочная цена','цена закупки','закупка','cost','cost price']},
+  {key:'stock',label:'Остаток',canonical:'Остаток',aliases:['остаток','остаток на складе','количество','количество на складе','stock','qty','quantity']},
+  {key:'boxes',label:'Коробки',canonical:'Коробки',aliases:['коробок','коробки','boxes','box count']},
+  {key:'minStock',label:'Мин. остаток',canonical:'Минимальный остаток',aliases:['минимальный остаток','мин остаток','min stock','minimum stock']},
+  {key:'location',label:'Место хранения',canonical:'Место хранения',aliases:['место хранения','ячейка','стеллаж','location','shelf']},
+  {key:'collections',label:'Коллекции / метки',canonical:'Коллекции',aliases:['коллекции','группы','метки','collections','tags','теги']}
+];
+
+function importHeaderScore(header,aliases){
+  const h=normalizeImportHeader(header);
+  if(!h)return 0;
+  let best=0;
+  for(const alias of aliases){
+    const a=normalizeImportHeader(alias);
+    if(!a)continue;
+    if(h===a)best=Math.max(best,100);
+    else if(h.includes(a)||a.includes(h)){
+      const hTokens=h.split(' ').filter(Boolean),aTokens=a.split(' ').filter(Boolean);
+      const genericAmbiguous=aTokens.length===1&&hTokens.length>1&&['цена','price'].includes(a);
+      best=Math.max(best,genericAmbiguous?35:78);
+    }else{
+      const ht=new Set(h.split(' ').filter(Boolean)),at=a.split(' ').filter(Boolean);
+      const overlap=at.filter(x=>ht.has(x)).length;
+      if(overlap)best=Math.max(best,Math.round(55*overlap/Math.max(at.length,ht.size)));
+    }
+  }
+  return best;
+}
+function detectImportMapping(headers){
+  const used=new Set(),mapping={};
+  for(const field of IMPORT_MAP_FIELDS){
+    let bestIndex=-1,bestScore=0;
+    headers.forEach((header,index)=>{
+      if(used.has(index))return;
+      const score=importHeaderScore(header,field.aliases);
+      if(score>bestScore){bestScore=score;bestIndex=index}
+    });
+    if(bestScore>=45){mapping[field.key]=bestIndex;used.add(bestIndex)}
+    else mapping[field.key]=-1;
+  }
+  return mapping;
+}
+function updateImportMapPreview(){
+  if(!pendingImportMap)return;
+  const sample=pendingImportMap.rows[1]||[];
+  const pairs=IMPORT_MAP_FIELDS.map(field=>{
+    const idx=Number(pendingImportMap.mapping[field.key]);
+    return idx>=0?field.label+': '+String(sample[idx]??'').slice(0,80):'';
+  }).filter(Boolean);
+  const mapped=pairs.length;
+  importMapSubtitle.textContent='Файл: '+pendingImportMap.filename+' · строк товаров: '+Math.max(0,pendingImportMap.rows.length-1)+' · сопоставлено полей: '+mapped;
+  importMapPreview.textContent=pairs.length?'Пример первой строки → '+pairs.join(' · '):'Автораспознавание не нашло подходящих колонок. Выберите их вручную.';
+}
+function renderImportMapper({redetect=false}={}){
+  if(!pendingImportMap)return;
+  const headers=pendingImportMap.rows[0].map(v=>String(v||'').trim());
+  if(redetect||!pendingImportMap.mapping)pendingImportMap.mapping=detectImportMapping(headers);
+  importMapGrid.innerHTML=IMPORT_MAP_FIELDS.map(field=>{
+    const current=Number(pendingImportMap.mapping[field.key]??-1);
+    const options=['<option value="-1">Не импортировать</option>',...headers.map((header,index)=>'<option value="'+index+'" '+(index===current?'selected':'')+'>'+esc(header||('Колонка '+(index+1)))+'</option>')].join('');
+    return '<div class="import-map-field"><label>'+esc(field.label)+'</label><select data-import-map="'+esc(field.key)+'">'+options+'</select></div>';
+  }).join('');
+  importMapGrid.querySelectorAll('[data-import-map]').forEach(select=>select.onchange=()=>{
+    pendingImportMap.mapping[select.dataset.importMap]=Number(select.value);
+    updateImportMapPreview();
+  });
+  updateImportMapPreview();
+}
+function openImportMapper(rows,filename){
+  if(!Array.isArray(rows)||rows.length<2)throw new Error('В таблице нужны заголовки и хотя бы одна строка товара.');
+  pendingImportMap={rows,filename:String(filename||'таблица'),mapping:null};
+  renderImportMapper({redetect:true});
+  importMapModal.classList.add('show');
+}
+function closeImportMapper(){
+  pendingImportMap=null;
+  importMapModal.classList.remove('show');
+}
+async function confirmMappedImport(){
+  if(!pendingImportMap)return;
+  const source=pendingImportMap;
+  const headers=IMPORT_MAP_FIELDS.map(field=>field.canonical);
+  const mappedRows=[headers,...source.rows.slice(1).map(row=>IMPORT_MAP_FIELDS.map(field=>{
+    const idx=Number(source.mapping[field.key]??-1);
+    return idx>=0?String(row[idx]??''):'';
+  }))];
+  importMapModal.classList.remove('show');
+  pendingImportMap=null;
+  importNote.className='import-note show';
+  importNote.textContent='Импортируем сопоставленные данные локально…';
+  await importProductRows(mappedRows,source.filename);
+}
+
 function parseCsvText(text){
   const sample=String(text||'').split(/\r?\n/).slice(0,4).join('\n');
   const counts={',':0,';':0,'\t':0};
@@ -3743,7 +3974,9 @@ async function importProductsFileNow(file){
   importNote.className='import-note show';
   importNote.textContent='Читаем таблицу локально в браузере…';
   try{
-    await importProductRows(await rowsFromImportFile(file),file.name);
+    openImportMapper(await rowsFromImportFile(file),file.name);
+    importNote.className='import-note show';
+    importNote.textContent='Таблица прочитана локально. Проверьте сопоставление колонок перед импортом.';
   }catch(e){
     importNote.className='import-note show';
     importNote.textContent='Импорт не выполнен: '+(e.message||'ошибка файла');
@@ -3881,14 +4114,15 @@ async function restoreHistory(item){
   currentHistoryId=item.id;
   currentData=item.data||null;
   currentCards=item.cards||[];
+  currentQuality=item.quality||null;
   currentVariations=Array.isArray(item.variations)?item.variations.map(normalizeVariation):[];
   currentAdditionalPhotos=Array.isArray(item.additionalPhotos)?item.additionalPhotos.slice(0,4):[];
   currentRevisions=Array.isArray(item.revisions)?item.revisions.slice(0,12):[];
   currentModeration=normalizeModeration(item.moderation||{});
+  cardsStale=Boolean(item.cardsStale);
   renderVariations();renderExtraPhotos();renderRevisionList();renderModeration();
   currentMode=item.mode||'full';
   styleSelect.value=item.style||'minimal';
-  cardsStale=false;
   fillExtraData(item.extraData||item.data?.confirmedData||{});
   fillPrivateData(item.privateData||{});
   duplicateSkuId=null;
@@ -3926,6 +4160,11 @@ async function restoreHistory(item){
     creative.classList.toggle('show',currentMode==='full');
     creativeStatus.className='creative-status show done';
     creativeStatus.textContent=item.published?'Товар отмечен как опубликованный. Изменения переведут его обратно в черновик.':'Комплект восстановлен из локального каталога.';
+    if(currentQuality){
+      const notes=(currentQuality.cards||[]).flatMap(x=>(x.issues||[]).map(issue=>'№'+(Number(x.index)+1)+': '+issue));
+      qaSummary.style.display='block';
+      qaSummary.innerHTML='<b>Сохранённая AI-проверка: '+esc(currentQuality.overall||'готово')+'</b>'+(notes.length?'<br>'+notes.map(esc).join('<br>'):'<br>Критических проблем не обнаружено.');
+    }else qaSummary.style.display='none';
     zipImages.disabled=false;zipFull.disabled=false;
   }else{
     creative.classList.remove('show');
@@ -4212,6 +4451,9 @@ function productProblems(item,allItems=[]){
   if(barcode&&!validateEan(barcode).valid)out.push({key:'barcode',label:'Некорректный EAN',detail:barcode,bad:true});
   else if(barcode&&duplicateBarcodeInCatalog(item,allItems))out.push({key:'barcode',label:'Дублирующийся штрихкод',detail:barcode,bad:true});
   if(Array.isArray(d.needsClarification)&&d.needsClarification.length)out.push({key:'clarify',label:'Есть неподтверждённые данные',detail:d.needsClarification.slice(0,2).join(' · ')});
+  const factIssues=storedFactBlockers(item);
+  if(factIssues.length)out.push({key:'facts',label:'Технические факты без подтверждения',detail:factIssues.slice(0,3).map(x=>x.name).join(', '),bad:true});
+  if(item.cardsStale)out.push({key:'cards',label:'Изображения устарели',detail:'Данные товара менялись после генерации карточек.',bad:true});
   if(!Array.isArray(item.cards)||item.cards.length!==4)out.push({key:'cards',label:'Нет полного комплекта изображений',detail:'Нужно 4 карточки 900×1200.'});
   if(lowStockState(item.privateData||{}))out.push({key:'stock',label:'Низкий остаток',detail:'Остаток ниже локального минимального значения.'});
   return out;
@@ -4512,6 +4754,16 @@ extraPhotosInput.addEventListener('change',()=>addAdditionalPhotos(extraPhotosIn
 
 importProductsBtn.onclick=()=>importProductsFile.click();
 importProductsFile.addEventListener('change',()=>importProductsFileNow(importProductsFile.files?.[0]));
+cancelImportMap.onclick=()=>closeImportMapper();
+resetImportMap.onclick=()=>renderImportMapper({redetect:true});
+confirmImportMap.onclick=async()=>{
+  confirmImportMap.disabled=true;
+  try{await confirmMappedImport()}catch(e){
+    importNote.className='import-note show';
+    importNote.textContent='Импорт не выполнен: '+(e.message||'ошибка сопоставления');
+    importMapModal.classList.add('show');
+  }finally{confirmImportMap.disabled=false}
+};
 importRulesBtn.onclick=()=>importRulesFile.click();
 importRulesFile.addEventListener('change',()=>importRulesFileNow(importRulesFile.files?.[0]));
 
@@ -4580,6 +4832,12 @@ document.getElementById('jumpProblems').onclick=()=>document.getElementById('pro
 document.getElementById('jumpAnalytics').onclick=()=>{document.getElementById('analyticsPanel').open=true;document.getElementById('analyticsPanel').scrollIntoView({behavior:'smooth',block:'start'})};
 document.getElementById('autopilotAction').onclick=()=>autopilotCurrentProduct();
 document.getElementById('preflightCheck').onclick=()=>runPreflightCheck();
+errorsOnlyToggle.onclick=()=>{
+  document.body.classList.toggle('publish-errors-only');
+  const active=document.body.classList.contains('publish-errors-only');
+  errorsOnlyToggle.textContent=active?'Показать всё':'Только ошибки';
+  renderPublishIssues();
+};
 document.getElementById('moderationFix').onclick=()=>runModerationFix();
 document.getElementById('bestMainPhoto').onclick=()=>chooseBestMainPhoto();
 document.getElementById('generateVariationMatrix').onclick=()=>generateMatrix();
@@ -4602,7 +4860,7 @@ stepData.onclick=()=>document.querySelector('.editor')?.scrollIntoView({behavior
 stepCards.onclick=()=>document.getElementById('creative')?.scrollIntoView({behavior:'smooth',block:'start'});
 stepExport.onclick=()=>document.getElementById('yuvionExport')?.scrollIntoView({behavior:'smooth',block:'start'});
 
-initUiMode();renderProfile();applySellerDefaults();renderStoreRules();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
+initUiMode();renderProfile();applySellerDefaults();renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
 </script>
 </body>
 </html>
