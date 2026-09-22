@@ -1872,9 +1872,13 @@ function pickRenderSource(index, mainBuffer, additional, mainMimeType = "image/j
     ["package", "detail", "angle", "label"],
     ["angle", "detail", "package"]
   ][index] || [];
+  const slot = Math.max(0, index - 1);
   for (const role of priorities) {
-    const found = additional.find((item) => item.role === role);
-    if (found) return { ...found, source: "extra" };
+    const candidates = additional.filter((item) => item.role === role);
+    if (candidates.length) {
+      const found = candidates[slot % candidates.length];
+      return { ...found, source: "extra" };
+    }
   }
   return { buffer: mainBuffer, mimeType: mainMimeType, role: "main", source: "main" };
 }
