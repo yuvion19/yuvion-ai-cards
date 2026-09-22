@@ -480,17 +480,20 @@ app.get("/m/today", async (_req,res) => {
 
 app.get("/m/memorial/:id", async (req,res) => {
   try{
-    const e=await sb("rpc/memorial_public_event_detail",{method:"POST",body:{p_event_id:req.params.id}});
-    if(!e)return res.status(404).send(mobileShell("Не найдено",'<div class="err">Публичная памятная запись не найдена.</div>'));
+    const rawKey=clean(req.query.key,80);
+    const accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
+    const e=await sb("rpc/memorial_event_detail_access",{method:"POST",body:{p_event_id:req.params.id,p_share_token:accessKey}});
+    if(!e)return res.status(404).send(mobileShell("Не найдено",'<div class="err">Памятная запись не найдена или ссылка недействительна.</div>'));
+    const accessSuffix=accessKey?"?key="+encodeURIComponent(accessKey):"";
     const next=addDays(e.event_date,1), gStart=String(e.event_date||"").replaceAll("-",""), gEnd=String(next||"").replaceAll("-","");
     const google="https://calendar.google.com/calendar/render?"+new URLSearchParams({action:"TEMPLATE",text:(e.event_type||"Памятная дата")+" — "+e.full_name,dates:gStart+"/"+gEnd,details:e.note||"",location:e.place||e.city||""}).toString();
     const outlook="https://outlook.live.com/calendar/0/deeplink/compose?"+new URLSearchParams({path:"/calendar/action/compose",rru:"addevent",subject:(e.event_type||"Памятная дата")+" — "+e.full_name,startdt:e.event_date,enddt:next,allday:"true",body:e.note||"",location:e.place||e.city||""}).toString();
     const comments=(e.comments||[]).map(x=>'<div class="card"><b>'+htmlEsc(x.author||"Гость")+'</b><div>'+htmlEsc(x.body||"")+'</div><div class="muted">'+htmlEsc(String(x.created_at||"").slice(0,10))+'</div></div>').join("");
     const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
-    const canonical=base+"/m/memorial/"+encodeURIComponent(e.id);
-    const ogImage=e.has_photo?base+"/api/events/"+encodeURIComponent(e.id)+"/photo":base+"/icon.svg";
+    const canonical=base+"/m/memorial/"+encodeURIComponent(e.id)+accessSuffix;
+    const ogImage=base+"/api/events/"+encodeURIComponent(e.id)+"/share-card.svg"+accessSuffix;
     const ogDescription=[e.event_type,e.event_date,e.city,e.place].filter(Boolean).join(" · ");
-    const extraHead='<link rel="canonical" href="'+htmlEsc(canonical)+'">'+
+    const extraHead=(e.visibility!=="public"?'<meta name="robots" content="noindex,nofollow">':"")+'<link rel="canonical" href="'+htmlEsc(canonical)+'">'+
       '<meta name="description" content="'+htmlEsc(ogDescription)+'">'+
       '<meta property="og:type" content="article"><meta property="og:title" content="'+htmlEsc(e.full_name+" — Память")+'">'+
       '<meta property="og:description" content="'+htmlEsc(ogDescription)+'"><meta property="og:url" content="'+htmlEsc(canonical)+'">'+
@@ -502,10 +505,12 @@ app.get("/m/memorial/:id", async (req,res) => {
       ${e.urgent?'<div class="err"><b>Срочное объявление</b></div>':""}
       <div class="row"><span class="tag">${htmlEsc(e.event_type||"Памятная дата")}</span>${e.family_verified?'<span class="tag">Подтверждено семьёй ✓</span>':""}</div>
       <h1>${htmlEsc(e.full_name)}</h1>
-      ${e.has_photo?'<div style="text-align:center;margin:14px 0"><img src="/api/events/'+encodeURIComponent(e.id)+'/photo" alt="Фото '+htmlEsc(e.full_name)+'" style="width:min(100%,360px);max-height:440px;object-fit:cover;border-radius:16px"></div>':""}
+      ${e.has_photo?'<div style="text-align:center;margin:14px 0"><img src="/api/events/'+encodeURIComponent(e.id)+'/photo'+accessSuffix+'" alt="Фото '+htmlEsc(e.full_name)+'" style="width:min(100%,360px);max-height:440px;object-fit:cover;border-radius:16px"></div>':""}
       <div>
-        <div><b>Дата:</b> ${htmlEsc(e.event_date||"—")}${e.event_time?" · "+htmlEsc(e.event_time):""}</div>
+        <div><b>Дата:</b> ${htmlEsc(e.event_date||"—")}${e.event_time?" · "+htmlEsc(e.event_time):""}${e.event_time&&e.event_timezone?' · '+htmlEsc(e.event_timezone):""}</div>
+        ${e.event_time?'<div id="localEventTime" class="muted" style="margin-top:4px"></div>':""}
         <div><b>Место:</b> ${htmlEsc([e.city,e.place].filter(Boolean).join(" · ")||"—")}</div>
+        ${(e.city||e.place)?'<p><a class="btn secondary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([e.place,e.city].filter(Boolean).join(", "))+'">Маршрут к месту</a></p>':""}
         ${e.hebrew_death_label?'<div><b>Еврейская дата:</b> '+htmlEsc(e.hebrew_death_label)+(e.hebrew_after_sunset?' · после захода солнца':'')+'</div>':""}
         ${e.yahrzeit_date?'<div><b>Йорцайт:</b> '+htmlEsc(e.yahrzeit_date)+'</div>':""}
         ${e.note?'<p>'+htmlEsc(e.note)+'</p>':""}
@@ -578,17 +583,30 @@ app.get("/m/memorial/:id", async (req,res) => {
       <div class="card memory-hide">
         <b>Добавить в календарь</b>
         <div class="nav">
-          <a class="btn secondary" href="/api/events/${encodeURIComponent(e.id)}.ics">Apple / ICS</a>
+          <a class="btn secondary" href="/api/events/${encodeURIComponent(e.id)}.ics${accessSuffix}">Apple / ICS</a>
           <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(google)}">Google Calendar</a>
           <a class="btn secondary" target="_blank" rel="noopener" href="${htmlEsc(outlook)}">Outlook</a>
           <button class="btn secondary" id="shareMemorial">Поделиться</button>
-          <a class="btn secondary" href="/m/memorial/${encodeURIComponent(e.id)}/print">Печатная карточка</a>
+          <a class="btn secondary" target="_blank" rel="noopener" href="/api/events/${encodeURIComponent(e.id)}/share-card.svg${accessSuffix}">Карточка для мессенджеров</a>
+          <a class="btn secondary" href="/m/memorial/${encodeURIComponent(e.id)}/print${accessSuffix}">Печатная карточка</a>
         </div>
+      </div>
+
+      <div class="card memory-hide">
+        <h3 style="margin-top:0">Подтверждение присутствия</h3>
+        <p class="muted">Можно ответить без регистрации. Имя указывать необязательно.</p>
+        <input id="rsvpName" class="field" placeholder="Ваше имя (необязательно)">
+        <div class="nav" style="margin-bottom:8px">
+          <button class="btn" data-rsvp="yes">Буду</button>
+          <button class="btn secondary" data-rsvp="no">Не смогу</button>
+          <button class="btn secondary" data-rsvp="follow">Сообщите изменения</button>
+        </div>
+        <div id="rsvpSummary" class="muted">Загрузка…</div>
       </div>
 
       <div class="card memory-hide" style="text-align:center">
         <b>QR-код памятной страницы</b><br>
-        <img src="/qr/event/${encodeURIComponent(e.id)}.svg" alt="QR" style="width:210px;max-width:100%;margin-top:10px">
+        <img src="/qr/event/${encodeURIComponent(e.id)}.svg${accessSuffix}" alt="QR" style="width:210px;max-width:100%;margin-top:10px">
       </div>
 
       <div class="card memory-hide">
@@ -627,6 +645,40 @@ app.get("/m/memorial/:id", async (req,res) => {
         const r=await fetch("/api/events/${req.params.id}/candle",{method:"POST"}),d=await r.json();
         if(r.ok){document.getElementById("nerCount").textContent=d.count;document.getElementById("nerFlame").classList.remove("off");say("Свеча памяти зажжена.")}else say("Не удалось зажечь свечу.",false)
       };
+      function zonedToUtc(date,time,tz){
+        try{
+          const parts=String(time||"").split(":"); if(parts.length<2)return null;
+          const guess=Date.parse(date+"T"+parts[0]+":"+parts[1]+":00Z");
+          const f=new Intl.DateTimeFormat("en-CA",{timeZone:tz,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"});
+          const p=Object.fromEntries(f.formatToParts(new Date(guess)).map(x=>[x.type,x.value]));
+          const shown=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);
+          return new Date(guess-(shown-guess));
+        }catch{return null}
+      }
+      const localEl=document.getElementById("localEventTime");
+      if(localEl){
+        const dt=zonedToUtc(${JSON.stringify(e.event_date||"")},${JSON.stringify(e.event_time||"")},${JSON.stringify(e.event_timezone||"Europe/Moscow")});
+        if(dt){
+          const localTz=Intl.DateTimeFormat().resolvedOptions().timeZone||"";
+          localEl.textContent="В вашем часовом поясе ("+localTz+"): "+new Intl.DateTimeFormat("ru-RU",{dateStyle:"medium",timeStyle:"short"}).format(dt);
+        }
+      }
+      const rsvpTokenKey="pamyat_device_token";
+      function ensureRsvpToken(){let t=localStorage.getItem(rsvpTokenKey);if(!/^[0-9a-f-]{36}$/i.test(t||"")){t=crypto.randomUUID();localStorage.setItem(rsvpTokenKey,t)}return t}
+      async function loadRsvp(){
+        try{
+          const r=await fetch("/api/events/${req.params.id}/rsvp${accessSuffix}",{cache:"no-store"}),d=await r.json();
+          if(r.ok)document.getElementById("rsvpSummary").textContent="Будут: "+Number(d.yes||0)+" · Не смогут: "+Number(d.no||0)+" · Ждут изменений: "+Number(d.follow||0);
+        }catch{}
+      }
+      document.querySelectorAll("[data-rsvp]").forEach(b=>b.onclick=async()=>{
+        try{
+          const body={device_token:ensureRsvpToken(),response:b.dataset.rsvp,display_name:document.getElementById("rsvpName").value,key:${JSON.stringify(accessKey||"")}};
+          const r=await fetch("/api/events/${req.params.id}/rsvp",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+          if(!r.ok)throw new Error("rsvp_failed");say("Ответ сохранён.");await loadRsvp();
+        }catch{say("Не удалось сохранить ответ.",false)}
+      });
+      loadRsvp();
       document.getElementById("shareMemorial").onclick=async()=>{try{if(navigator.share)await navigator.share({title:${JSON.stringify(e.full_name)},url:location.href});else{await navigator.clipboard.writeText(location.href);say("Ссылка скопирована.")}}catch{}};
       document.getElementById("sendClaim").onclick=async()=>{
         const body={claimant_name:document.getElementById("claimName").value,relation_type:document.getElementById("claimRelation").value,contact:document.getElementById("claimContact").value,evidence_note:document.getElementById("claimEvidence").value};
@@ -650,10 +702,11 @@ app.get("/m/memorial/:id", async (req,res) => {
 
 app.get("/m/memorial/:id/print", async (req,res) => {
   try{
-    const e=await sb("rpc/memorial_public_event_detail",{method:"POST",body:{p_event_id:req.params.id}});
+    const rawKey=clean(req.query.key,80),accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
+    const e=await sb("rpc/memorial_event_detail_access",{method:"POST",body:{p_event_id:req.params.id,p_share_token:accessKey}});
     if(!e)return res.status(404).send("Not found");
-    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
-    const qr=base+"/qr/event/"+encodeURIComponent(e.id)+".svg";
+    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,""),accessSuffix=accessKey?"?key="+encodeURIComponent(accessKey):"";
+    const qr=base+"/qr/event/"+encodeURIComponent(e.id)+".svg"+accessSuffix;
     res.setHeader("Cache-Control","no-store");
     res.send(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
       <title>${htmlEsc(e.full_name)} — карточка памяти</title>
@@ -1583,11 +1636,12 @@ app.get("/qr/cemetery/:key.svg", async (req,res)=>{
 
 app.get("/qr/event/:id.svg", async (req,res)=>{
   try{
-    const e=await sb("rpc/memorial_public_event_detail",{method:"POST",body:{p_event_id:req.params.id}});
+    const rawKey=clean(req.query.key,80),accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
+    const e=await sb("rpc/memorial_event_detail_access",{method:"POST",body:{p_event_id:req.params.id,p_share_token:accessKey}});
     if(!e)return res.status(404).send("Not found");
-    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
-    const svg=await QRCode.toString(base+"/m/memorial/"+encodeURIComponent(req.params.id),{type:"svg",margin:1,width:360});
-    res.type("image/svg+xml").setHeader("Cache-Control","public,max-age=86400").send(svg);
+    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,""),suffix=accessKey?"?key="+encodeURIComponent(accessKey):"";
+    const svg=await QRCode.toString(base+"/m/memorial/"+encodeURIComponent(req.params.id)+suffix,{type:"svg",margin:1,width:360});
+    res.type("image/svg+xml").setHeader("Cache-Control",e.visibility==="public"?"public,max-age=86400":"private,no-store").send(svg);
   }catch(e){res.status(500).send("QR failed")}
 });
 
@@ -2077,19 +2131,21 @@ app.get("/api/events", async (req, res) => {
 
 app.get("/api/events/:eventId/photo", async (req,res) => {
   try{
-    const p=await sb("rpc/memorial_public_photo",{method:"POST",body:{p_event_id:req.params.eventId}});
+    const rawKey=clean(req.query.key,80),accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
+    const p=await sb("rpc/memorial_event_photo_access",{method:"POST",body:{p_event_id:req.params.eventId,p_share_token:accessKey}});
     if(!p?.base64)return res.status(404).end();
     const buf=Buffer.from(p.base64,"base64");
-    res.setHeader("Cache-Control","public,max-age=300");
+    res.setHeader("Cache-Control",accessKey?"private,no-store":"public,max-age=300");
     res.type(p.mime||"image/jpeg").send(buf);
   }catch(e){res.status(404).end()}
 });
 
 app.get("/api/events/:eventId", async (req, res) => {
   try {
-    const data = await sb("rpc/memorial_public_event_detail", {
+    const rawKey=clean(req.query.key,80),accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
+    const data = await sb("rpc/memorial_event_detail_access", {
       method: "POST",
-      body: { p_event_id: req.params.eventId }
+      body: { p_event_id: req.params.eventId, p_share_token: accessKey }
     });
     if (!data) return res.status(404).json({ error: "not_found" });
     res.json(data);
@@ -2101,9 +2157,10 @@ app.get("/api/events/:eventId", async (req, res) => {
 
 app.get("/api/events/:eventId.ics", async (req, res) => {
   try {
-    const e = await sb("rpc/memorial_public_event_detail", {
+    const rawKey=clean(req.query.key,80),accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
+    const e = await sb("rpc/memorial_event_detail_access", {
       method: "POST",
-      body: { p_event_id: req.params.eventId }
+      body: { p_event_id: req.params.eventId, p_share_token: accessKey }
     });
     if (!e || !e.event_date) return res.status(404).send("Not found");
     const d = toIcsDate(e.event_date);
@@ -2124,6 +2181,55 @@ app.get("/api/events/:eventId.ics", async (req, res) => {
   } catch {
     res.status(500).send("Failed");
   }
+});
+
+app.get("/api/events/:eventId/rsvp", rateLimit("rsvp-read",60,60*60*1000), async (req,res)=>{
+  try{
+    const rawKey=clean(req.query.key,80),accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
+    const d=await sb("rpc/memorial_rsvp_summary",{method:"POST",body:{p_event_id:req.params.eventId,p_share_token:accessKey}});
+    if(!d)return res.status(404).json({error:"not_found"});
+    res.setHeader("Cache-Control","no-store");res.json(d);
+  }catch(e){res.status(500).json({error:"rsvp_failed"})}
+});
+app.post("/api/events/:eventId/rsvp", rateLimit("rsvp-write",20,60*60*1000), async (req,res)=>{
+  try{
+    const t=clean(req.body?.device_token,80),response=clean(req.body?.response,20),key=clean(req.body?.key,80);
+    if(!/^[0-9a-f-]{36}$/i.test(t))return res.status(400).json({error:"device_token_required"});
+    const d=await sb("rpc/memorial_rsvp_set",{method:"POST",body:{
+      p_event_id:req.params.eventId,p_device_token:t,p_response:response,p_display_name:clean(req.body?.display_name,120)||null,
+      p_share_token:/^[0-9a-f-]{36}$/i.test(key)?key:null
+    }});
+    res.json(d);
+  }catch(e){res.status(400).json({error:"rsvp_failed"})}
+});
+
+app.get("/api/events/:eventId/share-card.svg", rateLimit("share-card",60,60*60*1000), async (req,res)=>{
+  try{
+    const rawKey=clean(req.query.key,80),accessKey=/^[0-9a-f-]{36}$/i.test(rawKey)?rawKey:null;
+    const e=await sb("rpc/memorial_event_detail_access",{method:"POST",body:{p_event_id:req.params.eventId,p_share_token:accessKey}});
+    if(!e)return res.status(404).send("Not found");
+    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,""),suffix=accessKey?"?key="+encodeURIComponent(accessKey):"";
+    const url=base+"/m/memorial/"+encodeURIComponent(e.id)+suffix;
+    const qr=await QRCode.toDataURL(url,{margin:1,width:260,errorCorrectionLevel:"M"});
+    const wrap=(v,max=28)=>{const words=String(v||"").split(/\s+/),out=[];let line="";for(const w of words){const next=(line+" "+w).trim();if(next.length>max&&line){out.push(line);line=w}else line=next}if(line)out.push(line);return out.slice(0,4)};
+    const nameLines=wrap(e.full_name,27);
+    const nameSvg=nameLines.map((x,i)=>'<text x="540" y="'+(430+i*76)+'" text-anchor="middle" font-size="64" font-weight="700" fill="#211d18">'+htmlEsc(x)+'</text>').join("");
+    const place=htmlEsc([e.place,e.city].filter(Boolean).join(" · ")),note=htmlEsc(String(e.note||"").slice(0,180));
+    const svg=[
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">',
+      '<rect width="1080" height="1350" fill="#f5f1e8"/><rect x="54" y="54" width="972" height="1242" rx="38" fill="#fffdf8" stroke="#cfc2ad" stroke-width="3"/>',
+      '<text x="540" y="165" text-anchor="middle" font-size="58" fill="#4c3e2d">✡</text><text x="540" y="235" text-anchor="middle" font-size="42" font-family="serif" fill="#4c3e2d">נר נשמה</text>',
+      '<line x1="270" y1="285" x2="810" y2="285" stroke="#cfc2ad" stroke-width="2"/>',nameSvg,
+      '<text x="540" y="770" text-anchor="middle" font-size="38" fill="#5b4934">'+htmlEsc(e.event_type||"Памятная дата")+'</text>',
+      '<text x="540" y="830" text-anchor="middle" font-size="36" fill="#27231e">'+htmlEsc(e.event_date||"")+(e.event_time?" · "+htmlEsc(e.event_time):"")+'</text>',
+      '<text x="540" y="885" text-anchor="middle" font-size="28" fill="#746d63">'+place+'</text>',
+      e.hebrew_death_label?'<text x="540" y="935" text-anchor="middle" font-size="27" fill="#746d63">'+htmlEsc(e.hebrew_death_label)+'</text>':"",
+      '<text x="540" y="1000" text-anchor="middle" font-size="24" fill="#746d63">'+note+'</text>',
+      '<image href="'+qr+'" x="410" y="1035" width="260" height="260"/><text x="540" y="1315" text-anchor="middle" font-size="24" fill="#5b4934">Память Джуури</text></svg>'
+    ].join("");
+    res.type("image/svg+xml").setHeader("Content-Disposition",'inline; filename="pamyat-'+e.id+'.svg"');
+    res.setHeader("Cache-Control",e.visibility==="public"?"public,max-age=300":"private,no-store");res.send(svg);
+  }catch(e){console.error("share card",e.data||e);res.status(500).send("Failed")}
 });
 
 app.get("/api/notifications", async (req, res) => {
