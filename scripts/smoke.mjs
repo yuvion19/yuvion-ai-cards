@@ -88,4 +88,4 @@ if(healthVersion!==pkg.version)fail('package/server version mismatch: '+pkg.vers
 if(process.exitCode)process.exit(process.exitCode);
 
 if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
-if(!server.includes('version: "6.8.0"'))fail('server health version is not 6.8.0');else ok('server health version 6.8.0');
+if(!server.includes('version: "6.8.1"'))fail('server health version is not 6.8.1');else ok('server health version 6.8.1');
