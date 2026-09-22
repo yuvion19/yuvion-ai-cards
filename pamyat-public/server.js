@@ -637,6 +637,25 @@ app.get("/api/cemetery/search", async (req, res) => {
     res.status(500).json({ error: "cemetery_search_failed" });
   }
 });
+app.get("/api/cemetery/catalog", async (req, res) => {
+  try {
+    const page = Math.max(1, Number(req.query.page || 1));
+    const limit = Math.max(20, Math.min(Number(req.query.limit || 100), 200));
+    const offset = (page - 1) * limit;
+    const params = new URLSearchParams();
+    params.set("select", "record_key,external_id,name_ru,name_he,death_gr,death_he,death_date,latitude,longitude,tomb_type,source_url");
+    params.set("cemetery_code", "eq.QBA");
+    params.set("order", "external_id.asc,person_index.asc");
+    params.set("limit", String(limit));
+    params.set("offset", String(offset));
+    const rows = await sb("cemetery_records?" + params.toString());
+    res.json({ page, limit, has_more: rows.length === limit, rows });
+  } catch (e) {
+    console.error("cemetery catalog", e.data || e);
+    res.status(500).json({ error: "catalog_failed" });
+  }
+});
+
 app.get("/api/cemetery/map", async (req, res) => {
   try {
     const limit = Math.max(1, Math.min(Number(req.query.limit || 1500), 2500));
