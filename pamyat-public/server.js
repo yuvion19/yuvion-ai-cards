@@ -257,7 +257,7 @@ app.post("/api/events/:eventId/relative-claim", async (req, res) => {
 
 app.get("/api/admin/queue", requireAdmin, async (_req, res) => {
   try {
-    const data = await sb("rpc/memorial_admin_queue", { method: "POST", body: { p_token: SUPABASE_RPC_SECRET } });
+    const data = await sb("rpc/memorial_admin_queue", { method: "POST", body: { p_token: ADMIN_TOKEN } });
     res.json(data);
   } catch (e) {
     console.error(e.data || e);
@@ -269,7 +269,7 @@ app.post("/api/admin/events/:eventId/:action", requireAdmin, async (req, res) =>
   try {
     const data = await sb("rpc/memorial_admin_event_action", {
       method: "POST",
-      body: { p_token: SUPABASE_RPC_SECRET, p_event_id: req.params.eventId, p_action: req.params.action }
+      body: { p_token: ADMIN_TOKEN, p_event_id: req.params.eventId, p_action: req.params.action }
     });
     res.json(data);
   } catch (e) {
@@ -282,7 +282,7 @@ app.post("/api/admin/comments/:commentId/approve", requireAdmin, async (req, res
   try {
     const data = await sb("rpc/memorial_admin_comment_approve", {
       method: "POST",
-      body: { p_token: SUPABASE_RPC_SECRET, p_comment_id: req.params.commentId }
+      body: { p_token: ADMIN_TOKEN, p_comment_id: req.params.commentId }
     });
     res.json(data);
   } catch (e) {
@@ -295,7 +295,7 @@ app.post("/api/admin/claims/:claimId/approve", requireAdmin, async (req, res) =>
   try {
     const data = await sb("rpc/memorial_admin_claim_approve", {
       method: "POST",
-      body: { p_token: SUPABASE_RPC_SECRET, p_claim_id: req.params.claimId }
+      body: { p_token: ADMIN_TOKEN, p_claim_id: req.params.claimId }
     });
     res.json(data);
   } catch (e) {
