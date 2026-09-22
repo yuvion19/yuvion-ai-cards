@@ -26,7 +26,7 @@ if(openDetails!==closeDetails)fail('details tags unbalanced '+openDetails+'/'+cl
 const required=[
   'excelAutopilot','publishCenter','confirmationCenter','operationsV64',
   'queueBudgetUsd','storageManager','labelOcrBox','networkPill',
-  'productUrlInput','importProductUrl','urlImportStatus','sourceReference','renderMode'
+  'productUrlInput','importProductUrl','urlImportStatus','sourceReference','renderMode','autoCards'
 ];
 const missing=required.filter(id=>!ids.includes(id));
 if(missing.length)fail('required v6.5 UI ids missing: '+missing.join(', '));else ok('required v6.5 UI present');
@@ -54,7 +54,12 @@ const features=[
   ['MAX_FREE_CARD_BATCHES_PER_WINDOW','separate free batch limit'],
   ['freeCardRequestsByIp','free render limiter separated from AI limiter'],
   ['freeImageAiCalls: 0','health confirms zero image-AI calls for free mode'],
-  ['Создать 4 карточки бесплатно','free mode is explicit in UI']
+  ['Создать 4 карточки бесплатно','free mode is explicit in UI'],
+  ['autoCreateCardsIfEnabled','automatic four-card workflow'],
+  ['recommendedStyleForProduct','category-aware style recommendation'],
+  ['edgeWhiteCutout','free white-background cutout'],
+  ['sellerNeutralCopy','seller-neutral commercial copy'],
+  ['Игрушки и детские товары','kids selling-card theme']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
@@ -81,3 +86,6 @@ const healthVersion=(server.match(/version:\s*"([^"]+)"/)||[])[1];
 if(healthVersion!==pkg.version)fail('package/server version mismatch: '+pkg.version+' vs '+healthVersion);else ok('package/server version '+pkg.version);
 
 if(process.exitCode)process.exit(process.exitCode);
+
+if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
+if(!server.includes('version: "6.8.0"'))fail('server health version is not 6.8.0');else ok('server health version 6.8.0');
