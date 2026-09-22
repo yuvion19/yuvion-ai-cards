@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Production release marker: v7.2.0
+// Production release marker: v7.3.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -417,6 +417,24 @@ function normalizeDesignIntensity(value) {
 
 function normalizeDesignSubstyle(value) {
   return ["auto", "clean", "contrast", "soft"].includes(value) ? value : "auto";
+}
+
+function normalizeSeason(value) {
+  return ["none", "newyear", "spring", "summer", "school"].includes(value) ? value : "none";
+}
+
+function normalizeVisualOptions(raw = {}) {
+  const input = raw && typeof raw === "object" ? raw : {};
+  return {
+    showBrand: input.showBrand !== false,
+    showCategory: input.showCategory !== false,
+    showBenefits: input.showBenefits !== false,
+    showSpecs: input.showSpecs !== false,
+    showUsage: input.showUsage !== false,
+    showDescription: input.showDescription !== false,
+    coverTitle: compact(input.coverTitle || "", 120),
+    season: normalizeSeason(input.season)
+  };
 }
 
 function resolveRenderStyle(styleKey, palette = [], intensity = "selling", substyle = "auto") {
@@ -1177,7 +1195,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "yuvion-ai-cards",
-    version: "7.2.0",
+    version: "7.3.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1193,6 +1211,9 @@ app.get("/api/health", (_req, res) => {
       livePreview: true,
       marketplacePreview: true,
       designHistory: true,
+      visualBlockEditor: true,
+      seasonalDecor: true,
+      safeZoneChecks: true,
       manualComposition: true
     },
     imageRendering: {
@@ -1651,10 +1672,11 @@ const freeSceneLayouts = [
   { x: 105, y: 105, width: 690, height: 535 }
 ];
 
-function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0, intensity = "selling", substyle = "auto") {
+function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0, intensity = "selling", substyle = "auto", visualOptions = {}) {
   const level = normalizeDesignIntensity(intensity);
   const detail = normalizeDesignSubstyle(substyle);
   const style = resolveRenderStyle(styleKey, palette, level, detail);
+  const visual = normalizeVisualOptions(visualOptions);
   const playful = styleKey === "kids";
   const technical = styleKey === "tech" || styleKey === "tools";
   const premium = styleKey === "premium" || styleKey === "beauty";
@@ -1680,6 +1702,16 @@ function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0
   const premiumGlow = premium ? `
     <ellipse cx="690" cy="190" rx="260" ry="175" fill="${style.accent}" fill-opacity="0.055"/>
     <ellipse cx="125" cy="1020" rx="210" ry="160" fill="${style.accent2}" fill-opacity="0.04"/>` : "";
+
+  const seasonDecor = visual.season === "newyear"
+    ? `<g opacity="0.16" fill="${style.accent2}"><circle cx="115" cy="145" r="10"/><circle cx="165" cy="105" r="6"/><circle cx="760" cy="330" r="9"/><circle cx="810" cy="285" r="5"/><path d="M720 92 l18 32 36 4-26 24 8 36-36-18-32 18 6-36-26-24 36-4z"/></g>`
+    : visual.season === "spring"
+      ? `<g opacity="0.13" fill="${style.accent}"><ellipse cx="125" cy="165" rx="30" ry="12" transform="rotate(-25 125 165)"/><ellipse cx="168" cy="142" rx="30" ry="12" transform="rotate(25 168 142)"/><ellipse cx="760" cy="260" rx="35" ry="13" transform="rotate(-35 760 260)"/></g>`
+      : visual.season === "summer"
+        ? `<g opacity="0.12" fill="${style.accent2}"><circle cx="760" cy="150" r="58"/><path d="M80 260 C160 210 190 315 275 255 C220 355 120 355 80 260z"/></g>`
+        : visual.season === "school"
+          ? `<g opacity="0.10" stroke="${style.accent2}" stroke-width="5" fill="none"><path d="M70 140 h150 v105 h-150z"/><path d="M690 115 l105 42-105 42-105-42z"/></g>`
+          : "";
   return `
     <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -1708,6 +1740,7 @@ function freeSceneBackgroundSvg(index, styleKey, palette = [], designVariant = 0
       ${technicalLines}
       ${premiumGlow}
       <path d="M0 1085 C190 1010 315 1150 490 1088 C665 1022 765 1055 900 998 L900 1200 L0 1200 Z" fill="${style.accent}" fill-opacity="${playful ? 0.16 : 0.052}"/>
+      ${seasonDecor}
     </svg>`;
 }
 
@@ -1778,7 +1811,7 @@ async function edgeWhiteCutout(sourceBuffer, layout) {
     .toBuffer();
 }
 
-async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], designVariant = 0, composition = {}, intensity = "selling", substyle = "auto") {
+async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], designVariant = 0, composition = {}, intensity = "selling", substyle = "auto", visualOptions = {}) {
   let sourceAspect = 1;
   try {
     const meta = await sharp(sourceBuffer).rotate().metadata();
@@ -1800,7 +1833,7 @@ async function renderFreeScene(sourceBuffer, index, styleKey, palette = [], desi
       .toBuffer();
   }
 
-  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, designVariant, intensity, substyle)))
+  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, designVariant, intensity, substyle, visualOptions)))
     .composite([{ input: product, left: layout.x, top: layout.y }])
     .png({ compressionLevel: 9 })
     .toBuffer();
@@ -1857,11 +1890,12 @@ async function generateScene(client, sourceBuffer, mimeType, scenePrompt, index,
   throw lastError;
 }
 
-function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "selling", substyle = "auto") {
+function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "selling", substyle = "auto", visualOptions = {}) {
   const card = normalizeCard(cardRaw);
   const level = normalizeDesignIntensity(intensity);
+  const visual = normalizeVisualOptions(visualOptions);
   const style = resolveRenderStyle(styleKey, palette, level, substyle);
-  const title = compact(card.seoTitle || card.category || "Товар", 120);
+  const title = compact(visual.coverTitle || card.seoTitle || card.category || "Товар", 120);
   const category = compact(card.category || "Товар", 50);
   const characteristics = card.characteristics || [];
   const benefits = card.benefits.length ? card.benefits : characteristics.slice(0, 4).map((x) => `${x.name}: ${x.value}`);
@@ -1873,13 +1907,11 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
     return `
       <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
         <rect width="900" height="1200" fill="none"/>
-        <rect x="46" y="46" rx="24" width="154" height="54" fill="${style.accent}"/>
-        <text x="123" y="82" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="#FFFFFF">YUVION</text>
+        ${visual.showBrand ? `<rect x="46" y="46" rx="24" width="154" height="54" fill="${style.accent}"/><text x="123" y="82" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="#FFFFFF">YUVION</text>` : ""}
         <rect x="38" y="790" rx="38" width="824" height="372" fill="${style.panel}" fill-opacity="0.97"/>
-        <rect x="72" y="824" rx="18" width="250" height="42" fill="${style.accent}" fill-opacity="0.12"/>
-        <text x="92" y="853" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="800" fill="${style.accent2}">${escapeXml(category.toUpperCase())}</text>
+        ${visual.showCategory ? `<rect x="72" y="824" rx="18" width="250" height="42" fill="${style.accent}" fill-opacity="0.12"/><text x="92" y="853" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="800" fill="${style.accent2}">${escapeXml(category.toUpperCase())}</text>` : ""}
         ${textLines(titleLines, { x: 72, y: 918, size: titleSize, lineHeight: titleSize + 8, weight: 850, fill: style.text })}
-        ${quick.length ? bulletGroups(quick, { x: 84, y: 1080, maxChars: 35, maxItems: 3, size: 22, lineHeight: 27, gap: 7, accent: style.accent, text: style.text }) : ""}
+        ${visual.showBenefits && quick.length ? bulletGroups(quick, { x: 84, y: 1080, maxChars: 35, maxItems: 3, size: 22, lineHeight: 27, gap: 7, accent: style.accent, text: style.text }) : ""}
       </svg>`;
   }
 
@@ -1890,12 +1922,12 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
         <rect x="28" y="66" rx="40" width="498" height="1066" fill="${style.panel}" fill-opacity="0.97"/>
         <text x="70" y="135" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="850" fill="${style.accent}">ГЛАВНОЕ О ТОВАРЕ</text>
         <text x="70" y="210" font-family="DejaVu Sans, Arial, sans-serif" font-size="50" font-weight="850" fill="${style.text}">Преимущества</text>
-        ${bulletGroups(benefits, { x: 84, y: 315, maxChars: 24, maxItems: 5, size: 30, lineHeight: 40, gap: 30, accent: style.accent, text: style.text })}
+        ${visual.showBenefits ? bulletGroups(benefits, { x: 84, y: 315, maxChars: 24, maxItems: 5, size: 30, lineHeight: 40, gap: 30, accent: style.accent, text: style.text }) : textLines(["Минимальная подача", "без лишнего текста"], { x: 84, y: 345, size: 28, lineHeight: 38, weight: 650, fill: style.text })}
       </svg>`;
   }
 
   if (index === 2) {
-    const specs = characteristics.slice(0, 5);
+    const specs = visual.showSpecs ? characteristics.slice(0, 5) : [];
     let y = 825;
     let rows = "";
     if (specs.length) {
@@ -1920,8 +1952,8 @@ function overlayForCard(index, cardRaw, styleKey, palette = [], intensity = "sel
       </svg>`;
   }
 
-  const usage = card.usage.length ? card.usage : benefits.slice(0, 3);
-  const desc = wrapWords(card.shortDescription || card.fullDescription || category, 43, 3);
+  const usage = visual.showUsage ? (card.usage.length ? card.usage : benefits.slice(0, 3)) : [];
+  const desc = visual.showDescription ? wrapWords(card.shortDescription || card.fullDescription || category, 43, 3) : [];
   return `
     <svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">
       <rect width="900" height="1200" fill="none"/>
@@ -2052,7 +2084,7 @@ app.post("/api/generate-cards", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = cardRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto" } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {} } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? cardRequestsByIp : freeCardRequestsByIp;
 
@@ -2085,6 +2117,7 @@ app.post("/api/generate-cards", async (req, res) => {
     const renderComposition = normalizeComposition(composition);
     const intensity = normalizeDesignIntensity(designIntensity);
     const substyle = normalizeDesignSubstyle(designSubstyle);
+    const visual = normalizeVisualOptions(visualOptions);
     let scenes = [];
 
     if (mode === "ai") {
@@ -2100,7 +2133,7 @@ app.post("/api/generate-cards", async (req, res) => {
       stats.aiSceneRenders += 4;
       stats.estimatedImageOutputUsd += 4 * IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey, renderPalette, variant, renderComposition, intensity, substyle)));
+      scenes = await Promise.all([0, 1, 2, 3].map((index) => renderFreeScene(sourceBuffer, index, styleKey, renderPalette, variant, renderComposition, intensity, substyle, visual)));
       stats.freeSceneRenders += 4;
     }
 
@@ -2110,7 +2143,7 @@ app.post("/api/generate-cards", async (req, res) => {
     const cards = [];
 
     for (let index = 0; index < 4; index += 1) {
-      const overlay = overlayForCard(index, normalized, styleKey, renderPalette, intensity, substyle);
+      const overlay = overlayForCard(index, normalized, styleKey, renderPalette, intensity, substyle, visual);
       const buffer = await composeCard(cachedScenes[index], overlay);
       cards.push({ filename: fileNames[index], title: titles[index], base64: buffer.toString("base64") });
     }
@@ -2133,6 +2166,7 @@ app.post("/api/generate-cards", async (req, res) => {
       designVariant: variant,
       designIntensity: intensity,
       designSubstyle: substyle,
+      visualOptions: visual,
       composition: renderComposition,
       description: descriptionText(normalized)
     });
@@ -2146,7 +2180,7 @@ app.post("/api/regenerate-card", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = regenRequestsByIp;
   try {
-    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto" } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", index, renderMode = "free", palette = [], designVariant = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {} } = req.body ?? {};
     const mode = renderMode === "ai" ? "ai" : "free";
     requestLimitMap = mode === "ai" ? regenRequestsByIp : freeRegenRequestsByIp;
 
@@ -2181,6 +2215,7 @@ app.post("/api/regenerate-card", async (req, res) => {
     const renderComposition = normalizeComposition(composition);
     const intensity = normalizeDesignIntensity(designIntensity);
     const substyle = normalizeDesignSubstyle(designSubstyle);
+    const visual = normalizeVisualOptions(visualOptions);
     let scene;
 
     if (mode === "ai") {
@@ -2189,12 +2224,12 @@ app.post("/api/regenerate-card", async (req, res) => {
       stats.aiSceneRenders += 1;
       stats.estimatedImageOutputUsd += IMAGE_OUTPUT_ESTIMATE_USD;
     } else {
-      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey, renderPalette, variant, renderComposition, intensity, substyle);
+      scene = await renderFreeScene(sourceBuffer, cardIndex, styleKey, renderPalette, variant, renderComposition, intensity, substyle, visual);
       stats.freeSceneRenders += 1;
     }
 
     const cachedScene = await normalizeSceneForCache(scene);
-    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey, renderPalette, intensity, substyle));
+    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey, renderPalette, intensity, substyle, visual));
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
 
@@ -2218,6 +2253,7 @@ app.post("/api/regenerate-card", async (req, res) => {
       designVariant: variant,
       designIntensity: intensity,
       designSubstyle: substyle,
+      visualOptions: visual,
       composition: renderComposition
     });
   } catch (error) {
@@ -2228,7 +2264,7 @@ app.post("/api/regenerate-card", async (req, res) => {
 
 app.post("/api/render-card-overlays", async (req, res) => {
   try {
-    const { scenes, card, style = "minimal", indexes = [0, 1, 2, 3], palette = [], designIntensity = "selling", designSubstyle = "auto" } = req.body ?? {};
+    const { scenes, card, style = "minimal", indexes = [0, 1, 2, 3], palette = [], designIntensity = "selling", designSubstyle = "auto", visualOptions = {} } = req.body ?? {};
     if (!Array.isArray(scenes) || scenes.length !== 4 || !card || typeof card !== "object") {
       return res.status(400).json({ error: "Нужны четыре сохранённые сцены и данные товара." });
     }
@@ -2241,6 +2277,7 @@ app.post("/api/render-card-overlays", async (req, res) => {
     const renderPalette = normalizePalette(palette);
     const intensity = normalizeDesignIntensity(designIntensity);
     const substyle = normalizeDesignSubstyle(designSubstyle);
+    const visual = normalizeVisualOptions(visualOptions);
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
     const cards = [];
@@ -2254,7 +2291,7 @@ app.post("/api/render-card-overlays", async (req, res) => {
         return res.status(413).json({ error: "Сохранённая сцена слишком большая." });
       }
       const sceneBuffer = Buffer.from(scene.base64, "base64");
-      const buffer = await composeCard(sceneBuffer, overlayForCard(index, normalized, styleKey, renderPalette, intensity, substyle));
+      const buffer = await composeCard(sceneBuffer, overlayForCard(index, normalized, styleKey, renderPalette, intensity, substyle, visual));
       cards.push({ index, filename: names[index], title: titles[index], base64: buffer.toString("base64") });
     }
 
@@ -2275,7 +2312,7 @@ app.post("/api/cover-variants", async (req, res) => {
       stats.rateLimitErrors += 1;
       return res.status(429).json({ error: "Защитный лимит бесплатных вариантов временно исчерпан." });
     }
-    const { image, mimeType, card, style = "minimal", palette = [], composition = {}, designSubstyle = "auto" } = req.body ?? {};
+    const { image, mimeType, card, style = "minimal", palette = [], composition = {}, designSubstyle = "auto", visualOptions = {} } = req.body ?? {};
     if (typeof image !== "string" || typeof mimeType !== "string" || !card || typeof card !== "object") {
       return res.status(400).json({ error: "Не хватает исходного фото или данных товара." });
     }
@@ -2289,6 +2326,7 @@ app.post("/api/cover-variants", async (req, res) => {
     const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
     const renderComposition = normalizeComposition(composition);
     const substyle = normalizeDesignSubstyle(designSubstyle);
+    const visual = normalizeVisualOptions(visualOptions);
     const options = [
       { variant: 0, intensity: "calm", label: "Чистая" },
       { variant: 1, intensity: "selling", label: "Продающая" },
@@ -2296,9 +2334,9 @@ app.post("/api/cover-variants", async (req, res) => {
     ];
     const variants = [];
     for (const option of options) {
-      const scene = await renderFreeScene(sourceBuffer, 0, styleKey, renderPalette, option.variant, renderComposition, option.intensity, substyle);
+      const scene = await renderFreeScene(sourceBuffer, 0, styleKey, renderPalette, option.variant, renderComposition, option.intensity, substyle, visual);
       const cachedScene = await normalizeSceneForCache(scene);
-      const buffer = await composeCard(cachedScene, overlayForCard(0, normalized, styleKey, renderPalette, option.intensity, substyle));
+      const buffer = await composeCard(cachedScene, overlayForCard(0, normalized, styleKey, renderPalette, option.intensity, substyle, visual));
       variants.push({
         variant: option.variant,
         intensity: option.intensity,
@@ -2449,5 +2487,5 @@ app.get("*splat", (_req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v7.2.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v7.3.0 listening on port ${port}`);
 });
