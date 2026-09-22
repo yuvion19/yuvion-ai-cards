@@ -387,10 +387,20 @@ app.get("/m/memorial/:id", async (req,res) => {
     const google="https://calendar.google.com/calendar/render?"+new URLSearchParams({action:"TEMPLATE",text:(e.event_type||"Памятная дата")+" — "+e.full_name,dates:gStart+"/"+gEnd,details:e.note||"",location:e.place||e.city||""}).toString();
     const outlook="https://outlook.live.com/calendar/0/deeplink/compose?"+new URLSearchParams({path:"/calendar/action/compose",rru:"addevent",subject:(e.event_type||"Памятная дата")+" — "+e.full_name,startdt:e.event_date,enddt:next,allday:"true",body:e.note||"",location:e.place||e.city||""}).toString();
     const comments=(e.comments||[]).map(x=>'<div class="card"><b>'+htmlEsc(x.author||"Гость")+'</b><div>'+htmlEsc(x.body||"")+'</div><div class="muted">'+htmlEsc(String(x.created_at||"").slice(0,10))+'</div></div>').join("");
+    const base=(PUBLIC_BASE_URL||"").replace(/\/$/,"");
+    const canonical=base+"/m/memorial/"+encodeURIComponent(e.id);
+    const ogImage=e.has_photo?base+"/api/events/"+encodeURIComponent(e.id)+"/photo":base+"/icon.svg";
+    const ogDescription=[e.event_type,e.event_date,e.city,e.place].filter(Boolean).join(" · ");
+    const extraHead='<link rel="canonical" href="'+htmlEsc(canonical)+'">'+
+      '<meta name="description" content="'+htmlEsc(ogDescription)+'">'+
+      '<meta property="og:type" content="article"><meta property="og:title" content="'+htmlEsc(e.full_name+" — Память")+'">'+
+      '<meta property="og:description" content="'+htmlEsc(ogDescription)+'"><meta property="og:url" content="'+htmlEsc(canonical)+'">'+
+      '<meta property="og:image" content="'+htmlEsc(ogImage)+'"><meta name="twitter:card" content="summary_large_image">';
     res.send(mobileShell(e.full_name,`
       ${e.urgent?'<div class="err"><b>Срочное объявление</b></div>':""}
       <div class="row"><span class="tag">${htmlEsc(e.event_type||"Памятная дата")}</span>${e.family_verified?'<span class="tag">Подтверждено семьёй ✓</span>':""}</div>
       <h1>${htmlEsc(e.full_name)}</h1>
+      ${e.has_photo?'<div class="card" style="text-align:center"><img src="/api/events/'+encodeURIComponent(e.id)+'/photo" alt="Фото '+htmlEsc(e.full_name)+'" style="width:min(100%,360px);max-height:440px;object-fit:cover;border-radius:16px"></div>':""}
       <div class="card">
         <div><b>Дата:</b> ${htmlEsc(e.event_date||"—")}${e.event_time?" · "+htmlEsc(e.event_time):""}</div>
         <div><b>Место:</b> ${htmlEsc([e.city,e.place].filter(Boolean).join(" · ")||"—")}</div>
@@ -406,6 +416,26 @@ app.get("/m/memorial/:id", async (req,res) => {
         <p class="muted">Зажгите виртуальную еврейскую свечу памяти. Без рейтингов и соревнования.</p>
         <button class="btn" id="lightNer" style="width:100%">Зажечь свечу</button>
         <div class="muted" style="margin-top:8px">Зажжено свечей: <span id="nerCount">${Number(e.candles||0)}</span></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Молитвы и тексты памяти</h3>
+        <p class="muted">Текст и порядок чтения могут отличаться по общинной и семейной традиции. Для религиозной практики ориентируйтесь на свою общину.</p>
+        <details>
+          <summary><b>Кадиш ятом — קדיש יתום</b></summary>
+          <p dir="rtl" lang="he" style="font-size:18px;line-height:1.8">יִתְגַּדַּל וְיִתְקַדַּשׁ שְׁמֵהּ רַבָּא. בְּעָלְמָא דִּי בְרָא כִרְעוּתֵהּ, וְיַמְלִיךְ מַלְכוּתֵהּ, וְיַצְמַח פֻּרְקָנֵהּ וִיקָרֵב מְשִׁיחֵהּ.</p>
+          <p class="muted">Начало поминального Кадиша. Полный порядок чтения зависит от нусаха и обычно читается в миньяне.</p>
+        </details>
+        <details style="margin-top:12px">
+          <summary><b>Эль мале рахамим — אֵל מָלֵא רַחֲמִים</b></summary>
+          <p dir="rtl" lang="he" style="font-size:18px;line-height:1.8">אֵל מָלֵא רַחֲמִים, שׁוֹכֵן בַּמְּרוֹמִים, הַמְצֵא מְנוּחָה נְכוֹנָה תַּחַת כַּנְפֵי הַשְּׁכִינָה.</p>
+          <p class="muted">Поминальная молитва; имя усопшего и формулировки обычно подставляются по принятому обычаю.</p>
+        </details>
+        <details style="margin-top:12px">
+          <summary><b>Псалом 23 — תהילים כ״ג</b></summary>
+          <p dir="rtl" lang="he" style="font-size:18px">יְהוָה רֹעִי לֹא אֶחְסָר.</p>
+          <p class="muted">Короткий вход в чтение Теилим в память об усопшем.</p>
+        </details>
       </div>
 
       <div class="card">
@@ -451,7 +481,7 @@ app.get("/m/memorial/:id", async (req,res) => {
         <button class="btn secondary" id="sendComment" style="width:100%;margin-top:8px">Отправить на модерацию</button>
       </div>
       <div id="memorialStatus"></div>
-    `,{scripts:`<script>
+    `,{extraHead,scripts:`<script>
       const status=document.getElementById("memorialStatus");
       const say=(m,ok=true)=>status.innerHTML='<div class="'+(ok?"ok":"err")+'">'+m+'</div>';
       document.getElementById("lightNer").onclick=async()=>{
