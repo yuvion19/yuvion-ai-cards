@@ -1501,7 +1501,18 @@ app.post("/api/family/relations", rateLimit("family", 8, 60 * 60 * 1000), async 
 app.get("/api/push/public-key", (_req, res) => res.json({ key: VAPID_PUBLIC_KEY || null, configured: Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) }));
 
 function validReminderEmail(v){ return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(v||"")); }
-function validE164(v){ return /^\\+[1-9]\\d{7,14}$/.test(String(v||"")); }
+function normalizePhone(v){
+  let s=String(v||"").trim();
+  if(!s)return "";
+  s=s.replace(/[^\\d+]/g,"");
+  if(s.startsWith("00"))s="+"+s.slice(2);
+  if(/^8\\d{10}$/.test(s))s="+7"+s.slice(1);
+  else if(/^7\\d{10}$/.test(s))s="+"+s;
+  else if(/^\\d{10}$/.test(s))s="+7"+s;
+  else if(/^\\d{8,15}$/.test(s))s="+"+s;
+  return s;
+}
+function validE164(v){ return /^\\+[1-9]\\d{7,14}$/.test(normalizePhone(v)); }
 function validTelegramChat(v){ return /^-?\\d{3,30}$/.test(String(v||"")); }
 function reminderProviderStatus(){
   return {
