@@ -26,7 +26,7 @@ if(openDetails!==closeDetails)fail('details tags unbalanced '+openDetails+'/'+cl
 const required=[
   'excelAutopilot','publishCenter','confirmationCenter','operationsV64',
   'queueBudgetUsd','storageManager','labelOcrBox','networkPill',
-  'productUrlInput','importProductUrl','urlImportStatus','sourceReference','renderMode','autoCards','designStudio','designPalette','productScale','productShiftX','productShiftY','designIntensity','designSubstyle','beautifyDesign','coverVariants','coverLab','coverVariantGrid','liveCover','marketPreview','saveDesignSnapshot','designHistoryList','coverTitleInput','showBrandToggle','showPriceToggle','seasonSelect','layoutAudit','safeZoneToggle','darkWorkbenchToggle','wideWorkbenchToggle','referencePaletteFile'
+  'productUrlInput','importProductUrl','urlImportStatus','sourceReference','renderMode','autoCards','designStudio','designPalette','productScale','productShiftX','productShiftY','designIntensity','designSubstyle','beautifyDesign','coverVariants','coverLab','coverVariantGrid','liveCover','marketPreview','saveDesignSnapshot','designHistoryList','coverTitleInput','showBrandToggle','showPriceToggle','seasonSelect','layoutAudit','safeZoneToggle','darkWorkbenchToggle','wideWorkbenchToggle','referencePaletteFile','profileIntensity','profileSubstyle','profileSeason','profileSeriesDesign'
 ];
 const missing=required.filter(id=>!ids.includes(id));
 if(missing.length)fail('required v6.5 UI ids missing: '+missing.join(', '));else ok('required v6.5 UI present');
@@ -96,7 +96,13 @@ const features=[
   ['renderLayoutAudit','layout overload audit'],
   ['SERIES_PRESET_KEY','series design preset'],
   ['WORKBENCH_THEME_KEY','dark workbench preference'],
-  ['referencePaletteFile','reference palette input']
+  ['referencePaletteFile','reference palette input'],
+  ['analyzeReferenceDesign','reference design balance'],
+  ['profileSeriesDesign','series design profile'],
+  ['localSeriesPresets: true','series presets health metadata'],
+  ['referenceDesignBalance: true','reference balance health metadata'],
+  ['darkWorkbench: true','dark workbench health metadata'],
+  ['wideWorkbench: true','wide workbench health metadata']
 ];
 for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
@@ -125,4 +131,4 @@ if(healthVersion!==pkg.version)fail('package/server version mismatch: '+pkg.vers
 if(process.exitCode)process.exit(process.exitCode);
 
 if(server.includes('уточняйте у продавца'))fail('seller mention leaked into image overlay');else ok('seller mention absent from image overlay');
-if(!server.includes('version: "7.3.0"'))fail('server health version is not 7.3.0');else ok('server health version 7.3.0');
+if(!server.includes('version: "7.4.0"'))fail('server health version is not 7.4.0');else ok('server health version 7.4.0');
