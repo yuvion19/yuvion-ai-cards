@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f1e8">
+  <meta name="description" content="Общественный календарь памяти: похороны, посещения кладбища, 7 дней, 40 дней, 1 год и годовщины.">
+  <title>Память — общественный календарь памяти</title>
+  <style>
+    :root{
+      --bg:#f6f3ec;--paper:#fffdf8;--ink:#28251f;--muted:#746e64;--line:#ded8cc;
+      --accent:#6c5940;--accent2:#9e835f;--soft:#eee7da;--ok:#567059;--danger:#8b4f4f;
+      --shadow:0 12px 34px rgba(45,38,28,.09);--radius:18px
+    }
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    button,input,select,textarea{font:inherit} a{color:inherit}.wrap{max-width:1120px;margin:auto;padding:0 18px 90px}
+    header{position:sticky;top:0;z-index:20;background:rgba(246,243,236,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+    .head{max-width:1120px;margin:auto;padding:12px 18px;display:flex;gap:14px;align-items:center;justify-content:space-between}
+    .brand{display:flex;gap:10px;align-items:center;font-weight:800}.mark{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;font-size:20px}
+    nav{display:flex;gap:5px;flex-wrap:wrap}.navbtn{border:0;background:transparent;padding:9px 12px;border-radius:999px;color:var(--muted);cursor:pointer}.navbtn.active,.navbtn:hover{background:var(--soft);color:var(--ink)}
+    .primary,.secondary,.danger{border:0;border-radius:12px;padding:11px 15px;cursor:pointer;font-weight:700}.primary{background:var(--accent);color:white}.secondary{background:var(--soft);color:var(--ink)}.danger{background:#f2e1e1;color:var(--danger)}
+    .hero{padding:42px 0 22px;display:grid;grid-template-columns:1.4fr .8fr;gap:22px;align-items:stretch}.hero>div{background:var(--paper);border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:var(--shadow)}
+    h1{font-size:clamp(30px,5vw,54px);line-height:1.02;margin:0 0 14px}h2{margin:0 0 15px;font-size:26px}h3{margin:0 0 8px}.lead{font-size:18px;color:var(--muted);max-width:720px}.notice{padding:12px 14px;background:var(--soft);border-radius:12px;color:var(--muted);font-size:14px}
+    .toolbar{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;margin:18px 0}.field{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:white}
+    .chips{display:flex;gap:8px;overflow:auto;padding:2px 0 12px}.chip{white-space:nowrap;border:1px solid var(--line);background:white;border-radius:999px;padding:8px 12px;cursor:pointer}.chip.active{background:var(--accent);color:white;border-color:var(--accent)}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:0 4px 18px rgba(45,38,28,.05)}
+    .meta{display:flex;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:13px}.tag{background:var(--soft);padding:5px 8px;border-radius:999px}.verified{background:#e4eee4;color:#3f5c42}
+    .card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.small{padding:8px 10px;font-size:13px}.empty{padding:28px;text-align:center;color:var(--muted);background:var(--paper);border:1px dashed var(--line);border-radius:16px}
+    .section{display:none;padding-top:28px}.section.active{display:block}.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+    label{display:block;font-weight:700;margin:13px 0 6px}.help{font-size:13px;color:var(--muted);margin-top:5px}.checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check{display:flex;gap:8px;align-items:center;background:var(--soft);padding:10px;border-radius:10px}.check label{margin:0;font-weight:600}
+    .derived{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.datebox{background:var(--soft);padding:12px;border-radius:12px}.datebox b{display:block}.datebox span{font-size:13px;color:var(--muted)}
+    table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line);font-size:14px}th{color:var(--muted)}
+    .calendar-list{display:grid;gap:10px}.cal-row{display:grid;grid-template-columns:100px 1fr auto;gap:12px;align-items:center;background:white;border:1px solid var(--line);border-radius:14px;padding:12px}
+    .quba{background:linear-gradient(135deg,#403528,#705d44);color:white}.quba p,.quba .meta{color:#e8dfd2}.quba .secondary{background:#fff;color:#3f3529}
+    dialog{border:0;border-radius:18px;max-width:620px;width:calc(100% - 24px);padding:0;box-shadow:0 24px 70px rgba(0,0,0,.25)}dialog::backdrop{background:rgba(26,22,18,.45)}.modal{padding:22px}.modalhead{display:flex;justify-content:space-between;gap:12px}
+    .qr{width:180px;height:180px;border:1px solid var(--line);border-radius:12px}.stat{font-size:32px;font-weight:800}.muted{color:var(--muted)}.status{padding:10px;border-radius:10px;margin-top:10px;display:none}.status.ok{display:block;background:#e8f1e8;color:#426047}.status.err{display:block;background:#f5e4e4;color:#7b4545}
+    footer{margin-top:42px;padding:28px 0;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+    .admin-token{display:flex;gap:8px;margin-bottom:14px}
+    @media(max-width:850px){.hero,.split{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.derived{grid-template-columns:1fr 1fr}nav{display:none}.toolbar{grid-template-columns:1fr}.hero{padding-top:24px}.head .primary{display:block}}
+    @media(max-width:560px){.grid{grid-template-columns:1fr}.checks{grid-template-columns:1fr}.derived{grid-template-columns:1fr}.cal-row{grid-template-columns:78px 1fr}.cal-row>button{grid-column:2}.hero>div{padding:20px}.wrap{padding-left:12px;padding-right:12px}.head{padding-left:12px;padding-right:12px}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="head">
+    <div class="brand"><div class="mark">✦</div><div>Память</div></div>
+    <nav id="nav">
+      <button class="navbtn active" data-page="home">Главная</button>
+      <button class="navbtn" data-page="calendar">Календарь</button>
+      <button class="navbtn" data-page="add">Добавить</button>
+      <button class="navbtn" data-page="quba">Кладбище Губы</button>
+      <button class="navbtn" data-page="archive">Архив</button>
+    </nav>
+    <button class="primary" onclick="showPage('add')">+ Добавить</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="home" class="section active">
+    <div class="hero">
+      <div>
+        <div class="meta"><span class="tag">Общественный календарь</span><span class="tag">Публично для всех</span></div>
+        <h1>Важные даты памяти — в одном месте</h1>
+        <p class="lead">Похороны, посещения кладбища, 7 дней, 40 дней, 1 год и годовщины. Информацию могут добавлять пользователи; публичные записи проходят модерацию.</p>
+        <div class="card-actions"><button class="primary" onclick="showPage('add')">Сообщить дату памяти</button><button class="secondary" onclick="enableNotifications()">Включить уведомления</button></div>
+      </div>
+      <div>
+        <h3>Сегодня и ближайшие даты</h3>
+        <div class="stat" id="nearCount">—</div>
+        <p class="muted">одобренных публичных событий</p>
+        <div class="notice">Публикуйте личную информацию только с согласия семьи. Телефон, email и точный участок захоронения публично не показываются по умолчанию.</div>
+      </div>
+    </div>
+
+    <div class="panel quba">
+      <div class="split">
+        <div>
+          <div class="meta"><span class="tag">Куба / Губа · Азербайджан</span></div>
+          <h2>Каталог старого центрального кладбища горских евреев</h2>
+          <p>В каталоге «Мацевалог» для кладбища Куба (центральное) указаны площадь 6,7 га и 1194 памятника. В отдельных карточках могут быть фото, имена, эпитафии, даты, координаты и другие сведения.</p>
+          <div class="card-actions"><button class="secondary" onclick="showPage('quba')">Открыть раздел</button><a class="secondary" style="text-decoration:none" target="_blank" rel="noopener" href="https://matzevalog.github.io/matzevalog/cemeteries/QBA.html">Полный каталог Мацевалог ↗</a></div>
+        </div>
+        <div><div class="notice" style="background:rgba(255,255,255,.12);color:#f1eadf">Источник: «Мацевалог» / материалы Центра «Сэфер». Каталог является внешним независимым источником. При использовании конкретных материалов следует соблюдать указанные там условия использования.</div></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input id="search" class="field" placeholder="Поиск по ФИО" oninput="loadEvents()">
+      <input id="cityFilter" class="field" placeholder="Город" oninput="loadEvents()">
+      <button class="secondary" onclick="loadEvents()">Найти</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="eventGrid" class="grid"></div>
+  </section>
+
+  <section id="calendar" class="section">
+    <h2>Общественный календарь</h2>
+    <p class="lead">Публичные одобренные события. Выберите период и тип.</p>
+    <div class="chips" id="calendarModes">
+      <button class="chip active" data-mode="today">Сегодня</button>
+      <button class="chip" data-mode="tomorrow">Завтра</button>
+      <button class="chip" data-mode="week">7 дней</button>
+      <button class="chip" data-mode="month">30 дней</button>
+      <button class="chip" data-mode="all">Все</button>
+    </div>
+    <div id="calendarList" class="calendar-list"></div>
+  </section>
+
+  <section id="add" class="section">
+    <div class="split">
+      <div class="panel">
+        <h2>Добавить событие</h2>
+        <p class="muted">Отправить информацию может любой. Публичная запись появится только после проверки администратором.</p>
+        <form id="addForm">
+          <label>ФИО *</label><input class="field" name="full_name" required placeholder="Фамилия Имя Отчество">
+          <label>Дата смерти</label><input class="field" type="date" name="death_date" id="deathDate">
+          <div id="derivedDates" class="derived"></div>
+          <div class="checks" style="margin-top:8px">
+            <div class="check"><input type="checkbox" name="publish_day7" checked><label>Опубликовать 7 дней</label></div>
+            <div class="check"><input type="checkbox" name="publish_day40" checked><label>Опубликовать 40 дней</label></div>
+            <div class="check"><input type="checkbox" name="publish_year1" checked><label>Опубликовать 1 год</label></div>
+            <div class="check"><input type="checkbox" name="publish_annual" checked><label>Ежегодная годовщина</label></div>
+          </div>
+          <label>Тип события</label>
+          <select class="field" name="event_type">
+            <option>Похороны</option><option>Посещение кладбища</option><option>7 дней</option><option>40 дней</option><option>1 год</option><option>Годовщина</option><option>Памятная дата</option>
+          </select>
+          <label>Дата события</label><input class="field" type="date" name="event_date">
+          <label>Время</label><input class="field" type="time" name="event_time">
+          <label>Город</label><input class="field" name="city" placeholder="Например, Куба">
+          <label>Место</label>
+          <input class="field" name="place" list="places" placeholder="Кладбище или другое место">
+          <datalist id="places"><option value="Куба (центральное кладбище)"></option></datalist>
+          <label>Ссылка на запись в каталоге кладбища</label>
+          <input class="field" type="url" name="cemetery_link" placeholder="https://matzevalog.github.io/...">
+          <div class="help">Можно вставить ссылку на конкретную карточку памятника из внешнего каталога.</div>
+          <label>Краткая информация</label><textarea class="field" name="note" rows="4" maxlength="1500"></textarea>
+          <label>Видимость</label><select class="field" name="visibility"><option value="public">Для всех</option><option value="link">Только по ссылке</option><option value="invited">Только приглашённым</option></select>
+          <label>Ваше имя (необязательно)</label><input class="field" name="submitter_name">
+          <label>Контакт для модератора (не публикуется)</label><input class="field" name="submitter_contact" placeholder="Телефон или email">
+          <div class="check" style="margin-top:14px"><input required type="checkbox" name="relation_confirmed"><label>У меня есть право или согласие семьи на публикацию этой информации.</label></div>
+          <div class="notice" style="margin-top:12px">Если запись с похожими ФИО и датой уже есть, сервис предупредит о возможном дубле.</div>
+          <button class="primary" style="margin-top:14px;width:100%">Отправить на проверку</button>
+          <div id="formStatus" class="status"></div>
+        </form>
+      </div>
+      <div class="panel">
+        <h3>Как это работает</h3>
+        <ol class="muted" style="line-height:1.7">
+          <li>Вы добавляете данные.</li><li>Система считает 7 дней, 40 дней и 1 год.</li><li>Администратор проверяет запись.</li><li>После одобрения публичная информация становится видна всем.</li>
+        </ol>
+        <h3 style="margin-top:24px">Правила публикации</h3>
+        <p class="muted">Не публикуйте контактные данные, точный участок захоронения или другие чувствительные сведения без отдельного разрешения семьи. Ложные, оскорбительные и дублирующие записи могут быть скрыты или объединены.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="quba" class="section">
+    <div class="panel quba">
+      <div class="meta"><span class="tag">Внешний каталог</span></div>
+      <h1 style="font-size:42px">Куба (центральное кладбище)</h1>
+      <p class="lead" style="color:#e8dfd2">Азербайджан, Губинский район. Старое центральное кладбище, представленное в проекте «Мацевалог».</p>
+      <div class="grid">
+        <div class="card" style="color:var(--ink)"><div class="stat">6,7 га</div><div class="muted">площадь по каталогу</div></div>
+        <div class="card" style="color:var(--ink)"><div class="stat">1194</div><div class="muted">памятника указано в каталоге</div></div>
+        <div class="card" style="color:var(--ink)"><div class="stat">QBA</div><div class="muted">код кладбища в каталоге</div></div>
+      </div>
+      <div class="card-actions" style="margin-top:18px"><a class="secondary" style="text-decoration:none" target="_blank" rel="noopener" href="https://matzevalog.github.io/matzevalog/cemeteries/QBA.html">Открыть полный каталог ↗</a><button class="secondary" onclick="showPage('add');document.querySelector('[name=place]').value='Куба (центральное кладбище)'">Добавить событие здесь</button></div>
+    </div>
+    <div class="split" style="margin-top:18px">
+      <div class="panel"><h3>Что можно найти в каталоге</h3><p class="muted">В отдельных карточках памятников могут быть имя на русском и иврите, фотографии, эпитафия и перевод, дата, тип и материал памятника, координаты и ссылка на карту — в зависимости от доступности сведений.</p></div>
+      <div class="panel"><h3>Источник и условия</h3><p class="muted">Источник: «Мацевалог» / материалы Центра «Сэфер». На просмотренной карточке памятника QBA0062 указаны условия использования CC BY-NC 4.0. Перед повторным использованием конкретной фотографии или текста проверяйте условия именно на соответствующей карточке.</p></div>
+    </div>
+  </section>
+
+  <section id="archive" class="section">
+    <h2>Архив прошедших событий</h2><p class="lead">Одобренные публичные записи с прошедшей датой.</p>
+    <div id="archiveGrid" class="grid"></div>
+  </section>
+
+  <section id="admin" class="section">
+    <h2>Модерация</h2>
+    <div class="admin-token"><input id="adminToken" type="password" class="field" placeholder="Токен администратора"><button class="primary" onclick="loadAdmin()">Войти</button></div>
+    <div id="adminQueue"></div>
+  </section>
+
+  <footer>
+    <div>Уведомления помогают вовремя узнать о важных событиях. Публикуйте личную информацию только с согласия семьи.</div>
+    <div style="margin-top:8px">«Мацевалог» — внешний независимый источник. Этот сервис не является официальным сайтом «Мацевалога» или Центра «Сэфер».</div>
+    <button class="navbtn" style="margin-top:12px" onclick="showPage('admin')">Администратор</button>
+  </footer>
+</main>
+
+<dialog id="detailDialog"><div class="modal" id="detailModal"></div></dialog>
+<dialog id="simpleDialog"><div class="modal" id="simpleModal"></div></dialog>
+
+<script>
+const TYPES=["Все","Похороны","Посещение кладбища","7 дней","40 дней","1 год","Годовщина","Памятная дата"];
+let events=[]; let activeType="Все"; let calendarMode="today";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const fmt=d=>d?new Date(d+"T12:00:00").toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"Дата не указана";
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+function showPage(id){
+  $$(".section").forEach(x=>x.classList.toggle("active",x.id===id));
+  $$(".navbtn[data-page]").forEach(x=>x.classList.toggle("active",x.dataset.page===id));
+  if(id==="calendar") renderCalendar(); if(id==="archive") renderArchive(); window.scrollTo({top:0,behavior:"smooth"});
+}
+$$(".navbtn[data-page]").forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+$("#chips").innerHTML=TYPES.map(t=>`<button class="chip ${t==="Все"?"active":""}" data-type="${esc(t)}">${esc(t)}</button>`).join("");
+$("#chips").onclick=e=>{if(!e.target.dataset.type)return;activeType=e.target.dataset.type; $$("#chips .chip").forEach(c=>c.classList.toggle("active",c.dataset.type===activeType));loadEvents();};
+$("#calendarModes").onclick=e=>{if(!e.target.dataset.mode)return;calendarMode=e.target.dataset.mode; $$("#calendarModes .chip").forEach(c=>c.classList.toggle("active",c.dataset.mode===calendarMode));renderCalendar();};
+
+async function loadEvents(){
+  const p=new URLSearchParams(); const q=$("#search")?.value.trim(); const city=$("#cityFilter")?.value.trim();
+  if(q)p.set("q",q); if(city)p.set("city",city); if(activeType!=="Все")p.set("type",activeType);
+  try{const r=await fetch("/api/events?"+p);events=await r.json();renderEvents();}catch(e){$("#eventGrid").innerHTML='<div class="empty">Не удалось загрузить события.</div>'}
+}
+function renderEvents(){
+  const today=new Date().toISOString().slice(0,10); const future=events.filter(e=>!e.event_date||e.event_date>=today);
+  $("#nearCount").textContent=future.length;
+  $("#eventGrid").innerHTML=future.length?future.map(cardHtml).join(""):'<div class="empty">Пока нет подходящих событий.</div>';
+}
+function cardHtml(e){
+  return `<article class="card">
+    <div class="meta"><span class="tag">${esc(e.event_type)}</span>${e.family_verified?'<span class="tag verified">Подтверждено семьёй</span>':''}</div>
+    <h3 style="margin-top:10px">${esc(e.full_name)}</h3>
+    <div class="muted">${fmt(e.event_date)}</div>
+    <div class="muted">${esc(e.city||"")}${e.place?" · "+esc(e.place):""}</div>
+    <div class="card-actions"><button class="secondary small" onclick="openDetail('${e.id}')">Подробнее</button><button class="secondary small" onclick="shareEvent('${e.id}','${esc(e.full_name).replace(/'/g,"&#39;")}')">Поделиться</button></div>
+  </article>`
+}
+function inRange(dateStr, mode){
+  if(!dateStr)return mode==="all"; const d=new Date(dateStr+"T12:00:00"); const now=new Date(); now.setHours(12,0,0,0);
+  const diff=Math.round((d-now)/86400000);
+  return mode==="today"?diff===0:mode==="tomorrow"?diff===1:mode==="week"?(diff>=0&&diff<=7):mode==="month"?(diff>=0&&diff<=30):true;
+}
+function renderCalendar(){
+  const rows=events.filter(e=>inRange(e.event_date,calendarMode)).sort((a,b)=>(a.event_date||"9999").localeCompare(b.event_date||"9999"));
+  $("#calendarList").innerHTML=rows.length?rows.map(e=>`<div class="cal-row"><b>${e.event_date?new Date(e.event_date+"T12:00:00").toLocaleDateString("ru-RU",{day:"numeric",month:"short"}):"—"}</b><div><strong>${esc(e.full_name)}</strong><div class="muted">${esc(e.event_type)} · ${esc(e.place||e.city||"")}</div></div><button class="secondary small" onclick="openDetail('${e.id}')">Открыть</button></div>`).join(""):'<div class="empty">В выбранном периоде событий нет.</div>';
+}
+function renderArchive(){
+  const today=new Date().toISOString().slice(0,10); const rows=events.filter(e=>e.event_date&&e.event_date<today).sort((a,b)=>b.event_date.localeCompare(a.event_date));
+  $("#archiveGrid").innerHTML=rows.length?rows.map(cardHtml).join(""):'<div class="empty">Архив пока пуст.</div>';
+}
+function calcDerived(){
+  const v=$("#deathDate").value;if(!v){$("#derivedDates").innerHTML="";return}
+  const d=new Date(v+"T12:00:00Z"); const add=n=>{const x=new Date(d);x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)};
+  const y=new Date(d);y.setUTCFullYear(y.getUTCFullYear()+1);
+  $("#derivedDates").innerHTML=`<div class="datebox"><b>7 дней</b><span>${fmt(add(7))}</span></div><div class="datebox"><b>40 дней</b><span>${fmt(add(40))}</span></div><div class="datebox"><b>1 год</b><span>${fmt(y.toISOString().slice(0,10))}</span></div><div class="datebox"><b>Годовщина</b><span>ежегодно ${new Date(v+"T12:00:00").toLocaleDateString("ru-RU",{day:"numeric",month:"long"})}</span></div>`;
+}
+$("#deathDate").addEventListener("change",calcDerived);
+$("#addForm").addEventListener("submit",async e=>{
+  e.preventDefault();const f=new FormData(e.target);const body=Object.fromEntries(f.entries());
+  ["publish_day7","publish_day40","publish_year1","publish_annual","relation_confirmed"].forEach(k=>body[k]=f.has(k));
+  const s=$("#formStatus");s.className="status";s.textContent="";
+  let r=await fetch("/api/events",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  let j=await r.json();
+  if(r.status===409&&j.error==="possible_duplicate"){
+    const names=(j.matches||[]).map(x=>x.full_name+" — "+fmt(x.death_date)).join("\n");
+    if(confirm("Возможно, такая запись уже есть:\n"+names+"\n\nВсё равно отправить новую запись?")){
+      body.confirm_duplicate=true;r=await fetch("/api/events",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});j=await r.json();
+    }else{return}
+  }
+  if(r.ok){s.className="status ok";s.textContent="Спасибо. Информация отправлена на проверку.";e.target.reset();$("#derivedDates").innerHTML="";loadEvents()}
+  else{s.className="status err";s.textContent=j.error==="consent_required"?"Нужно подтвердить право или согласие семьи на публикацию.":"Не удалось отправить запись."}
+});
+async function openDetail(id){
+  const r=await fetch("/api/events/"+id);if(!r.ok)return;const e=await r.json();const url=location.origin+location.pathname+"#event="+e.id;
+  $("#detailModal").innerHTML=`<div class="modalhead"><div><div class="meta"><span class="tag">${esc(e.event_type)}</span>${e.family_verified?'<span class="tag verified">Подтверждено семьёй</span>':''}</div><h2 style="margin-top:10px">${esc(e.full_name)}</h2></div><button class="secondary" onclick="detailDialog.close()">✕</button></div>
+  <p><b>${fmt(e.event_date)}</b>${e.event_time?" · "+esc(e.event_time):""}</p>
+  <p class="muted">${esc(e.city||"")}${e.place?" · "+esc(e.place):""}</p>
+  ${e.note?'<p>'+esc(e.note)+'</p>':""}
+  ${e.cemetery_link?'<p><a target="_blank" rel="noopener" href="'+esc(e.cemetery_link)+'">Запись в каталоге кладбища ↗</a></p>':""}
+  <div class="card-actions"><button class="primary" onclick="lightCandle('${e.id}',this)">🕯 Зажечь свечу · ${e.candles||0}</button><button class="secondary" onclick="shareEvent('${e.id}','${esc(e.full_name).replace(/'/g,"&#39;")}')">Поделиться</button><button class="secondary" onclick='addGoogleCalendar(${JSON.stringify(e).replace(/'/g,"&#39;")})'>В календарь</button></div>
+  <div class="split" style="margin-top:18px"><div><img class="qr" alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}"><div class="help">QR-код этой записи</div></div><div><button class="secondary" onclick="claimRelative('${e.id}')">Я родственник</button><button class="secondary" style="margin-left:6px" onclick="reportEvent('${e.id}')">Сообщить об ошибке</button><h3 style="margin-top:18px">Оставить доброе слово</h3><input id="commentAuthor" class="field" placeholder="Ваше имя"><textarea id="commentBody" class="field" rows="3" placeholder="Сообщение"></textarea><button class="secondary" onclick="sendComment('${e.id}')">Отправить на модерацию</button></div></div>
+  <h3 style="margin-top:20px">Добрые слова</h3><div>${(e.comments||[]).length?(e.comments||[]).map(c=>'<div class="notice" style="margin:8px 0"><b>'+esc(c.author||"Гость")+'</b><br>'+esc(c.body)+'</div>').join(""):'<div class="muted">Пока нет опубликованных сообщений.</div>'}</div>`;
+  detailDialog.showModal();
+}
+async function lightCandle(id,btn){const r=await fetch("/api/events/"+id+"/candle",{method:"POST"});const j=await r.json();if(r.ok)btn.textContent="🕯 Зажечь свечу · "+j.count}
+function shareEvent(id,name){const url=location.origin+location.pathname+"#event="+id;if(navigator.share)navigator.share({title:name,text:"Памятная дата",url});else navigator.clipboard.writeText(url).then(()=>alert("Ссылка скопирована"))}
+function addGoogleCalendar(e){if(!e.event_date)return alert("Дата события не указана");const d=e.event_date.replaceAll("-","");const u="https://calendar.google.com/calendar/render?action=TEMPLATE&text="+encodeURIComponent(e.event_type+" — "+e.full_name)+"&dates="+d+"/"+d+"&details="+encodeURIComponent(e.note||"")+"&location="+encodeURIComponent(e.place||e.city||"");window.open(u,"_blank")}
+async function sendComment(id){const body=$("#commentBody").value.trim();if(!body)return;const r=await fetch("/api/events/"+id+"/comments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({author:$("#commentAuthor").value,body})});if(r.ok)alert("Спасибо. Сообщение отправлено на модерацию.")}
+function reportEvent(id){$("#simpleModal").innerHTML=`<div class="modalhead"><h2>Сообщить об ошибке</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div><select id="reportReason" class="field"><option>Неправильная дата</option><option>Ошибка в имени</option><option>Дубликат</option><option>Нет согласия семьи</option><option>Другое</option></select><textarea id="reportDetails" class="field" rows="4" placeholder="Что нужно исправить?"></textarea><button class="primary" onclick="submitReport('${id}')">Отправить</button>`;simpleDialog.showModal()}
+async function submitReport(id){const r=await fetch("/api/events/"+id+"/report",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reason:$("#reportReason").value,details:$("#reportDetails").value})});if(r.ok){simpleDialog.close();alert("Спасибо. Сообщение принято.")}}
+function claimRelative(id){$("#simpleModal").innerHTML=`<div class="modalhead"><h2>Я родственник</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div><p class="muted">После проверки администратор может отметить запись как подтверждённую семьёй.</p><input id="claimName" class="field" placeholder="Ваше имя"><input id="claimContact" class="field" placeholder="Контакт для модератора"><textarea id="claimNote" class="field" rows="3" placeholder="Кем вы приходитесь человеку?"></textarea><button class="primary" onclick="submitClaim('${id}')">Отправить заявку</button>`;simpleDialog.showModal()}
+async function submitClaim(id){const r=await fetch("/api/events/"+id+"/relative-claim",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({claimant_name:$("#claimName").value,contact:$("#claimContact").value,note:$("#claimNote").value})});if(r.ok){simpleDialog.close();alert("Заявка отправлена на проверку.")}}
+async function enableNotifications(){if(!("Notification" in window))return alert("Ваш браузер не поддерживает уведомления.");const p=await Notification.requestPermission();if(p==="granted")new Notification("Память",{body:"Уведомления включены в этом браузере. Для серверных напоминаний потребуется отдельная подписка."})}
+async function loadAdmin(){
+  const token=$("#adminToken").value;const r=await fetch("/api/admin/queue",{headers:{"x-admin-token":token}});if(!r.ok)return $("#adminQueue").innerHTML='<div class="status err">Неверный токен.</div>';const q=await r.json();
+  $("#adminQueue").innerHTML=`<div class="split"><div class="panel"><h3>Записи на проверке (${q.events.length})</h3>${q.events.map(e=>'<div class="notice" style="margin:8px 0"><b>'+esc(e.full_name)+'</b> · '+esc(e.event_type)+'<div class="card-actions"><button class="primary small" onclick="adminEvent(\''+e.id+'\',\'approve\')">Одобрить</button><button class="danger small" onclick="adminEvent(\''+e.id+'\',\'reject\')">Отклонить</button></div></div>').join("")||'<div class="muted">Нет</div>'}</div><div class="panel"><h3>Комментарии (${q.comments.length})</h3>${q.comments.map(c=>'<div class="notice" style="margin:8px 0">'+esc(c.body)+'<div><button class="secondary small" onclick="adminComment(\''+c.id+'\')">Одобрить</button></div></div>').join("")||'<div class="muted">Нет</div>'}</div><div class="panel"><h3>Заявки родственников (${q.claims.length})</h3>${q.claims.map(c=>'<div class="notice" style="margin:8px 0"><b>'+esc(c.claimant_name)+'</b><div>'+esc(c.note||"")+'</div><button class="secondary small" onclick="adminClaim(\''+c.id+'\')">Подтвердить</button></div>').join("")||'<div class="muted">Нет</div>'}</div><div class="panel"><h3>Жалобы (${q.reports.length})</h3>${q.reports.map(x=>'<div class="notice" style="margin:8px 0"><b>'+esc(x.reason)+'</b><div>'+esc(x.details||"")+'</div></div>').join("")||'<div class="muted">Нет</div>'}</div></div>`;
+}
+async function adminEvent(id,action){await fetch("/api/admin/events/"+id+"/"+action,{method:"POST",headers:{"x-admin-token":$("#adminToken").value}});loadAdmin();loadEvents()}
+async function adminComment(id){await fetch("/api/admin/comments/"+id+"/approve",{method:"POST",headers:{"x-admin-token":$("#adminToken").value}});loadAdmin()}
+async function adminClaim(id){await fetch("/api/admin/claims/"+id+"/approve",{method:"POST",headers:{"x-admin-token":$("#adminToken").value}});loadAdmin();loadEvents()}
+
+loadEvents().then(()=>{const m=location.hash.match(/event=([0-9a-f-]+)/i);if(m)openDetail(m[1])});
+</script>
+</body>
+</html>
