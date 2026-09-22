@@ -1305,8 +1305,13 @@ function parseCookies(req) {
   }
   return out;
 }
-function adminSessionSign(email,role="admin",ttlMs=8*60*60*1000){
-  const payload=Buffer.from(JSON.stringify({email:String(email||"").toLowerCase(),role,exp:Date.now()+ttlMs})).toString("base64url");
+function adminSessionSign(email,role="admin",sessionVersion=1,ttlMs=8*60*60*1000){
+  const payload=Buffer.from(JSON.stringify({
+    email:String(email||"").toLowerCase(),
+    role,
+    session_version:Number(sessionVersion||1),
+    exp:Date.now()+ttlMs
+  })).toString("base64url");
   const sig=crypto.createHmac("sha256",ADMIN_TOKEN).update(payload).digest("base64url");
   return payload+"."+sig;
 }
@@ -1317,22 +1322,44 @@ function adminSessionVerify(raw){
   if(sig.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))return null;
   try{
     const data=JSON.parse(Buffer.from(payload,"base64url").toString("utf8"));
-    if(!data.email||!data.exp||Date.now()>Number(data.exp))return null;
+    if(!data.email||!data.exp||!data.session_version||Date.now()>Number(data.exp))return null;
     return data;
   }catch{return null}
 }
-function isAdmin(req) {
+async function isAdmin(req) {
   if(Boolean(ADMIN_TOKEN) && req.headers["x-admin-token"] === ADMIN_TOKEN){
-    req.adminIdentity={email:"token-admin",role:"admin",legacy:true}; return true;
+    req.adminIdentity={email:"token-admin",role:"owner",display_name:"Системный владелец",legacy:true}; return true;
   }
   const s=adminSessionVerify(parseCookies(req).pamyat_admin_session);
-  if(s){req.adminIdentity=s;return true}
-  return false;
+  if(!s)return false;
+  try{
+    const allowed=await sb("rpc/memorial_admin_session_allowed",{
+      method:"POST",
+      body:{p_token:ADMIN_TOKEN,p_email:s.email,p_session_version:Number(s.session_version)}
+    });
+    if(!allowed?.allowed)return false;
+    req.adminIdentity={
+      email:allowed.email,
+      role:allowed.role||s.role||"moderator",
+      display_name:allowed.display_name||null,
+      session_version:allowed.session_version
+    };
+    return true;
+  }catch{return false}
 }
-function requireAdmin(req, res, next) {
-  if (!isAdmin(req)) return res.status(401).json({ error: "admin_required" });
+async function requireAdmin(req,res,next){
+  if(!(await isAdmin(req)))return res.status(401).json({error:"admin_required"});
   next();
 }
+function requireRoles(...roles){
+  return async (req,res,next)=>{
+    if(!(await isAdmin(req)))return res.status(401).json({error:"admin_required"});
+    if(!roles.includes(req.adminIdentity?.role))return res.status(403).json({error:"role_required"});
+    next();
+  };
+}
+const requireOwner=requireRoles("owner");
+const requireAdminRole=requireRoles("owner","admin");
 
 function adminPasswordOk(user,password){
   if(!ADMIN_LOGIN_USER||!ADMIN_LOGIN_SALT||!ADMIN_LOGIN_PASSWORD_HASH)return false;
@@ -2312,10 +2339,15 @@ app.post("/api/telegram/webhook/:secret", async (req,res) => {
 
 
 
-app.get("/api/admin/auth/status", (req,res) => {
-  const ok=isAdmin(req);
+app.get("/api/admin/auth/status", async (req,res) => {
+  const ok=await isAdmin(req);
   res.setHeader("Cache-Control","no-store");
-  res.status(ok?200:401).json(ok?{ok:true,email:req.adminIdentity?.email||null,role:req.adminIdentity?.role||"admin"}:{ok:false});
+  res.status(ok?200:401).json(ok?{
+    ok:true,
+    email:req.adminIdentity?.email||null,
+    role:req.adminIdentity?.role||"moderator",
+    display_name:req.adminIdentity?.display_name||null
+  }:{ok:false});
 });
 
 app.post("/api/admin/setup-email", requireAdmin, rateLimit("admin-setup-email",8,60*60*1000), async (req,res) => {
@@ -2335,7 +2367,7 @@ app.post("/api/admin/auth/password", rateLimit("admin-password-login",8,15*60*10
     if(!adminPasswordOk(user,password))return res.status(401).json({error:"invalid_login"});
     const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:user}});
     if(!allowed?.allowed)return res.status(403).json({error:"admin_not_allowed"});
-    const cookie=adminSessionSign(user,allowed.role||"admin");
+    const cookie=adminSessionSign(user,allowed.role||"admin",allowed.session_version||1);
     res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
     res.json({ok:true,email:user,role:allowed.role||"admin",provider:"password"});
   }catch(e){
@@ -2387,7 +2419,7 @@ app.post("/api/admin/auth/session", rateLimit("admin-auth-session",12,15*60*1000
       const email=String(user.email||"").toLowerCase();
       const allowed=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:email}});
       if(!allowed?.allowed)return res.status(403).json({error:"admin_not_allowed"});
-      const cookie=adminSessionSign(email,allowed.role||"admin");
+      const cookie=adminSessionSign(email,allowed.role||"admin",allowed.session_version||1);
       res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
       return res.json({ok:true,email,role:allowed.role||"admin",provider:"supabase"});
     }
@@ -2397,7 +2429,8 @@ app.post("/api/admin/auth/session", rateLimit("admin-auth-session",12,15*60*1000
     const hash=crypto.createHash("sha256").update(raw).digest("hex");
     const data=await sb("rpc/memorial_admin_login_token_consume",{method:"POST",body:{p_token:ADMIN_TOKEN,p_hash:hash}});
     if(!data?.ok)return res.status(401).json({error:"invalid_or_expired_login"});
-    const cookie=adminSessionSign(data.email,data.role||"admin");
+    const allowedNow=await sb("rpc/memorial_admin_email_allowed",{method:"POST",body:{p_token:ADMIN_TOKEN,p_email:data.email}});
+    const cookie=adminSessionSign(data.email,data.role||allowedNow.role||"admin",allowedNow.session_version||1);
     res.setHeader("Set-Cookie","pamyat_admin_session="+encodeURIComponent(cookie)+"; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax");
     res.json({ok:true,email:data.email,role:data.role||"admin",provider:"resend"});
   }catch(e){console.error("admin session",e.data||e);res.status(500).json({error:"session_failed"})}
