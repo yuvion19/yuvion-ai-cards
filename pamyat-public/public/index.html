@@ -271,7 +271,13 @@
       <button class="secondary" onclick="adminSnapshot()">Снимок БД</button>
       <button class="secondary" onclick="adminSyncCemetery()">Синхр. QBA</button>
     </div>
-    <div class="card-actions"><button class="secondary small" onclick="adminDownload('/api/admin/export.json')">Экспорт JSON</button><button class="secondary small" onclick="adminDownload('/api/admin/export.csv')">Экспорт CSV</button></div>
+    <div class="card-actions">
+  <button class="secondary small" onclick="adminDownload('/api/admin/export.json')">Экспорт JSON</button>
+  <button class="secondary small" onclick="adminDownload('/api/admin/export.csv')">Экспорт CSV</button>
+  <button class="secondary small" onclick="adminSwitchRelease('stable')">Быстрый откат к stable</button>
+  <button class="secondary small" onclick="adminSwitchRelease('current')">Вернуть current</button>
+  <button class="secondary small" onclick="adminRunSelftest()">Проверить систему</button>
+</div>
     <div id="adminQueue" style="margin-top:14px"></div>
   </section>
 
@@ -474,7 +480,58 @@ async function subscribePush(){const box=$("#notifyStatus");try{if(!("Notificati
 async function unsubscribePush(){try{const reg=await navigator.serviceWorker.getRegistration(),sub=await reg?.pushManager.getSubscription();if(sub)await sub.unsubscribe();const token=localStorage.getItem("pamyatDeviceToken");if(token)await fetch("/api/push/unsubscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({device_token:token})});localStorage.removeItem("pamyatDeviceToken");$("#notifyStatus").innerHTML='<div class="notice ok">Уведомления отключены.</div>'}catch{}}
 
 function aqCard(title,body,buttons=""){return '<div class="notice" style="margin:8px 0"><b>'+esc(title)+'</b><div style="margin-top:4px">'+body+'</div>'+buttons+'</div>'}
-async function loadAdmin(){const token=$("#adminToken").value,r=await fetch("/api/admin/queue",{headers:{"x-admin-token":token}});if(!r.ok){$("#adminQueue").innerHTML='<div class="notice err">Неверный токен.</div>';return}const q=await r.json(),btn=(url,label,cls="secondary")=>'<button class="'+cls+' small" onclick="adminPost(\''+url+'\')">'+label+'</button>';$("#adminQueue").innerHTML='<div class="grid"><div class="panel"><h3>События ('+q.events.length+')</h3>'+((q.events||[]).map(e=>aqCard(e.full_name,esc(e.event_type)+' · '+fmt(e.event_date),'<div class="card-actions">'+btn("/api/admin/events/"+e.id+"/approve","Одобрить","primary")+btn("/api/admin/events/"+e.id+"/reject","Отклонить","danger")+'<button class="secondary small" onclick="showHistory(\''+e.id+'\')">История</button></div>')).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Комментарии ('+q.comments.length+')</h3>'+((q.comments||[]).map(c=>aqCard(c.author||"Гость",esc(c.body),btn("/api/admin/comments/"+c.id+"/approve","Одобрить"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Родственники ('+q.claims.length+')</h3>'+((q.claims||[]).map(c=>aqCard(c.claimant_name,esc(c.relation_type||"")+' '+esc(c.evidence_note||""),btn("/api/admin/claims/"+c.id+"/approve","Подтвердить"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Связи ('+q.family_relations.length+')</h3>'+((q.family_relations||[]).map(x=>aqCard(x.relation_type,esc(x.evidence_note||""),btn("/api/admin/family/relation/"+x.id+"/approve","Одобрить")+btn("/api/admin/family/relation/"+x.id+"/reject","Отклонить","danger"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Люди ('+q.family_people.length+')</h3>'+((q.family_people||[]).map(x=>aqCard(x.display_name,esc(x.death_date||""),btn("/api/admin/family/person/"+x.id+"/approve","Одобрить")+btn("/api/admin/family/person/"+x.id+"/reject","Отклонить","danger"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Исправления ('+q.corrections.length+')</h3>'+((q.corrections||[]).map(x=>aqCard(x.field_name,esc(x.current_value||"")+" → "+esc(x.proposed_value),btn("/api/admin/family/correction/"+x.id+"/approve","Одобрить")+btn("/api/admin/family/correction/"+x.id+"/reject","Отклонить","danger"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Жалобы ('+q.reports.length+')</h3>'+((q.reports||[]).map(x=>aqCard(x.reason,esc(x.details||""))).join("")||'<div class="muted">Нет</div>')+'</div></div>'}
+async function loadAdminBase(){const token=$("#adminToken").value,r=await fetch("/api/admin/queue",{headers:{"x-admin-token":token}});if(!r.ok){$("#adminQueue").innerHTML='<div class="notice err">Неверный токен.</div>';return}const q=await r.json(),btn=(url,label,cls="secondary")=>'<button class="'+cls+' small" onclick="adminPost(\''+url+'\')">'+label+'</button>';$("#adminQueue").innerHTML='<div class="grid"><div class="panel"><h3>События ('+q.events.length+')</h3>'+((q.events||[]).map(e=>aqCard(e.full_name,esc(e.event_type)+' · '+fmt(e.event_date),'<div class="card-actions">'+btn("/api/admin/events/"+e.id+"/approve","Одобрить","primary")+btn("/api/admin/events/"+e.id+"/reject","Отклонить","danger")+'<button class="secondary small" onclick="showHistory(\''+e.id+'\')">История</button></div>')).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Комментарии ('+q.comments.length+')</h3>'+((q.comments||[]).map(c=>aqCard(c.author||"Гость",esc(c.body),btn("/api/admin/comments/"+c.id+"/approve","Одобрить"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Родственники ('+q.claims.length+')</h3>'+((q.claims||[]).map(c=>aqCard(c.claimant_name,esc(c.relation_type||"")+' '+esc(c.evidence_note||""),btn("/api/admin/claims/"+c.id+"/approve","Подтвердить"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Связи ('+q.family_relations.length+')</h3>'+((q.family_relations||[]).map(x=>aqCard(x.relation_type,esc(x.evidence_note||""),btn("/api/admin/family/relation/"+x.id+"/approve","Одобрить")+btn("/api/admin/family/relation/"+x.id+"/reject","Отклонить","danger"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Люди ('+q.family_people.length+')</h3>'+((q.family_people||[]).map(x=>aqCard(x.display_name,esc(x.death_date||""),btn("/api/admin/family/person/"+x.id+"/approve","Одобрить")+btn("/api/admin/family/person/"+x.id+"/reject","Отклонить","danger"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Исправления ('+q.corrections.length+')</h3>'+((q.corrections||[]).map(x=>aqCard(x.field_name,esc(x.current_value||"")+" → "+esc(x.proposed_value),btn("/api/admin/family/correction/"+x.id+"/approve","Одобрить")+btn("/api/admin/family/correction/"+x.id+"/reject","Отклонить","danger"))).join("")||'<div class="muted">Нет</div>')+'</div><div class="panel"><h3>Жалобы ('+q.reports.length+')</h3>'+((q.reports||[]).map(x=>aqCard(x.reason,esc(x.details||""))).join("")||'<div class="muted">Нет</div>')+'</div></div>'}
+async function loadAdmin(){
+  await loadAdminBase();
+  await loadAdminExtras();
+}
+async function loadAdminExtras(){
+  const token=$("#adminToken").value;
+  const [dr,ir]=await Promise.all([
+    fetch("/api/admin/duplicates",{headers:{"x-admin-token":token}}),
+    fetch("/api/admin/identification",{headers:{"x-admin-token":token}})
+  ]);
+  const dup=dr.ok?await dr.json():[], ids=ir.ok?await ir.json():[];
+  const wrap=document.createElement("div");
+  wrap.className="grid";wrap.style.marginTop="14px";
+  wrap.innerHTML='<div class="panel"><h3>Возможные дубли ('+dup.length+')</h3>'+
+    (dup.map(x=>'<div class="notice" style="margin:7px 0"><b>'+esc(x.a_name)+'</b> ↔ <b>'+esc(x.b_name)+'</b><br><span class="muted">'+esc(x.a_date||"")+' / '+esc(x.b_date||"")+' · similarity '+Number(x.similarity||0).toFixed(2)+'</span><div class="card-actions"><button class="secondary small" onclick="adminMergeDuplicate(\''+x.a_id+'\',\''+x.b_id+'\')">Оставить первую, скрыть вторую</button><button class="secondary small" onclick="adminMergeDuplicate(\''+x.b_id+'\',\''+x.a_id+'\')">Оставить вторую</button></div></div>').join("")||'<div class="muted">Нет</div>')+
+    '</div><div class="panel"><h3>Опознание могил ('+ids.length+')</h3>'+
+    (ids.map(x=>'<div class="notice" style="margin:7px 0"><b>'+esc(x.approximate_name||"Без имени")+'</b><br><span class="muted">'+esc(x.approximate_year||"")+' '+esc(x.sector_note||"")+'</span><div class="card-actions"><button class="secondary small" onclick="adminOpenIdentification(\''+x.id+'\')">Открыть</button></div></div>').join("")||'<div class="muted">Нет</div>')+
+    '</div>';
+  $("#adminQueue").appendChild(wrap);
+}
+async function adminMergeDuplicate(keep,duplicate){
+  if(!confirm("Объединить записи? Дубликат будет скрыт, история сохранится."))return;
+  const r=await fetch("/api/admin/duplicates/merge",{method:"POST",headers:{"content-type":"application/json","x-admin-token":$("#adminToken").value},body:JSON.stringify({keep_id:keep,duplicate_id:duplicate})});
+  if(r.ok)loadAdmin();else alert("Не удалось объединить");
+}
+async function adminOpenIdentification(id){
+  const r=await fetch("/api/admin/identification/"+id,{headers:{"x-admin-token":$("#adminToken").value}});
+  if(!r.ok)return alert("Не удалось открыть");
+  const x=await r.json();
+  $("#simpleModal").innerHTML='<div class="modalhead"><h2>Опознание могилы</h2><button class="secondary" onclick="simpleDialog.close()">✕</button></div>'+
+    (x.image_data?'<img src="'+x.image_data+'" alt="" style="max-width:100%;border-radius:12px">':'')+
+    '<p><b>'+esc(x.approximate_name||"Без имени")+'</b> '+esc(x.approximate_year||"")+'</p><p>'+esc(x.details||"")+'</p><input id="identifyResolveKey" class="field" placeholder="QBA record key, например QBA0062:1"><div class="card-actions"><button class="primary" onclick="adminResolveIdentification(\''+id+'\')">Связать и закрыть</button><button class="danger" onclick="adminRejectIdentification(\''+id+'\')">Отклонить</button></div>';
+  simpleDialog.showModal();
+}
+async function adminResolveIdentification(id){
+  const r=await fetch("/api/admin/identification/"+id+"/resolve",{method:"POST",headers:{"content-type":"application/json","x-admin-token":$("#adminToken").value},body:JSON.stringify({record_key:$("#identifyResolveKey").value})});
+  if(r.ok){simpleDialog.close();loadAdmin()}
+}
+async function adminRejectIdentification(id){
+  const r=await fetch("/api/admin/identification/"+id+"/reject",{method:"POST",headers:{"content-type":"application/json","x-admin-token":$("#adminToken").value},body:"{}"});
+  if(r.ok){simpleDialog.close();loadAdmin()}
+}
+async function adminSwitchRelease(value){
+  if(!confirm(value==="stable"?"Переключить интерфейс на стабильную версию?":"Вернуть текущую версию интерфейса?"))return;
+  const r=await fetch("/api/admin/frontend-release/"+value,{method:"POST",headers:{"x-admin-token":$("#adminToken").value}});
+  alert(r.ok?"Версия переключена. Обновите страницу.":"Не удалось переключить версию.");
+}
+async function adminRunSelftest(){
+  const r=await fetch("/api/selftest"),j=await r.json().catch(()=>({}));
+  alert(j.ok?"Все основные проверки пройдены.":"Обнаружена ошибка: "+JSON.stringify(j));
+}
 async function adminPost(url){await fetch(url,{method:"POST",headers:{"x-admin-token":$("#adminToken").value}});loadAdmin();loadEvents()}
 async function adminSnapshot(){const r=await fetch("/api/admin/snapshot",{method:"POST",headers:{"x-admin-token":$("#adminToken").value}});alert(r.ok?"Снимок базы сохранён":"Ошибка")}
 async function adminSyncCemetery(){const r=await fetch("/api/admin/cemetery/sync",{method:"POST",headers:{"x-admin-token":$("#adminToken").value}}),j=await r.json();alert(r.ok?"Синхронизировано записей: "+(j.records||j.written||0):"Ошибка синхронизации")}
