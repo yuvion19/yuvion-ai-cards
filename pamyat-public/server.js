@@ -38,9 +38,158 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: false, limit: "256kb" }));
 app.use("/vendor/leaflet", express.static(path.join(__dirname, "node_modules", "leaflet", "dist"), { immutable: true, maxAge: "365d" }));
+
+function htmlEsc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function isMobileUA(req) {
+  return /iPhone|iPad|iPod|Android|Mobile/i.test(String(req.headers["user-agent"] || ""));
+}
+function mobileShell(title, body, opts = {}) {
+  const extraHead = opts.extraHead || "";
+  const scripts = opts.scripts || "";
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#4c3e2d"><title>${htmlEsc(title)} — Память Джуури</title>${extraHead}<style>
+  :root{--bg:#f5f1e8;--paper:#fffdf8;--ink:#27231e;--muted:#746d63;--line:#ded6c8;--accent:#5b4934;--soft:#eee6d9}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{position:sticky;top:0;z-index:9;background:#f5f1e8ee;border-bottom:1px solid var(--line);padding:10px 12px}.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:8px}.brand{font-weight:800;flex:1}.wrap{max-width:760px;margin:auto;padding:14px 12px 60px}.nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 16px}.btn,a.btn,button.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:12px;background:var(--accent);color:white;font-weight:750}.btn.secondary,a.btn.secondary{background:var(--soft);color:var(--ink)}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}.field{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;font-weight:700;margin:12px 0 5px}.muted{color:var(--muted);font-size:14px}.ok{background:#e4efe5;border-radius:12px;padding:12px}.err{background:#f5e2e2;border-radius:12px;padding:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 7px;font-size:12px}.pager{display:flex;justify-content:space-between;gap:8px;margin:14px 0}.pager a{flex:1}.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0}.check input{margin-top:4px}h1{font-size:28px;line-height:1.1;margin:6px 0 12px}#mobileMap{height:68vh;min-height:440px;border:1px solid var(--line);border-radius:14px;background:#ddd}
+  </style></head><body><header><div class="top"><div class="brand">Память Джуури</div><a class="btn secondary" href="/m">Меню</a></div></header><main class="wrap">${body}</main>${scripts}</body></html>`;
+}
+
+app.get("/m", (_req,res) => {
+  res.setHeader("Cache-Control","no-store");
+  res.send(mobileShell("Главная", `
+    <h1>Мобильная версия</h1>
+    <p class="muted">Простая версия без большого интерфейса. Критические функции работают отдельными страницами.</p>
+    <div class="nav">
+      <a class="btn" href="/m/add">+ Добавить событие</a>
+      <a class="btn" href="/m/catalog">Каталог кладбища</a>
+      <a class="btn" href="/m/map">Карта кладбища</a>
+      <a class="btn" href="/m/calendar">Календарь</a>
+    </div>
+    <div class="card"><b>Кладбище Кубы / Губы</b><p class="muted">В базе 1238 индексных записей QBA. Можно открыть каталог, найти человека и перейти к карте.</p></div>
+    <a class="btn secondary" href="/pamyat-juhuro?desktop=1">Открыть полную версию</a>
+  `));
+});
+
+app.get("/m/catalog", async (req,res) => {
+  try {
+    res.setHeader("Cache-Control","no-store");
+    const q=clean(req.query.q,180);
+    const page=Math.max(1,Number(req.query.page||1));
+    const limit=50;
+    let rows;
+    if(q) {
+      rows=await sb("rpc/memorial_cemetery_search",{method:"POST",body:{p_query:q,p_limit:100}});
+    } else {
+      const params=new URLSearchParams();
+      params.set("select","record_key,external_id,name_ru,name_he,death_gr,death_he,latitude,longitude,source_url");
+      params.set("cemetery_code","eq.QBA");
+      params.set("order","external_id.asc,person_index.asc");
+      params.set("limit",String(limit));
+      params.set("offset",String((page-1)*limit));
+      rows=await sb("cemetery_records?"+params.toString());
+    }
+    const list=(rows||[]).map(x=>`<div class="card"><div class="row"><span class="tag">${htmlEsc(x.external_id)}</span>${x.death_gr?`<span class="tag">${htmlEsc(x.death_gr)}</span>`:""}</div><h3>${htmlEsc(x.name_ru||"Без имени")}</h3>${x.name_he?`<div dir="rtl">${htmlEsc(x.name_he)}</div>`:""}<div class="row" style="margin-top:10px"><a class="btn secondary" href="${htmlEsc(x.source_url)}" target="_blank" rel="noopener">Источник</a>${x.latitude&&x.longitude?`<a class="btn secondary" href="/m/map?lat=${encodeURIComponent(x.latitude)}&lon=${encodeURIComponent(x.longitude)}&name=${encodeURIComponent(x.name_ru||x.external_id)}">На карте</a>`:""}</div></div>`).join("");
+    const pager=q?"":`<div class="pager">${page>1?`<a class="btn secondary" href="/m/catalog?page=${page-1}">← Назад</a>`:"<span></span>"}<a class="btn secondary" href="/m/catalog?page=${page+1}">Далее →</a></div>`;
+    res.send(mobileShell("Каталог кладбища", `
+      <h1>Каталог кладбища</h1>
+      <form method="get" action="/m/catalog"><label>Поиск по имени, QBA или ивриту</label><input class="field" name="q" value="${htmlEsc(q)}"><button class="btn" style="width:100%;margin-top:8px">Найти</button></form>
+      ${q?`<p class="muted">Результаты поиска: ${rows.length}</p>`:`<p class="muted">Страница ${page}, по 50 записей</p>`}
+      ${list||'<div class="card">Ничего не найдено.</div>'}${pager}
+    `));
+  } catch(e) {
+    console.error("mobile catalog",e.data||e);
+    res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить каталог.</div>'));
+  }
+});
+
+app.get("/m/map", (_req,res) => {
+  res.setHeader("Cache-Control","no-store");
+  const lat=Number(_req.query.lat||41.3697), lon=Number(_req.query.lon||48.5063), name=clean(_req.query.name,120);
+  const extraHead='<link rel="stylesheet" href="/vendor/leaflet/leaflet.css"><script src="/vendor/leaflet/leaflet.js"></script>';
+  const scripts=`<script>
+  (async()=>{try{
+    const map=L.map("mobileMap").setView([${Number.isFinite(lat)?lat:41.3697},${Number.isFinite(lon)?lon:48.5063}],${name?19:16});
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap"}).addTo(map);
+    const r=await fetch("/api/cemetery/map?limit=2200",{cache:"no-store"}); if(!r.ok)throw new Error("HTTP "+r.status);
+    const rows=await r.json(), markers=[];
+    for(const x of rows){const a=Number(x.latitude),b=Number(x.longitude);if(!Number.isFinite(a)||!Number.isFinite(b))continue;const m=L.circleMarker([a,b],{radius:4,weight:1,fillOpacity:.8}).addTo(map);m.bindPopup("<b>"+String(x.name_ru||x.external_id).replace(/[&<>]/g,s=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[s]))+"</b><br>"+x.external_id);markers.push(m)}
+    document.getElementById("mapStatus").textContent="Загружено точек: "+markers.length;
+    ${name?`L.popup().setLatLng([${lat},${lon}]).setContent("<b>${htmlEsc(name)}</b>").openOn(map);`:`if(markers.length)map.fitBounds(L.featureGroup(markers).getBounds().pad(.05),{maxZoom:18});`}
+    setTimeout(()=>map.invalidateSize(),200);
+  }catch(e){document.getElementById("mapStatus").innerHTML="Карта не загрузилась. <a href='/m/catalog'>Открыть каталог</a>";console.error(e)}})();
+  </script>`;
+  res.send(mobileShell("Карта кладбища",`<h1>Карта кладбища Кубы</h1><p id="mapStatus" class="muted">Загрузка точек…</p><div id="mobileMap"></div><p><a class="btn secondary" href="/m/catalog">Открыть каталог</a></p>`,{extraHead,scripts}));
+});
+
+app.get("/m/calendar", async (_req,res) => {
+  try {
+    const rows=await sb("rpc/memorial_public_upcoming",{method:"POST",body:{p_days:60,p_limit:200}});
+    const cards=(rows||[]).map(e=>`<div class="card"><span class="tag">${htmlEsc(e.event_type)}</span><h3>${htmlEsc(e.full_name)}</h3><div>${htmlEsc(e.event_date||"")}</div><div class="muted">${htmlEsc([e.city,e.place].filter(Boolean).join(" · "))}</div></div>`).join("");
+    res.send(mobileShell("Календарь",`<h1>Ближайшие памятные даты</h1>${cards||'<div class="card">Ближайших событий нет.</div>'}`));
+  } catch(e) {
+    res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось загрузить календарь.</div>'));
+  }
+});
+
+app.get("/m/add", (_req,res) => {
+  res.setHeader("Cache-Control","no-store");
+  res.send(mobileShell("Добавить событие", `
+    <h1>Добавить событие</h1>
+    <form method="post" action="/m/add">
+      <label>ФИО *</label><input class="field" name="full_name" required>
+      <label>Дата смерти *</label><input class="field" type="date" name="death_date" required>
+      <div class="check"><input type="checkbox" name="publish_day7" value="1" checked><span>7 дней</span></div>
+      <div class="check"><input type="checkbox" name="publish_day40" value="1" checked><span>40 дней</span></div>
+      <div class="check"><input type="checkbox" name="publish_year1" value="1" checked><span>1 год</span></div>
+      <div class="check"><input type="checkbox" name="publish_annual" value="1" checked><span>Годовщина</span></div>
+      <div class="check"><input type="checkbox" name="publish_yahrzeit" value="1" checked><span>Йорцайт</span></div>
+      <label>Город</label><input class="field" name="city">
+      <label>Место</label><input class="field" name="place">
+      <label>Комментарий</label><textarea class="field" name="note" rows="4"></textarea>
+      <label>Ваше имя</label><input class="field" name="submitter_name">
+      <label>Контакт модератору (не публикуется)</label><input class="field" name="submitter_contact">
+      <div class="check"><input type="checkbox" name="relation_confirmed" value="1" required><span>У меня есть право или согласие семьи на публикацию.</span></div>
+      <button class="btn" style="width:100%;margin-top:12px">Отправить на модерацию</button>
+    </form>
+  `));
+});
+
+app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
+  try {
+    const b=req.body||{};
+    const fullName=clean(b.full_name,180), deathDate=clean(b.death_date,10);
+    if(!fullName||!validDate(deathDate)||!b.relation_confirmed) {
+      return res.status(400).send(mobileShell("Ошибка",'<div class="err">Заполните ФИО, дату смерти и согласие семьи.</div><p><a class="btn" href="/m/add">Вернуться</a></p>'));
+    }
+    const yahrzeit=nextYahrzeit(deathDate);
+    const base={
+      full_name:fullName,death_date:deathDate,event_time:null,city:clean(b.city,120)||null,place:clean(b.place,180)||null,
+      cemetery_link:null,cemetery_record_key:null,note:clean(b.note,1500)||null,visibility:"public",status:"pending",relation_confirmed:true,
+      publish_day7:Boolean(b.publish_day7),publish_day40:Boolean(b.publish_day40),publish_year1:Boolean(b.publish_year1),
+      publish_annual:Boolean(b.publish_annual),hebrew_death_label:hebrewLabel(deathDate),yahrzeit_date:yahrzeit,
+      derived:{...derivedDates(deathDate),yahrzeit},submitter_name:clean(b.submitter_name,120)||null,submitter_contact:clean(b.submitter_contact,180)||null
+    };
+    const planned=[];
+    if(base.publish_day7)planned.push(["7 дней",addDays(deathDate,7)]);
+    if(base.publish_day40)planned.push(["40 дней",addDays(deathDate,40)]);
+    if(base.publish_year1)planned.push(["1 год",addYear(deathDate)]);
+    if(base.publish_annual)planned.push(["Годовщина",addYear(deathDate)]);
+    if(b.publish_yahrzeit&&yahrzeit)planned.push(["Йорцайт",yahrzeit]);
+    if(!planned.length)planned.push(["Памятная дата",deathDate]);
+    const rows=planned.map(([event_type,event_date])=>({id:id(),...base,event_type,event_date}));
+    await sb("memorial_events",{method:"POST",body:rows,prefer:"return=minimal"});
+    res.status(201).send(mobileShell("Отправлено",`<div class="ok"><b>Готово.</b><br>На модерацию отправлено событий: ${rows.length}. До одобрения они не видны публично.</div><div class="nav"><a class="btn" href="/m">Главная</a><a class="btn secondary" href="/m/add">Добавить ещё</a></div>`));
+  } catch(e) {
+    console.error("mobile add",e.data||e);
+    res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось сохранить событие. Попробуйте ещё раз.</div><p><a class="btn" href="/m/add">Вернуться</a></p>'));
+  }
+});
+
 app.get("/", (_req, res) => res.redirect(302, "/pamyat-juhuro"));
-app.get("/pamyat-juhuro", (_req, res) => {
+app.get("/pamyat-juhuro", (req, res) => {
+  if (isMobileUA(req) && req.query.desktop !== "1") return res.redirect(302, "/m");
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
