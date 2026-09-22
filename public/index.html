@@ -3466,8 +3466,8 @@ async function setFile(file){
   await refreshDesignPalette();
   await savePhotoDraft(file);
   if(!attachExisting&&currentMode==='full'&&autoCards?.checked){
-    await createImmediateFreeCards(file);
-    if(selectedFile===file&&currentHistoryId&&!busy){
+    const complete=await createImmediateFreeCards(file);
+    if(!complete&&selectedFile===file&&currentHistoryId&&!busy){
       window.setTimeout(()=>{if(selectedFile===file&&!busy)analyzeBtn.click()},60);
     }
   }
@@ -4003,7 +4003,7 @@ function parseLocalVisionJson(text){
 
 function ensureLocalVisionWorker(){
   if(localVisionWorker)return localVisionWorker;
-  localVisionWorker=new Worker('/local-vision-worker.js?v=10.7.0',{type:'module'});
+  localVisionWorker=new Worker('/local-vision-worker.js?v=10.8.0',{type:'module'});
   return localVisionWorker;
 }
 
@@ -4038,10 +4038,10 @@ async function runLocalVisionAnalysis(src){
   const dataUrl='data:'+src.mimeType+';base64,'+src.image;
   loadingTitle.textContent='Распознаём товар локально';
   loadingText.textContent=('gpu' in navigator)
-    ?'SmolVLM анализирует фото локально через WebGPU без платного API.'
-    :'SmolVLM анализирует фото локально через CPU/WASM без платного API — это может быть медленнее.';
+    ?'Локальная модель распознаёт тип товара на устройстве без платного API.'
+    :'Локальная модель распознаёт тип товара на устройстве без платного API — на iPhone это может занять несколько секунд.';
   return new Promise((resolve,reject)=>{
-    const timer=setTimeout(()=>{cleanup();reject(new Error('Локальное распознавание заняло слишком много времени'))},120000);
+    const timer=setTimeout(()=>{cleanup();reject(new Error('Локальное распознавание заняло слишком много времени'))},25000);
     const onMessage=(event)=>{
       const m=event.data||{};
       if(m.status==='complete'){
@@ -4158,13 +4158,22 @@ async function createImmediateFreeCards(file){
     if(productId!==currentHistoryId)return false;
     if(fastLocal){
       provisional=fastLocal;
-      currentData=fastLocal;
-      fillEditor(fastLocal);
+      if(provisional.analysisMode==='local-fallback'){
+        creativeStatus.textContent='Определяем тип товара локально. После этого сразу создадим описание и 4 финальные карточки.';
+        const improved=await upgradeFallbackWithBrowserVision(provisional,src);
+        if(productId!==currentHistoryId)return false;
+        if(improved&&improved.analysisMode==='browser-vision')provisional=improved;
+      }
+      currentData=provisional;
+      fillEditor(provisional);
       applyCategoryRule({applyTemplate:true});
       currentData=collectEdits();
+      provisional=currentData;
       renderAiQuality(currentData);updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
-      confidence.textContent='Базовое описание готово · локальное распознавание улучшит его автоматически';
-      creativeStatus.textContent='Базовое описание готово. Создаём 4 разные Studio-карточки с инфографикой.';
+      confidence.textContent=provisional.analysisMode==='browser-vision'
+        ?'Товар распознан локально · описание и характеристики готовы до рендера'
+        :'Базовое описание готово · точные неподтверждённые параметры не добавлены';
+      creativeStatus.textContent='Описание и данные готовы. Создаём 4 финальные продающие карточки.';
     }
     const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({
       ...src,card:provisional,style:styleSelect.value,renderMode:'free',palette:currentPalette,
@@ -4184,8 +4193,8 @@ async function createImmediateFreeCards(file){
     renderCards();renderDesignStudio();renderProductCockpit();
     zipImages.disabled=true;zipFull.disabled=true;
     creativeStatus.className='creative-status show done';
-    creativeStatus.textContent='4 изображения готовы с базовым описанием. Локальное распознавание улучшит название, характеристики и затем полностью пересоберёт сцены.';
-    addCurrentActivity('Быстрый бесплатный комплект','4 карточки созданы до завершения AI-анализа');
+    creativeStatus.textContent='Готово: описание, характеристики и 4 карточки созданы из одного финального набора данных.';
+    addCurrentActivity('Финальный бесплатный комплект','Распознавание и описание завершены до создания 4 карточек');
     await saveHistory();
     await checkQualityAndAutofix(false);
     addCurrentActivity('Быстрый бесплатный QA','4 карточки проверены локально до завершения текстового анализа');
@@ -4224,7 +4233,12 @@ analyzeBtn.onclick=async()=>{
     }finally{clearTimeout(timeoutId)}
     let data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
-    const needsVisionUpgrade=data?.analysisMode==='local-fallback';
+    if(data?.analysisMode==='local-fallback'){
+      loadingTitle.textContent='Распознаём тип товара';
+      loadingText.textContent='Сначала завершаем бесплатное локальное распознавание, затем обновляем описание и карточки.';
+      const improved=await upgradeFallbackWithBrowserVision(data,src);
+      if(improved&&improved.analysisMode==='browser-vision')data=improved;
+    }
     const hadImmediateCards=currentCards.length===4&&currentScenes.length===4;
     currentData=data;
     if(hadImmediateCards){cardsStale=true;currentStaleCards=[0,1,2,3];currentScenes=[];}
@@ -4247,7 +4261,7 @@ analyzeBtn.onclick=async()=>{
     confidence.textContent=data.analysisMode==='browser-vision'
       ?'Бесплатное локальное распознавание фото · '+(data.analysisNotice||'SmolVLM')
       :data.analysisMode==='local-fallback'
-        ?'Описание готово сразу · локальное распознавание улучшит его автоматически · '+(data.analysisNotice||'')
+        ?'Базовое описание готово · '+(data.analysisNotice||'')
         :'Уверенность распознавания: '+(data.confidence||'не указана');
     workspace.classList.add('show');workspace.scrollIntoView({behavior:'smooth',block:'start'});
     await saveHistory();
@@ -4257,11 +4271,7 @@ analyzeBtn.onclick=async()=>{
       creativeStatus.textContent='Описание и характеристики получены. Обновляем инфографику на четырёх карточках.';
     }
     autoCreateCardsIfEnabled();
-    if(needsVisionUpgrade){
-      const productId=currentHistoryId;
-      const baseData=currentData;
-      window.setTimeout(()=>improveProductWithLocalVisionInBackground(src,productId,baseData),250);
-    }
+
   }catch(e){
     if(currentCards.length===4){
       creative.classList.add('show');
@@ -4346,7 +4356,7 @@ styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPe
 function syncRenderModeUi(){
   renderModeSelect.value='free';
   generateAll.textContent='Создать 4 Studio-карточки бесплатно';
-  generateAll.title='Studio Director v10.7.0: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
+  generateAll.title='Studio Director v10.8.0: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4534,7 +4544,7 @@ generateAll.onclick=async()=>{
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       const renderDetail=/studio-(local|director)-/i.test(String(data.renderEngine||''))
-        ?('Studio Director v10.7.0 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+        ?('Studio Director v10.8.0 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
@@ -7779,7 +7789,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=21',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=22',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
