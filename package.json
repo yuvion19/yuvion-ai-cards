@@ -1,12 +1,12 @@
 {
   "name": "yuvion-ai-cards",
-  "version": "8.5.1",
+  "version": "8.6.0",
   "private": true,
   "type": "module",
   "packageManager": "npm@10.9.2",
   "scripts": {
     "start": "node server.js",
-    "test": "node scripts/smoke.mjs"
+    "test": "node --check server.js && node scripts/smoke.mjs"
   },
   "engines": {
     "node": ">=20"

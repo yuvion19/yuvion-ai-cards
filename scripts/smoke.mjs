@@ -223,6 +223,8 @@ if(!server.includes('makeProductHalo'))fail('product halo enhancement missing');
 
 if(!dockerfile.includes('fonts-dejavu-core'))fail('Dockerfile must install DejaVu fonts');else ok('Dockerfile installs DejaVu fonts');
 if(!dockerfile.includes('fontconfig'))fail('Dockerfile must install fontconfig');else ok('Dockerfile installs fontconfig');
+if(!dockerfile.includes('RUN npm test'))fail('Dockerfile must run production smoke tests');else ok('Dockerfile runs production smoke tests');
+if(pkg.scripts?.test!=='node --check server.js && node scripts/smoke.mjs')fail('package test must include server syntax check');else ok('package test includes server syntax check');
 
 if(!server.includes('error.code = "text_overlay_render_failed"'))fail('text overlay guard failure code missing');else ok('text overlay guard failure code present');
 if(!server.includes('textPixels < 80'))fail('text overlay pixel threshold missing');else ok('text overlay pixel threshold present');
