@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5cff">
+<title>Yuvion AI — Карточки товаров</title>
+<style>
+:root{
+  --bg:#f5f8ff;--card:#fff;--text:#10203b;--muted:#65728a;--line:#dbe4f2;
+  --blue:#0b5cff;--blue2:#3aa8ff;--soft:#eaf2ff;--danger:#b42318;
+  --shadow:0 18px 55px rgba(31,74,125,.11)
+}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:linear-gradient(180deg,#f8fbff 0,#eef4ff 100%);color:var(--text)}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:22px}
+header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:10px 0 28px}
+.brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:22px}
+.logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--blue2));display:grid;place-items:center;color:#fff;box-shadow:0 10px 28px rgba(11,92,255,.28)}
+.status{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 13px;font-size:13px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:#94a3b8}.dot.ok{background:#22c55e}.dot.bad{background:#ef4444}
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;align-items:stretch;margin-bottom:26px}
+.hero-card,.side-card,.panel{background:rgba(255,255,255,.92);border:1px solid rgba(219,228,242,.9);border-radius:28px;box-shadow:var(--shadow)}
+.hero-card{padding:34px}
+.eyebrow{display:inline-flex;padding:8px 12px;border-radius:999px;background:var(--soft);color:var(--blue);font-weight:800;font-size:13px;margin-bottom:18px}
+h1{font-size:46px;line-height:1.02;letter-spacing:-1.6px;margin:0 0 16px}
+.lead{font-size:18px;line-height:1.6;color:var(--muted);max-width:760px;margin:0}
+.side-card{padding:28px;display:flex;flex-direction:column;justify-content:center}
+.side-card strong{font-size:24px}.side-card p{color:var(--muted);line-height:1.55;margin:10px 0 0}
+.steps{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 4px}
+.step{padding:8px 12px;border-radius:12px;background:#f4f7fb;color:#536176;font-size:13px;font-weight:700}
+.step.active{background:#e6efff;color:var(--blue)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.panel{padding:26px}
+.panel h2{margin:0 0 18px;font-size:22px;letter-spacing:-.4px}
+.drop{border:2px dashed #b7c9e6;background:#f8fbff;border-radius:22px;padding:34px 20px;text-align:center;transition:.2s}
+.drop.drag{border-color:var(--blue);background:#edf4ff}
+.drop-title{font-weight:900;font-size:20px}.drop-sub{color:var(--muted);font-size:14px;margin-top:8px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px}
+.btn{border:0;border-radius:14px;padding:13px 18px;font-weight:800;transition:.15s}
+.btn:hover{transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(135deg,var(--blue),#2379ff);color:#fff;box-shadow:0 9px 22px rgba(11,92,255,.22)}
+.btn.secondary{background:#eef4ff;color:var(--blue)}
+.btn.ghost{background:#fff;color:#334155;border:1px solid var(--line)}
+.btn.danger{background:#fff0f0;color:#b42318;border:1px solid #ffd1d1}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.thumb{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1;background:#edf2f8}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .main{position:absolute;left:8px;top:8px;background:#fff;color:var(--blue);font-size:11px;font-weight:800;border-radius:999px;padding:5px 7px}
+.thumb .x{position:absolute;right:7px;top:7px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(15,23,42,.78);color:#fff;font-size:16px}
+label{display:block;font-size:13px;font-weight:800;color:#46546a;margin:12px 0 7px}
+input,textarea,select{width:100%;border:1px solid var(--line);background:#fff;border-radius:13px;padding:12px 13px;color:var(--text);outline:none}
+input:focus,textarea:focus,select:focus{border-color:#8ab4ff;box-shadow:0 0 0 3px rgba(11,92,255,.08)}
+textarea{resize:vertical;min-height:100px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.full{grid-column:1/-1}
+.progress{display:none;margin-top:18px;border-radius:18px;background:#f7f9fc;padding:15px}
+.progress.show{display:block}
+.bar{height:9px;background:#e5ebf3;border-radius:999px;overflow:hidden}.bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--blue2));transition:.3s}
+.status-text{margin-top:9px;font-size:13px;color:var(--muted)}
+.result{display:none;margin-top:22px}.result.show{display:block}
+.editbox{background:#f9fbfe;border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px}
+.char-list{display:grid;gap:8px;margin-top:10px}
+.char-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center}
+.char-row button{width:38px;height:38px;border:0;border-radius:10px;background:#fff0f0;color:#b42318}
+.cards-section{display:none;margin-top:24px}.cards-section.show{display:block}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.card-preview{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(31,74,125,.08)}
+.card-preview img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover}
+.card-foot{padding:10px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.card-foot span{font-size:12px;color:var(--muted);font-weight:700}
+.mini-btn{border:0;background:#eef4ff;color:var(--blue);border-radius:10px;padding:8px 10px;font-weight:800}
+.footer-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.notice{margin-top:16px;padding:12px 14px;border-radius:14px;background:#fff8e8;border:1px solid #ffe2a8;color:#815b13;font-size:13px;line-height:1.45}
+.error{display:none;margin-top:12px;padding:12px 14px;border-radius:14px;background:#fff1f1;color:#a11b1b;border:1px solid #ffc9c9;font-size:14px}
+.error.show{display:block}
+small.muted{display:block;color:var(--muted);margin-top:8px}
+@media(max-width:900px){.hero,.grid{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}h1{font-size:38px}}
+@media(max-width:560px){.wrap{padding:14px}.hero-card,.side-card,.panel{border-radius:22px;padding:20px}h1{font-size:34px}.two{grid-template-columns:1fr}.thumbs{grid-template-columns:repeat(3,1fr)}.cards{grid-template-columns:1fr 1fr}.btn{width:100%}.actions{display:grid;grid-template-columns:1fr 1fr}.actions .btn{width:auto}.char-row{grid-template-columns:1fr}.char-row button{width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="logo">Y</div><div>Yuvion AI</div></div>
+    <div class="status"><span id="healthDot" class="dot"></span><span id="healthText">Проверяем GigaChat…</span></div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-card">
+      <div class="eyebrow">Для арендаторов Yuvion.ru</div>
+      <h1>Фото товара → готовая карточка для маркетплейса</h1>
+      <p class="lead">Загрузите фотографии. GigaChat создаст название, описание, характеристики и тезисы, а сервис соберёт 4 продающие карточки 900×1200.</p>
+      <div class="steps">
+        <span class="step active">1. Фото</span>
+        <span class="step">2. Анализ</span>
+        <span class="step">3. Проверка</span>
+        <span class="step">4. 4 карточки</span>
+      </div>
+    </div>
+    <div class="side-card">
+      <strong>Формат сразу под Ozon</strong>
+      <p>Вертикальные карточки 3:4, товар помещается целиком, без водяных знаков. Можно скачать каждое изображение отдельно или одним ZIP.</p>
+      <div class="notice">Неофициальный инструмент для подготовки материалов маркетплейса. Перед публикацией продавец проверяет характеристики.</div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>1. Загрузите товар</h2>
+      <div id="drop" class="drop">
+        <div class="drop-title">Перетащите фото сюда</div>
+        <div class="drop-sub">JPG, PNG или WebP · до 10 МБ · до 5 фото</div>
+        <div class="actions">
+          <button id="galleryBtn" class="btn primary" type="button">Выбрать фото</button>
+          <button id="cameraBtn" class="btn secondary" type="button">Сфотографировать</button>
+        </div>
+        <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+        <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
+      </div>
+      <div id="thumbs" class="thumbs"></div>
+      <small class="muted">Первое фото считается главным. Можно удалить лишние снимки.</small>
+    </section>
+
+    <section class="panel">
+      <h2>2. Данные товара</h2>
+      <div class="two">
+        <div><label>Название, если известно</label><input id="name" placeholder="Например: детский диспенсер воды"></div>
+        <div><label>Бренд</label><input id="brand" placeholder="Опционально"></div>
+        <div><label>Артикул</label><input id="article" placeholder="SKU / артикул"></div>
+        <div><label>Штрихкод</label><input id="barcode" placeholder="EAN / штрихкод"></div>
+        <div><label>Материал</label><input id="material" placeholder="Если точно знаете"></div>
+        <div><label>Размер / объём</label><input id="size" placeholder="Если точно знаете"></div>
+        <div class="full"><label>Комментарий для ИИ</label><textarea id="comment" placeholder="Что важно подчеркнуть, кому подходит, что входит в комплект…"></textarea></div>
+        <div class="full"><label>Стиль карточек</label>
+          <select id="style">
+            <option value="marketplace">Яркий маркетплейс</option>
+            <option value="premium">Премиальный</option>
+            <option value="child">Детский</option>
+            <option value="minimal">Минималистичный</option>
+            <option value="strict">Строгий</option>
+          </select>
+        </div>
+      </div>
+      <div class="footer-actions">
+        <button id="analyzeBtn" class="btn primary" type="button">Проанализировать товар</button>
+        <button id="resetBtn" class="btn ghost" type="button">Очистить</button>
+      </div>
+      <div id="error" class="error"></div>
+      <div id="progress" class="progress">
+        <div class="bar"><div id="bar"></div></div>
+        <div id="statusText" class="status-text">Подготовка…</div>
+      </div>
+    </section>
+  </div>
+
+  <section id="result" class="panel result">
+    <h2>3. Проверьте текст</h2>
+    <div class="two">
+      <div class="full"><label>Заголовок</label><input id="outTitle"></div>
+      <div class="full"><label>Краткое описание</label><textarea id="outShort"></textarea></div>
+      <div class="full"><label>Полное описание</label><textarea id="outDescription"></textarea></div>
+    </div>
+    <div class="editbox">
+      <strong>Характеристики</strong>
+      <div id="charList" class="char-list"></div>
+      <button id="addCharBtn" class="btn ghost" type="button" style="margin-top:10px">+ Добавить характеристику</button>
+    </div>
+    <div class="editbox">
+      <strong>Преимущества</strong>
+      <div id="benefitsBox"></div>
+    </div>
+    <div class="footer-actions">
+      <button id="generateBtn" class="btn primary" type="button">Создать 4 карточки 900×1200</button>
+    </div>
+  </section>
+
+  <section id="cardsSection" class="panel cards-section">
+    <h2>4. Готовые карточки</h2>
+    <div id="cards" class="cards"></div>
+    <div class="footer-actions">
+      <button id="zipBtn" class="btn primary" type="button">Скачать ZIP из 4 карточек</button>
+      <button id="copyBtn" class="btn ghost" type="button">Скопировать описание</button>
+      <button id="nextBtn" class="btn secondary" type="button">Следующий товар</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let files=[];
+let analyzed=null;
+let generatedCards=[];
+
+function err(msg=""){ $("error").textContent=msg; $("error").classList.toggle("show",Boolean(msg)); }
+function progress(show,pct=0,text=""){ $("progress").classList.toggle("show",show); $("bar").style.width=pct+"%"; $("statusText").textContent=text; }
+
+async function health(){
+  try{
+    const r=await fetch("/api/health",{cache:"no-store"}); const d=await r.json();
+    $("healthDot").className="dot "+(d.gigaChat==="connected"?"ok":"bad");
+    $("healthText").textContent=d.gigaChat==="connected" ? "GigaChat подключён · "+(d.model||"") : "GigaChat не подключён";
+  }catch{ $("healthDot").className="dot bad"; $("healthText").textContent="Сервис недоступен"; }
+}
+health();
+
+function addFiles(list){
+  err("");
+  const incoming=[...list].filter(f=>["image/jpeg","image/png","image/webp"].includes(f.type));
+  const tooBig=incoming.find(f=>f.size>10*1024*1024);
+  if(tooBig){err("Фото «"+tooBig.name+"» больше 10 МБ.");return;}
+  files=[...files,...incoming].slice(0,5);
+  renderThumbs();
+}
+function renderThumbs(){
+  $("thumbs").innerHTML="";
+  files.forEach((f,i)=>{
+    const el=document.createElement("div"); el.className="thumb";
+    const img=document.createElement("img"); img.src=URL.createObjectURL(f);
+    const badge=document.createElement("span"); badge.className="main"; badge.textContent=i===0?"Главное":"Фото "+(i+1);
+    const x=document.createElement("button"); x.className="x"; x.textContent="×"; x.type="button";
+    x.onclick=()=>{files.splice(i,1);renderThumbs();};
+    el.append(img,badge,x); $("thumbs").append(el);
+  });
+}
+$("galleryBtn").onclick=()=>$("fileInput").click();
+$("cameraBtn").onclick=()=>$("cameraInput").click();
+$("fileInput").onchange=e=>{addFiles(e.target.files);e.target.value="";};
+$("cameraInput").onchange=e=>{addFiles(e.target.files);e.target.value="";};
+["dragenter","dragover"].forEach(n=>$("drop").addEventListener(n,e=>{e.preventDefault();$("drop").classList.add("drag")}));
+["dragleave","drop"].forEach(n=>$("drop").addEventListener(n,e=>{e.preventDefault();$("drop").classList.remove("drag")}));
+$("drop").addEventListener("drop",e=>addFiles(e.dataTransfer.files));
+
+function filePayload(file){
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onload=()=>resolve({image:String(fr.result).split(",")[1],mimeType:file.type,name:file.name});
+    fr.onerror=reject; fr.readAsDataURL(file);
+  });
+}
+function extraData(){
+  return {name:$("name").value,brand:$("brand").value,article:$("article").value,barcode:$("barcode").value,material:$("material").value,size:$("size").value,comment:$("comment").value};
+}
+async function post(url,body){
+  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error||("Ошибка "+r.status));
+  return d;
+}
+function charRow(name="",value=""){
+  const row=document.createElement("div"); row.className="char-row";
+  const a=document.createElement("input");a.placeholder="Характеристика";a.value=name;
+  const b=document.createElement("input");b.placeholder="Значение";b.value=value;
+  const x=document.createElement("button");x.type="button";x.textContent="Удалить";x.onclick=()=>row.remove();
+  row.append(a,b,x);return row;
+}
+function renderAnalysis(d){
+  $("outTitle").value=d.title||"";
+  $("outShort").value=d.shortDescription||"";
+  $("outDescription").value=d.description||"";
+  $("charList").innerHTML="";
+  (d.characteristics||[]).forEach(x=>$("charList").append(charRow(x.name,x.value)));
+  if(!(d.characteristics||[]).length)$("charList").append(charRow());
+  $("benefitsBox").innerHTML="";
+  const list=(d.benefits||[]).length?d.benefits:["Удобство использования","Понятные преимущества","Подходит для карточки маркетплейса"];
+  list.slice(0,6).forEach((t,i)=>{
+    const label=document.createElement("label");label.style.fontWeight="600";label.style.margin="9px 0 0";
+    const input=document.createElement("input");input.type="text";input.value=t;input.dataset.benefit="1";
+    label.append(input);$("benefitsBox").append(label);
+  });
+  $("result").classList.add("show");
+  $("result").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("addCharBtn").onclick=()=>$("charList").append(charRow());
+
+$("analyzeBtn").onclick=async()=>{
+  if(!files.length){err("Сначала добавьте хотя бы одну фотографию товара.");return;}
+  err(""); $("analyzeBtn").disabled=true;
+  try{
+    progress(true,18,"Готовим фотографии…");
+    const payloads=await Promise.all(files.map(filePayload));
+    progress(true,42,"Загружаем фото в GigaChat…");
+    const d=await post("/api/analyze",{image:payloads[0].image,mimeType:payloads[0].mimeType,additionalImages:payloads.slice(1),extraData:extraData()});
+    progress(true,92,"Формируем описание и характеристики…");
+    analyzed=d;renderAnalysis(d);
+    progress(true,100,"Анализ готов.");
+    setTimeout(()=>progress(false),700);
+  }catch(e){err(e.message);progress(false);}
+  finally{$("analyzeBtn").disabled=false;}
+};
+
+function currentCard(){
+  const characteristics=[...$("charList").children].map(row=>({name:row.children[0].value.trim(),value:row.children[1].value.trim()})).filter(x=>x.name&&x.value);
+  const benefits=[...document.querySelectorAll("[data-benefit='1']")].map(x=>x.value.trim()).filter(Boolean);
+  return {
+    ...(analyzed||{}),
+    title:$("outTitle").value.trim(),
+    shortDescription:$("outShort").value.trim(),
+    description:$("outDescription").value.trim(),
+    characteristics,benefits
+  };
+}
+function downloadB64(base64,name,mime="image/png"){
+  const a=document.createElement("a");a.href="data:"+mime+";base64,"+base64;a.download=name;document.body.append(a);a.click();a.remove();
+}
+function renderCards(cards){
+  $("cards").innerHTML="";
+  cards.forEach((c,i)=>{
+    const box=document.createElement("div");box.className="card-preview";
+    const img=document.createElement("img");img.src="data:image/png;base64,"+c.base64;
+    const foot=document.createElement("div");foot.className="card-foot";
+    const span=document.createElement("span");span.textContent=["Обложка","Преимущества","Характеристики","Применение"][i];
+    const btn=document.createElement("button");btn.className="mini-btn";btn.type="button";btn.textContent="Скачать";btn.onclick=()=>downloadB64(c.base64,c.filename);
+    foot.append(span,btn);box.append(img,foot);$("cards").append(box);
+  });
+  $("cardsSection").classList.add("show");
+  $("cardsSection").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("generateBtn").onclick=async()=>{
+  if(!files.length){err("Фото не найдено.");return;}
+  err("");$("generateBtn").disabled=true;
+  try{
+    progress(true,20,"Подготавливаем композиции…");
+    const main=await filePayload(files[0]);
+    progress(true,45,"Создаём 4 вертикальные карточки…");
+    const d=await post("/api/generate-cards",{image:main.image,mimeType:main.mimeType,card:currentCard(),style:$("style").value});
+    generatedCards=d.cards||[];
+    progress(true,92,"Проверяем формат 900×1200…");
+    renderCards(generatedCards);
+    progress(true,100,"Готово — 4 карточки созданы.");
+    setTimeout(()=>progress(false),700);
+  }catch(e){err(e.message);progress(false);}
+  finally{$("generateBtn").disabled=false;}
+};
+$("zipBtn").onclick=async()=>{
+  if(generatedCards.length!==4)return;
+  $("zipBtn").disabled=true;
+  try{
+    const d=await post("/api/package",{cards:generatedCards});
+    downloadB64(d.zipBase64,d.zipName,"application/zip");
+  }catch(e){err(e.message);}
+  finally{$("zipBtn").disabled=false;}
+};
+$("copyBtn").onclick=async()=>{
+  const text=$("outTitle").value+"\n\n"+$("outDescription").value+"\n\n"+[...$("charList").children].map(r=>r.children[0].value+": "+r.children[1].value).join("\n");
+  try{await navigator.clipboard.writeText(text);$("copyBtn").textContent="Скопировано";setTimeout(()=>$("copyBtn").textContent="Скопировать описание",1200);}catch{}
+};
+function resetAll(){
+  files=[];analyzed=null;generatedCards=[];renderThumbs();err("");progress(false);
+  ["name","brand","article","barcode","material","size","comment","outTitle","outShort","outDescription"].forEach(id=>$(id).value="");
+  $("result").classList.remove("show");$("cardsSection").classList.remove("show");$("cards").innerHTML="";
+}
+$("resetBtn").onclick=resetAll;
+$("nextBtn").onclick=()=>{resetAll();window.scrollTo({top:0,behavior:"smooth"});};
+</script>
+</body>
+</html>
