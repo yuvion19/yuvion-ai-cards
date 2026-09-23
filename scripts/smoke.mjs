@@ -182,22 +182,22 @@ const features=[
   ['urlImportProvenanceAudit: true','URL provenance audit metadata'],
   ['urlImportEmbeddedJsonFallback: true','embedded JSON URL import fallback metadata'],
   ['guaranteedDescriptions: true','guaranteed description metadata'],
-  ['localDescriptionOnly: true','local-only description health flag'],
-  ['gptProductCopyEnabled: false','paid product-copy AI disabled'],
-  ['gptProductCopyConfigured: true','local product-copy configured'],
-  ['gptProductCopyModel: "yuvion-local-copy-v2"','local copy model metadata'],
+  ['deepSeekPrimary: true','DeepSeek primary health flag'],
+  ['gptProductCopyEnabled: true','DeepSeek product-copy AI enabled'],
+  ['gptProductCopyConfigured: deepSeekConfigured()','DeepSeek configured health flag'],
+  ['gptProductCopyModel: deepSeekModel()','DeepSeek model metadata'],
   ['gptProductCopyFallback: true','local description safety fallback metadata'],
-  ['/api/generate-copy','local copy endpoint'],
-  ['function buildLocalProductCopy','local copy builder'],
-  ['function generateProductCopyWithProviders','local copy compatibility router'],
+  ['/api/generate-copy','DeepSeek copy endpoint'],
+  ['function callDeepSeekCopy','DeepSeek copy implementation'],
+  ['function generateProductCopyWithProviders','DeepSeek copy router'],
   ['copyProviderCircuitBreaker: false','external copy circuit breaker disabled'],
-  ['copyProviderPriority: ["local"]','local-only provider priority metadata'],
-  ['noLoginAiFallback: true','no-login local fallback metadata'],
-  ['local: { configured: true, model: "yuvion-local-copy-v2"','local health provider metadata'],
+  ['copyProviderPriority: ["deepseek","local"]','DeepSeek provider priority metadata'],
+  ['noLoginAiFallback: true','local emergency fallback metadata'],
+  ['deepseek: { configured: deepSeekConfigured()','DeepSeek health provider metadata'],
 
 
   ["data.provider||copy.copyProvider","frontend preserves actual server provider"],
-  ['async function enhanceProductCopyLocally','frontend local copy helper'],
+  ['async function enhanceProductCopyWithDeepSeek','frontend DeepSeek copy helper'],
   ['function ensureVisibleProductDescription','client visible-description guard'],
   ['copyResponseDescriptionGuard: true','server copy response description guard'],
   ['copyResponseTelemetry: true','copy response telemetry metadata'],
@@ -214,9 +214,9 @@ const features=[
   ['return ensureVisibleProductDescription({','persisted edit description guarantee'],
   ['currentData=ensureVisibleProductDescription(currentData);','URL pre-GPT description guarantee'],
   ['analyzed=ensureVisibleProductDescription(analyzed);','Excel description guarantee'],
-  ["creativeStatus.textContent='Готовим описание локально по распознанным и подтверждённым данным…'","photo flow local copy integration"],
+  ["creativeStatus.textContent='Готовим описание через DeepSeek по подтверждённым данным…'","photo flow DeepSeek copy integration"],
   ["setUrlImportStatus('Данные получены. Готовим описание товара…'","URL flow local copy integration"],
-  ['analyzed=await enhanceProductCopyLocally(analyzed);','Excel flow local copy integration'],
+  ['analyzed=await enhanceProductCopyWithDeepSeek(analyzed);','Excel flow DeepSeek copy integration'],
   ['function productSeedFromEmbeddedJson','embedded product parser'],
   ['function mergeProductSeeds','URL seed merge'],
   ['function safeCatalogDescription','safe description fallback helper'],
@@ -255,7 +255,7 @@ for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
 }
 if(html.includes('js.puter.com')||html.includes('window.puter')||html.includes('enhanceProductCopyWithPuter'))fail('Puter login fallback still present');else ok('Puter login fallback removed');
-if(server.includes('async function callOpenAiCopy')||server.includes('async function callVireonixCopy')||server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy'))fail('external description AI providers still present');else ok('external description AI providers removed');
+if(server.includes('async function callOpenAiCopy')||server.includes('async function callVireonixCopy')||server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy'))fail('retired description AI providers still present');else if(!server.includes('async function callDeepSeekCopy'))fail('DeepSeek description provider missing');else ok('DeepSeek is the only external description provider');
 if(server.includes('api.groq.com/openai/v1')||server.includes('api.cloudflare.com/client/v4/accounts/')||server.includes('openrouter.ai/api/v1'))fail('legacy description provider endpoints still present');else ok('legacy description provider endpoints removed');
 
 
@@ -335,35 +335,30 @@ if(!server.includes('credit_balance_exhausted" || error?.status === 401'))fail('
 if(!html.includes('currentStaleCards=[0,1,2,3];currentScenes=[]'))fail('post-analysis full scene refresh missing');else ok('post-analysis full scene refresh present');
 if(!html.includes('currentStaleCards.length<4'))fail('full-set stale cards must bypass overlay-only rebuild');else ok('full-set stale cards bypass overlay-only rebuild');
 
-if(!server.includes('browserVisionFallback: true'))fail('browser vision fallback metadata missing');else ok('browser vision fallback metadata present');
+if(!server.includes('deepSeekVision: true'))fail('DeepSeek vision metadata missing');else ok('DeepSeek vision metadata present');
 if(!server.includes('uniqueMultiAngleRouting: true'))fail('unique multi-angle routing metadata missing');else ok('unique multi-angle routing metadata present');
-if(!server.includes('/api/local-vision-normalize'))fail('local vision normalize endpoint missing');else ok('local vision normalize endpoint present');
-if(!html.includes("new Worker('/local-vision-worker.js?v=11.2.6'"))fail('local vision worker hook missing');else ok('local vision worker hook present');
-if(!html.includes('upgradeFallbackWithBrowserVision'))fail('browser vision fallback integration missing');else ok('browser vision fallback integration present');
+if(!server.includes('type: "input_image"'))fail('DeepSeek image input missing');else ok('DeepSeek image input present');
+if(html.includes('localVisionWorker'))fail('obsolete local vision worker still active');else ok('local vision worker removed from active UI');
+if(html.includes('upgradeFallbackWithBrowserVision'))fail('obsolete browser vision fallback still active');else ok('browser vision fallback removed');
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=31',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=32',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
-if(!server.includes('mobileVitOnlyVision: true'))fail('MobileViT-only vision metadata missing');else ok('MobileViT-only vision metadata present');
+if(!server.includes('deepSeekVision: true'))fail('DeepSeek-only vision metadata missing');else ok('DeepSeek-only vision metadata present');
 if(!server.includes('perCardSceneVariants: true'))fail('per-card scene variants metadata missing');else ok('per-card scene variants metadata present');
 if(!server.includes('transformProductForScene'))fail('safe product scene transform missing');else ok('safe product scene transform present');
 if(!server.includes('sceneVariant=Number.isInteger'))fail('scene-specific background variant missing');else ok('scene-specific background variant present');
-if(!html.includes("local-vision-worker.js?v=11.2.6"))fail('vision worker cache bust missing');else ok('vision worker cache bust present');
-if(!worker.includes('/+esm'))fail('worker ESM CDN endpoint missing');else ok('worker ESM CDN endpoint present');
-if(!worker.includes('dtype:"q8"'))fail('worker WASM q8 fallback missing');else ok('worker WASM q8 fallback present');
-if(worker.includes('AutoModelForVision2Seq')||worker.includes('SmolVLM'))fail('heavy VLM still present in browser worker');else ok('heavy VLM removed from browser worker');
-if(!sw.includes("url.pathname==='/local-vision-worker.js'"))fail('service worker vision bypass missing');else ok('service worker vision bypass present');
+if(html.includes('local-vision-worker.js'))fail('obsolete vision worker reference remains');else ok('obsolete vision worker reference removed');
 
 if(!server.includes('Преобладающий цвет на фото'))fail('guaranteed visible fallback characteristic missing');else ok('guaranteed visible fallback characteristic present');
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
-if(!html.includes('improveProductWithLocalVisionInBackground'))fail('legacy recovery helper missing');else ok('legacy recovery helper retained');
-if(!html.includes("const improved=await upgradeFallbackWithBrowserVision(provisional,src)"))fail('final local vision before first render missing');else ok('final local vision before first render present');
-if(!html.includes("register('/sw.js?v=31'"))fail('service worker v31 registration missing');else ok('service worker v31 registration present');
-if(!sw.includes("yuvion-ai-shell-v31"))fail('service worker v31 cache missing');else ok('service worker v31 cache present');
-if(!server.includes('freeTextLocalFirst: true'))fail('local-first text analysis metadata missing');else ok('local-first text analysis metadata present');
+if(html.includes('improveProductWithLocalVisionInBackground'))fail('obsolete local vision recovery remains');else ok('obsolete local vision recovery removed');
+if(!html.includes("register('/sw.js?v=32'"))fail('service worker v32 registration missing');else ok('service worker v32 registration present');
+if(!sw.includes("yuvion-ai-shell-v32"))fail('service worker v32 cache missing');else ok('service worker v32 cache present');
+if(!server.includes('freeTextLocalFirst: false'))fail('DeepSeek-first text analysis metadata missing');else ok('DeepSeek-first text analysis metadata present');
 if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
 if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first metadata missing');else ok('final-data-first metadata present');
 if(!server.includes('minimalUiFlow: true'))fail('minimal UI metadata missing');else ok('minimal UI metadata present');
@@ -411,8 +406,8 @@ if(!server.includes('localizeVisionLabel'))fail('vision label localization missi
 if(!server.includes('width="772" height="108"'))fail('visible description panel missing');else ok('visible description panel present');
 
 if(!server.includes('preferLocal === true'))fail('local-first analyze branch missing');else ok('local-first analyze branch present');
-if(!html.includes('requestImmediateLocalCard'))fail('immediate local description helper missing');else ok('immediate local description helper present');
-if(!html.includes('preferLocal:true'))fail('frontend local-first analyze request missing');else ok('frontend local-first analyze request present');
+if(!html.includes('requestImmediateDeepSeekCard'))fail('immediate DeepSeek description helper missing');else ok('immediate DeepSeek description helper present');
+if(!html.includes('preferLocal:false'))fail('frontend DeepSeek analyze request missing');else ok('frontend DeepSeek analyze request present');
 if(server.includes('}\n  try { visual = { ...visual, product: await transformProductForScene(visual.product,index) };'))fail('whole photo panel rotation regression present');else ok('whole photo panels are not rotated');
 if(html.includes("const response=await fetch('/api/label-ocr',{method:'POST'"))fail('paid OCR still wired into automatic/main label flow');else ok('main label flow avoids paid OCR');
 
