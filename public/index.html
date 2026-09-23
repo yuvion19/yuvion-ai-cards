@@ -530,7 +530,7 @@
         <div class="excel-stat"><b id="excelQueueCount">0</b><span>В ОЧЕРЕДИ</span></div>
         <div class="excel-stat"><b id="excelReadyCount">0</b><span>ГОТОВО К YUVION</span></div>
       </div>
-      <div class="excel-auto-controls"><label style="font-size:10px;font-weight:850">Стиль:</label><select id="excelAutopilotStyle"><option value="auto">Авто · арт-директор</option><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select><span class="muted" id="excelPhotoMatchText" style="font-size:10px">Фото ещё не загружены.</span></div>
+      <div class="excel-auto-controls"><label style="font-size:10px;font-weight:850">Стиль:</label><select id="excelAutopilotStyle"><option value="auto">Авто · арт-директор</option><option value="marketplace">Маркетплейс PRO</option><option value="minimal">Минимализм</option><option value="premium">Премиум</option><option value="bright">Яркий</option><option value="tech">Техника</option><option value="home">Дом и интерьер</option></select><span class="muted" id="excelPhotoMatchText" style="font-size:10px">Фото ещё не загружены.</span></div>
       <div class="excel-auto-progress" id="excelAutoProgress"><div class="progress-track"><div class="progress-bar" id="excelAutoBar"></div></div><div class="muted" id="excelAutoProgressText" style="margin-top:7px;font-size:11px"></div></div>
       <div class="excel-auto-note">Можно использовать фото по SKU, публичную ссылку в Excel или оба источника сразу. Значения из Excel считаются данными продавца и имеют приоритет над сайтом-источником. Таблица, складские поля и очередь остаются локальными; URL и текущий товар отправляются серверу только при запуске соответствующего импорта/AI-этапа.</div>
       <div class="excel-auto-queue" id="excelAutoQueue"></div>
@@ -570,7 +570,7 @@
       <div class="queue-resume-note" id="queueResumeNote"></div>
       <div class="ops-budget">
         <label><span>Лимит AI-image бюджета, $</span><input id="queueBudgetUsd" type="number" min="0" step="0.5" value="10"></label>
-        <div id="queueBudgetStatus">Excel-автопилот использует бесплатный рендер; этот лимит относится только к Studio Local работает без image-generation API.</div>
+        <div id="queueBudgetStatus">Excel-автопилот использует Yuvion Studio AI; скорость очереди зависит от генерации изображений.</div>
       </div>
       <div class="ops-v64-actions">
         <button class="btn btn-primary btn-small" id="resumeLargeQueue">Продолжить очередь</button>
@@ -768,10 +768,11 @@
     <section class="design-studio" id="designStudio">
       <div class="design-studio-head">
         <div><div class="section-kicker">Дизайн 7.3</div><h3>Стиль карточек</h3><p>Yuvion сам собирает дизайн: можно оставить полноценную инфографику или сделать почти чистую обложку без текста, сохранив товар главным.</p></div>
-        <div class="design-free-badge">Бесплатный рендер</div>
+        <div class="design-free-badge">Yuvion Studio AI</div>
       </div>
       <div class="design-studio-body">
         <div class="design-style-grid" id="designStyleGrid">
+          <button type="button" class="design-style-card" data-style="marketplace"><b>Маркетплейс PRO</b><span>Как профессиональные карточки из референсов</span></button>
           <button type="button" class="design-style-card" data-style="bright"><b>Яркий</b><span>Универсальная продающая подача</span></button>
           <button type="button" class="design-style-card" data-style="kids"><b>Игрушки</b><span>Динамично и заметно</span></button>
           <button type="button" class="design-style-card" data-style="premium"><b>Премиум</b><span>Сдержанно и дороже визуально</span></button>
@@ -984,6 +985,7 @@
           <div><h3>План 4 карточек</h3><div class="muted">Сервис сам подберёт бесплатный стиль и сразу подготовит 4 продающие карточки. При необходимости всё можно отредактировать.</div></div>
           <div class="style-select"><b>Стиль:</b>
             <select id="style">
+              <option value="marketplace">Маркетплейс PRO</option>
               <option value="minimal">Минимализм</option>
               <option value="premium">Премиум</option>
               <option value="bright">Яркий</option>
@@ -998,7 +1000,7 @@
           </div>
           <div class="style-select"><b>Изображения:</b>
             <select id="renderMode">
-              <option value="free">Studio Local · бесплатно · 0 image-AI</option>
+              <option value="free">Yuvion Studio AI · автоматически</option>
             </select>
           </div>
           <label class="style-select" style="cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap">
@@ -4148,6 +4150,7 @@ function chooseDesignStyle(style){
 
 function recommendedDesignPersonality(style){
   if(style==='minimal')return {intensity:'calm',substyle:'clean'};
+  if(style==='marketplace')return {intensity:'bold',substyle:'contrast'};
   if(style==='beauty'||style==='premium'||style==='home')return {intensity:'selling',substyle:'soft'};
   if(style==='tech'||style==='tools'||style==='sport')return {intensity:'selling',substyle:'contrast'};
   if(style==='kids')return {intensity:'bold',substyle:'contrast'};
@@ -4229,10 +4232,11 @@ function recommendedStyleForProduct(card){
   if(/спорт|фитнес|трениров|туризм|поход|мяч|гантел|велосип/.test(text))return 'sport';
   if(/инструмент|ремонт|дрел|шуруп|ключ|отв[её]рт|строител/.test(text))return 'tools';
   if(/еда|напит|чай|кофе|слад|печень|соус|круп|продукт/.test(text))return 'food';
+  if(/смарт.?час|умн.*час|watch|часы|браслет|аксессуар/.test(text))return 'marketplace';
   if(/электрон|техник|кабель|заряд|науш|смартф|ламп|гаджет/.test(text))return 'tech';
   if(/дом|кухн|интерьер|декор|посуда|текстил|хранен|уборк/.test(text))return 'home';
-  if(/подар|аксессуар|украшен|премиум/.test(text))return 'premium';
-  return 'bright';
+  if(/подар|украшен|премиум/.test(text))return 'premium';
+  return 'marketplace';
 }
 
 function prepareAutomaticCardStyle(){
@@ -7129,7 +7133,7 @@ async function refreshDiagnosticsNow(allItems=null){
   if(storageManager.classList.contains('show'))await renderStorageManager(all);
   const state=loadLargeQueueState();
   const budgetLimit=queueBudgetLimit();
-  queueBudgetStatus.textContent='Excel-очередь создаёт изображения бесплатно: image-generation расход = $0. Лимит image-бюджета нужен только при ручном выборе «Studio Local · бесплатно». Временные 5xx/сеть повторяются до 2 раз; 429 не ретраится.';
+  queueBudgetStatus.textContent='Excel-очередь создаёт карточки через Yuvion Studio AI. Генерация изображений может занимать некоторое время; временные 5xx/сеть повторяются до 2 раз, 429 не ретраится.';
   queueResumeNote.classList.toggle('show',Boolean(state.pending));
   queueResumeNote.textContent=state.pending?'Сохранена незавершённая очередь. Последний запуск: '+new Date(state.updatedAt||Date.now()).toLocaleString('ru-RU')+'. Нажмите «Продолжить очередь».':'';
 }
@@ -8144,7 +8148,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=35',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=36',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
