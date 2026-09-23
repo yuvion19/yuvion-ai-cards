@@ -3751,6 +3751,146 @@ async function whatsappSend(phone,text){
   if(!r.ok)throw new Error("whatsapp_"+r.status);
   return "sent";
 }
+
+async function whatsappReplyText(phone, body){
+  if(!WHATSAPP_ACCESS_TOKEN||!WHATSAPP_PHONE_NUMBER_ID||!WHATSAPP_GRAPH_VERSION)return false;
+  const to=String(phone||"").replace(/^\\+/,"");
+  if(!to||!body)return false;
+  const r=await fetch("https://graph.facebook.com/"+encodeURIComponent(WHATSAPP_GRAPH_VERSION)+"/"+encodeURIComponent(WHATSAPP_PHONE_NUMBER_ID)+"/messages",{
+    method:"POST",
+    headers:{authorization:"Bearer "+WHATSAPP_ACCESS_TOKEN,"content-type":"application/json"},
+    body:JSON.stringify({messaging_product:"whatsapp",to,type:"text",text:{preview_url:false,body:String(body).slice(0,3900)}})
+  });
+  if(!r.ok)throw new Error("whatsapp_reply_"+r.status);
+  return true;
+}
+
+function verifyWhatsAppSignature(req){
+  if(!WHATSAPP_APP_SECRET||!req.rawBody)return false;
+  const given=String(req.get("x-hub-signature-256")||"");
+  if(!given.startsWith("sha256="))return false;
+  const expected="sha256="+crypto.createHmac("sha256",WHATSAPP_APP_SECRET).update(req.rawBody).digest("hex");
+  const a=Buffer.from(given),b=Buffer.from(expected);
+  return a.length===b.length&&crypto.timingSafeEqual(a,b);
+}
+
+function extractWhatsAppMessageText(m){
+  if(!m||typeof m!=="object")return "";
+  if(m.type==="text")return clean(m.text?.body,8000);
+  if(["image","video","document"].includes(m.type))return clean(m[m.type]?.caption,8000);
+  if(m.type==="button")return clean(m.button?.text,8000);
+  if(m.type==="interactive")return clean(m.interactive?.button_reply?.title||m.interactive?.list_reply?.title,8000);
+  return "";
+}
+
+function parseLooseJson(text){
+  let t=String(text||"").trim();
+  t=t.replace(/^\`\`\`(?:json)?\s*/i,"").replace(/\s*\`\`\`$/,"").trim();
+  const a=t.indexOf("{"),b=t.lastIndexOf("}");
+  if(a>=0&&b>a)t=t.slice(a,b+1);
+  return JSON.parse(t);
+}
+
+async function parseWhatsAppMemorial(text){
+  if(!OPENAI_API_KEY)throw new Error("openai_not_configured");
+  const now=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Moscow",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const instructions=[
+    "Extract memorial/death information from a WhatsApp message. The message may be in Russian, Juhuri, Hebrew, Azerbaijani or English.",
+    "Return ONLY a JSON object, no markdown.",
+    "Required keys: is_memorial, confidence, full_name, death_date, funeral_date, event_time, city, place, note.",
+    "Dates must be YYYY-MM-DD. event_time must be HH:MM (24h). Unknown values must be null.",
+    "is_memorial=true only when the message actually reports a person's death, funeral, burial, mourning/remembrance information tied to a deceased person.",
+    "full_name should contain only the deceased person's name, not greetings or relatives.",
+    "note must contain only useful memorial details not already represented by other fields; do not copy phone numbers, contact details or private conversation text.",
+    "If the text says today/yesterday/tomorrow, interpret relative to Europe/Moscow. Today is "+now+".",
+    "Do not invent missing facts."
+  ].join("\n");
+  const r=await fetch("https://api.openai.com/v1/responses",{
+    method:"POST",
+    headers:{authorization:"Bearer "+OPENAI_API_KEY,"content-type":"application/json"},
+    body:JSON.stringify({
+      model:OPENAI_WHATSAPP_MODEL,
+      input:[
+        {role:"system",content:[{type:"input_text",text:instructions}]},
+        {role:"user",content:[{type:"input_text",text:String(text||"").slice(0,8000)}]}
+      ]
+    })
+  });
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error("openai_"+r.status);
+  let out=typeof d.output_text==="string"?d.output_text:"";
+  if(!out){
+    for(const item of d.output||[]){
+      for(const c of item.content||[]){
+        if(c.type==="output_text"&&c.text){out=c.text;break}
+      }
+      if(out)break;
+    }
+  }
+  const p=parseLooseJson(out);
+  return {
+    is_memorial:Boolean(p.is_memorial),
+    confidence:Number(p.confidence||0),
+    full_name:clean(p.full_name,180)||null,
+    death_date:validDate(clean(p.death_date,10))?clean(p.death_date,10):null,
+    funeral_date:validDate(clean(p.funeral_date,10))?clean(p.funeral_date,10):null,
+    event_time:/^([01]\\d|2[0-3]):[0-5]\\d$/.test(String(p.event_time||""))?String(p.event_time):null,
+    city:clean(p.city,120)||null,
+    place:clean(p.place,180)||null,
+    note:clean(p.note,1200)||null
+  };
+}
+
+async function processWhatsAppPayload(payload){
+  const changes=[];
+  for(const entry of payload?.entry||[])for(const change of entry?.changes||[])changes.push(change?.value||{});
+  for(const value of changes){
+    for(const m of value.messages||[]){
+      const messageId=clean(m.id,240),from=clean(m.from,60);
+      if(!messageId||!from)continue;
+      const text=extractWhatsAppMessageText(m);
+      if(!text){
+        await whatsappReplyText(from,"Для автоматической публикации пришлите текстом ФИО умершего и дату смерти. Можно также указать дату/время и место похорон.").catch(()=>{});
+        continue;
+      }
+      try{
+        const p=await parseWhatsAppMemorial(text);
+        if(!p.is_memorial||p.confidence<0.68||!p.full_name||!p.death_date){
+          await whatsappReplyText(from,"Не удалось однозначно определить ФИО и дату смерти. Пришлите одним сообщением: ФИО умершего, дату смерти и, если известно, дату/время и место похорон.").catch(()=>{});
+          continue;
+        }
+        const source=p.death_date;
+        const yahrzeit=nextYahrzeit(source,new Date(),"standard");
+        const published=await sb("rpc/memorial_admin_whatsapp_publish",{method:"POST",body:{
+          p_token:ADMIN_TOKEN,
+          p_message_id:messageId,
+          p_sender_phone:from,
+          p_raw_text:text,
+          p_parsed:p,
+          p_full_name:p.full_name,
+          p_death_date:p.death_date,
+          p_funeral_date:p.funeral_date,
+          p_event_time:p.event_time,
+          p_city:p.city,
+          p_place:p.place,
+          p_note:p.note,
+          p_yahrzeit_date:yahrzeit,
+          p_hebrew_death_label:hebrewLabel(source)
+        }});
+        const ids=Array.isArray(published?.event_ids)?published.event_ids:[];
+        const url=ids[0]?(PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m/memorial/"+encodeURIComponent(ids[0]):(PUBLIC_BASE_URL||"").replace(/\/$/,"")+"/m";
+        const msg=published?.duplicate_message
+          ?"Эта информация уже была получена ранее. Запись на сайте не продублирована.\n"+url
+          :"Информация опубликована на сайте «Память».\n"+p.full_name+" · "+p.death_date+"\n"+url;
+        await whatsappReplyText(from,msg).catch(()=>{});
+      }catch(e){
+        console.error("whatsapp ingest",messageId,e.data||e.message||e);
+        await whatsappReplyText(from,"Не удалось обработать сообщение автоматически. Попробуйте отправить данные ещё раз одним текстовым сообщением.").catch(()=>{});
+      }
+    }
+  }
+}
+
 async function smsSend(phone,text){
   if(!reminderProviderStatus().sms)throw new Error("sms_not_configured");
   if(!phone)throw new Error("sms_phone_required");
