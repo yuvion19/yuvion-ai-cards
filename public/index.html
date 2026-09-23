@@ -397,7 +397,9 @@
     .simple-ui .workspace.show{max-width:760px;margin-top:18px;display:flex;flex-direction:column}.simple-ui .workspace-head,.simple-ui .product-cockpit,.simple-ui #designStudio,.simple-ui #yuvionExport{display:none!important}
     .simple-ui .simple-result{display:block;order:1;background:#fff;border:1px solid #EEE8E9;border-radius:20px;padding:20px;box-shadow:0 8px 28px rgba(34,24,28,.035)}
     .simple-result-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.simple-result-label{display:block;font-size:11px;font-weight:850;color:#A08F94;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
-    .simple-result h2{font-size:24px;line-height:1.2;margin:0;letter-spacing:-.025em}.simple-result p{margin:12px 0 0;color:#60575A;font-size:14px;line-height:1.55}
+    .simple-result h2{font-size:24px;line-height:1.2;margin:0;letter-spacing:-.025em}.simple-result p{margin:6px 0 0;color:#4F4649;font-size:14px;line-height:1.62}
+    .simple-description-block{margin-top:14px;padding:13px 14px;border-radius:14px;background:#FBF8F9;border:1px solid #EFE7E9}
+    .simple-description-label{display:block;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#A18F94}
     .simple-specs{display:flex;gap:6px;flex-wrap:wrap;margin-top:13px}.simple-specs span{padding:7px 9px;border-radius:999px;background:#F7F3F4;color:#5E5356;font-size:11px;font-weight:720}
     .simple-result-actions{display:flex;margin-top:14px}.simple-edit-btn,.simple-secondary-btn{border:1px solid #E8DFE1;background:#fff;color:#4D4245;border-radius:11px;padding:9px 12px;font-size:12px;font-weight:820;cursor:pointer}
     .simple-ui .editor{display:none!important;order:2;margin-top:10px;border-radius:18px;padding:18px}.simple-ui.show-editor .editor{display:block!important}.simple-ui.show-editor .simple-result{display:none!important}
@@ -753,7 +755,10 @@
         <div><span class="simple-result-label">Товар</span><h2 id="simpleResultTitle">Готовим данные…</h2></div>
         <button type="button" class="simple-edit-btn" id="simpleEdit">Изменить</button>
       </div>
-      <p id="simpleResultDescription"></p>
+      <div class="simple-description-block">
+        <span class="simple-description-label">Описание</span>
+        <p id="simpleResultDescription"></p>
+      </div>
       <div class="simple-result-meta" id="simpleResultMeta"></div>
       <div class="simple-specs" id="simpleResultSpecs"></div>
       <div class="simple-result-actions">
@@ -4418,9 +4423,9 @@ async function enhanceProductCopyWithGpt(card,{force=false}={}){
       method:'POST',headers:apiHeaders(),body:JSON.stringify({card})
     },1);
     if(!response.ok||!data?.card)return ensureVisibleProductDescription(card);
-    const copy=data.card;
+    const copy=ensureVisibleProductDescription(data.card);
     const provider=data.provider||copy.copyProvider||(data.used?'openai':'local');
-    return ensureVisibleProductDescription({
+    const finalCard=ensureVisibleProductDescription({
       ...card,
       seoTitle:String(copy.seoTitle||card.seoTitle||'Товар').trim(),
       shortDescription:String(copy.shortDescription||card.shortDescription||'').trim(),
@@ -4431,6 +4436,11 @@ async function enhanceProductCopyWithGpt(card,{force=false}={}){
       copyModel:data.used?(data.model||copy.copyModel||''):(copy.copyModel||card.copyModel||''),
       copyFallbackReason:data.used?'':String(data.reason||'')
     });
+    if(currentData&&String(finalCard.seoTitle||'')===String(currentData.seoTitle||'')){
+      currentData={...currentData,...finalCard};
+      fillEditor(currentData);
+    }
+    return finalCard;
   }catch{
     return ensureVisibleProductDescription(card);
   }
@@ -4629,11 +4639,21 @@ function renderSimplePhotoAdvice(){
 }
 function renderSimpleResult(){
   const box=document.getElementById('simpleResult');if(!box)return;
-  const title=(editor?.title?.value||currentData?.seoTitle||'Товар').trim()||'Товар';
-  const desc=(editor?.short?.value||editor?.full?.value||currentData?.shortDescription||currentData?.fullDescription||'').trim();
+  const base=ensureVisibleProductDescription({
+    ...(currentData||{}),
+    seoTitle:(editor?.title?.value||currentData?.seoTitle||'Товар').trim()||'Товар',
+    category:(editor?.category?.value||currentData?.category||'').trim(),
+    shortDescription:(editor?.short?.value||currentData?.shortDescription||'').trim(),
+    fullDescription:(editor?.full?.value||currentData?.fullDescription||'').trim(),
+    characteristics:String(editor?.specs?.value||'').split('\n').map(line=>{
+      const i=line.indexOf(':');return i>0?{name:line.slice(0,i).trim(),value:line.slice(i+1).trim()}:{name:'Характеристика',value:line.trim()};
+    }).filter(x=>x.value)
+  });
+  const title=base.seoTitle;
+  const desc=(base.fullDescription||base.shortDescription||'').trim();
   const specs=String(editor?.specs?.value||'').split('\n').map(x=>x.trim()).filter(Boolean).slice(0,5);
   document.getElementById('simpleResultTitle').textContent=title;
-  document.getElementById('simpleResultDescription').textContent=desc||'Описание появится после анализа фотографии.';
+  document.getElementById('simpleResultDescription').textContent=desc;
   const metaBox=document.getElementById('simpleResultMeta');
   const meta=[];
   if(currentSeriesReference)meta.push('<span class="simple-meta-pill series">Стиль серии: '+esc(currentSeriesReference.title||'похожий товар')+'</span>');
@@ -8216,7 +8236,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=28',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=29',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
