@@ -219,6 +219,16 @@ const features=[
   ['copyProvider: provider','dynamic copy provider marker'],
   ['async function enhanceProductCopyWithGpt','frontend GPT copy helper'],
   ['function ensureVisibleProductDescription','client visible-description guard'],
+  ['copyResponseDescriptionGuard: true','server copy response description guard'],
+  ['copyResponseTelemetry: true','copy response telemetry metadata'],
+  ['function finalizeCopyResponse','server final copy response normalizer'],
+  ['shortChars: shortDescription.length','copy response short-description telemetry'],
+  ['fullChars: fullDescription.length','copy response full-description telemetry'],
+  ['class="simple-description-block"','explicit visible description block'],
+  ['class="simple-description-label">Описание','visible description label'],
+  ['const desc=(base.fullDescription||base.shortDescription||\'\').trim();','simple result prefers full description'],
+  ['const copy=ensureVisibleProductDescription(data.card);','client normalizes copy response before display'],
+  ['currentData={...currentData,...finalCard};','copy response immediately synced to visible state'],
   ['d=ensureVisibleProductDescription(d);','editor description guarantee'],
   ["currentData?.shortDescription||currentData?.fullDescription","compact result full-description fallback"],
   ['return ensureVisibleProductDescription({','persisted edit description guarantee'],
@@ -350,7 +360,7 @@ if(!html.includes('upgradeFallbackWithBrowserVision'))fail('browser vision fallb
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=28',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=29',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
@@ -368,8 +378,8 @@ if(!server.includes('Преобладающий цвет на фото'))fail('g
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(!html.includes('improveProductWithLocalVisionInBackground'))fail('legacy recovery helper missing');else ok('legacy recovery helper retained');
 if(!html.includes("const improved=await upgradeFallbackWithBrowserVision(provisional,src)"))fail('final local vision before first render missing');else ok('final local vision before first render present');
-if(!html.includes("register('/sw.js?v=28'"))fail('service worker v28 registration missing');else ok('service worker v28 registration present');
-if(!sw.includes("yuvion-ai-shell-v28"))fail('service worker v28 cache missing');else ok('service worker v28 cache present');
+if(!html.includes("register('/sw.js?v=29'"))fail('service worker v29 registration missing');else ok('service worker v29 registration present');
+if(!sw.includes("yuvion-ai-shell-v29"))fail('service worker v29 cache missing');else ok('service worker v29 cache present');
 if(!server.includes('freeTextLocalFirst: true'))fail('local-first text analysis metadata missing');else ok('local-first text analysis metadata present');
 if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
 if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first metadata missing');else ok('final-data-first metadata present');
