@@ -1404,6 +1404,100 @@ async function makeGigaBackgroundVariant(masterBuffer, index = 0, palette = []) 
     .toBuffer();
 }
 
+
+function yuvionReferenceScenePrompt(cardRaw, index = 0, styleKey = "premium", palette = [], studioProfile = {}) {
+  const card = normalizeCard(cardRaw);
+  const style = styleProfiles[styleKey] || styleProfiles.premium || styleProfiles.minimal;
+  const colors = normalizePalette(palette).slice(0, 4).join(", ");
+  const benefits = (Array.isArray(card.benefits) ? card.benefits : []).filter(Boolean).slice(0, 4);
+  const specs = (Array.isArray(card.characteristics) ? card.characteristics : [])
+    .filter((item) => item?.name && item?.value)
+    .slice(0, 4)
+    .map((item) => item.name + ": " + item.value);
+  const roles = [
+    "главная продающая обложка: товар крупно справа или по центру, премиальный lifestyle-фон, свободная зона сверху и слева под большой заголовок, место для 3–4 компактных преимуществ и нижней полосы характеристик",
+    "карточка преимуществ: товар крупно справа, слева вертикальная колонка из 4 аккуратных зон под иконки и преимущества, чистый коммерческий фон",
+    "карточка характеристик и деталей: товар крупно в центре, 2–3 декоративные зоны под крупные планы реально видимых деталей, структурная техническая композиция",
+    "карточка применения и подарочной подачи: товар в красивой lifestyle-сцене, аккуратная предметная постановка, свободные зоны под сценарии использования и финальный коммерческий акцент"
+  ];
+
+  return [
+    "Создай вертикальную визуальную основу продающей карточки товара маркетплейса в формате 3:4.",
+    "ИСПОЛЬЗУЙ ПРИЛОЖЕННОЕ ФОТО КАК ГЛАВНЫЙ ВИЗУАЛЬНЫЙ РЕФЕРЕНС ТОВАРА.",
+    "Сохрани узнаваемую форму товара, его реальные пропорции, цвет, материал, экран, кнопки, ремешок, крепления и другие видимые элементы.",
+    "Не заменяй товар другим предметом и не добавляй несуществующие детали.",
+    "Убери из сцены руку, ткань, случайный фон и бытовые предметы исходного снимка, если они не являются частью товара.",
+    "Стилистика: дорогая современная карточка маркетплейса, крупный товар, мягкий рекламный свет, чистые белые или цветные панели, круглые или капсульные акценты, визуальная иерархия как у сильных Ozon/Wildberries карточек.",
+    "Не рисуй читаемый текст, буквы, цифры, цены, логотипы, водяные знаки и выдуманные маркировки — точный русский текст будет наложен после генерации.",
+    "Оставляй чистые зоны под заголовок, преимущества и характеристики, но сама картинка должна выглядеть законченной и профессиональной.",
+    "Задача этой карточки: " + (roles[index] || roles[0]) + ".",
+    "Название товара для понимания сцены: " + compact(card.seoTitle || card.category || "товар", 120) + ".",
+    card.category ? "Категория: " + compact(card.category, 80) + "." : "",
+    benefits.length ? "Подтвержденные преимущества для визуального контекста: " + benefits.join("; ") + "." : "",
+    specs.length ? "Подтвержденные характеристики для визуального контекста: " + specs.join("; ") + "." : "",
+    "Базовое арт-направление: " + String(style.scene || "современная предметная съемка") + ".",
+    colors ? "Предпочтительная палитра: " + colors + "." : "",
+    studioProfile?.artDirector ? "Дополнительное направление: " + String(studioProfile.artDirector) + "." : "",
+    "Высокое качество, реалистичная предметная фотография, коммерческий свет, без текста."
+  ].filter(Boolean).join(" ");
+}
+
+async function generateGigaChatReferenceScene(productFileId, cardRaw, index, styleKey, palette, studioProfile) {
+  if (!gigaChatConfigured() || !productFileId) return null;
+  const prompt = yuvionReferenceScenePrompt(cardRaw, index, styleKey, palette, studioProfile);
+  let generatedFileId = "";
+  try {
+    const result = await withTimeout(
+      gigaChatCompletion(
+        [
+          {
+            role: "system",
+            content:
+              "Ты арт-директор карточек товаров для маркетплейсов. " +
+              "Сначала внимательно используй приложенное фото как визуальный референс товара, затем обязательно вызови встроенную функцию text2image и создай новую коммерческую сцену. " +
+              "Не добавляй текст внутрь изображения."
+          },
+          {
+            role: "user",
+            content: prompt,
+            attachments: [productFileId]
+          }
+        ],
+        {
+          purpose: "image",
+          functionCall: "auto",
+          functions: [{ name: "text2image" }],
+          maxTokens: 520,
+          temperature: 0.2
+        }
+      ),
+      180000,
+      "Yuvion Studio reference image generation timed out"
+    );
+
+    generatedFileId = extractGigaChatImageId(result.content);
+    if (!generatedFileId) {
+      throw Object.assign(new Error("Reference-guided image generation returned no image id"), {
+        code: "gigachat_reference_image_id_missing"
+      });
+    }
+
+    const rawImage = await withTimeout(
+      downloadGigaChatImage(generatedFileId),
+      25000,
+      "Yuvion Studio reference image download timed out"
+    );
+
+    return sharp(rawImage)
+      .rotate()
+      .resize(900, 1200, { fit: "cover", position: "centre" })
+      .jpeg({ quality: 92, mozjpeg: true })
+      .toBuffer();
+  } finally {
+    if (generatedFileId) await deleteGigaChatFile(generatedFileId);
+  }
+}
+
 async function callGigaChatCopy(cardRaw = {}) {
   const fallback = normalizeCard(cardRaw);
   const facts = {
