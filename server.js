@@ -1905,8 +1905,9 @@ app.get("/api/health", (_req, res) => {
       hiddenAdvancedPanels: true,
       zeroCreditTextFallback: true,
       browserVisionFallback: true,
-      smolVlmWebGpu: true,
-      smolVlmWasmFallback: true,
+      smolVlmWebGpu: false,
+      smolVlmWasmFallback: false,
+      mobileVitOnlyVision: true,
       visionWorkerCacheBypass: true,
       perCardSceneVariants: true,
       safeProductSceneTransform: true,
@@ -2237,7 +2238,7 @@ function normalizeBrowserVisionCard(visionRaw, extraRaw = {}) {
     photoQuality: { score: 0, issues: [] },
     confirmedData: extra,
     analysisMode: "browser-vision",
-    analysisNotice: vision?.classifierMode ? "Бесплатное локальное распознавание MobileViT в браузере" : "Бесплатное локальное распознавание SmolVLM в браузере"
+    analysisNotice: "Бесплатное локальное распознавание MobileViT в браузере"
   };
 }
 
