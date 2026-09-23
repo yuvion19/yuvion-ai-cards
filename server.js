@@ -1520,42 +1520,6 @@ async function generateGigaChatReferenceScene(referenceBrief, cardRaw, index, st
   }
 }
 
-async function makeGigaBackgroundVariant(masterBuffer, index = 0, palette = []) {
-  if (!masterBuffer) return null;
-  const colors = normalizePalette(palette);
-  const tint = colors[index % Math.max(1, colors.length)] || ["#F6F4F2", "#EDF3F7", "#F4F1FA", "#F2F7F2"][index] || "#F6F4F2";
-  let pipeline = sharp(masterBuffer)
-    .rotate()
-    .resize(900, 1200, { fit: "cover", position: "centre" });
-
-  if (index === 1) {
-    pipeline = pipeline.flop().modulate({ brightness: 1.02, saturation: 1.08, hue: 4 });
-  } else if (index === 2) {
-    pipeline = pipeline
-      .resize(990, 1320, { fit: "cover", position: "centre" })
-      .extract({ left: 45, top: 35, width: 900, height: 1200 })
-      .modulate({ brightness: 1.04, saturation: 0.92, hue: -4 });
-  } else if (index === 3) {
-    pipeline = pipeline
-      .resize(960, 1280, { fit: "cover", position: "south" })
-      .extract({ left: 30, top: 70, width: 900, height: 1200 })
-      .modulate({ brightness: 0.99, saturation: 1.12, hue: 7 });
-  }
-
-  const tintOverlay = Buffer.from(
-    '<svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">' +
-    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
-    '<stop offset="0%" stop-color="' + tint + '" stop-opacity="' + (index === 0 ? '0.02' : '0.07') + '"/>' +
-    '<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>' +
-    '</linearGradient></defs><rect width="900" height="1200" fill="url(#g)"/></svg>'
-  );
-
-  return pipeline
-    .composite([{ input: tintOverlay, blend: "soft-light" }])
-    .jpeg({ quality: 91, mozjpeg: true })
-    .toBuffer();
-}
-
 async function callGigaChatCopy(cardRaw = {}) {
   const fallback = normalizeCard(cardRaw);
   const facts = {
