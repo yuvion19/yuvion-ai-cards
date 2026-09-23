@@ -113,8 +113,8 @@ const stats = {
   gptCopyRequests: 0,
   gptCopySuccesses: 0,
   gptCopyFallbacks: 0,
-  copyProviderAttempts: { openai: 0, groq: 0, cloudflare: 0, openrouter: 0, vireonix: 0 },
-  copyProviderSuccesses: { openai: 0, groq: 0, cloudflare: 0, openrouter: 0, vireonix: 0 },
+  copyProviderAttempts: { vireonix: 0 },
+  copyProviderSuccesses: { vireonix: 0 },
   recentErrors: []
 };
 
@@ -1043,24 +1043,7 @@ function normalizeProviderCopy(parsedRaw, fallback, provider, model) {
 }
 
 function copyProviderConfigured(name) {
-  if (name === "openai") {
-    return String(process.env.OPENAI_TEXT_ENABLED ?? "true").toLowerCase() !== "false" && Boolean(process.env.OPENAI_API_KEY);
-  }
-  if (name === "groq") {
-    return String(process.env.GROQ_TEXT_ENABLED ?? "true").toLowerCase() !== "false" && Boolean(process.env.GROQ_API_KEY);
-  }
-  if (name === "cloudflare") {
-    const token = process.env.CLOUDFLARE_AI_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_AUTH_TOKEN;
-    return String(process.env.CLOUDFLARE_TEXT_ENABLED ?? "true").toLowerCase() !== "false" &&
-      Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && token);
-  }
-  if (name === "openrouter") {
-    return String(process.env.OPENROUTER_TEXT_ENABLED ?? "true").toLowerCase() !== "false" && Boolean(process.env.OPENROUTER_API_KEY);
-  }
-  if (name === "vireonix") {
-    return String(process.env.VIREONIX_TEXT_ENABLED ?? "true").toLowerCase() !== "false";
-  }
-  return false;
+  return name === "vireonix" && String(process.env.VIREONIX_TEXT_ENABLED ?? "true").toLowerCase() !== "false";
 }
 
 function copyProviderOnCooldown(name) {
@@ -1076,11 +1059,8 @@ function copyProviderOnCooldown(name) {
 function setCopyProviderCooldown(name, error) {
   const status = Number(error?.status || 0);
   const code = String(error?.code || "");
-  const message = String(error?.message || "");
   let ms = 0;
-  if (code === "credit_balance_exhausted" || /no credits remaining|credit balance/i.test(message)) ms = 60 * 60 * 1000;
-  else if (status === 401 || status === 403) ms = 60 * 60 * 1000;
-  else if (status === 429) ms = 10 * 60 * 1000;
+  if (status === 429) ms = 10 * 60 * 1000;
   else if (status >= 500 || code === "operation_timeout") ms = 2 * 60 * 1000;
   if (ms) copyProviderCooldowns.set(name, Date.now() + ms);
 }
@@ -1090,78 +1070,6 @@ function copyChatMessages(facts) {
     { role: "system", content: copySystemInstructions() },
     { role: "user", content: "Подтверждённые данные товара:\n" + JSON.stringify(facts) }
   ];
-}
-
-async function callOpenAiCopy(facts) {
-  const model = process.env.OPENAI_TEXT_MODEL || "gpt-5.6-luna";
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const response = await client.responses.create({
-    model,
-    reasoning: { effort: "none" },
-    store: false,
-    instructions: copySystemInstructions(),
-    input: [{
-      role: "user",
-      content: [{ type: "input_text", text: "Подтверждённые данные товара:\n" + JSON.stringify(facts) }]
-    }],
-    text: { format: { type: "json_schema", name: "yuvion_product_copy", strict: true, schema: productCopySchema } },
-    max_output_tokens: 1300
-  });
-  recordTextUsage(response);
-  return { parsed: parseCopyJson(response.output_text), model };
-}
-
-async function callOpenAiCompatibleCopy({ provider, apiKey, baseURL, model, facts, extraHeaders = {} }) {
-  const client = new OpenAI({ apiKey, baseURL, defaultHeaders: extraHeaders });
-  const response = await client.chat.completions.create({
-    model,
-    messages: copyChatMessages(facts),
-    response_format: {
-      type: "json_schema",
-      json_schema: { name: "yuvion_product_copy", strict: true, schema: productCopySchema }
-    },
-    temperature: 0.25,
-    max_tokens: 1300
-  });
-  const content = response?.choices?.[0]?.message?.content || "";
-  const usage = response?.usage || {};
-  recordTextUsage({ usage: { input_tokens: usage.prompt_tokens || 0, output_tokens: usage.completion_tokens || 0 } });
-  return { parsed: parseCopyJson(content), model, provider };
-}
-
-async function callGroqCopy(facts) {
-  return callOpenAiCompatibleCopy({
-    provider: "groq",
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: "https://api.groq.com/openai/v1",
-    model: process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-120b",
-    facts
-  });
-}
-
-async function callCloudflareCopy(facts) {
-  const token = process.env.CLOUDFLARE_AI_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_AUTH_TOKEN;
-  return callOpenAiCompatibleCopy({
-    provider: "cloudflare",
-    apiKey: token,
-    baseURL: "https://api.cloudflare.com/client/v4/accounts/" + process.env.CLOUDFLARE_ACCOUNT_ID + "/ai/v1",
-    model: process.env.CLOUDFLARE_TEXT_MODEL || "@cf/openai/gpt-oss-120b",
-    facts
-  });
-}
-
-async function callOpenRouterCopy(facts) {
-  return callOpenAiCompatibleCopy({
-    provider: "openrouter",
-    apiKey: process.env.OPENROUTER_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
-    model: process.env.OPENROUTER_TEXT_MODEL || "openrouter/free",
-    facts,
-    extraHeaders: {
-      "HTTP-Referer": process.env.PUBLIC_APP_URL || "https://yuvion-ai-cards-marketplace-production.up.railway.app/",
-      "X-Title": "Yuvion AI Cards"
-    }
-  });
 }
 
 async function callVireonixCopy(facts) {
@@ -1212,45 +1120,35 @@ async function callVireonixCopy(facts) {
 async function generateProductCopyWithProviders(cardRaw = {}) {
   const fallback = normalizeCard(cardRaw);
   const facts = confirmedCopyFacts(cardRaw);
-  const providers = [
-    ["openai", callOpenAiCopy],
-    ["groq", callGroqCopy],
-    ["cloudflare", callCloudflareCopy],
-    ["openrouter", callOpenRouterCopy],
-    ["vireonix", callVireonixCopy]
-  ];
   stats.gptCopyRequests += 1;
 
-  let lastReason = "not_configured";
-  for (const [name, call] of providers) {
-    if (!copyProviderConfigured(name)) continue;
-    if (copyProviderOnCooldown(name)) {
-      lastReason = name + "_cooldown";
-      continue;
-    }
-    stats.copyProviderAttempts[name] = Number(stats.copyProviderAttempts[name] || 0) + 1;
-    try {
-      const result = await withTimeout(
-        call(facts),
-        COPY_PROVIDER_TIMEOUT_MS,
-        name + " copy generation timed out"
-      );
-      const card = normalizeProviderCopy(result.parsed, fallback, name, result.model);
-      stats.copyProviderSuccesses[name] = Number(stats.copyProviderSuccesses[name] || 0) + 1;
-      stats.gptCopySuccesses += 1;
-      return { card, used: true, provider: name, model: result.model };
-    } catch (error) {
-      lastReason = error?.code === "credit_balance_exhausted"
-        ? name + "_credits_exhausted"
-        : name + "_temporarily_unavailable";
-      setCopyProviderCooldown(name, error);
-      recordError("copy-" + name, error);
-      console.error("Copy provider error:", { provider: name, status: error?.status, code: error?.code });
-    }
+  if (!copyProviderConfigured("vireonix")) {
+    stats.gptCopyFallbacks += 1;
+    return { card: { ...fallback, copyProvider: "local", copyModel: "" }, used: false, provider: "local", reason: "vireonix_disabled" };
+  }
+  if (copyProviderOnCooldown("vireonix")) {
+    stats.gptCopyFallbacks += 1;
+    return { card: { ...fallback, copyProvider: "local", copyModel: "" }, used: false, provider: "local", reason: "vireonix_cooldown" };
   }
 
-  stats.gptCopyFallbacks += 1;
-  return { card: { ...fallback, copyProvider: "local", copyModel: "" }, used: false, provider: "local", reason: lastReason };
+  stats.copyProviderAttempts.vireonix = Number(stats.copyProviderAttempts.vireonix || 0) + 1;
+  try {
+    const result = await withTimeout(
+      callVireonixCopy(facts),
+      COPY_PROVIDER_TIMEOUT_MS,
+      "vireonix copy generation timed out"
+    );
+    const card = normalizeProviderCopy(result.parsed, fallback, "vireonix", result.model);
+    stats.copyProviderSuccesses.vireonix = Number(stats.copyProviderSuccesses.vireonix || 0) + 1;
+    stats.gptCopySuccesses += 1;
+    return { card, used: true, provider: "vireonix", model: result.model };
+  } catch (error) {
+    setCopyProviderCooldown("vireonix", error);
+    recordError("copy-vireonix", error);
+    console.error("Copy provider error:", { provider: "vireonix", status: error?.status, code: error?.code });
+    stats.gptCopyFallbacks += 1;
+    return { card: { ...fallback, copyProvider: "local", copyModel: "" }, used: false, provider: "local", reason: "vireonix_temporarily_unavailable" };
+  }
 }
 
 async function generateProductCopyWithGpt(cardRaw = {}) {
@@ -2037,7 +1935,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.2.3",
+    version: "11.2.4",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -2053,18 +1951,15 @@ app.get("/api/health", (_req, res) => {
     analyzeFastVision: true,
     freeTextLocalFirst: true,
     gptProductCopyEnabled: true,
-    gptProductCopyConfigured: ["openai","groq","cloudflare","openrouter"].some(copyProviderConfigured),
-    gptProductCopyModel: process.env.OPENAI_TEXT_MODEL || "gpt-5.6-luna",
+    gptProductCopyConfigured: copyProviderConfigured("vireonix"),
+    gptProductCopyModel: process.env.VIREONIX_TEXT_MODEL || "auto",
     gptProductCopyFallback: true,
-    copyProviderPriority: ["openai","groq","cloudflare","openrouter","vireonix","local"],
+    copyProviderPriority: ["vireonix","local"],
+    vireonixOnlyProductCopy: true,
     noLoginAiFallback: true,
     copyResponseDescriptionGuard: true,
     copyResponseTelemetry: true,
     copyProviders: {
-      openai: { configured: copyProviderConfigured("openai"), model: process.env.OPENAI_TEXT_MODEL || "gpt-5.6-luna", cooldown: copyProviderOnCooldown("openai") },
-      groq: { configured: copyProviderConfigured("groq"), model: process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-120b", cooldown: copyProviderOnCooldown("groq") },
-      cloudflare: { configured: copyProviderConfigured("cloudflare"), model: process.env.CLOUDFLARE_TEXT_MODEL || "@cf/openai/gpt-oss-120b", cooldown: copyProviderOnCooldown("cloudflare") },
-      openrouter: { configured: copyProviderConfigured("openrouter"), model: process.env.OPENROUTER_TEXT_MODEL || "openrouter/free", cooldown: copyProviderOnCooldown("openrouter") },
       vireonix: { configured: copyProviderConfigured("vireonix"), model: process.env.VIREONIX_TEXT_MODEL || "auto", auth: "none", cooldown: copyProviderOnCooldown("vireonix") },
       local: { configured: true, model: "yuvion-safe-copy", cooldown: false }
     },
@@ -4660,5 +4555,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.2.3 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.2.4 listening on port ${port}`);
 });
