@@ -1949,7 +1949,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.2.0",
+    version: "11.2.1",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1968,12 +1968,14 @@ app.get("/api/health", (_req, res) => {
     gptProductCopyConfigured: ["openai","groq","cloudflare","openrouter"].some(copyProviderConfigured),
     gptProductCopyModel: process.env.OPENAI_TEXT_MODEL || "gpt-5.6-luna",
     gptProductCopyFallback: true,
-    copyProviderPriority: ["openai","groq","cloudflare","openrouter","local"],
+    copyProviderPriority: ["openai","groq","cloudflare","openrouter","puter","local"],
+    clientPuterFallback: true,
     copyProviders: {
       openai: { configured: copyProviderConfigured("openai"), model: process.env.OPENAI_TEXT_MODEL || "gpt-5.6-luna", cooldown: copyProviderOnCooldown("openai") },
       groq: { configured: copyProviderConfigured("groq"), model: process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-120b", cooldown: copyProviderOnCooldown("groq") },
       cloudflare: { configured: copyProviderConfigured("cloudflare"), model: process.env.CLOUDFLARE_TEXT_MODEL || "@cf/openai/gpt-oss-120b", cooldown: copyProviderOnCooldown("cloudflare") },
       openrouter: { configured: copyProviderConfigured("openrouter"), model: process.env.OPENROUTER_TEXT_MODEL || "openrouter/free", cooldown: copyProviderOnCooldown("openrouter") },
+      puter: { configured: true, model: "z-ai/glm-5.3", clientOnly: true, cooldown: false },
       local: { configured: true, model: "yuvion-safe-copy", cooldown: false }
     },
     copyProviderCircuitBreaker: true,
@@ -4568,5 +4570,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.2.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.2.1 listening on port ${port}`);
 });
