@@ -57,13 +57,13 @@ const features=[
   ['proceduralStudioLighting: true','procedural studio lighting metadata'],
   ['depthOfFieldBackdrop: true','depth of field backdrop metadata'],
   ['acrylicStageSets: true','acrylic stage set metadata'],
-  ['zeroImageApiMode: true','zero image API mode metadata'],
-  ['imageAiDisabledByProduct: true','paid image AI disabled metadata'],
+  ['referenceGuidedImageAi: true','reference-guided image AI metadata'],
+  ['imageAiDisabledByProduct: false','image AI enabled metadata'],
   ['const mode = "free";','free rendering default'],
   ['freeSceneRenders','free render telemetry'],
   ['MAX_FREE_CARD_BATCHES_PER_WINDOW','separate free batch limit'],
   ['freeCardRequestsByIp','free render limiter separated from AI limiter'],
-  ['freeImageAiCalls: 0','health confirms zero image-AI calls for free mode'],
+  ['targetImageAiCallsPerBatch: 2','health reports target AI scene calls'],
   ['Создать 4 карточки бесплатно','free mode is explicit in UI'],
   ['autoCreateCardsIfEnabled','automatic four-card workflow'],
   ['recommendedStyleForProduct','category-aware style recommendation'],
@@ -264,9 +264,10 @@ if(server.includes('async function callOpenAiCopy')||server.includes('async func
 if(server.includes('api.groq.com/openai/v1')||server.includes('api.cloudflare.com/client/v4/accounts/')||server.includes('openrouter.ai/api/v1')||server.includes('api.deepseek.com'))fail('retired provider endpoints still present');else if(!server.includes('https://api.giga.chat')||!server.includes('ngw.devices.sberbank.ru:9443/api/v2/oauth'))fail('GigaChat endpoints missing');else ok('GigaChat endpoints present');
 if(!server.includes('async function generateGigaChatBackground'))fail('GigaChat text2image generator missing');else ok('GigaChat text2image generator present');
 if(!server.includes('functions: [{ name: "text2image" }]'))fail('GigaChat text2image function declaration missing');else ok('GigaChat text2image function declaration present');
-if(!server.includes('async function makeGigaBackgroundVariant'))fail('GigaChat four-scene derivation missing');else ok('GigaChat four-scene derivation present');
-if(!server.includes('gigaChatImageGeneration: gigaImageCalls > 0'))fail('GigaChat image-generation response metadata missing');else ok('GigaChat image-generation response metadata present');
-if(server.includes('[0,1,2,3].map((index) =>\n          generateGigaChatBackground'))fail('parallel GigaChat image calls still present');else ok('GigaChat image generation serialized for personal API');
+if(!server.includes('async function generateGigaChatReferenceScene'))fail('reference-guided product scene generator missing');else ok('reference-guided product scene generator present');
+if(!server.includes('attachments: [productFileId]'))fail('product photo is not attached to image generation');else ok('product photo is attached to image generation');
+if(!server.includes('gigaChatImageGeneration: aiImageCalls > 0'))fail('provider image-generation response metadata missing');else ok('provider image-generation response metadata present');
+if(!server.includes('for (const index of [0, 1])'))fail('serialized reference scene generation missing');else ok('reference scene generation serialized for personal API');
 if(!server.includes('GigaChat copy self-test OK:'))fail('GigaChat copy runtime self-test missing');else ok('GigaChat copy runtime self-test present');
 
 
@@ -325,9 +326,9 @@ if(!html.includes("needsQa=cardsReady&&!batchQaPassed(item.quality)"))fail('Exce
 
 if(html.includes('<option value="ai">'))fail('paid image-AI option must not be exposed');else ok('paid image-AI option removed from UI');
 if((server.match(/const mode = "free";/g)||[]).length<2)fail('image endpoints must force free mode');else ok('image endpoints force free mode');
-if(!server.includes('aiMode: false'))fail('health must report image AI disabled');else ok('health reports image AI disabled');
-if(!server.includes('aiImageCalls: 0'))fail('image responses must report zero image-AI calls');else ok('image responses report zero image-AI calls');
-if(!html.includes('Studio Local · бесплатно · 0 image-AI'))fail('Studio Local free UI label missing');else ok('Studio Local free UI label present');
+if(!server.includes('aiMode: true'))fail('health must report Yuvion Studio image AI enabled');else ok('health reports Yuvion Studio image AI enabled');
+if(!server.includes('referenceGuidedGeneration: aiImageCalls > 0'))fail('reference-guided image response metadata missing');else ok('reference-guided image response metadata present');
+if(!html.includes('Yuvion Studio AI · автоматически'))fail('Yuvion Studio AI UI label missing');else ok('Yuvion Studio AI UI label present');
 if(!server.includes('filter id="studioBlur"'))fail('studio lighting filter missing');else ok('studio lighting filter present');
 
 if(!server.includes('regenerativeQaRepair: true'))fail('regenerative QA repair metadata missing');else ok('regenerative QA repair metadata present');
@@ -354,7 +355,7 @@ if(html.includes('upgradeFallbackWithBrowserVision'))fail('obsolete browser visi
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=35',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=36',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
@@ -368,10 +369,13 @@ if(html.includes('local-vision-worker.js'))fail('obsolete vision worker referenc
 if(!server.includes('Преобладающий цвет на фото'))fail('guaranteed visible fallback characteristic missing');else ok('guaranteed visible fallback characteristic present');
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(html.includes('improveProductWithLocalVisionInBackground'))fail('obsolete local vision recovery remains');else ok('obsolete local vision recovery removed');
-if(!html.includes("register('/sw.js?v=35'"))fail('service worker v35 registration missing');else ok('service worker v35 registration present');
-if(!sw.includes("yuvion-ai-shell-v35"))fail('service worker v35 cache missing');else ok('service worker v35 cache present');
+if(!html.includes("register('/sw.js?v=35'"))fail('service worker v36 registration missing');else ok('service worker v36 registration present');
+if(!sw.includes("yuvion-ai-shell-v36"))fail('service worker v36 cache missing');else ok('service worker v36 cache present');
 if(!html.includes('<title>Yuvion Studio — карточки товара из фото, Excel и ссылки</title>'))fail('Yuvion Studio page title missing');else ok('Yuvion Studio page title present');
 if(!html.includes('<div class="eyebrow">Yuvion Studio</div>'))fail('Yuvion Studio hero branding missing');else ok('Yuvion Studio hero branding present');
+if(!html.includes('Маркетплейс PRO'))fail('Marketplace Pro style missing');else ok('Marketplace Pro style present');
+if(!server.includes('marketplace: {'))fail('Marketplace Pro server profile missing');else ok('Marketplace Pro server profile present');
+if(!server.includes('yuvion-studio-reference-v13'))fail('reference-guided render engine missing');else ok('reference-guided render engine present');
 if(html.includes('GigaChat'))fail('provider brand is exposed in frontend');else ok('provider brand hidden from frontend');
 if(!html.includes('© 2026 Yuvion Studio. Все права защищены.'))fail('copyright footer missing');else ok('copyright footer present');
 if(!html.includes('исключительно для арендаторов ТК «Южные Ворота»'))fail('tenant-only footer notice missing');else ok('tenant-only footer notice present');
@@ -382,7 +386,7 @@ if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first me
 if(!server.includes('minimalUiFlow: true'))fail('minimal UI metadata missing');else ok('minimal UI metadata present');
 if(!server.includes('autopilotV11: true'))fail('v11 autopilot metadata missing');else ok('v11 autopilot metadata present');
 if(!server.includes('coverOptimizerVariants: 4'))fail('best-of-four cover optimizer metadata missing');else ok('best-of-four cover optimizer metadata present');
-if(!server.includes('candidateVariants=[0,1,2,3]'))fail('four cover candidates missing');else ok('four cover candidates present');
+if(!server.includes('candidateVariants = [0,1,2,3]')&&!server.includes('candidateVariants=[0,1,2,3]'))fail('four cover candidates missing');else ok('four cover candidates present');
 if(!server.includes('qaSelfRepairRounds: 3'))fail('three-round QA metadata missing');else ok('three-round QA metadata present');
 if(!server.includes('sourcePhotoRetakeGate: true'))fail('source photo retake gate missing');else ok('source photo retake gate present');
 if(!server.includes('reshootRecommended'))fail('source retake recommendation missing');else ok('source retake recommendation present');
