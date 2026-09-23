@@ -199,6 +199,46 @@ function sellerNeutralCopy(value, max = 2000) {
   return compact(sentences.join(" "), max);
 }
 
+function safeCatalogDescription({ title = "", category = "", brand = "", characteristics = [], sourceDescription = "" } = {}) {
+  const cleanTitle = compact(title || "Товар", 180);
+  const cleanSource = sellerNeutralCopy(sourceDescription || "", 1800);
+  const facts = [];
+  const addFact = (label, value) => {
+    const v = compact(value || "", 160);
+    if (!v) return;
+    const key = (label + "|" + v).toLocaleLowerCase("ru");
+    if (facts.some((x) => x.key === key)) return;
+    facts.push({ key, text: label + ": " + v });
+  };
+  addFact("Бренд", brand);
+  if (category && String(category).toLocaleLowerCase("ru") !== "товар") addFact("Категория", category);
+  for (const item of Array.isArray(characteristics) ? characteristics : []) {
+    if (!item?.name || !item?.value) continue;
+    const name = compact(item.name, 60);
+    if (/^(бренд|категория)$/iu.test(name)) continue;
+    addFact(name, item.value);
+    if (facts.length >= 5) break;
+  }
+
+  if (cleanSource) {
+    const short = compact(cleanSource, 500);
+    const full = compact(cleanSource, 1800);
+    return { short, full: full || short, generated: false };
+  }
+
+  const safeTitle = cleanTitle && cleanTitle !== "Товар" ? cleanTitle : "Товар";
+  const factText = facts.slice(0, 4).map((x) => x.text).join("; ");
+  const short = factText
+    ? compact(safeTitle + ". По данным источника: " + factText + ".", 500)
+    : compact(safeTitle + ". Описание сформировано по доступным подтверждённым данным без добавления неподтверждённых характеристик.", 500);
+  const full = compact(
+    short +
+    " Точные размеры, материал, состав, мощность и другие технические параметры не добавляются автоматически, если они не указаны или не подтверждены источником.",
+    1800
+  );
+  return { short, full, generated: true };
+}
+
 function wrapWords(value, maxChars = 28, maxLines = 3) {
   const words = compact(value, 500).split(" ").filter(Boolean);
   const lines = [];
@@ -834,19 +874,29 @@ function normalizeCharacteristicSource(value) {
 
 function normalizeCard(raw) {
   const card = raw && typeof raw === "object" ? raw : {};
-  const safeShort = sellerNeutralCopy(card.shortDescription || "", 500);
-  const safeFull = sellerNeutralCopy(card.fullDescription || "", 2000) || safeShort;
+  const title = compact(card.seoTitle || card.category || "Товар", 180);
+  const category = compact(card.category || "Товар", 80);
+  const normalizedCharacteristics = Array.isArray(card.characteristics)
+    ? card.characteristics
+        .filter((x) => x && x.name && x.value)
+        .slice(0, 12)
+        .map((x) => ({ name: compact(x.name, 60), value: compact(x.value, 100), source: normalizeCharacteristicSource(x.source) }))
+    : [];
+  const generatedDescription = safeCatalogDescription({
+    title,
+    category,
+    brand: card?.confirmedData?.brand || knownValueFromCharacteristics(normalizedCharacteristics, ["бренд","brand"]),
+    characteristics: normalizedCharacteristics,
+    sourceDescription: sellerNeutralCopy(card.fullDescription || card.shortDescription || "", 2000)
+  });
+  const safeShort = sellerNeutralCopy(card.shortDescription || "", 500) || generatedDescription.short;
+  const safeFull = sellerNeutralCopy(card.fullDescription || "", 2000) || generatedDescription.full || safeShort;
   return {
-    seoTitle: compact(card.seoTitle || card.category || "Товар", 180),
-    category: compact(card.category || "Товар", 80),
+    seoTitle: title,
+    category,
     shortDescription: safeShort,
     fullDescription: safeFull,
-    characteristics: Array.isArray(card.characteristics)
-      ? card.characteristics
-          .filter((x) => x && x.name && x.value)
-          .slice(0, 12)
-          .map((x) => ({ name: compact(x.name, 60), value: compact(x.value, 100), source: normalizeCharacteristicSource(x.source) }))
-      : [],
+    characteristics: normalizedCharacteristics,
     keywords: Array.isArray(card.keywords) ? card.keywords.filter(Boolean).slice(0, 30).map((x) => compact(x, 60)) : [],
     benefits: Array.isArray(card.benefits) ? card.benefits.filter(Boolean).map((x) => sellerNeutralCopy(x, 80)).filter(Boolean).slice(0, 5) : [],
     usage: Array.isArray(card.usage) ? card.usage.filter(Boolean).map((x) => sellerNeutralCopy(x, 100)).filter(Boolean).slice(0, 4) : [],
@@ -980,9 +1030,11 @@ async function fetchPublicResource(rawUrl, options = {}) {
     let response;
     try {
       const headers = {
-        "User-Agent": "YuvionAI/6.6 (+public-product-import)",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 YuvionPublicImporter/11.0",
         "Accept": accept,
-        "Accept-Language": "ru,en;q=0.8"
+        "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.7",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
       };
       if (referer) headers["Referer"] = referer;
       response = await fetch(current, {
@@ -1152,6 +1204,188 @@ function productSeedFromHtml(html, finalUrl) {
   };
 }
 
+
+function embeddedScalar(obj, names = []) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return "";
+  const entries = Object.entries(obj);
+  for (const wanted of names) {
+    const hit = entries.find(([key]) => String(key).toLocaleLowerCase("en") === String(wanted).toLocaleLowerCase("en"));
+    if (!hit) continue;
+    const value = hit[1];
+    if (typeof value === "string" || typeof value === "number") {
+      const text = compact(value, 1000);
+      if (text) return text;
+    }
+    if (value && typeof value === "object") {
+      const text = firstText(value.value, value.amount, value.current, value.name, value.text, value.label);
+      if (text) return text;
+    }
+  }
+  return "";
+}
+
+function embeddedImageUrls(value, finalUrl, out = [], depth = 0) {
+  if (!value || depth > 5 || out.length >= 16) return out;
+  if (typeof value === "string") {
+    const src = value.trim();
+    if (!src || src.startsWith("data:")) return out;
+    if (/\.(?:jpe?g|png|webp|avif)(?:[?#]|$)/i.test(src) || /^https?:\/\//i.test(src)) {
+      try {
+        const url = new URL(src, finalUrl).href;
+        if (!out.includes(url)) out.push(url);
+      } catch {}
+    }
+    return out;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value.slice(0, 24)) embeddedImageUrls(item, finalUrl, out, depth + 1);
+    return out;
+  }
+  if (typeof value === "object") {
+    const preferred = ["url","src","source","original","large","largeUrl","imageUrl","contentUrl","desktop","mobile"];
+    for (const key of preferred) if (Object.prototype.hasOwnProperty.call(value, key)) embeddedImageUrls(value[key], finalUrl, out, depth + 1);
+  }
+  return out;
+}
+
+function embeddedCharacteristics(obj) {
+  if (!obj || typeof obj !== "object") return [];
+  const buckets = [];
+  for (const [key, value] of Object.entries(obj)) {
+    if (!/(character|spec|attribute|propert|feature|parameter|характер|свойств|параметр)/iu.test(key)) continue;
+    buckets.push(value);
+  }
+  const result = [], seen = new Set();
+  const add = (name, value) => {
+    const n = compact(name || "", 80), v = compact(value || "", 180);
+    if (!n || !v || /^(id|url|image|photo)$/iu.test(n)) return;
+    const key = (n + "|" + v).toLocaleLowerCase("ru");
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push({ name: n, value: v, evidence: "Встроенные публичные данные страницы" });
+  };
+  for (const bucket of buckets) {
+    if (Array.isArray(bucket)) {
+      for (const item of bucket.slice(0, 40)) {
+        if (!item || typeof item !== "object") continue;
+        add(
+          embeddedScalar(item, ["name","title","label","key","property"]),
+          embeddedScalar(item, ["value","text","description","displayValue"])
+        );
+      }
+    } else if (bucket && typeof bucket === "object") {
+      for (const [name, value] of Object.entries(bucket).slice(0, 40)) {
+        if (typeof value === "string" || typeof value === "number") add(name, value);
+        else if (value && typeof value === "object") add(name, embeddedScalar(value, ["value","text","name","label"]));
+      }
+    }
+    if (result.length >= 24) break;
+  }
+  return result.slice(0, 24);
+}
+
+function productSeedFromEmbeddedJson(html, finalUrl) {
+  const roots = [];
+  for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    const attrs = htmlAttributes(match[1]);
+    const id = String(attrs.id || "").toLocaleLowerCase("en");
+    const type = String(attrs.type || "").toLocaleLowerCase("en");
+    const raw = String(match[2] || "").trim();
+    const looksStructured = type.includes("application/json") || type.includes("ld+json") ||
+      /next|nuxt|state|store|apollo|product|data/.test(id);
+    if (!looksStructured || !raw || raw.length > 1500000) continue;
+    try { roots.push(JSON.parse(raw)); } catch {}
+    if (roots.length >= 12) break;
+  }
+
+  const candidates = [];
+  let visited = 0;
+  const walk = (value, path = "", depth = 0) => {
+    if (!value || depth > 9 || visited > 14000) return;
+    visited += 1;
+    if (Array.isArray(value)) {
+      for (let i = 0; i < Math.min(value.length, 100); i += 1) walk(value[i], path + "[" + i + "]", depth + 1);
+      return;
+    }
+    if (typeof value !== "object") return;
+
+    const title = embeddedScalar(value, ["name","title","productName","displayName"]);
+    const description = embeddedScalar(value, ["description","shortDescription","fullDescription","annotation","summary"]);
+    const brand = firstText(
+      embeddedScalar(value, ["brand","brandName","manufacturer"]),
+      value.brand?.name, value.manufacturer?.name
+    );
+    const sku = embeddedScalar(value, ["sku","article","articleNumber","vendorCode","offerId"]);
+    const barcode = embeddedScalar(value, ["barcode","ean","ean13","gtin","gtin13","gtin14"]);
+    const category = firstText(
+      embeddedScalar(value, ["category","categoryName","categoryTitle"]),
+      value.category?.name
+    );
+    const price = firstText(
+      embeddedScalar(value, ["price","currentPrice","salePrice","finalPrice"]),
+      value.price?.value, value.price?.amount, value.price?.current,
+      value.offers?.price, value.offer?.price
+    );
+    const oldPrice = firstText(
+      embeddedScalar(value, ["oldPrice","originalPrice","regularPrice","compareAtPrice"]),
+      value.price?.old, value.price?.original
+    );
+    const currency = firstText(
+      embeddedScalar(value, ["currency","priceCurrency","currencyCode"]),
+      value.price?.currency, value.offers?.priceCurrency
+    );
+    const imageUrls = [];
+    for (const key of ["image","images","imageUrl","imageUrls","pictures","photos","gallery","media"]) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) embeddedImageUrls(value[key], finalUrl, imageUrls);
+    }
+    const characteristics = embeddedCharacteristics(value);
+    const pathHint = /(product|goods|item|offer|sku|catalog)/i.test(path);
+    const score =
+      (title ? 4 : 0) + (description ? 2 : 0) + (brand ? 1 : 0) + (sku ? 2 : 0) +
+      (barcode ? 1 : 0) + (price ? 2 : 0) + (imageUrls.length ? 2 : 0) +
+      (characteristics.length ? 2 : 0) + (pathHint ? 2 : 0);
+    if (score >= 6 && title) {
+      candidates.push({ score, title, description, brand, sku, barcode, category, price, oldPrice, currency, imageUrls, characteristics });
+    }
+
+    for (const [key, child] of Object.entries(value)) {
+      if (depth >= 8) break;
+      if (child && typeof child === "object") walk(child, path ? path + "." + key : key, depth + 1);
+    }
+  };
+  roots.forEach((root, index) => walk(root, "root" + index, 0));
+  candidates.sort((a, b) => b.score - a.score || b.imageUrls.length - a.imageUrls.length || b.characteristics.length - a.characteristics.length);
+  return candidates[0] || null;
+}
+
+function mergeProductSeeds(primary, embedded, finalUrl) {
+  if (!embedded) return primary;
+  const mergedSpecs = [], seen = new Set();
+  const add = (item) => {
+    if (!item?.name || !item?.value) return;
+    const key = (String(item.name) + "|" + String(item.value)).toLocaleLowerCase("ru");
+    if (seen.has(key)) return;
+    seen.add(key); mergedSpecs.push(item);
+  };
+  (primary.characteristics || []).forEach(add);
+  (embedded.characteristics || []).forEach(add);
+  return {
+    ...primary,
+    canonical: primary.canonical || finalUrl,
+    title: primary.title || embedded.title || "",
+    description: primary.description || embedded.description || "",
+    brand: primary.brand || embedded.brand || "",
+    sku: primary.sku || embedded.sku || "",
+    barcode: primary.barcode || embedded.barcode || "",
+    category: primary.category || embedded.category || "",
+    price: primary.price || embedded.price || "",
+    oldPrice: primary.oldPrice || embedded.oldPrice || "",
+    currency: primary.currency || embedded.currency || "",
+    characteristics: mergedSpecs.slice(0, 30),
+    imageUrls: [...new Set([...(primary.imageUrls || []), ...(embedded.imageUrls || [])])].slice(0, 12)
+  };
+}
+
 function embeddedPublicJson(html) {
   const parts = [];
   for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
@@ -1241,7 +1475,9 @@ app.post("/api/import-url", async (req, res) => {
       return res.status(400).json({ error: "Ссылка должна вести на публичную HTML-страницу товара." });
     }
     const html = page.buffer.toString("utf8");
-    const seed = productSeedFromHtml(html, page.finalUrl);
+    const schemaSeed = productSeedFromHtml(html, page.finalUrl);
+    const embeddedSeed = productSeedFromEmbeddedJson(html, page.finalUrl);
+    const seed = mergeProductSeeds(schemaSeed, embeddedSeed, page.finalUrl);
     const embeddedJson = embeddedPublicJson(html);
     const pageText = (visiblePageText(html) + (embeddedJson ? "\n\nEMBEDDED PUBLIC JSON:\n" + embeddedJson : "")).slice(0, 42000);
     if (!seed.title && !seed.description && !seed.characteristics.length && pageText.length < 80) {
@@ -1316,11 +1552,20 @@ app.post("/api/import-url", async (req, res) => {
     if (!material) notProvided.push("Материал");
     if (!barcode) notProvided.push("Штрихкод/EAN");
 
+    const urlTitle = compact(ai?.seoTitle || seed.title || "Товар", 180);
+    const urlCategory = compact(ai?.category || seed.category || "", 180);
+    const urlDescription = safeCatalogDescription({
+      title: urlTitle,
+      category: urlCategory,
+      brand,
+      characteristics: merged,
+      sourceDescription: ai?.fullDescription || ai?.shortDescription || seed.description || ""
+    });
     const data = {
-      seoTitle: compact(ai?.seoTitle || seed.title || "Товар", 180),
-      category: compact(ai?.category || seed.category || "", 180),
-      shortDescription: sellerNeutralCopy(ai?.shortDescription || seed.description || "", 500),
-      fullDescription: sellerNeutralCopy(ai?.fullDescription || seed.description || "", ai?.fullDescription ? 3000 : 700),
+      seoTitle: urlTitle,
+      category: urlCategory,
+      shortDescription: sellerNeutralCopy(ai?.shortDescription || seed.description || "", 500) || urlDescription.short,
+      fullDescription: sellerNeutralCopy(ai?.fullDescription || seed.description || "", ai?.fullDescription ? 3000 : 1800) || urlDescription.full,
       characteristics: merged.slice(0, 20),
       keywords: Array.isArray(ai?.keywords) ? ai.keywords.filter(Boolean).slice(0, 24).map((x) => compact(x, 60)) : [],
       benefits: Array.isArray(ai?.benefits) ? ai.benefits.filter(Boolean).map((x) => sellerNeutralCopy(x, 120)).filter(Boolean).slice(0, 5) : [],
@@ -1354,6 +1599,8 @@ app.post("/api/import-url", async (req, res) => {
       requestedImages: seed.imageUrls.length,
       downloadedImages: images.length,
       aiNormalizationUsed: Boolean(ai),
+      embeddedProductDataUsed: Boolean(embeddedSeed),
+      descriptionFallbackUsed: Boolean(urlDescription.generated),
       notProvided,
       generatedAt: new Date().toISOString()
     };
@@ -1431,7 +1678,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.0.0",
+    version: "11.0.1",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1546,6 +1793,8 @@ app.get("/api/health", (_req, res) => {
       truthfulDetailZoom: true,
       productIntakeV2: true,
       urlImportProvenanceAudit: true,
+      urlImportEmbeddedJsonFallback: true,
+      guaranteedDescriptions: true,
       sourceFieldEvidence: true,
       mobileCaptureFlow: true,
       cameraGallerySplit: true,
