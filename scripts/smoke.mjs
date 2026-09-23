@@ -202,7 +202,7 @@ const features=[
 
 
   ["data.provider||copy.copyProvider","frontend preserves actual server provider"],
-  ['async function enhanceProductCopyWithGigaChat','frontend GigaChat copy helper'],
+  ['async function enhanceProductCopyWithYuvion','frontend Yuvion Studio copy helper'],
   ['function ensureVisibleProductDescription','client visible-description guard'],
   ['copyResponseDescriptionGuard: true','server copy response description guard'],
   ['copyResponseTelemetry: true','copy response telemetry metadata'],
@@ -219,9 +219,9 @@ const features=[
   ['return ensureVisibleProductDescription({','persisted edit description guarantee'],
   ['currentData=ensureVisibleProductDescription(currentData);','URL pre-GPT description guarantee'],
   ['analyzed=ensureVisibleProductDescription(analyzed);','Excel description guarantee'],
-  ["creativeStatus.textContent='Готовим описание через GigaChat по подтверждённым данным…'","photo flow GigaChat copy integration"],
+  ["creativeStatus.textContent='Yuvion Studio готовит описание по подтверждённым данным…'","photo flow Yuvion Studio copy integration"],
   ["setUrlImportStatus('Данные получены. Готовим описание товара…'","URL flow local copy integration"],
-  ['analyzed=await enhanceProductCopyWithGigaChat(analyzed);','Excel flow GigaChat copy integration'],
+  ['analyzed=await enhanceProductCopyWithYuvion(analyzed);','Excel flow Yuvion Studio copy integration'],
   ['function productSeedFromEmbeddedJson','embedded product parser'],
   ['function mergeProductSeeds','URL seed merge'],
   ['function safeCatalogDescription','safe description fallback helper'],
@@ -354,7 +354,7 @@ if(html.includes('upgradeFallbackWithBrowserVision'))fail('obsolete browser visi
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=34',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=35',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
@@ -368,8 +368,14 @@ if(html.includes('local-vision-worker.js'))fail('obsolete vision worker referenc
 if(!server.includes('Преобладающий цвет на фото'))fail('guaranteed visible fallback characteristic missing');else ok('guaranteed visible fallback characteristic present');
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(html.includes('improveProductWithLocalVisionInBackground'))fail('obsolete local vision recovery remains');else ok('obsolete local vision recovery removed');
-if(!html.includes("register('/sw.js?v=34'"))fail('service worker v34 registration missing');else ok('service worker v34 registration present');
-if(!sw.includes("yuvion-ai-shell-v34"))fail('service worker v34 cache missing');else ok('service worker v34 cache present');
+if(!html.includes("register('/sw.js?v=35'"))fail('service worker v35 registration missing');else ok('service worker v35 registration present');
+if(!sw.includes("yuvion-ai-shell-v35"))fail('service worker v35 cache missing');else ok('service worker v35 cache present');
+if(!html.includes('<title>Yuvion Studio — карточки товара из фото, Excel и ссылки</title>'))fail('Yuvion Studio page title missing');else ok('Yuvion Studio page title present');
+if(!html.includes('<div class="eyebrow">Yuvion Studio</div>'))fail('Yuvion Studio hero branding missing');else ok('Yuvion Studio hero branding present');
+if(html.includes('GigaChat'))fail('provider brand is exposed in frontend');else ok('provider brand hidden from frontend');
+if(!html.includes('© 2026 Yuvion Studio. Все права защищены.'))fail('copyright footer missing');else ok('copyright footer present');
+if(!html.includes('исключительно для арендаторов ТК «Южные Ворота»'))fail('tenant-only footer notice missing');else ok('tenant-only footer notice present');
+if(html.includes('.simple-ui .sticky-dock, .simple-ui footer{display:none!important}'))fail('footer still hidden in simple UI');else ok('footer visible in simple UI');
 if(!server.includes('freeTextLocalFirst: false'))fail('GigaChat-first text analysis metadata missing');else ok('GigaChat-first text analysis metadata present');
 if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
 if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first metadata missing');else ok('final-data-first metadata present');
@@ -406,7 +412,7 @@ if(!html.includes('.simple-ui .workflow,.simple-ui .focus-panel,.simple-ui .smar
 
 if(!server.includes('singlePhotoTruthfulVariation: true'))fail('single-photo truthful variation metadata missing');else ok('single-photo truthful variation metadata present');
 if(!html.includes("const complete=await createImmediateFreeCards(file)"))fail('duplicate analysis suppression missing');else ok('duplicate analysis suppression present');
-if(!html.includes('const fastLocal=await requestImmediateGigaChatCard(src,file)'))fail('pre-render GigaChat analysis missing');else ok('pre-render GigaChat analysis present');
+if(!html.includes('const fastLocal=await requestImmediateYuvionCard(src,file)'))fail('pre-render Yuvion Studio analysis missing');else ok('pre-render Yuvion Studio analysis present');
 if(html.includes("window.setTimeout(()=>improveProductWithLocalVisionInBackground(src,productId,baseData),250)"))fail('background vision race trigger still active');else ok('background vision race trigger removed');
 if(!server.includes('extractProductPalette(buffer)'))fail('photo color enrichment missing');else ok('photo color enrichment present');
 if(!server.includes('if (index > 0 && !secondarySourceBuffer)'))fail('single-photo detail variation missing');else ok('single-photo detail variation present');
@@ -418,8 +424,8 @@ if(!server.includes('localizeVisionLabel'))fail('vision label localization missi
 if(!server.includes('width="772" height="108"'))fail('visible description panel missing');else ok('visible description panel present');
 
 if(!server.includes('preferLocal === true'))fail('local-first analyze branch missing');else ok('local-first analyze branch present');
-if(!html.includes('requestImmediateGigaChatCard'))fail('immediate GigaChat description helper missing');else ok('immediate GigaChat description helper present');
-if(!html.includes('preferLocal:false'))fail('frontend GigaChat analyze request missing');else ok('frontend GigaChat analyze request present');
+if(!html.includes('requestImmediateYuvionCard'))fail('immediate Yuvion Studio description helper missing');else ok('immediate Yuvion Studio description helper present');
+if(!html.includes('preferLocal:false'))fail('frontend Yuvion Studio analyze request missing');else ok('frontend Yuvion Studio analyze request present');
 if(server.includes('}\n  try { visual = { ...visual, product: await transformProductForScene(visual.product,index) };'))fail('whole photo panel rotation regression present');else ok('whole photo panels are not rotated');
 if(html.includes("const response=await fetch('/api/label-ocr',{method:'POST'"))fail('paid OCR still wired into automatic/main label flow');else ok('main label flow avoids paid OCR');
 
