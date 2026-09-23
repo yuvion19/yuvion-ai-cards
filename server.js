@@ -1194,7 +1194,7 @@ async function resolveGigaChatModel(force = false, purpose = "text") {
   }
 
   const textPriority = ["GigaChat-3-Ultra", "GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-2", "GigaChat"];
-  const imagePriority = ["GigaChat-2-Pro", "GigaChat-2-Max", "GigaChat-2", "GigaChat-3-Ultra", "GigaChat"];
+  const imagePriority = ["GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-2", "GigaChat-3-Ultra", "GigaChat"];
   const priority = purpose === "image" ? imagePriority : textPriority;
   const selected = priority.find((model) => models.includes(model)) || models[0];
   gigaChatResolvedModel = selected;
@@ -1287,10 +1287,16 @@ async function deleteGigaChatFile(fileId) {
   }
 }
 
-function extractGigaChatImageId(content) {
-  const text = String(content || "");
-  const match = text.match(/<img[^>]+src=["']([0-9a-f-]{20,})["'][^>]*>/i);
-  return match ? match[1] : "";
+function extractGigaChatImageId(content, envelope = null) {
+  const candidates = [
+    String(content || ""),
+    String(envelope?.choices?.[0]?.message?.content || "")
+  ];
+  for (const text of candidates) {
+    const match = text.match(/<img[^>]+src=["']([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})["'][^>]*>/i);
+    if (match) return match[1];
+  }
+  return "";
 }
 
 async function downloadGigaChatImage(fileId) {
@@ -1348,7 +1354,6 @@ async function generateGigaChatBackground(cardRaw, index, styleKey, palette, stu
         {
           purpose: "image",
           functionCall: "auto",
-          functions: [{ name: "text2image" }],
           maxTokens: 420,
           temperature: 0.25
         }
@@ -1356,9 +1361,40 @@ async function generateGigaChatBackground(cardRaw, index, styleKey, palette, stu
       180000,
       "GigaChat image generation timed out"
     );
-    generatedFileId = extractGigaChatImageId(result.content);
+    generatedFileId = extractGigaChatImageId(result.content, result.data);
     if (!generatedFileId) {
-      throw Object.assign(new Error("GigaChat did not return generated image id"), { code: "gigachat_image_id_missing" });
+      console.warn("GigaChat image first attempt returned no image id:", {
+        model: result.model,
+        content: compact(result.content || "", 260)
+      });
+      const retryModel = await resolveGigaChatModel(true, "image");
+      const retry = await withTimeout(
+        gigaChatCompletion(
+          [
+            {
+              role: "system",
+              content: "Ты генератор изображений. На запрос нарисовать изображение обязательно используй встроенную функцию text2image. Не отвечай только текстом."
+            },
+            {
+              role: "user",
+              content: "ОБЯЗАТЕЛЬНО СГЕНЕРИРУЙ ИЗОБРАЖЕНИЕ ПРЯМО СЕЙЧАС через встроенную text2image. " + prompt
+            }
+          ],
+          {
+            purpose: "image",
+            model: retryModel,
+            functionCall: "auto",
+            maxTokens: 420,
+            temperature: 0.05
+          }
+        ),
+        180000,
+        "GigaChat image retry timed out"
+      );
+      generatedFileId = extractGigaChatImageId(retry.content, retry.data);
+    }
+    if (!generatedFileId) {
+      throw Object.assign(new Error("GigaChat did not return generated image id after retry"), { code: "gigachat_image_id_missing" });
     }
     const rawImage = await withTimeout(
       downloadGigaChatImage(generatedFileId),
@@ -1489,7 +1525,6 @@ async function generateGigaChatReferenceScene(referenceBrief, cardRaw, index, st
         {
           purpose: "image",
           functionCall: "auto",
-          functions: [{ name: "text2image" }],
           maxTokens: 520,
           temperature: 0.2
         }
@@ -1498,9 +1533,45 @@ async function generateGigaChatReferenceScene(referenceBrief, cardRaw, index, st
       "Yuvion Studio image generation timed out"
     );
 
-    generatedFileId = extractGigaChatImageId(result.content);
+    generatedFileId = extractGigaChatImageId(result.content, result.data);
     if (!generatedFileId) {
-      throw Object.assign(new Error("Yuvion Studio did not return generated image id"), {
+      console.warn("Yuvion Studio image first attempt returned no image id:", {
+        model: result.model,
+        content: compact(result.content || "", 260)
+      });
+      const retryModel = await resolveGigaChatModel(true, "image");
+      const retry = await withTimeout(
+        gigaChatCompletion(
+          [
+            {
+              role: "system",
+              content:
+                "Ты генератор профессиональных товарных фонов. " +
+                "На запрос нарисовать сцену обязательно используй встроенную функцию text2image. " +
+                "Не отвечай только текстом и не добавляй читаемый текст на изображение."
+            },
+            {
+              role: "user",
+              content:
+                "ОБЯЗАТЕЛЬНО СГЕНЕРИРУЙ ИЗОБРАЖЕНИЕ ПРЯМО СЕЙЧАС через встроенную text2image. " +
+                prompt
+            }
+          ],
+          {
+            purpose: "image",
+            model: retryModel,
+            functionCall: "auto",
+            maxTokens: 520,
+            temperature: 0.05
+          }
+        ),
+        180000,
+        "Yuvion Studio image retry timed out"
+      );
+      generatedFileId = extractGigaChatImageId(retry.content, retry.data);
+    }
+    if (!generatedFileId) {
+      throw Object.assign(new Error("Yuvion Studio did not return generated image id after retry"), {
         code: "yuvion_image_id_missing"
       });
     }
