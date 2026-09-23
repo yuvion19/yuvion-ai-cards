@@ -2143,9 +2143,15 @@ function localizeVisionLabel(value){
     [/laptop|notebook computer/,"ноутбук"],[/cellular telephone|cell phone|mobile phone/,"смартфон"],[/remote control/,"пульт"],
     [/table lamp|lampshade|lamp/,"лампа"],[/hair dryer/,"фен"],[/iron/,"утюг"],[/vacuum/,"пылесос"],[/toaster/,"тостер"],
     [/teapot/,"чайник"],[/coffeepot/,"кофейник"],[/frying pan|pan/,"сковорода"],[/pot/,"кастрюля"],[/knife/,"нож"],[/spoon/,"ложка"],[/fork/,"вилка"],
-    [/teddy/,"мягкая игрушка"],[/toy/,"игрушка"],[/ball/,"мяч"],[/umbrella/,"зонт"],[/book/,"книга"],[/pen/,"ручка"],
-    [/chair/,"стул"],[/desk/,"стол"],[/sofa|couch/,"диван"],[/pillow/,"подушка"],[/blanket/,"плед"],[/clock/,"часы"],
-    [/soap dispenser|lotion/,"флакон"],[/perfume/,"парфюмерный флакон"],[/candle/,"свеча"],[/box|carton/,"товар в коробке"]
+    [/teddy/,"мягкая игрушка"],[/toy/,"игрушка"],[/ball/,"мяч"],[/umbrella/,"зонт"],[/book/,"книга"],[/pen|ballpoint/,"ручка"],[/pencil/,"карандаш"],
+    [/chair|rocking chair/,"стул"],[/desk|dining table/,"стол"],[/sofa|couch/,"диван"],[/pillow/,"подушка"],[/blanket|quilt/,"плед"],[/alarm clock|wall clock/,"часы"],
+    [/soap dispenser|lotion|pump bottle/,"флакон"],[/perfume/,"парфюмерный флакон"],[/candle/,"свеча"],[/vase/,"ваза"],[/jar/,"банка"],[/box|carton/,"товар в коробке"],
+    [/electric fan|fan/,"вентилятор"],[/space heater|radiator/,"обогреватель"],[/microwave/,"микроволновая печь"],[/refrigerator/,"холодильник"],
+    [/washer|washing machine/,"стиральная машина"],[/dishwasher/,"посудомоечная машина"],[/sewing machine/,"швейная машина"],
+    [/screwdriver/,"отвёртка"],[/hammer/,"молоток"],[/power drill|drill/,"дрель"],[/wrench|spanner/,"гаечный ключ"],
+    [/lipstick/,"помада"],[/face powder|compact/,"пудра"],[/hair spray/,"спрей для волос"],[/toothbrush/,"зубная щётка"],[/hairbrush/,"расчёска"],
+    [/headphone|earphone/,"наушники"],[/speaker/,"колонка"],[/camera/,"камера"],[/monitor|screen/,"монитор"],[/printer/,"принтер"],
+    [/basket/,"корзина"],[/bucket/,"ведро"],[/container/,"контейнер"],[/towel/,"полотенце"],[/mat/,"коврик"]
   ];
   for(const [re,ru] of map)if(re.test(s))return ru;
   return raw;
@@ -2154,8 +2160,22 @@ function localizeVisionLabel(value){
 function normalizeBrowserVisionCard(visionRaw, extraRaw = {}) {
   const vision = visionRaw && typeof visionRaw === "object" ? visionRaw : {};
   const extra = normalizeExtraData(extraRaw);
-  const productName = localizeVisionLabel(safeVisionValue(vision.productName || vision.product || vision.object || vision.item || ""));
-  const categoryHint = localizeVisionLabel(safeVisionValue(vision.category || vision.possibleCategory || ""));
+  const rawProductName = safeVisionValue(vision.productName || vision.product || vision.object || vision.item || "");
+  const rawCategoryHint = safeVisionValue(vision.category || vision.possibleCategory || "");
+  let productName = localizeVisionLabel(rawProductName);
+  let categoryHint = localizeVisionLabel(rawCategoryHint);
+  const classifierCandidates = Array.isArray(vision.classifierCandidates) ? vision.classifierCandidates : [];
+  const mappedCandidate = classifierCandidates
+    .map((item) => {
+      const raw = safeVisionValue(item?.label || "");
+      return { raw, localized: localizeVisionLabel(raw), score: Number(item?.score || 0) };
+    })
+    .filter((item) => item.localized && item.localized.toLocaleLowerCase("ru") !== item.raw.toLocaleLowerCase("ru"))
+    .sort((a,b) => b.score - a.score)[0];
+  const productWasUnmapped = rawProductName && productName.toLocaleLowerCase("ru") === rawProductName.toLocaleLowerCase("ru");
+  const categoryWasUnmapped = rawCategoryHint && categoryHint.toLocaleLowerCase("ru") === rawCategoryHint.toLocaleLowerCase("ru");
+  if ((!productName || productWasUnmapped) && mappedCandidate) productName = mappedCandidate.localized;
+  if ((!categoryHint || categoryWasUnmapped) && mappedCandidate) categoryHint = mappedCandidate.localized;
   const colors = cleanVisionList(vision.colors || vision.colours, 4);
   const features = cleanVisionList(vision.visibleFeatures || vision.features, 6);
   const visibleText = cleanVisionList(vision.visibleText || vision.textOnProduct || vision.text, 5);
@@ -2182,14 +2202,21 @@ function normalizeBrowserVisionCard(visionRaw, extraRaw = {}) {
   if (colors.length) factBits.push("цвет: " + colors.join(", "));
   if (packageType) factBits.push("упаковка: " + packageType);
   if (features.length) factBits.push(features.slice(0, 3).join(", "));
+  const purpose = localCopyPurpose(title, category);
   const shortDescription = compact(
-    title + (factBits.length ? ". " + factBits.join(". ") + "." : ". Товар распознан локально по фотографии."),
+    [
+      title + (category && category.toLocaleLowerCase("ru") !== title.toLocaleLowerCase("ru") ? " — " + category.toLocaleLowerCase("ru") : "") + ".",
+      purpose,
+      factBits.length ? "Видимые особенности: " + factBits.join("; ") + "." : ""
+    ].filter(Boolean).join(" "),
     500
   );
   const fullDescription = compact(
-    shortDescription +
-    " Описание сформировано локально по видимым признакам фотографии. " +
-    "Размеры, материал, мощность, состав и другие точные параметры не добавляются без подтверждения.",
+    [
+      shortDescription,
+      visibleText.length ? "На товаре или упаковке читается: " + visibleText.slice(0,3).join("; ") + "." : "",
+      "Точные размеры, материал, состав, мощность, объём и другие параметры не добавляются без подтверждения."
+    ].filter(Boolean).join(" "),
     2000
   );
   const needs = [];
