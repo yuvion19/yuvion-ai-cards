@@ -427,6 +427,23 @@
       .simple-result h2{font-size:21px}.minimal-menu-pop{right:-2px;width:220px}
     }
 
+
+    /* YUVION_V110_AUTOPILOT */
+    .simple-photo-advice{display:none;margin-top:10px;border-radius:14px;padding:12px 13px;font-size:12px;line-height:1.45}
+    .simple-photo-advice.show{display:block}.simple-photo-advice.warn{background:#FFF8E8;color:#76500D;border:1px solid #F2DFB5}.simple-photo-advice.bad{background:#FFF0F0;color:#8A2D35;border:1px solid #F0C4C9}.simple-photo-advice.good{background:#F1F8F3;color:#29643B;border:1px solid #D6EAD9}
+    .simple-photo-advice b{display:block;margin-bottom:4px}.simple-photo-advice ul{margin:5px 0 0;padding-left:17px}
+    .simple-result-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.simple-result-meta:empty{display:none}
+    .simple-meta-pill{border:0;border-radius:999px;background:#F7F3F4;color:#675B5F;padding:6px 9px;font-size:10px;font-weight:800;cursor:default}
+    button.simple-meta-pill{cursor:pointer}.simple-meta-pill.series{background:#EEF6FA;color:#365E72}.simple-meta-pill.duplicate{background:#FFF2E9;color:#8A4E1C}
+    .simple-done-panel{display:none;margin-top:14px;padding:14px;border-radius:15px;background:#EFF8F1;border:1px solid #D8EBDD;align-items:center;justify-content:space-between;gap:12px}
+    .simple-done-panel.show{display:flex}.simple-done-panel b{display:block;font-size:16px;color:#23633A}.simple-done-panel span{display:block;font-size:10px;color:#627069;margin-top:3px}
+    .simple-done-actions{display:flex;gap:7px}.simple-done-actions button{border:0;border-radius:10px;padding:9px 11px;font-size:11px;font-weight:850;cursor:pointer}.simple-done-actions button:first-child{background:#F03E4A;color:#fff}.simple-done-actions button:last-child{background:#fff;color:#4E4447;border:1px solid #E4DDDF}
+    .minimal-sheet{display:none;position:fixed;inset:0;z-index:120}.minimal-sheet.show{display:block}.minimal-sheet-backdrop{position:absolute;inset:0;background:rgba(22,17,19,.35);backdrop-filter:blur(4px)}
+    .minimal-sheet-card{position:absolute;right:0;top:0;bottom:0;width:min(430px,100%);background:#fff;padding:18px;overflow:auto;box-shadow:-18px 0 70px rgba(0,0,0,.14)}
+    .minimal-sheet-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}.minimal-sheet-head b{display:block;font-size:19px}.minimal-sheet-head span{display:block;color:#82777A;font-size:11px;margin-top:4px}.minimal-sheet-head button{border:0;background:#F6F2F3;width:34px;height:34px;border-radius:10px;font-size:20px;cursor:pointer}
+    .minimal-versions-list{display:grid;gap:10px}.minimal-version-row{border:1px solid #EEE6E8;border-radius:14px;padding:11px}.minimal-version-row b{font-size:12px}.minimal-version-row small{display:block;color:#887D80;font-size:10px;margin-top:3px}.minimal-version-thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px}.minimal-version-thumbs img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px;background:#F7F4F5}.minimal-version-row button{margin-top:8px;width:100%;border:0;border-radius:9px;padding:8px;background:#F4ECEE;color:#513D42;font-size:11px;font-weight:850;cursor:pointer}
+    @media(max-width:620px){.simple-done-panel{align-items:stretch;flex-direction:column}.simple-done-actions{display:grid;grid-template-columns:1fr 1fr}.minimal-sheet-card{width:100%;top:auto;height:min(70vh,620px);border-radius:22px 22px 0 0}}
+
 </style>
 </head>
 <body class="simple-ui">
@@ -440,6 +457,7 @@
         <div class="minimal-menu-pop">
           <button type="button" id="minimalUrl">Импорт по ссылке</button>
           <button type="button" id="minimalExcel">Excel</button>
+          <button type="button" id="minimalVersions">Предыдущие варианты</button>
           <button type="button" id="minimalAdvanced">Профессиональный режим</button>
           <a href="https://admin.yuvion.ru/" target="_blank" rel="noopener">Личный кабинет Yuvion</a>
           <a href="https://yuvion.ru/" target="_blank" rel="noopener">yuvion.ru</a>
@@ -663,6 +681,7 @@
       </div>
       <img id="preview" class="preview" alt="Предпросмотр товара" />
     </label>
+    <div class="simple-photo-advice" id="simplePhotoAdvice"></div>
 
     <details class="extra-data" id="extraDataBox">
       <summary>Добавить данные о товаре <span class="muted" style="font-size:12px;font-weight:650">необязательно</span></summary>
@@ -735,6 +754,7 @@
         <button type="button" class="simple-edit-btn" id="simpleEdit">Изменить</button>
       </div>
       <p id="simpleResultDescription"></p>
+      <div class="simple-result-meta" id="simpleResultMeta"></div>
       <div class="simple-specs" id="simpleResultSpecs"></div>
       <div class="simple-result-actions">
         <button type="button" class="simple-secondary-btn" id="simpleNewProduct">Новый товар</button>
@@ -1051,6 +1071,10 @@
       <div class="creative-status" id="creativeStatus"></div>
       <div class="qa-summary" id="qaSummary" style="display:none"></div>
       <div class="cards-preview" id="cardsPreview"></div>
+      <div class="simple-done-panel" id="simpleDonePanel">
+        <div><b>Готово ✓</b><span>Обложка · преимущества · характеристики · применение</span></div>
+        <div class="simple-done-actions"><button type="button" id="simpleDoneDownload">Скачать всё</button><button type="button" id="simpleDoneNew">Новый товар</button></div>
+      </div>
     </section>
   </section>
 
@@ -1143,6 +1167,14 @@
   </section>
 </div>
 </main>
+
+<div class="minimal-sheet" id="minimalVersionsSheet" aria-hidden="true">
+  <div class="minimal-sheet-backdrop" id="minimalVersionsBackdrop"></div>
+  <div class="minimal-sheet-card">
+    <div class="minimal-sheet-head"><div><b>Предыдущие варианты</b><span>Можно вернуть один из последних сохранённых комплектов.</span></div><button type="button" id="closeMinimalVersions">×</button></div>
+    <div class="minimal-versions-list" id="minimalVersionsList"></div>
+  </div>
+</div>
 
 <div class="sticky-dock" id="stickyDock">
   <div class="dock-status"><b id="dockTitle">Товар готовится</b><span id="dockSubtitle">Начните с фотографии</span></div>
@@ -1623,6 +1655,9 @@ let excelAutopilotBusy=false;
 let currentLabelSuggestions=[];
 let currentActivity=[];
 let currentAnalysisCache=null;
+let currentPhotoAdvice=null;
+let currentSeriesReference=null;
+let probableDuplicateId=null;
 let unmatchedPhotoPool=[];
 let photographerPendingRole='main';
 let photographerItems=[];
@@ -1648,8 +1683,11 @@ function renderNetworkState(){
     saveLargeQueueState({pending:true,paused:true,offline:true});
   }
 }
-window.addEventListener('online',()=>{renderNetworkState();refreshDiagnosticsNow()});
-window.addEventListener('offline',()=>{renderNetworkState();refreshDiagnosticsNow()});
+window.addEventListener('online',()=>{renderNetworkState();refreshDiagnosticsNow();window.setTimeout(()=>resumePersistedQueueIfNeeded('online'),250)});
+window.addEventListener('offline',()=>{
+  renderNetworkState();refreshDiagnosticsNow();
+  if(excelAutopilotBusy){largeQueuePaused=true;saveLargeQueueState({pending:true,paused:true,offline:true,autoResume:true})}
+});
 
 function queueBudgetLimit(){
   const n=Number(queueBudgetUsd?.value||localStorage.getItem(QUEUE_BUDGET_KEY)||0);
@@ -4107,7 +4145,7 @@ function parseLocalVisionJson(text){
 
 function ensureLocalVisionWorker(){
   if(localVisionWorker)return localVisionWorker;
-  localVisionWorker=new Worker('/local-vision-worker.js?v=10.9.0',{type:'module'});
+  localVisionWorker=new Worker('/local-vision-worker.js?v=11.0.0',{type:'module'});
   return localVisionWorker;
 }
 
@@ -4471,7 +4509,7 @@ styleSelect.onchange=()=>{styleSelect.dataset.userChanged='1';applyRecommendedPe
 function syncRenderModeUi(){
   renderModeSelect.value='free';
   generateAll.textContent='Создать 4 Studio-карточки бесплатно';
-  generateAll.title='Studio Director v10.9.0: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
+  generateAll.title='Studio Director v11.0.0: без image-generation API. Исходный товар сохраняется, сцена и свет собираются локально.';
 }
 renderModeSelect.onchange=()=>{currentScenes=[];markCardsStale([0,1,2,3]);syncRenderModeUi();renderProductCockpit();saveHistoryDebounced()};
 
@@ -4659,7 +4697,7 @@ generateAll.onclick=async()=>{
       if(data.composition&&typeof data.composition==='object')currentComposition={...currentComposition,...data.composition};
       renderDesignStudio();
       const renderDetail=/studio-(local|director)-/i.test(String(data.renderEngine||''))
-        ?('Studio Director v10.9.0 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
+        ?('Studio Director v11.0.0 · '+(Number(data.usedAdditionalImages||0)?('доп. фото: '+data.usedAdditionalImages):'1 исходник')+' · 4 разные композиции')
         :'4 карточки + чистые сцены';
       addCurrentActivity(renderModeSelect.value==='free'?'Создан усиленный бесплатный комплект':'Создан AI-комплект',renderDetail);
       captureDesignSnapshot('Готовый комплект',true);
@@ -4830,7 +4868,7 @@ function resetProduct(keepSimilar=false){
 
 /* IndexedDB history */
 const DB_NAME='YuvionCardsHistoryV1',STORE='items',SNAPSHOT_STORE='snapshots';
-const CATALOG_LIMIT=500,ITEM_SCHEMA_VERSION=2,CARD_RENDER_SCHEMA=3;
+const CATALOG_LIMIT=500,ITEM_SCHEMA_VERSION=3,CARD_RENDER_SCHEMA=4;
 function migrateStoredItem(raw){
   const item=raw&&typeof raw==='object'?raw:{};
   if(!Array.isArray(item.cards))item.cards=[];
@@ -7908,7 +7946,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=23',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=24',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
