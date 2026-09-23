@@ -354,7 +354,7 @@ if(html.includes('upgradeFallbackWithBrowserVision'))fail('obsolete browser visi
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=33',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=34',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
@@ -368,8 +368,8 @@ if(html.includes('local-vision-worker.js'))fail('obsolete vision worker referenc
 if(!server.includes('Преобладающий цвет на фото'))fail('guaranteed visible fallback characteristic missing');else ok('guaranteed visible fallback characteristic present');
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(html.includes('improveProductWithLocalVisionInBackground'))fail('obsolete local vision recovery remains');else ok('obsolete local vision recovery removed');
-if(!html.includes("register('/sw.js?v=33'"))fail('service worker v33 registration missing');else ok('service worker v33 registration present');
-if(!sw.includes("yuvion-ai-shell-v33"))fail('service worker v33 cache missing');else ok('service worker v33 cache present');
+if(!html.includes("register('/sw.js?v=34'"))fail('service worker v34 registration missing');else ok('service worker v34 registration present');
+if(!sw.includes("yuvion-ai-shell-v34"))fail('service worker v34 cache missing');else ok('service worker v34 cache present');
 if(!server.includes('freeTextLocalFirst: false'))fail('GigaChat-first text analysis metadata missing');else ok('GigaChat-first text analysis metadata present');
 if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
 if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first metadata missing');else ok('final-data-first metadata present');
