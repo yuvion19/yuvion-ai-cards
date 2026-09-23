@@ -230,7 +230,7 @@ const features=[
   ['const copy=ensureVisibleProductDescription(data.card);','client normalizes copy response before display'],
   ['currentData={...currentData,...finalCard};','copy response immediately synced to visible state'],
   ['d=ensureVisibleProductDescription(d);','editor description guarantee'],
-  ["currentData?.shortDescription||currentData?.fullDescription","compact result full-description fallback"],
+  ["const desc=(base.fullDescription||base.shortDescription||'').trim();","compact result full-description fallback"],
   ['return ensureVisibleProductDescription({','persisted edit description guarantee'],
   ['currentData=ensureVisibleProductDescription(currentData);','URL pre-GPT description guarantee'],
   ['analyzed=ensureVisibleProductDescription(analyzed);','Excel description guarantee'],
