@@ -1071,8 +1071,11 @@ function gigaChatScope() {
 }
 
 function gigaChatModel() {
-  return process.env.GIGACHAT_MODEL || "GigaChat-Pro";
+  return process.env.GIGACHAT_MODEL || "auto";
 }
+
+let gigaChatResolvedModel = "";
+let gigaChatModelsCache = { models: [], expiresAt: 0 };
 
 let gigaChatTokenCache = { accessToken: "", expiresAt: 0 };
 
@@ -1152,21 +1155,75 @@ function gigaChatRequestError(response, bodyText, code) {
   return error;
 }
 
+async function listGigaChatModels(force = false) {
+  if (!force && gigaChatModelsCache.models.length && Date.now() < gigaChatModelsCache.expiresAt) {
+    return gigaChatModelsCache.models;
+  }
+  const response = await gigaChatFetch("/v1/models", { method: "GET" });
+  const raw = await response.text();
+  if (!response.ok) throw gigaChatRequestError(response, raw, "gigachat_models_failed");
+  let data;
+  try { data = JSON.parse(raw); }
+  catch {
+    throw Object.assign(new Error("GigaChat models returned invalid JSON"), { code: "gigachat_models_invalid_json" });
+  }
+  const models = (Array.isArray(data?.data) ? data.data : [])
+    .map((item) => String(item?.id || "").trim())
+    .filter(Boolean);
+  if (!models.length) {
+    throw Object.assign(new Error("GigaChat returned no available models"), { code: "gigachat_models_empty" });
+  }
+  gigaChatModelsCache = { models, expiresAt: Date.now() + 10 * 60 * 1000 };
+  return models;
+}
+
+async function resolveGigaChatModel(force = false, purpose = "text") {
+  const models = await listGigaChatModels(force);
+  const configured = String(process.env.GIGACHAT_MODEL || "").trim();
+  if (configured && configured.toLowerCase() !== "auto" && models.includes(configured)) {
+    gigaChatResolvedModel = configured;
+    return configured;
+  }
+
+  const textPriority = ["GigaChat-3-Ultra", "GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-2", "GigaChat"];
+  const imagePriority = ["GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-2", "GigaChat-3-Ultra", "GigaChat"];
+  const priority = purpose === "image" ? imagePriority : textPriority;
+  const selected = priority.find((model) => models.includes(model)) || models[0];
+  gigaChatResolvedModel = selected;
+  return selected;
+}
+
 async function gigaChatCompletion(messages, options = {}) {
-  const response = await gigaChatFetch("/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: gigaChatModel(),
+  const purpose = options.purpose === "image" ? "image" : "text";
+  let model = options.model || await resolveGigaChatModel(false, purpose);
+
+  const makeRequest = async (modelName) => {
+    const payload = {
+      model: modelName,
       messages,
       temperature: Number(options.temperature ?? 0.1),
       stream: false,
       update_interval: 0,
       max_tokens: Number(options.maxTokens || 1600)
-    })
-  });
+    };
+    if (options.functionCall) payload.function_call = options.functionCall;
+    return gigaChatFetch("/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  };
 
-  const raw = await response.text();
+  let response = await makeRequest(model);
+  let raw = await response.text();
+
+  if (response.status === 404 && /no such model|invalid model/i.test(raw)) {
+    gigaChatModelsCache = { models: [], expiresAt: 0 };
+    model = await resolveGigaChatModel(true, purpose);
+    response = await makeRequest(model);
+    raw = await response.text();
+  }
+
   if (!response.ok) throw gigaChatRequestError(response, raw, "gigachat_completion_failed");
 
   let data;
@@ -1178,7 +1235,7 @@ async function gigaChatCompletion(messages, options = {}) {
   recordTextUsage(data);
   const content = data?.choices?.[0]?.message?.content;
   if (!content) throw Object.assign(new Error("GigaChat returned an empty answer"), { code: "gigachat_empty_answer" });
-  return { data, content: String(content) };
+  return { data, content: String(content), model };
 }
 
 async function normalizeGigaChatImage(buffer, mimeType = "image/jpeg") {
