@@ -263,7 +263,7 @@ for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
 }
 if(html.includes('js.puter.com')||html.includes('window.puter')||html.includes('enhanceProductCopyWithPuter'))fail('Puter login fallback still present');else ok('Puter login fallback removed');
-if(server.includes('async function callOpenAiCopy')||server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy'))fail('legacy description AI providers still present');else ok('Vireonix is the only external description AI provider');
+if(server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy'))fail('retired description AI providers still present');else ok('OpenAI + Vireonix description providers only');
 if(server.includes('api.groq.com/openai/v1')||server.includes('api.cloudflare.com/client/v4/accounts/')||server.includes('openrouter.ai/api/v1'))fail('legacy description provider endpoints still present');else ok('legacy description provider endpoints removed');
 
 
