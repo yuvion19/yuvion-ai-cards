@@ -1,6 +1,7 @@
 FROM node:20-bookworm-slim
 
 ENV NODE_ENV=production
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 WORKDIR /app
 
 RUN apt-get update \
