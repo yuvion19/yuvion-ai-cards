@@ -1814,7 +1814,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.1.0",
+    version: "11.1.1",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -4424,5 +4424,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.1.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.1.1 listening on port ${port}`);
 });
