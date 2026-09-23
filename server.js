@@ -4620,9 +4620,23 @@ app.post("/api/regenerate-card", async (req, res) => {
       sceneTune.shiftY = Number(sceneTune.shiftY || 0) + (attempt % 3 === 0 ? 18 : -10);
       sceneTune.scale = Math.max(.90, Math.min(1.08, Number(sceneTune.scale || 1) * (attempt % 2 ? .97 : 1.035)));
     }
+    let gigaBackground = null;
+    if (gigaChatConfigured()) {
+      try {
+        gigaBackground = await generateGigaChatBackground(normalized, cardIndex, styleKey, renderPalette, studioProfile);
+      } catch (error) {
+        console.warn("GigaChat regenerate background fallback:", {
+          index: cardIndex,
+          message: error?.message,
+          status: error?.status,
+          code: error?.code,
+          details: error?.details
+        });
+      }
+    }
     const scene = await renderFreeScene(
       selectedSource.buffer, cardIndex, styleKey, renderPalette, variant, renderComposition,
-      intensity, substyle, visual, insetSource?.buffer || null, selectedSource.role, insetSource?.role || "", studioProfile
+      intensity, substyle, visual, insetSource?.buffer || null, selectedSource.role, insetSource?.role || "", studioProfile, gigaBackground
     );
     stats.freeSceneRenders += 1;
 
@@ -4646,7 +4660,8 @@ app.post("/api/regenerate-card", async (req, res) => {
         base64: cachedScene.toString("base64")
       },
       renderMode: mode,
-      aiImageCalls: 0,
+      aiImageCalls: gigaBackground ? 1 : 0,
+      gigaChatImageCalls: gigaBackground ? 1 : 0,
       palette: renderPalette,
       designVariant: variant,
       designIntensity: intensity,
@@ -4656,7 +4671,7 @@ app.post("/api/regenerate-card", async (req, res) => {
       repairAttempt: attempt,
       sourceQuality,
       studioProfile,
-      renderEngine: "studio-director-v11"
+      renderEngine: gigaBackground ? "studio-gigachat-v12" : "studio-director-v11"
     });
   } catch (error) {
     console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
