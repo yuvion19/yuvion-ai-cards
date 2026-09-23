@@ -1489,6 +1489,7 @@ async function generateGigaChatReferenceScene(referenceBrief, cardRaw, index, st
         {
           purpose: "image",
           functionCall: "auto",
+          functions: [{ name: "text2image" }],
           maxTokens: 520,
           temperature: 0.2
         }
