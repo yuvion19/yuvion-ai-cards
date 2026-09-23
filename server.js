@@ -5008,6 +5008,23 @@ if (gigaChatConfigured()) {
       reply: String(ping.content || "").slice(0, 20)
     });
 
+    const copyTest = await withTimeout(
+      callGigaChatCopy({
+        seoTitle: "Красная кружка",
+        category: "Посуда",
+        characteristics: [{ name: "Цвет", value: "красный", source: "Фото" }],
+        confirmedData: [{ field: "Цвет", value: "красный", source: "Фото" }]
+      }),
+      30000,
+      "GigaChat copy self-test timed out"
+    );
+    console.log("GigaChat copy self-test OK:", {
+      model: copyTest.copyModel,
+      title: String(copyTest.seoTitle || "").slice(0, 80),
+      shortChars: String(copyTest.shortDescription || "").length,
+      fullChars: String(copyTest.fullDescription || "").length
+    });
+
     if (String(process.env.GIGACHAT_STARTUP_MEDIA_TEST || "").toLowerCase() === "true") {
       let testFileId = "";
       try {
