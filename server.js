@@ -1191,6 +1191,47 @@ async function generateProductCopyWithGpt(cardRaw = {}) {
   return generateProductCopyWithProviders(cardRaw);
 }
 
+app.get("/api/_selftest/deepseek-1127-37bfbec5", async (_req, res) => {
+  try {
+    if (!deepSeekConfigured()) return res.status(503).json({ ok: false, configured: false });
+    const imageBuffer = await sharp({
+      create: { width: 96, height: 96, channels: 3, background: { r: 210, g: 35, b: 35 } }
+    }).png().toBuffer();
+    const response = await withTimeout(
+      deepSeekClient().responses.create({
+        model: deepSeekModel(),
+        instructions: "Return JSON only. Identify the dominant color in the image.",
+        input: [{
+          role: "user",
+          content: [
+            { type: "input_text", text: "What is the dominant color? Return {\"color\":\"...\"}." },
+            { type: "input_image", image_url: "data:image/png;base64," + imageBuffer.toString("base64"), detail: "low" }
+          ]
+        }],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "deepseek_selftest",
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              required: ["color"],
+              properties: { color: { type: "string" } }
+            }
+          }
+        },
+        max_output_tokens: 120
+      }),
+      25000,
+      "DeepSeek self-test timed out"
+    );
+    const parsed = JSON.parse(response.output_text || "{}");
+    return res.json({ ok: Boolean(parsed.color), configured: true, model: deepSeekModel(), vision: true, color: parsed.color || "" });
+  } catch (error) {
+    return res.status(502).json({ ok: false, configured: true, error: String(error?.code || error?.message || "deepseek_error").slice(0,180) });
+  }
+});
+
 function isBlockedIp(address) {
   const ip = String(address || "").toLowerCase();
   const kind = net.isIP(ip);
