@@ -4634,6 +4634,48 @@ if (!localCopySelfTest.shortDescription || localCopySelfTest.fullDescription.len
 }
 console.log("Local description self-test OK:", localCopySelfTest.shortDescription.length, localCopySelfTest.fullDescription.length);
 
+if (deepSeekConfigured()) {
+  try {
+    const selfTestImage = await sharp({
+      create: { width: 96, height: 96, channels: 3, background: { r: 210, g: 35, b: 35 } }
+    }).png().toBuffer();
+    const deepSeekSelfTest = await withTimeout(
+      deepSeekClient().responses.create({
+        model: deepSeekModel(),
+        instructions: "Return JSON only. Identify the dominant color in the image.",
+        input: [{
+          role: "user",
+          content: [
+            { type: "input_text", text: "Return {\"color\":\"...\"}." },
+            { type: "input_image", image_url: "data:image/png;base64," + selfTestImage.toString("base64"), detail: "low" }
+          ]
+        }],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "deepseek_startup_selftest",
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              required: ["color"],
+              properties: { color: { type: "string" } }
+            }
+          }
+        },
+        max_output_tokens: 120
+      }),
+      25000,
+      "DeepSeek startup self-test timed out"
+    );
+    const parsed = JSON.parse(deepSeekSelfTest.output_text || "{}");
+    console.log("DeepSeek startup self-test OK:", Boolean(parsed.color), deepSeekModel());
+  } catch (error) {
+    console.error("DeepSeek startup self-test ERROR:", error?.status || "", error?.code || "", error?.message || String(error));
+  }
+} else {
+  console.error("DeepSeek startup self-test ERROR: key not configured");
+}
+
 app.listen(port, "0.0.0.0", () => {
   console.log(`Yuvion AI Cards v11.2.7 listening on port ${port}`);
 });
