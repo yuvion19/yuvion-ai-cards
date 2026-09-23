@@ -4752,9 +4752,12 @@ if (gigaChatConfigured()) {
     console.log("GigaChat OAuth self-test OK:", gigaChatModel());
   } catch (error) {
     console.error("GigaChat OAuth self-test failed:", {
+      message: error?.message,
       status: error?.status,
       code: error?.code,
-      details: error?.details
+      details: error?.details,
+      causeMessage: error?.cause?.message,
+      causeCode: error?.cause?.code
     });
   }
 } else {
