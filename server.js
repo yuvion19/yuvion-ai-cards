@@ -1402,7 +1402,7 @@ async function callGigaChatCopy(cardRaw = {}) {
     throw Object.assign(new Error("GigaChat returned undersized product copy"), { code: "gigachat_copy_too_short" });
   }
 
-  return { ...merged, copyProvider: "gigachat", copyModel: gigaChatModel() };
+  return { ...merged, copyProvider: "gigachat", copyModel: result.model || gigaChatResolvedModel || gigaChatModel() };
 }
 
 function finalizeCopyResponse(card, { provider = "local", used = false, reason = "", model = "" } = {}) {
@@ -1441,7 +1441,7 @@ async function generateProductCopyWithProviders(cardRaw = {}) {
       return finalizeCopyResponse(card, {
         provider: "gigachat",
         used: true,
-        model: gigaChatModel()
+        model: card.copyModel || gigaChatResolvedModel || gigaChatModel()
       });
     } catch (error) {
       recordError("copy-gigachat", error);
@@ -2495,7 +2495,7 @@ app.post("/api/analyze", async (req, res) => {
     parsed.analysisMode = "gigachat";
     parsed.analysisNotice = "Фото, характеристики и описание обработаны GigaChat";
     parsed.copyProvider = "gigachat";
-    parsed.copyModel = gigaChatModel();
+    parsed.copyModel = result.model || gigaChatResolvedModel || gigaChatModel();
 
     if (!parsed.shortDescription || !parsed.fullDescription || parsed.fullDescription.length < 180) {
       const enhanced = await callGigaChatCopy(parsed);
@@ -4944,9 +4944,25 @@ console.log("Local description self-test OK:", localCopySelfTest.shortDescriptio
 if (gigaChatConfigured()) {
   try {
     await withTimeout(getGigaChatAccessToken(), 15000, "GigaChat OAuth self-test timed out");
-    console.log("GigaChat OAuth self-test OK:", gigaChatModel());
+    const textModel = await withTimeout(resolveGigaChatModel(true, "text"), 15000, "GigaChat model discovery timed out");
+    const imageModel = await withTimeout(resolveGigaChatModel(false, "image"), 15000, "GigaChat image model discovery timed out");
+    const ping = await withTimeout(
+      gigaChatCompletion([{ role: "user", content: "Ответь ровно одним словом: OK" }], {
+        model: textModel,
+        maxTokens: 8,
+        temperature: 0
+      }),
+      20000,
+      "GigaChat completion self-test timed out"
+    );
+    console.log("GigaChat self-test OK:", {
+      textModel,
+      imageModel,
+      completionModel: ping.model,
+      reply: String(ping.content || "").slice(0, 20)
+    });
   } catch (error) {
-    console.error("GigaChat OAuth self-test failed:", {
+    console.error("GigaChat self-test failed:", {
       message: error?.message,
       status: error?.status,
       code: error?.code,
@@ -4956,7 +4972,7 @@ if (gigaChatConfigured()) {
     });
   }
 } else {
-  console.warn("GigaChat OAuth self-test skipped: GIGACHAT_AUTH_KEY is not configured");
+  console.warn("GigaChat self-test skipped: GIGACHAT_AUTH_KEY is not configured");
 }
 
 app.listen(port, "0.0.0.0", () => {
