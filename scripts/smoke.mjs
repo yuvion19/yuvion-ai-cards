@@ -164,7 +164,7 @@ const features=[
   ['fullSeriesChooser: true','full series chooser health metadata'],
   ['autoSeriesRegeneration: true','series auto-regeneration metadata'],
   ['markCardsStale([0,1,2,3])','series forces full-card refresh'],
-  ['Studio Director v10','current renderer UI marker'],
+  ['Studio Director v11','current renderer UI marker'],
   ['localCardVisualMetrics','local visual QA metrics'],
   ['visualQaVersion: 5','local QA v5 response'],
   ['localVisualQaV2: true','local visual QA v2 health metadata'],
