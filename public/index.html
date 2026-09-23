@@ -7522,7 +7522,7 @@ function batchQaBlockers(quality){
 }
 
 function batchQaPassed(quality){
-  return Boolean(quality&&Number(quality.visualQaVersion||0)>=3&&batchQaBlockers(quality).length===0);
+  return Boolean(quality&&Number(quality.visualQaVersion||0)>=5&&batchQaBlockers(quality).length===0);
 }
 
 async function batchQuality(cards,card,source=null){
