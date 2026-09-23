@@ -1776,7 +1776,7 @@ async function importFromProductUrl(){
     currentData.confirmedData={...importedExtra};
     fillExtraData(importedExtra);
     setUrlImportStatus('Данные получены. Готовим описание товара…','');
-    currentData=await enhanceProductCopyLocally(currentData);
+    currentData=await enhanceProductCopyWithDeepSeek(currentData);
 
     const images=Array.isArray(payload.images)?payload.images:[];
     const main=images[0]?.dataUrl||'';
@@ -4245,113 +4245,6 @@ function prepareAutomaticCardStyle(){
 }
 
 
-let localVisionWorker=null;
-let localVisionReady=false;
-let localVisionLoading=null;
-
-function parseLocalVisionJson(text){
-  const raw=String(text||'').trim();
-  const first=raw.indexOf('{'),last=raw.lastIndexOf('}');
-  if(first<0||last<=first)return null;
-  try{return JSON.parse(raw.slice(first,last+1))}catch{return null}
-}
-
-function ensureLocalVisionWorker(){
-  if(localVisionWorker)return localVisionWorker;
-  localVisionWorker=new Worker('/local-vision-worker.js?v=11.2.6',{type:'module'});
-  return localVisionWorker;
-}
-
-async function ensureLocalVisionReady(){
-  if(localVisionReady)return true;
-  if(localVisionLoading)return localVisionLoading;
-  localVisionLoading=new Promise((resolve,reject)=>{
-    const worker=ensureLocalVisionWorker();
-    const timer=setTimeout(()=>{cleanup();reject(new Error('Локальная модель не загрузилась вовремя'))},180000);
-    const onMessage=(event)=>{
-      const m=event.data||{};
-      if(m.status==='progress'&&Number.isFinite(Number(m.progress))){
-        loadingText.textContent='Загружаем бесплатную локальную vision-модель: '+Math.round(Number(m.progress))+'%';
-      }else if(m.status==='loading'){
-        loadingText.textContent='Подготавливаем бесплатное локальное распознавание товара…';
-      }else if(m.status==='ready'){
-        localVisionReady=true;cleanup();resolve(true);
-      }else if(m.status==='error'){
-        cleanup();reject(new Error(m.data||'Ошибка локальной vision-модели'));
-      }
-    };
-    const cleanup=()=>{clearTimeout(timer);worker.removeEventListener('message',onMessage);localVisionLoading=null};
-    worker.addEventListener('message',onMessage);
-    worker.postMessage({type:'load'});
-  });
-  return localVisionLoading;
-}
-
-async function runLocalVisionAnalysis(src){
-  await ensureLocalVisionReady();
-  const worker=ensureLocalVisionWorker();
-  const dataUrl='data:'+src.mimeType+';base64,'+src.image;
-  loadingTitle.textContent='Распознаём товар локально';
-  loadingText.textContent=('gpu' in navigator)
-    ?'Локальная модель распознаёт тип товара на устройстве без платного API.'
-    :'Локальная модель распознаёт тип товара на устройстве без платного API — на iPhone это может занять несколько секунд.';
-  return new Promise((resolve,reject)=>{
-    const timer=setTimeout(()=>{cleanup();reject(new Error('Локальное распознавание заняло слишком много времени'))},25000);
-    const onMessage=(event)=>{
-      const m=event.data||{};
-      if(m.status==='complete'){
-        cleanup();
-        const parsed=parseLocalVisionJson(m.output);
-        if(parsed)resolve(parsed);else reject(new Error('Локальная модель вернула неполный ответ'));
-      }else if(m.status==='error'){cleanup();reject(new Error(m.data||'Ошибка локального распознавания'))}
-    };
-    const cleanup=()=>{clearTimeout(timer);worker.removeEventListener('message',onMessage)};
-    worker.addEventListener('message',onMessage);
-    worker.postMessage({type:'analyze',image:dataUrl});
-  });
-}
-
-async function upgradeFallbackWithBrowserVision(data,src){
-  if(data?.analysisMode!=='local-fallback')return data;
-  try{
-    const vision=await runLocalVisionAnalysis(src);
-    const response=await fetch('/api/local-vision-normalize',{
-      method:'POST',headers:apiHeaders(),
-      body:JSON.stringify({vision,extraData:collectExtraData(),image:src.image,mimeType:src.mimeType})
-    });
-    const local=await response.json().catch(()=>({}));
-    if(response.ok&&local?.seoTitle)return local;
-  }catch(e){
-    addCurrentActivity('Локальное распознавание недоступно',e.message||'Использован базовый fallback');
-  }
-  return data;
-}
-
-async function improveProductWithLocalVisionInBackground(src,productId,baseData){
-  try{
-    const improved=await upgradeFallbackWithBrowserVision(baseData,src);
-    if(productId!==currentHistoryId||!improved||improved===baseData||improved.analysisMode!=='browser-vision')return;
-    currentData=improved;
-    fillEditor(improved);
-    applyCategoryRule({applyTemplate:true});
-    currentData=collectEdits();
-    renderAiQuality(currentData);updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
-    confidence.textContent='Бесплатное локальное распознавание фото · '+(improved.analysisNotice||'SmolVLM');
-    currentScenes=[];
-    if(currentCards.length===4){cardsStale=true;currentStaleCards=[0,1,2,3];renderCards();}
-    addCurrentActivity('Локальное распознавание завершено','Описание и видимые характеристики обновлены');
-    await saveHistory();
-    const refresh=()=>{
-      if(productId!==currentHistoryId)return;
-      if(!cardsBusy&&!busy&&currentData&&cardsStale)generateAll.click();
-      else window.setTimeout(refresh,500);
-    };
-    window.setTimeout(refresh,150);
-  }catch(e){
-    addCurrentActivity('Локальное распознавание недоступно',e.message||'Базовое описание уже сохранено');
-  }
-}
-
 function provisionalCardFromFile(file){
   const raw=String(file?.name||'').replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
   const generic=/^(img|image|photo|dsc|pxl|screenshot|screen shot)\s*\d*$/i.test(raw);
@@ -4374,19 +4267,19 @@ function provisionalCardFromFile(file){
   };
 }
 
-async function requestImmediateLocalCard(src,file){
+async function requestImmediateDeepSeekCard(src,file){
   const fallback=provisionalCardFromFile(file);
   try{
     const extra=collectExtraData();
     const fallbackName=String(extra.name||fallback.seoTitle||'').trim();
     const response=await fetch('/api/analyze',{
       method:'POST',headers:apiHeaders(),
-      body:JSON.stringify({...src,mode:currentMode,preferLocal:true,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})
+      body:JSON.stringify({...src,mode:currentMode,preferLocal:false,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})
     });
     const data=await response.json().catch(()=>({}));
     if(response.ok&&data?.shortDescription&&data?.fullDescription)return data;
   }catch(e){
-    addCurrentActivity('Быстрый локальный анализ недоступен',e.message||'Используем безопасное базовое описание');
+    addCurrentActivity('DeepSeek-анализ недоступен',e.message||'Используем резервное безопасное описание');
   }
   return fallback;
 }
@@ -4414,7 +4307,7 @@ function ensureVisibleProductDescription(card){
   return {...data,seoTitle:title,shortDescription:localShort,fullDescription:localFull};
 }
 
-async function enhanceProductCopyLocally(card,{force=false}={}){
+async function enhanceProductCopyWithDeepSeek(card,{force=false}={}){
   if(!card||typeof card!=='object')return card;
   card=ensureVisibleProductDescription(card);
   if(!force&&card.copyProvider&&card.copyProvider!=='local'&&card.shortDescription&&card.fullDescription)return card;
@@ -4464,33 +4357,25 @@ async function createImmediateFreeCards(file){
   creativeStatus.textContent='Фото загружено. Сразу создаём 4 бесплатные карточки — анализ текста не блокирует изображения.';
   try{
     const src=await getSource();
-    const fastLocal=await requestImmediateLocalCard(src,file);
+    const fastLocal=await requestImmediateDeepSeekCard(src,file);
     if(productId!==currentHistoryId)return false;
     if(fastLocal){
       provisional=fastLocal;
-      if(provisional.analysisMode==='local-fallback'){
-        creativeStatus.textContent='Определяем тип товара локально. После этого сразу создадим описание и 4 финальные карточки.';
-        const improved=await upgradeFallbackWithBrowserVision(provisional,src);
-        if(productId!==currentHistoryId)return false;
-        if(improved&&improved.analysisMode==='browser-vision')provisional=improved;
-      }
       currentData=provisional;
       fillEditor(provisional);
       applyCategoryRule({applyTemplate:true});
       currentData=collectEdits();
       provisional=currentData;
-      creativeStatus.textContent='Готовим описание локально по распознанным и подтверждённым данным…';
-      provisional=await enhanceProductCopyLocally(provisional);
+      creativeStatus.textContent='Готовим описание через DeepSeek по подтверждённым данным…';
+      provisional=await enhanceProductCopyWithDeepSeek(provisional);
       if(productId!==currentHistoryId)return false;
       currentData=provisional;
       fillEditor(provisional);
       await applyCatalogRelations(currentData);
       renderAiQuality(currentData);updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
-      confidence.textContent=provisional.copyProvider&&provisional.copyProvider!=='local'
-        ?'Описание подготовлено локально · без платного AI'
-        :provisional.analysisMode==='browser-vision'
-          ?'Товар распознан локально · использовано резервное описание'
-          :'Базовое описание готово · точные неподтверждённые параметры не добавлены';
+      confidence.textContent=provisional.copyProvider==='deepseek'
+        ?'Описание и распознавание подготовлены DeepSeek'
+        :'DeepSeek недоступен · использовано резервное описание';
       creativeStatus.textContent='Описание и данные готовы. Создаём 4 финальные продающие карточки.';
     }
     const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({
@@ -4512,10 +4397,10 @@ async function createImmediateFreeCards(file){
     zipImages.disabled=true;zipFull.disabled=true;
     creativeStatus.className='creative-status show done';
     creativeStatus.textContent='Готово: описание, характеристики и 4 карточки созданы из одного финального набора данных.';
-    addCurrentActivity('Финальный бесплатный комплект','Распознавание и описание завершены до создания 4 карточек');
+    addCurrentActivity('Финальный комплект','DeepSeek-анализ и описание завершены до создания 4 карточек');
     await saveHistory();
     await checkQualityAndAutofix(true);
-    addCurrentActivity('Быстрый бесплатный QA','4 карточки проверены локально до завершения текстового анализа');
+    addCurrentActivity('Быстрый QA','4 карточки проверены после финального анализа');
     return currentCards.length===4;
   }catch(e){
     creativeStatus.className='creative-status show fail';
@@ -4546,26 +4431,20 @@ analyzeBtn.onclick=async()=>{
       {
         const extra=collectExtraData();
         const fallbackName=String(extra.name||currentData?.seoTitle||'').trim();
-        response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,preferLocal:true,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})});
+        response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,preferLocal:false,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})});
       }
     }finally{clearTimeout(timeoutId)}
     let data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
-    if(data?.analysisMode==='local-fallback'){
-      loadingTitle.textContent='Распознаём тип товара';
-      loadingText.textContent='Сначала завершаем бесплатное локальное распознавание, затем обновляем описание и карточки.';
-      const improved=await upgradeFallbackWithBrowserVision(data,src);
-      if(improved&&improved.analysisMode==='browser-vision')data=improved;
-    }
     loadingTitle.textContent='Готовим описание';
-    loadingText.textContent='Пишем описание только по подтверждённым данным товара.';
-    data=await enhanceProductCopyLocally(data);
+    loadingText.textContent='DeepSeek формирует описание только по подтверждённым данным товара.';
+    data=await enhanceProductCopyWithDeepSeek(data);
     const hadImmediateCards=currentCards.length===4&&currentScenes.length===4;
     currentData=data;
     if(hadImmediateCards){cardsStale=true;currentStaleCards=[0,1,2,3];currentScenes=[];}
     else{currentCards=[];currentScenes=[];cardsStale=false;currentStaleCards=[];}
     currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
-    addCurrentActivity('AI-анализ завершён','Уверенность: '+(data.confidence||'не указана'));
+    addCurrentActivity('DeepSeek-анализ завершён','Уверенность: '+(data.confidence||'не указана'));
     fillEditor(data);
     applyCategoryRule({applyTemplate:true});
     currentData=collectEdits();
@@ -6932,7 +6811,7 @@ async function processExcelAutopilotItem(item,style){
   }
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
   analyzed=ensureVisibleProductDescription(analyzed);
-  analyzed=await enhanceProductCopyLocally(analyzed);
+  analyzed=await enhanceProductCopyWithDeepSeek(analyzed);
   analyzed=ensureVisibleProductDescription(analyzed);
   let directedStyle=style==='auto'?recommendedStyleForProduct(analyzed):style;
   if(style==='auto'){
@@ -8236,7 +8115,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=31',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=32',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
