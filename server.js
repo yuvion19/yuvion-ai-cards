@@ -39,7 +39,7 @@ async function withTimeout(promise, ms, message = "Операция заняла
 }
 
 const app = express();
-// Production release marker: v10.9.0
+// Production release marker: v11.0.0
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -1431,7 +1431,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "10.9.0",
+    version: "11.0.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1451,6 +1451,14 @@ app.get("/api/health", (_req, res) => {
     finalDataBeforeCardRender: true,
     singlePhotoTruthfulVariation: true,
     minimalUiFlow: true,
+    autopilotV11: true,
+    localLabelHints: true,
+    sourcePhotoRetakeGate: true,
+    persistentQueueResume: true,
+    catalogSeriesAutoStyle: true,
+    visualRevisionHistory: true,
+    coverOptimizerVariants: 4,
+    qaSelfRepairRounds: 3,
     designEngine: {
       paletteFromProduct: true,
       categoryThemes: Object.keys(styleProfiles).length,
@@ -1458,6 +1466,7 @@ app.get("/api/health", (_req, res) => {
       designIntensityLevels: 3,
       designSubstyles: 4,
       freeCoverAB: true,
+      freeCoverBestOfFour: true,
       smartPlacement: true,
       livePreview: true,
       marketplacePreview: true,
@@ -1533,6 +1542,8 @@ app.get("/api/health", (_req, res) => {
       adaptiveToneMapping: true,
       safeCutoutPadding: true,
       twoStageEdgeFeathering: true,
+      threeStageEdgeFeathering: true,
+      truthfulDetailZoom: true,
       productIntakeV2: true,
       urlImportProvenanceAudit: true,
       sourceFieldEvidence: true,
@@ -1911,6 +1922,36 @@ app.post("/api/label-ocr", async (req, res) => {
   }
 });
 
+function localLabelFieldsFromText(linesRaw=[]){
+  const lines=(Array.isArray(linesRaw)?linesRaw:[linesRaw]).map(x=>compact(String(x||"").replace(/\s+/g," ").trim(),220)).filter(Boolean).slice(0,80);
+  const joined=lines.join("\n"),fields=[],seen=new Set();
+  const add=(name,value,evidence,confidence="Средняя")=>{
+    const v=compact(value,160);if(!v)return;
+    const key=name.toLocaleLowerCase("ru")+"|"+v.toLocaleLowerCase("ru");if(seen.has(key))return;
+    seen.add(key);fields.push({name,value:v,evidence:compact(evidence||v,180),confidence});
+  };
+  for(const line of lines){
+    let m;
+    if((m=line.match(/(?:бренд|brand)\s*[:\-]?\s*([\p{L}\p{N}][\p{L}\p{N} ._\-]{1,60})/iu)))add("Бренд",m[1],line,"Высокая");
+    if((m=line.match(/(?:модель|model|артикул|sku)\s*[:#\-]?\s*([A-ZА-ЯЁ0-9][A-ZА-ЯЁ0-9._\/-]{1,40})/iu)))add(/артикул|sku/i.test(line)?"Артикул":"Модель",m[1],line,"Высокая");
+    if((m=line.match(/(?:материал|material|состав)\s*[:\-]?\s*([^;]{2,80})/iu)))add(/состав/i.test(line)?"Состав":"Материал",m[1],line);
+    if((m=line.match(/(?:страна|country|made in)\s*[:\-]?\s*([\p{L} .\-]{2,60})/iu)))add("Страна производства",m[1],line);
+    if((m=line.match(/\b(\d+(?:[.,]\d+)?)\s*(мл|ml|л|l|г|kg|кг|g)\b/iu)))add(/мл|ml|л|l/i.test(m[2])?"Объём":"Вес",m[1]+" "+m[2],line);
+    if((m=line.match(/\b(\d+(?:[.,]\d+)?)\s*(вт|w)\b/iu)))add("Мощность",m[1]+" "+m[2],line);
+    if((m=line.match(/\b(\d{8}|\d{13})\b/)))add("Штрихкод/EAN",m[1],line,"Средняя");
+  }
+  if(!fields.some(x=>x.name==="Штрихкод/EAN")){
+    const m=joined.match(/(?:ean|gtin|barcode|штрих\w*)\D{0,12}(\d{8,14})/iu);if(m)add("Штрихкод/EAN",m[1],m[0],"Высокая");
+  }
+  return fields.slice(0,20);
+}
+
+app.post("/api/local-label-hints",(req,res)=>{
+  const lines=Array.isArray(req.body?.lines)?req.body.lines:[];
+  const fields=localLabelFieldsFromText(lines);
+  return res.json({local:true,summary:fields.length?"Найдены локальные подсказки с упаковки.":"Читаемых структурированных полей не найдено.",fields});
+});
+
 const qualityCheckSchema = {
   type: "object",
   additionalProperties: false,
@@ -2077,8 +2118,16 @@ app.post("/api/quality-check", async (req, res) => {
       } else if (metrics.entropy > 0 && metrics.entropy < 1.45) {
         deterministicWarnings[i].push("Карточка выглядит очень однотонной; стоит проверить товар в уменьшенном виде.");
       }
-      if (metrics.contrast < 7) {
-        deterministicWarnings[i].push("Очень низкий локальный контраст; мелкий текст или границы товара могут читаться хуже.");
+      if (metrics.contrast < 3.5) {
+        deterministicIssues[i].push("Критически низкий контраст: товар или инфографика могут сливаться с фоном.");
+      } else if (metrics.contrast < 9) {
+        deterministicWarnings[i].push("Низкий локальный контраст; мелкий текст или границы товара могут читаться хуже.");
+      }
+      if (metrics.sharpness > 0 && metrics.sharpness < 0.55) {
+        deterministicWarnings[i].push("Карточка выглядит мягкой; проверьте исходное фото и детализацию товара.");
+      }
+      if (metrics.luminance < 34 || metrics.luminance > 242) {
+        deterministicWarnings[i].push("Экспозиция карточки близка к предельной — возможна потеря деталей.");
       }
       const thumb = await makeQualityPreview(cards[i].base64);
       previews.push("data:image/jpeg;base64," + thumb.toString("base64"));
@@ -2087,11 +2136,11 @@ app.post("/api/quality-check", async (req, res) => {
     const seriesSimilarity = await localSeriesSimilarity(cards);
     for (const pair of seriesSimilarity.pairs) {
       const similarityPct = Math.round(pair.similarity * 1000) / 10;
-      if (pair.similarity >= 0.992) {
+      if (pair.similarity >= 0.989) {
         deterministicIssues[pair.right].push(
           "Карточка почти дублирует карточку №" + (pair.left + 1) + " (" + similarityPct + "% визуального сходства)."
         );
-      } else if (pair.similarity >= 0.975) {
+      } else if (pair.similarity >= 0.965) {
         deterministicWarnings[pair.right].push(
           "Карточка слишком похожа на карточку №" + (pair.left + 1) + " (" + similarityPct + "%); серии не хватает визуального различия."
         );
@@ -2099,18 +2148,23 @@ app.post("/api/quality-check", async (req, res) => {
     }
 
     if (localOnly) {
+      const roles=["Обложка","Преимущества","Характеристики","Применение"];
       const cardsResult = deterministicIssues.map((hardIssues, index) => {
         const warnings = deterministicWarnings[index] || [];
-        const issues = [...hardIssues, ...warnings];
+        const dims=qualityDimensionsV2(localMetrics[index],hardIssues,warnings,seriesSimilarity,index);
+        const lowScore=dims.overall<52;
+        const issues = [...hardIssues, ...warnings, ...(lowScore?["Quality Score слишком низкий для автоматической выгрузки."]:[])];
         return {
           index,
-          status: hardIssues.length ? "Переделать" : warnings.length ? "Замечание" : "OK",
+          role:roles[index],
+          status: hardIssues.length||lowScore ? "Переделать" : warnings.length ? "Замечание" : "OK",
           issues,
           warnings,
           metrics: localMetrics[index],
-          qualityDimensions: qualityDimensionsV2(localMetrics[index],hardIssues,warnings,seriesSimilarity,index),
-          qualityScore: qualityDimensionsV2(localMetrics[index],hardIssues,warnings,seriesSimilarity,index).overall,
-          needsRegeneration: hardIssues.length > 0
+          coverScore: coverVisualScore(localMetrics[index]),
+          qualityDimensions:dims,
+          qualityScore:dims.overall,
+          needsRegeneration: hardIssues.length > 0 || lowScore
         };
       });
       const failures = cardsResult.filter((item) => item.needsRegeneration).length;
@@ -2123,8 +2177,10 @@ app.post("/api/quality-check", async (req, res) => {
         local: true,
         visualQaVersion: 4,
         seriesSimilarity,
-        qualityScoreVersion: 2,
-        note: "Бесплатная локальная QA v4 / Quality Score 2.0: товар, композиция, текст, контраст, различимость серии и готовность маркетплейса. Платный vision/image API не вызывается."
+        qualityScoreVersion: 3,
+        recommendedCoverIndex: cardsResult.reduce((best,item,idx,arr)=>item.coverScore>arr[best].coverScore?idx:best,0),
+        artDirectorRoles: ["Обложка","Преимущества","Характеристики","Применение"],
+        note: "Бесплатная локальная QA v5 / Quality Score 3.0: товар, композиция, текст, контраст, различимость серии, роли карточек и готовность маркетплейса. Платный vision/image API не вызывается."
       });
     }
 
@@ -2667,8 +2723,16 @@ async function assessSourcePhoto(sourceBuffer){
   const [tone,meta]=await Promise.all([sourceToneStats(sourceBuffer),sharp(sourceBuffer).rotate().metadata().catch(()=>({}))]);
   const width=Number(meta.width||0),height=Number(meta.height||0),shortSide=Math.min(width||0,height||0),aspect=width&&height?width/height:1;
   const score=Math.round(Math.max(0,Math.min(100,Math.min(32,shortSide/1200*32)+Math.max(0,26-Math.abs(tone.mean-150)/5.6)+Math.min(20,tone.contrast/2.4)+Math.min(16,tone.edge/1.25)+(aspect>.34&&aspect<2.8?6:2))));
-  const issues=[];if(shortSide&&shortSide<720)issues.push("Низкое разрешение исходного фото — upscale не создаёт новых деталей.");if(tone.mean<58)issues.push("Исходное фото слишком тёмное.");if(tone.mean>232||tone.highlightRatio>.30)issues.push("Исходное фото пересвечено.");if(tone.contrast<14)issues.push("Низкий контраст исходного фото.");if(tone.edge<4.2)issues.push("Фото выглядит мягким или слегка размытым.");if(aspect<=.34||aspect>=2.8)issues.push("Необычное кадрирование исходного фото.");
-  return{score,issues,width,height,aspect,tone};
+  const issues=[],tips=[];
+  if(shortSide&&shortSide<720){issues.push("Низкое разрешение исходного фото — upscale не создаёт новых деталей.");tips.push("Снимите товар ближе или выберите исходник не меньше 1000 px по короткой стороне.");}
+  if(tone.mean<58){issues.push("Исходное фото слишком тёмное.");tips.push("Добавьте мягкий свет спереди и не снимайте товар против яркого окна.");}
+  if(tone.mean>232||tone.highlightRatio>.30){issues.push("Исходное фото пересвечено.");tips.push("Уберите прямой свет и снизьте экспозицию камеры, чтобы сохранить детали товара.");}
+  if(tone.contrast<14){issues.push("Низкий контраст исходного фото.");tips.push("Используйте однотонный фон, отличающийся по тону от товара.");}
+  if(tone.edge<4.2){issues.push("Фото выглядит мягким или слегка размытым.");tips.push("Зафиксируйте телефон, протрите объектив и дождитесь фокусировки перед снимком.");}
+  if(aspect<=.34||aspect>=2.8){issues.push("Необычное кадрирование исходного фото.");tips.push("Оставьте вокруг товара небольшой равномерный запас и снимайте без сильного панорамного кадрирования.");}
+  const reshootRecommended=Boolean(score<52||tone.edge<3.25||tone.mean<40||tone.mean>244||(shortSide&&shortSide<520));
+  if(reshootRecommended&&!tips.length)tips.push("Переснимите товар на ровном фоне при мягком рассеянном свете.");
+  return{score,issues,tips:[...new Set(tips)].slice(0,3),reshootRecommended,width,height,aspect,tone};
 }
 async function enrichRenderSources(additional){return Promise.all((additional||[]).map(async item=>{const audit=await assessSourcePhoto(item.buffer);return{...item,qualityScore:audit.score,audit}}))}
 function coverVisualScore(m={}){
@@ -2859,6 +2923,19 @@ async function smartBackgroundCutout(sourceBuffer, layout) {
       data[idx * channels + 3] = Math.min(data[idx * channels + 3], 208);
     }
   }
+  const featherAlpha=new Uint8Array(total);
+  for(let idx=0;idx<total;idx++)featherAlpha[idx]=data[idx*channels+3];
+  for(let idx=0;idx<total;idx++){
+    if(featherAlpha[idx]===0||featherAlpha[idx]<200)continue;
+    const x=idx%width,neighbors=[idx-1,idx+1,idx-width,idx+width];
+    let nearSoftEdge=false;
+    for(const n of neighbors){
+      if(n<0||n>=total)continue;
+      if((n===idx-1&&x===0)||(n===idx+1&&x===width-1))continue;
+      if(featherAlpha[n]>0&&featherAlpha[n]<220){nearSoftEdge=true;break;}
+    }
+    if(nearSoftEdge&&backgroundLike(idx,1.14))data[idx*channels+3]=Math.min(data[idx*channels+3],238);
+  }
 
   const subjectWidth = maxX - minX + 1;
   const subjectHeight = maxY - minY + 1;
@@ -2947,6 +3024,19 @@ async function prepareProductVisual(sourceBuffer, layout, intensity = "selling",
 async function prepareInsetVisual(sourceBuffer, width, height, intensity = "selling", role = "detail") {
   const enhanced = await enhanceProductSource(sourceBuffer, intensity, role);
   return roundedPhotoPanel(enhanced, width, height, 28);
+}
+
+async function prepareDetailCrop(sourceBuffer, width, height, intensity = "selling", anchor = "center") {
+  const enhanced = await enhanceProductSource(sourceBuffer, intensity, "detail");
+  const meta = await sharp(enhanced).metadata();
+  const fullW=Math.max(1,Number(meta.width||1)),fullH=Math.max(1,Number(meta.height||1));
+  const cropW=Math.max(80,Math.round(fullW*0.66)),cropH=Math.max(80,Math.round(fullH*0.66));
+  const xFactor=anchor==="left"?0.18:anchor==="right"?0.82:0.5;
+  const yFactor=anchor==="top"?0.18:anchor==="bottom"?0.82:0.5;
+  const left=Math.max(0,Math.min(fullW-cropW,Math.round((fullW-cropW)*xFactor)));
+  const top=Math.max(0,Math.min(fullH-cropH,Math.round((fullH-cropH)*yFactor)));
+  const cropped=await sharp(enhanced).extract({left,top,width:cropW,height:cropH}).png({compressionLevel:9}).toBuffer();
+  return roundedPhotoPanel(cropped,width,height,28);
 }
 
 async function relightProductVisual(productBuffer,studioProfile={},index=0){
@@ -3083,7 +3173,8 @@ async function renderFreeScene(
           : index === 2
             ? { width: 230, height: 260, x: 620, y: 100 }
             : { width: 265, height: 220, x: 575, y: 560 };
-        const inset = await prepareInsetVisual(sourceBuffer, insetSize.width, insetSize.height, intensity, "detail");
+        const detailAnchor=index===1?"center":index===2?"top":"bottom";
+        const inset = await prepareDetailCrop(sourceBuffer, insetSize.width, insetSize.height, intensity, detailAnchor);
         const frame = Buffer.from(
           `<svg width="${insetSize.width + 26}" height="${insetSize.height + 26}" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="${insetSize.width + 14}" height="${insetSize.height + 14}" rx="34" fill="#FFFFFF" fill-opacity=".82" stroke="#FFFFFF" stroke-width="5"/></svg>`
         );
@@ -3507,7 +3598,7 @@ app.post("/api/generate-cards", async (req, res) => {
       return{index,primary,inset};
     });
     const primaryAspect=Number(renderSelections[0]?.primary?.audit?.aspect||sourceQuality.aspect||1);
-    const studioProfile=buildStudioProfile(normalized,styleKey,variant,primaryAspect);
+    let studioProfile=buildStudioProfile(normalized,styleKey,variant,primaryAspect);
 
     scenes = await Promise.all(renderSelections.map(({ index, primary, inset }) =>
       renderFreeScene(
@@ -3527,20 +3618,27 @@ app.post("/api/generate-cards", async (req, res) => {
       )
     ));
     stats.freeSceneRenders += 4;
-    let coverOptimization={tested:1,selectedVariant:variant,score:0};
+    let coverOptimization={tested:1,selectedVariant:variant,score:0,candidates:[]};
     try{
-      const alt=(variant+1)%4,altProfile=buildStudioProfile(normalized,styleKey,alt,primaryAspect),selected=renderSelections[0];
-      const altScene=await renderFreeScene(selected.primary.buffer,0,styleKey,renderPalette,alt,renderComposition,intensity,substyle,visual,selected.inset?.buffer||null,selected.primary.role,selected.inset?.role||"",altProfile);
-      const candidates=[{scene:scenes[0],variant,profile:studioProfile},{scene:altScene,variant:alt,profile:altProfile}];
-      let best=null;
-      for(const candidate of candidates){
-        const cached=await normalizeSceneForCache(candidate.scene);
-        const cover=await composeCard(cached,overlayForCard(0,normalized,styleKey,renderPalette,intensity,substyle,visual,candidate.profile));
-        const score=coverVisualScore(await localCardVisualMetrics(cover));
-        if(!best||score>best.score)best={...candidate,score};
+      const selected=renderSelections[0],candidateVariants=[0,1,2,3],candidates=[];
+      for(const candidateVariant of candidateVariants){
+        const profile=candidateVariant===variant?studioProfile:buildStudioProfile(normalized,styleKey,candidateVariant,primaryAspect);
+        const scene=candidateVariant===variant?scenes[0]:await renderFreeScene(
+          selected.primary.buffer,0,styleKey,renderPalette,candidateVariant,renderComposition,intensity,substyle,visual,
+          selected.inset?.buffer||null,selected.primary.role,selected.inset?.role||"",profile
+        );
+        const cached=await normalizeSceneForCache(scene);
+        const cover=await composeCard(cached,overlayForCard(0,normalized,styleKey,renderPalette,intensity,substyle,visual,profile));
+        const metrics=await localCardVisualMetrics(cover),score=coverVisualScore(metrics);
+        candidates.push({scene,variant:candidateVariant,profile,score,metrics});
       }
-      if(best){scenes[0]=best.scene;coverOptimization={tested:2,selectedVariant:best.variant,score:best.score}}
-      stats.freeSceneRenders+=1;
+      candidates.sort((a,b)=>b.score-a.score);
+      const best=candidates[0];
+      if(best){
+        scenes[0]=best.scene;studioProfile=best.profile;
+        coverOptimization={tested:4,selectedVariant:best.variant,score:best.score,candidates:candidates.map(x=>({variant:x.variant,score:x.score}))};
+      }
+      stats.freeSceneRenders+=3;
     }catch{}
     const cachedScenes = await Promise.all(scenes.map((scene) => normalizeSceneForCache(scene)));
     const fileNames = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
@@ -3573,7 +3671,7 @@ app.post("/api/generate-cards", async (req, res) => {
       designSubstyle: substyle,
       visualOptions: visual,
       composition: renderComposition,
-      renderEngine: "studio-director-v10",
+      renderEngine: "studio-director-v11",
       primaryRole: renderSelections[0]?.primary?.role || "main",
       insetRole: renderSelections[0]?.inset?.role || "",
       photoEnhancement: true,
@@ -3582,6 +3680,8 @@ app.post("/api/generate-cards", async (req, res) => {
       sourceQuality,
       studioProfile,
       coverOptimization,
+      artDirectorRoles: ["Обложка","Преимущества","Характеристики","Применение"],
+      truthfulDetailZoom: true,
       renderSources: renderSelections.map(({ index, primary, inset }) => ({
         index,
         primaryRole: primary.role,
@@ -3674,7 +3774,7 @@ app.post("/api/regenerate-card", async (req, res) => {
       repairAttempt: attempt,
       sourceQuality,
       studioProfile,
-      renderEngine: "studio-director-v10"
+      renderEngine: "studio-director-v11"
     });
   } catch (error) {
     console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
@@ -3935,5 +4035,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v10.9.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.0.0 listening on port ${port}`);
 });
