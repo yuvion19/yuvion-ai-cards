@@ -113,8 +113,8 @@ const stats = {
   gptCopyRequests: 0,
   gptCopySuccesses: 0,
   gptCopyFallbacks: 0,
-  copyProviderAttempts: { openai: 0, vireonix: 0 },
-  copyProviderSuccesses: { openai: 0, vireonix: 0 },
+  copyProviderAttempts: { local: 0 },
+  copyProviderSuccesses: { local: 0 },
   recentErrors: []
 };
 
@@ -962,322 +962,135 @@ const urlImportSchema = {
   }
 };
 
-const productCopySchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["seoTitle","shortDescription","fullDescription","benefits","keywords"],
-  properties: {
-    seoTitle: { type: "string" },
-    shortDescription: { type: "string" },
-    fullDescription: { type: "string" },
-    benefits: { type: "array", minItems: 0, maxItems: 5, items: { type: "string" } },
-    keywords: { type: "array", minItems: 0, maxItems: 24, items: { type: "string" } }
-  }
-};
+function localCopyPurpose(title = "", category = "") {
+  const text = (String(title || "") + " " + String(category || "")).toLocaleLowerCase("ru");
+  const rules = [
+    [/бутыл|фляг|термос/, "Подходит для хранения и переноски напитков."],
+    [/круж|чашк|стакан/, "Подходит для подачи напитков."],
+    [/тарел|мис(ка|к)|блюд/, "Подходит для сервировки и подачи."],
+    [/рюкзак/, "Подходит для переноски и хранения личных вещей."],
+    [/сумк|кошел/, "Подходит для хранения и переноски личных вещей."],
+    [/ламп|светиль/, "Предназначен для локального освещения."],
+    [/стул|кресл|табур/, "Предназначен для сидения."],
+    [/стол/, "Подходит для организации рабочей или бытовой поверхности."],
+    [/подушк/, "Подходит для домашнего использования."],
+    [/плед|одеял/, "Подходит для домашнего использования."],
+    [/зонт/, "Предназначен для защиты от осадков."],
+    [/игруш|мяч/, "Подходит для игр и досуга."],
+    [/книг/, "Подходит для чтения и домашней библиотеки."],
+    [/ручк|карандаш/, "Подходит для письма и повседневных записей."],
+    [/сковород|кастрюл|чайник/, "Подходит для использования на кухне по назначению."],
+    [/нож/, "Подходит для кухонных или бытовых задач по назначению."],
+    [/ложк|вилк/, "Подходит для сервировки и приёма пищи."],
+    [/фен/, "Предназначен для сушки волос."],
+    [/пылесос/, "Предназначен для бытовой уборки."],
+    [/клавиатур|компьютерная мышь|ноутбук|смартфон|пульт/, "Подходит для использования по назначению в соответствующей категории техники."],
+    [/свеч/, "Подходит для декоративного и бытового использования."],
+    [/ваза/, "Подходит для декоративного оформления интерьера."],
+    [/контейнер|коробк|банка/, "Подходит для хранения по назначению."]
+  ];
+  for (const [re, sentence] of rules) if (re.test(text)) return sentence;
+  return "";
+}
 
-function confirmedCopyFacts(cardRaw = {}) {
+function buildLocalProductCopy(cardRaw = {}) {
   const card = normalizeCard(cardRaw);
-  const confirmed = normalizeExtraData(cardRaw?.confirmedData || card.confirmedData || {});
-  const characteristics = (card.characteristics || []).slice(0, 16).map((item) => ({
-    name: compact(item.name, 60),
-    value: compact(item.value, 120),
-    source: normalizeCharacteristicSource(item.source)
-  }));
+  const title = compact(card.seoTitle || "Товар", 180);
+  const category = compact(card.category || "", 100);
+  const purpose = localCopyPurpose(title, category);
+  const factItems = (card.characteristics || [])
+    .filter((item) => item?.name && item?.value)
+    .slice(0, 6)
+    .map((item) => compact(item.name, 60) + ": " + compact(item.value, 140));
+  const factText = factItems.join("; ");
+  const distinctCategory = category && category.toLocaleLowerCase("ru") !== "товар" &&
+    category.toLocaleLowerCase("ru") !== title.toLocaleLowerCase("ru");
+
+  const shortParts = [
+    title + (distinctCategory ? " — " + category.toLocaleLowerCase("ru") : "") + ".",
+    purpose,
+    factText ? "Основные характеристики: " + factText + "." : ""
+  ].filter(Boolean);
+  let shortDescription = compact(shortParts.join(" "), 500);
+
+  const fullParts = [
+    title + (distinctCategory ? " относится к категории «" + category + "»." : "."),
+    purpose,
+    factText ? "Подтверждённые характеристики: " + factText + "." : "Точные характеристики не предоставлены.",
+    "Размеры, материал, состав, мощность, объём и другие точные параметры не добавляются без подтверждения."
+  ].filter(Boolean);
+  let fullDescription = compact(fullParts.join(" "), 2200);
+
+  if (shortDescription.length < 80) {
+    shortDescription = compact(
+      shortDescription + " Описание сформировано по распознанному типу товара и доступным подтверждённым данным.",
+      500
+    );
+  }
+  if (fullDescription.length < 180) {
+    fullDescription = compact(
+      fullDescription + " В карточке используются только данные, которые удалось подтвердить по фотографии или информации продавца.",
+      2200
+    );
+  }
+
+  const keywords = Array.from(new Set([
+    ...(card.keywords || []),
+    ...title.split(/\s+/),
+    ...(distinctCategory ? category.split(/\s+/) : [])
+  ].map((x) => compact(x, 60)).filter((x) => x && x.length > 1))).slice(0, 24);
+
+  const benefits = (card.benefits || []).length
+    ? card.benefits
+    : factItems.slice(0, 4);
+
   return {
-    title: compact(card.seoTitle || confirmed.name || "Товар", 180),
-    category: compact(card.category || "", 100),
-    brand: compact(confirmed.brand || knownValueFromCharacteristics(characteristics, ["бренд","brand"]), 100),
-    sku: compact(confirmed.sku || knownValueFromCharacteristics(characteristics, ["артикул","sku"]), 100),
-    barcode: compact(confirmed.barcode || knownValueFromCharacteristics(characteristics, ["штрих","ean","gtin"]), 64),
-    size: compact(confirmed.size || knownValueFromCharacteristics(characteristics, ["размер","габарит"]), 120),
-    material: compact(confirmed.material || knownValueFromCharacteristics(characteristics, ["материал","состав"]), 160),
-    characteristics
-  };
-}
-
-const copyProviderCooldowns = new Map();
-const COPY_PROVIDER_TIMEOUT_MS = Number(process.env.COPY_PROVIDER_TIMEOUT_MS || 18000);
-
-function copySystemInstructions() {
-  return (
-    "Ты пишешь продающий, естественный текст для карточки товара Yuvion на русском языке. " +
-    "Используй ТОЛЬКО факты из JSON пользователя. Не добавляй знания извне и не угадывай. " +
-    "Категорически запрещено придумывать размеры, материал, состав, мощность, объём, вес, комплектность, модель, бренд, страну производства, совместимость и любые технические свойства. " +
-    "Если подтверждённых фактов мало, сделай качественное нейтральное описание без технических утверждений. " +
-    "SEO-заголовок должен быть понятным и естественным, без спама и без неподтверждённых характеристик. " +
-    "Короткое описание должно быть содержательным: ориентир 100–260 символов. Полное описание должно быть полноценным: ориентир 350–900 символов и не менее 3 связных предложений, без упоминания продавца, источника, ИИ или процесса генерации. Не возвращай вместо описания только название товара или одну короткую фразу. " +
-    "Преимущества формулируй только как перефразирование подтверждённых фактов, а не новые свойства. " +
-    "Ключевые слова должны относиться только к подтверждённому товару. " +
-    "Верни только JSON по заданной схеме."
-  );
-}
-
-function parseCopyJson(raw) {
-  if (raw && typeof raw === "object") return raw;
-  let text = String(raw || "").trim();
-  if (!text) throw new Error("Пустой ответ текстовой модели.");
-  text = text.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/i, "").trim();
-  try { return JSON.parse(text); } catch {}
-  const first = text.indexOf("{"), last = text.lastIndexOf("}");
-  if (first >= 0 && last > first) return JSON.parse(text.slice(first, last + 1));
-  throw new Error("Модель вернула невалидный JSON.");
-}
-
-function normalizeProviderCopy(parsedRaw, fallback, provider, model) {
-  const parsed = parseCopyJson(parsedRaw);
-  const seoTitle = compact(parsed.seoTitle || fallback.seoTitle, 180);
-  const generatedFallback = safeCatalogDescription({
-    title: seoTitle || fallback.seoTitle,
-    category: fallback.category,
-    brand: fallback?.confirmedData?.brand || knownValueFromCharacteristics(fallback.characteristics || [], ["бренд","brand"]),
-    characteristics: fallback.characteristics || [],
-    sourceDescription: ""
-  });
-  const providerShort = sellerNeutralCopy(parsed.shortDescription || "", 500);
-  const providerFull = sellerNeutralCopy(parsed.fullDescription || "", 2200);
-  const shortDescription = providerShort.length >= 70
-    ? providerShort
-    : (generatedFallback.short || fallback.shortDescription || providerShort);
-  const fullDescription = providerFull.length >= 180
-    ? providerFull
-    : compact(
-        [providerFull, shortDescription, generatedFallback.full]
-          .map((x) => sellerNeutralCopy(x || "", 2200))
-          .filter(Boolean)
-          .filter((x, index, arr) => arr.indexOf(x) === index)
-          .join(" "),
-        2200
-      ) || shortDescription || fallback.fullDescription;
-  const benefits = Array.isArray(parsed.benefits)
-    ? parsed.benefits.map((x) => sellerNeutralCopy(x, 120)).filter(Boolean).slice(0, 5)
-    : fallback.benefits;
-  const keywords = Array.isArray(parsed.keywords)
-    ? parsed.keywords.map((x) => compact(x, 60)).filter(Boolean).slice(0, 24)
-    : fallback.keywords;
-  return {
-    ...fallback,
-    seoTitle: seoTitle || fallback.seoTitle,
+    ...card,
     shortDescription,
     fullDescription,
-    benefits,
     keywords,
-    copyProvider: provider,
-    copyModel: model
+    benefits,
+    copyProvider: "local",
+    copyModel: "yuvion-local-copy-v2"
   };
 }
 
-function copyProviderConfigured(name) {
-  if (name === "openai") return Boolean(process.env.OPENAI_API_KEY);
-  if (name === "vireonix") return String(process.env.VIREONIX_TEXT_ENABLED ?? "true").toLowerCase() !== "false";
-  return false;
-}
-
-function copyProviderOnCooldown(name) {
-  const until = Number(copyProviderCooldowns.get(name) || 0);
-  if (!until) return false;
-  if (Date.now() >= until) {
-    copyProviderCooldowns.delete(name);
-    return false;
-  }
-  return true;
-}
-
-function setCopyProviderCooldown(name, error) {
-  const status = Number(error?.status || 0);
-  const code = String(error?.code || "");
-  let ms = 0;
-  if (status === 429) ms = 10 * 60 * 1000;
-  else if (status >= 500 || code === "operation_timeout") ms = 2 * 60 * 1000;
-  if (ms) copyProviderCooldowns.set(name, Date.now() + ms);
-}
-
-function copyChatMessages(facts) {
-  return [
-    { role: "system", content: copySystemInstructions() },
-    { role: "user", content: "Подтверждённые данные товара:\n" + JSON.stringify(facts) }
-  ];
-}
-
-async function callOpenAiCopy(facts) {
-  if (!process.env.OPENAI_API_KEY) {
-    const error = new Error("OpenAI API key is not configured");
-    error.code = "openai_not_configured";
-    throw error;
-  }
-  const model = process.env.OPENAI_COPY_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-luna";
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const response = await client.responses.create({
-    model,
-    reasoning: { effort: "none" },
-    instructions: copySystemInstructions(),
-    input: [{
-      role: "user",
-      content: [{
-        type: "input_text",
-        text: "Подтверждённые данные товара:\n" + JSON.stringify(facts)
-      }]
-    }],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "yuvion_product_copy",
-        strict: true,
-        schema: productCopySchema
-      }
-    },
-    max_output_tokens: 1700
+function finalizeCopyResponse(resultRaw, rawCard) {
+  const card = buildLocalProductCopy(resultRaw?.card || rawCard || {});
+  console.info("Copy result:", {
+    provider: "local",
+    used: false,
+    shortChars: card.shortDescription.length,
+    fullChars: card.fullDescription.length,
+    substantiveDescription: card.fullDescription.length >= 180,
+    titleChars: String(card.seoTitle || "").length
   });
-  recordTextUsage(response);
-  return { parsed: parseCopyJson(response.output_text || "{}"), model, provider: "openai" };
+  return {
+    card,
+    provider: "local",
+    model: "yuvion-local-copy-v2",
+    used: false,
+    reason: resultRaw?.reason || "local_only"
+  };
 }
 
-async function callVireonixCopy(facts) {
-  const model = process.env.VIREONIX_TEXT_MODEL || "auto";
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), Math.min(COPY_PROVIDER_TIMEOUT_MS, 16000));
-  try {
-    const response = await fetch("https://vireonix.ai/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: copyChatMessages(facts),
-        temperature: 0.25,
-        max_tokens: 1300
-      })
-    });
-    const body = await response.text();
-    if (!response.ok) {
-      const error = new Error("Vireonix HTTP " + response.status);
-      error.status = response.status;
-      try {
-        const parsed = JSON.parse(body);
-        error.code = parsed?.error?.code || parsed?.code || "";
-        if (parsed?.error?.message) error.message = String(parsed.error.message);
-      } catch {}
-      throw error;
-    }
-    let json;
-    try { json = JSON.parse(body); } catch { throw new Error("Vireonix вернул невалидный JSON."); }
-    const content = json?.choices?.[0]?.message?.content || "";
-    const usage = json?.usage || {};
-    recordTextUsage({ usage: { input_tokens: usage.prompt_tokens || 0, output_tokens: usage.completion_tokens || 0 } });
-    return { parsed: parseCopyJson(content), model, provider: "vireonix" };
-  } catch (error) {
-    if (error?.name === "AbortError") {
-      const timeout = new Error("Vireonix copy generation timed out");
-      timeout.code = "operation_timeout";
-      throw timeout;
-    }
-    throw error;
-  } finally {
-    clearTimeout(timer);
+app.post("/api/generate-copy", async (req, res) => {
+  const rawCard = req.body?.card;
+  if (!rawCard || typeof rawCard !== "object") {
+    return res.status(400).json({ error: "Данные товара не переданы." });
   }
-}
+  stats.gptCopyRequests += 1;
+  stats.gptCopyFallbacks += 1;
+  return res.json(finalizeCopyResponse({ reason: "local_only" }, rawCard));
+});
 
 async function generateProductCopyWithProviders(cardRaw = {}) {
-  const fallback = normalizeCard(cardRaw);
-  const facts = confirmedCopyFacts(cardRaw);
-  stats.gptCopyRequests += 1;
-
-  const providers = [
-    {
-      name: "openai",
-      call: () => callOpenAiCopy(facts),
-      timeoutMs: Math.max(COPY_PROVIDER_TIMEOUT_MS, 22000)
-    },
-    {
-      name: "vireonix",
-      call: () => callVireonixCopy(facts),
-      timeoutMs: COPY_PROVIDER_TIMEOUT_MS
-    }
-  ];
-
-  for (const provider of providers) {
-    if (!copyProviderConfigured(provider.name) || copyProviderOnCooldown(provider.name)) continue;
-    stats.copyProviderAttempts[provider.name] = Number(stats.copyProviderAttempts[provider.name] || 0) + 1;
-    try {
-      const result = await withTimeout(
-        provider.call(),
-        provider.timeoutMs,
-        provider.name + " copy generation timed out"
-      );
-      const card = normalizeProviderCopy(result.parsed, fallback, provider.name, result.model);
-      stats.copyProviderSuccesses[provider.name] = Number(stats.copyProviderSuccesses[provider.name] || 0) + 1;
-      stats.gptCopySuccesses += 1;
-      return { card, used: true, provider: provider.name, model: result.model };
-    } catch (error) {
-      setCopyProviderCooldown(provider.name, error);
-      recordError("copy-" + provider.name, error);
-      console.error("Copy provider error:", { provider: provider.name, status: error?.status, code: error?.code });
-    }
-  }
-
-  stats.gptCopyFallbacks += 1;
-  return {
-    card: { ...fallback, copyProvider: "local", copyModel: "" },
-    used: false,
-    provider: "local",
-    reason: "ai_providers_unavailable"
-  };
+  return finalizeCopyResponse({ reason: "local_only" }, cardRaw);
 }
 
 async function generateProductCopyWithGpt(cardRaw = {}) {
   return generateProductCopyWithProviders(cardRaw);
 }
-
-function finalizeCopyResponse(resultRaw, rawCard) {
-  const result = resultRaw && typeof resultRaw === "object" ? resultRaw : {};
-  const provider = compact(result.provider || result.card?.copyProvider || (result.used ? "ai" : "local"), 40) || "local";
-  const model = compact(result.model || result.card?.copyModel || "", 100);
-  const merged = normalizeCard({ ...(rawCard || {}), ...(result.card || {}) });
-  const fallback = safeCatalogDescription({
-    title: merged.seoTitle,
-    category: merged.category,
-    brand: merged.confirmedData?.brand || "",
-    characteristics: merged.characteristics,
-    sourceDescription: merged.fullDescription || merged.shortDescription || ""
-  });
-  const shortDescription = sellerNeutralCopy(merged.shortDescription || fallback.short || "", 500) ||
-    compact((merged.seoTitle || "Товар") + ". Описание подготовлено по доступным подтверждённым данным.", 500);
-  const fullDescription = sellerNeutralCopy(merged.fullDescription || fallback.full || shortDescription, 2200) || shortDescription;
-  const card = {
-    ...merged,
-    shortDescription,
-    fullDescription,
-    copyProvider: provider,
-    copyModel: model
-  };
-  console.info("Copy result:", {
-    provider,
-    used: Boolean(result.used),
-    shortChars: shortDescription.length,
-    fullChars: fullDescription.length,
-    substantiveDescription: fullDescription.length >= 180,
-    titleChars: String(card.seoTitle || "").length
-  });
-  return {
-    ...result,
-    card,
-    provider,
-    model,
-    used: Boolean(result.used && provider !== "local")
-  };
-}
-
-app.post("/api/generate-copy", async (req, res) => {
-  const ip = req.ip || "unknown";
-  const rawCard = req.body?.card;
-  if (!rawCard || typeof rawCard !== "object") return res.status(400).json({ error: "Данные товара не переданы." });
-  if (limitMap(copyRequestsByIp, ip, MAX_COPY_REQUESTS_PER_WINDOW)) {
-    stats.rateLimitErrors += 1;
-    stats.gptCopyFallbacks += 1;
-    return res.json(finalizeCopyResponse({ used: false, provider: "local", reason: "rate_limited" }, rawCard));
-  }
-  const result = await generateProductCopyWithProviders(rawCard);
-  return res.json(finalizeCopyResponse(result, rawCard));
-});
 
 function isBlockedIp(address) {
   const ip = String(address || "").toLowerCase();
@@ -2008,7 +1821,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.2.5",
+    version: "11.2.6",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -2022,23 +1835,22 @@ app.get("/api/health", (_req, res) => {
     analyzeTimeoutSeconds: AI_ANALYZE_TIMEOUT_MS / 1000,
     analyzeRetryTimeoutSeconds: AI_ANALYZE_RETRY_TIMEOUT_MS / 1000,
     analyzeFastVision: true,
-    freeTextLocalFirst: false,
-    photoOpenAiPrimary: true,
-    gptProductCopyEnabled: true,
-    gptProductCopyConfigured: copyProviderConfigured("openai") || copyProviderConfigured("vireonix"),
-    gptProductCopyModel: process.env.OPENAI_COPY_MODEL || process.env.OPENAI_MODEL || process.env.VIREONIX_TEXT_MODEL || "auto",
+    freeTextLocalFirst: true,
+    photoOpenAiPrimary: false,
+    localDescriptionOnly: true,
+    gptProductCopyEnabled: false,
+    gptProductCopyConfigured: true,
+    gptProductCopyModel: "yuvion-local-copy-v2",
     gptProductCopyFallback: true,
-    copyProviderPriority: ["openai","vireonix","local"],
+    copyProviderPriority: ["local"],
     vireonixOnlyProductCopy: false,
     noLoginAiFallback: true,
     copyResponseDescriptionGuard: true,
     copyResponseTelemetry: true,
     copyProviders: {
-      openai: { configured: copyProviderConfigured("openai"), model: process.env.OPENAI_COPY_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-luna", auth: "api_key", cooldown: copyProviderOnCooldown("openai") },
-      vireonix: { configured: copyProviderConfigured("vireonix"), model: process.env.VIREONIX_TEXT_MODEL || "auto", auth: "none", cooldown: copyProviderOnCooldown("vireonix") },
-      local: { configured: true, model: "yuvion-safe-copy", cooldown: false }
+      local: { configured: true, model: "yuvion-local-copy-v2", auth: "none", cooldown: false }
     },
-    copyProviderCircuitBreaker: true,
+    copyProviderCircuitBreaker: false,
     freeLocalPreflight: true,
     mobileVisionClassifierFallback: true,
     finalDataBeforeCardRender: true,
@@ -4630,5 +4442,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.2.5 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.2.6 listening on port ${port}`);
 });
