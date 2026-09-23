@@ -1257,6 +1257,44 @@ async function generateProductCopyWithGpt(cardRaw = {}) {
   return generateProductCopyWithProviders(cardRaw);
 }
 
+function finalizeCopyResponse(resultRaw, rawCard) {
+  const result = resultRaw && typeof resultRaw === "object" ? resultRaw : {};
+  const provider = compact(result.provider || result.card?.copyProvider || (result.used ? "ai" : "local"), 40) || "local";
+  const model = compact(result.model || result.card?.copyModel || "", 100);
+  const merged = normalizeCard({ ...(rawCard || {}), ...(result.card || {}) });
+  const fallback = safeCatalogDescription({
+    title: merged.seoTitle,
+    category: merged.category,
+    brand: merged.confirmedData?.brand || "",
+    characteristics: merged.characteristics,
+    sourceDescription: merged.fullDescription || merged.shortDescription || ""
+  });
+  const shortDescription = sellerNeutralCopy(merged.shortDescription || fallback.short || "", 500) ||
+    compact((merged.seoTitle || "Товар") + ". Описание подготовлено по доступным подтверждённым данным.", 500);
+  const fullDescription = sellerNeutralCopy(merged.fullDescription || fallback.full || shortDescription, 2200) || shortDescription;
+  const card = {
+    ...merged,
+    shortDescription,
+    fullDescription,
+    copyProvider: provider,
+    copyModel: model
+  };
+  console.info("Copy result:", {
+    provider,
+    used: Boolean(result.used),
+    shortChars: shortDescription.length,
+    fullChars: fullDescription.length,
+    titleChars: String(card.seoTitle || "").length
+  });
+  return {
+    ...result,
+    card,
+    provider,
+    model,
+    used: Boolean(result.used && provider !== "local")
+  };
+}
+
 app.post("/api/generate-copy", async (req, res) => {
   const ip = req.ip || "unknown";
   const rawCard = req.body?.card;
@@ -1264,9 +1302,10 @@ app.post("/api/generate-copy", async (req, res) => {
   if (limitMap(copyRequestsByIp, ip, MAX_COPY_REQUESTS_PER_WINDOW)) {
     stats.rateLimitErrors += 1;
     stats.gptCopyFallbacks += 1;
-    return res.json({ card: { ...normalizeCard(rawCard), copyProvider: "local" }, used: false, reason: "rate_limited" });
+    return res.json(finalizeCopyResponse({ used: false, provider: "local", reason: "rate_limited" }, rawCard));
   }
-  return res.json(await generateProductCopyWithProviders(rawCard));
+  const result = await generateProductCopyWithProviders(rawCard);
+  return res.json(finalizeCopyResponse(result, rawCard));
 });
 
 function isBlockedIp(address) {
@@ -1998,7 +2037,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.2.2",
+    version: "11.2.3",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -2019,6 +2058,8 @@ app.get("/api/health", (_req, res) => {
     gptProductCopyFallback: true,
     copyProviderPriority: ["openai","groq","cloudflare","openrouter","vireonix","local"],
     noLoginAiFallback: true,
+    copyResponseDescriptionGuard: true,
+    copyResponseTelemetry: true,
     copyProviders: {
       openai: { configured: copyProviderConfigured("openai"), model: process.env.OPENAI_TEXT_MODEL || "gpt-5.6-luna", cooldown: copyProviderOnCooldown("openai") },
       groq: { configured: copyProviderConfigured("groq"), model: process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-120b", cooldown: copyProviderOnCooldown("groq") },
@@ -4619,5 +4660,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.2.2 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.2.3 listening on port ${port}`);
 });
