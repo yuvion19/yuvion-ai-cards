@@ -4746,6 +4746,21 @@ if (!localCopySelfTest.shortDescription || localCopySelfTest.fullDescription.len
 }
 console.log("Local description self-test OK:", localCopySelfTest.shortDescription.length, localCopySelfTest.fullDescription.length);
 
+if (gigaChatConfigured()) {
+  try {
+    await withTimeout(getGigaChatAccessToken(), 15000, "GigaChat OAuth self-test timed out");
+    console.log("GigaChat OAuth self-test OK:", gigaChatModel());
+  } catch (error) {
+    console.error("GigaChat OAuth self-test failed:", {
+      status: error?.status,
+      code: error?.code,
+      details: error?.details
+    });
+  }
+} else {
+  console.warn("GigaChat OAuth self-test skipped: GIGACHAT_AUTH_KEY is not configured");
+}
+
 app.listen(port, "0.0.0.0", () => {
   console.log(`Yuvion AI Cards v11.2.9 listening on port ${port}`);
 });
