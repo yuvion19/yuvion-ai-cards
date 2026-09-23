@@ -1,6 +1,6 @@
 {
   "name": "yuvion-ai-cards",
-  "version": "11.2.8",
+  "version": "11.2.9",
   "private": true,
   "type": "module",
   "packageManager": "npm@10.9.2",
