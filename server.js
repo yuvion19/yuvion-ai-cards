@@ -113,8 +113,8 @@ const stats = {
   gptCopyRequests: 0,
   gptCopySuccesses: 0,
   gptCopyFallbacks: 0,
-  copyProviderAttempts: { local: 0 },
-  copyProviderSuccesses: { local: 0 },
+  copyProviderAttempts: { deepseek: 0, local: 0 },
+  copyProviderSuccesses: { deepseek: 0, local: 0 },
   recentErrors: []
 };
 
@@ -1006,72 +1006,177 @@ function buildLocalProductCopy(cardRaw = {}) {
   const distinctCategory = category && category.toLocaleLowerCase("ru") !== "товар" &&
     category.toLocaleLowerCase("ru") !== title.toLocaleLowerCase("ru");
 
-  const shortParts = [
+  let shortDescription = compact([
     title + (distinctCategory ? " — " + category.toLocaleLowerCase("ru") : "") + ".",
     purpose,
     factText ? "Основные характеристики: " + factText + "." : ""
-  ].filter(Boolean);
-  let shortDescription = compact(shortParts.join(" "), 500);
+  ].filter(Boolean).join(" "), 500);
 
-  const fullParts = [
+  let fullDescription = compact([
     title + (distinctCategory ? " относится к категории «" + category + "»." : "."),
     purpose,
     factText ? "Подтверждённые характеристики: " + factText + "." : "Точные характеристики не предоставлены.",
     "Размеры, материал, состав, мощность, объём и другие точные параметры не добавляются без подтверждения."
-  ].filter(Boolean);
-  let fullDescription = compact(fullParts.join(" "), 2200);
+  ].filter(Boolean).join(" "), 2200);
 
   if (shortDescription.length < 80) {
-    shortDescription = compact(
-      shortDescription + " Описание сформировано по распознанному типу товара и доступным подтверждённым данным.",
-      500
-    );
+    shortDescription = compact(shortDescription + " Описание сформировано по доступным подтверждённым данным.", 500);
   }
   if (fullDescription.length < 180) {
-    fullDescription = compact(
-      fullDescription + " В карточке используются только данные, которые удалось подтвердить по фотографии или информации продавца.",
-      2200
-    );
+    fullDescription = compact(fullDescription + " В карточке используются только данные, которые удалось подтвердить по фотографии или информации продавца.", 2200);
   }
-
-  const keywords = Array.from(new Set([
-    ...(card.keywords || []),
-    ...title.split(/\s+/),
-    ...(distinctCategory ? category.split(/\s+/) : [])
-  ].map((x) => compact(x, 60)).filter((x) => x && x.length > 1))).slice(0, 24);
-
-  const benefits = (card.benefits || []).length
-    ? card.benefits
-    : factItems.slice(0, 4);
 
   return {
     ...card,
     shortDescription,
     fullDescription,
-    keywords,
-    benefits,
+    keywords: Array.from(new Set([
+      ...(card.keywords || []),
+      ...title.split(/\s+/),
+      ...(distinctCategory ? category.split(/\s+/) : [])
+    ].map((x) => compact(x, 60)).filter((x) => x && x.length > 1))).slice(0, 24),
+    benefits: (card.benefits || []).length ? card.benefits : factItems.slice(0, 4),
     copyProvider: "local",
-    copyModel: "yuvion-local-copy-v2"
+    copyModel: "yuvion-safe-copy"
   };
 }
 
-function finalizeCopyResponse(resultRaw, rawCard) {
-  const card = buildLocalProductCopy(resultRaw?.card || rawCard || {});
+const deepSeekCopySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["seoTitle","shortDescription","fullDescription","benefits","keywords"],
+  properties: {
+    seoTitle: { type: "string" },
+    shortDescription: { type: "string" },
+    fullDescription: { type: "string" },
+    benefits: { type: "array", maxItems: 5, items: { type: "string" } },
+    keywords: { type: "array", maxItems: 30, items: { type: "string" } }
+  }
+};
+
+function deepSeekConfigured() {
+  return Boolean(String(process.env.DEEPSEEK_API_KEY || "").trim());
+}
+
+function deepSeekClient() {
+  if (!deepSeekConfigured()) return null;
+  return new OpenAI({
+    apiKey: process.env.DEEPSEEK_API_KEY,
+    baseURL: String(process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "")
+  });
+}
+
+function deepSeekModel() {
+  return process.env.DEEPSEEK_MODEL || "deepseek-flash";
+}
+
+async function callDeepSeekCopy(cardRaw = {}) {
+  const fallback = normalizeCard(cardRaw);
+  const client = deepSeekClient();
+  if (!client) {
+    const error = new Error("DeepSeek API key is not configured");
+    error.code = "deepseek_not_configured";
+    throw error;
+  }
+  const facts = {
+    seoTitle: fallback.seoTitle,
+    category: fallback.category,
+    characteristics: fallback.characteristics,
+    confirmedData: fallback.confirmedData
+  };
+  const response = await client.responses.create({
+    model: deepSeekModel(),
+    reasoning: { effort: "none" },
+    instructions:
+      "Ты пишешь карточку товара для покупателя на русском языке. Используй ТОЛЬКО переданные подтверждённые факты. " +
+      "Не выдумывай размеры, материал, состав, мощность, объём, бренд, модель, комплектацию или другие точные параметры. " +
+      "Краткое описание: 100–260 знаков. Полное описание: 350–900 знаков, 3–6 связных предложений. " +
+      "Текст должен быть продающим, естественным и без служебных фраз об источниках данных. Верни строго JSON по схеме.",
+    input: [{
+      role: "user",
+      content: [{ type: "input_text", text: JSON.stringify(facts) }]
+    }],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "yuvion_product_copy",
+        schema: deepSeekCopySchema
+      }
+    },
+    max_output_tokens: 1400
+  });
+  recordTextUsage(response);
+  const parsed = JSON.parse(response.output_text || "{}");
+  const merged = normalizeCard({
+    ...fallback,
+    ...parsed,
+    category: fallback.category,
+    characteristics: fallback.characteristics,
+    confirmedData: fallback.confirmedData,
+    needsClarification: fallback.needsClarification,
+    usage: fallback.usage,
+    photoQuality: fallback.photoQuality
+  });
+  if (merged.shortDescription.length < 70 || merged.fullDescription.length < 180) {
+    const error = new Error("DeepSeek returned undersized product copy");
+    error.code = "deepseek_copy_too_short";
+    throw error;
+  }
+  return {
+    ...merged,
+    copyProvider: "deepseek",
+    copyModel: deepSeekModel()
+  };
+}
+
+function finalizeCopyResponse(card, { provider = "local", used = false, reason = "" } = {}) {
+  const safe = provider === "deepseek" ? normalizeCard(card) : buildLocalProductCopy(card);
+  const finalCard = {
+    ...safe,
+    copyProvider: provider,
+    copyModel: provider === "deepseek" ? deepSeekModel() : "yuvion-safe-copy"
+  };
   console.info("Copy result:", {
-    provider: "local",
-    used: false,
-    shortChars: card.shortDescription.length,
-    fullChars: card.fullDescription.length,
-    substantiveDescription: card.fullDescription.length >= 180,
-    titleChars: String(card.seoTitle || "").length
+    provider,
+    used,
+    shortChars: finalCard.shortDescription.length,
+    fullChars: finalCard.fullDescription.length,
+    substantiveDescription: finalCard.fullDescription.length >= 180,
+    titleChars: String(finalCard.seoTitle || "").length
   });
   return {
-    card,
-    provider: "local",
-    model: "yuvion-local-copy-v2",
-    used: false,
-    reason: resultRaw?.reason || "local_only"
+    card: finalCard,
+    provider,
+    model: finalCard.copyModel,
+    used,
+    reason
   };
+}
+
+async function generateProductCopyWithProviders(cardRaw = {}) {
+  stats.gptCopyRequests += 1;
+  if (deepSeekConfigured()) {
+    stats.copyProviderAttempts.deepseek = Number(stats.copyProviderAttempts.deepseek || 0) + 1;
+    try {
+      const card = await withTimeout(
+        callDeepSeekCopy(cardRaw),
+        25000,
+        "DeepSeek copy generation timed out"
+      );
+      stats.copyProviderSuccesses.deepseek = Number(stats.copyProviderSuccesses.deepseek || 0) + 1;
+      stats.gptCopySuccesses += 1;
+      return finalizeCopyResponse(card, { provider: "deepseek", used: true });
+    } catch (error) {
+      recordError("copy-deepseek", error);
+      console.error("DeepSeek copy error:", { message: error?.message, status: error?.status, code: error?.code });
+    }
+  }
+  stats.gptCopyFallbacks += 1;
+  return finalizeCopyResponse(cardRaw, {
+    provider: "local",
+    used: false,
+    reason: deepSeekConfigured() ? "deepseek_unavailable" : "deepseek_not_configured"
+  });
 }
 
 app.post("/api/generate-copy", async (req, res) => {
@@ -1079,14 +1184,8 @@ app.post("/api/generate-copy", async (req, res) => {
   if (!rawCard || typeof rawCard !== "object") {
     return res.status(400).json({ error: "Данные товара не переданы." });
   }
-  stats.gptCopyRequests += 1;
-  stats.gptCopyFallbacks += 1;
-  return res.json(finalizeCopyResponse({ reason: "local_only" }, rawCard));
+  return res.json(await generateProductCopyWithProviders(rawCard));
 });
-
-async function generateProductCopyWithProviders(cardRaw = {}) {
-  return finalizeCopyResponse({ reason: "local_only" }, cardRaw);
-}
 
 async function generateProductCopyWithGpt(cardRaw = {}) {
   return generateProductCopyWithProviders(cardRaw);
@@ -1821,7 +1920,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.2.6",
+    version: "11.2.7",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1835,20 +1934,22 @@ app.get("/api/health", (_req, res) => {
     analyzeTimeoutSeconds: AI_ANALYZE_TIMEOUT_MS / 1000,
     analyzeRetryTimeoutSeconds: AI_ANALYZE_RETRY_TIMEOUT_MS / 1000,
     analyzeFastVision: true,
-    freeTextLocalFirst: true,
+    freeTextLocalFirst: false,
     photoOpenAiPrimary: false,
-    localDescriptionOnly: true,
-    gptProductCopyEnabled: false,
-    gptProductCopyConfigured: true,
-    gptProductCopyModel: "yuvion-local-copy-v2",
+    deepSeekPrimary: true,
+    localDescriptionOnly: false,
+    gptProductCopyEnabled: true,
+    gptProductCopyConfigured: deepSeekConfigured(),
+    gptProductCopyModel: deepSeekModel(),
     gptProductCopyFallback: true,
-    copyProviderPriority: ["local"],
+    copyProviderPriority: ["deepseek","local"],
     vireonixOnlyProductCopy: false,
     noLoginAiFallback: true,
     copyResponseDescriptionGuard: true,
     copyResponseTelemetry: true,
     copyProviders: {
-      local: { configured: true, model: "yuvion-local-copy-v2", auth: "none", cooldown: false }
+      deepseek: { configured: deepSeekConfigured(), model: deepSeekModel(), auth: "api_key", cooldown: false },
+      local: { configured: true, model: "yuvion-safe-copy", auth: "none", cooldown: false }
     },
     copyProviderCircuitBreaker: false,
     freeLocalPreflight: true,
@@ -1907,7 +2008,8 @@ app.get("/api/health", (_req, res) => {
       browserVisionFallback: true,
       smolVlmWebGpu: false,
       smolVlmWasmFallback: false,
-      mobileVitOnlyVision: true,
+      mobileVitOnlyVision: false,
+      deepSeekVision: true,
       visionWorkerCacheBypass: true,
       perCardSceneVariants: true,
       safeProductSceneTransform: true,
@@ -1987,13 +2089,23 @@ app.get("/api/health", (_req, res) => {
 
 app.post("/api/analyze", async (req, res) => {
   const ip = req.ip || "unknown";
+  let image = "";
+  let mimeType = "";
+  let extraData = {};
   try {
     if (limitMap(requestsByIp, ip, MAX_REQUESTS_PER_WINDOW)) {
       stats.rateLimitErrors += 1;
       return res.status(429).json({ error: "Слишком много запросов. Попробуйте немного позже." });
     }
 
-    const { image, mimeType, mode = "full", preferLocal = true, extraData = {}, additionalImages = [] } = req.body ?? {};
+    const body = req.body ?? {};
+    image = body.image;
+    mimeType = body.mimeType;
+    const mode = body.mode || "full";
+    const preferLocal = body.preferLocal === true;
+    extraData = body.extraData || {};
+    const additionalImages = Array.isArray(body.additionalImages) ? body.additionalImages : [];
+
     if (typeof image !== "string" || typeof mimeType !== "string") {
       return res.status(400).json({ error: "Изображение не передано." });
     }
@@ -2004,7 +2116,7 @@ app.post("/api/analyze", async (req, res) => {
       return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
     }
 
-    const extraViews = Array.isArray(additionalImages) ? additionalImages.slice(0, 4) : [];
+    const extraViews = additionalImages.slice(0, 4);
     for (const view of extraViews) {
       if (!view || typeof view.image !== "string" || typeof view.mimeType !== "string" || !ALLOWED_TYPES.has(view.mimeType)) {
         return res.status(400).json({ error: "Одно из дополнительных изображений имеет неподдерживаемый формат." });
@@ -2015,114 +2127,86 @@ app.post("/api/analyze", async (req, res) => {
     }
 
     const sourceBuffer = Buffer.from(image, "base64");
-    if (preferLocal === true) {
+    if (preferLocal || !deepSeekConfigured()) {
       stats.analyses += 1;
       if (mode === "fast") stats.fastMode += 1;
       else stats.fullMode += 1;
-      return res.json(await localFallbackCard(extraData, sourceBuffer, "Бесплатный локальный анализ готов — расширенное распознавание продолжится в браузере."));
-    }
-    if (!process.env.OPENAI_API_KEY) {
-      return res.json(await localFallbackCard(extraData, sourceBuffer, "AI API не настроен — использован локальный режим."));
+      return res.json(await localFallbackCard(
+        extraData,
+        sourceBuffer,
+        preferLocal
+          ? "Использован локальный резервный режим."
+          : "DeepSeek API key не настроен — использован локальный резервный режим."
+      ));
     }
 
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const client = deepSeekClient();
     const analyzeContent = [
       {
         type: "input_text",
         text:
-          "Проанализируй основной снимок товара и подготовь структурированную карточку для каталога Yuvion. " +
-          "Дополнительные снимки, если они есть, показывают тот же товар с других ракурсов и служат только для подтверждения деталей. " +
-          "Не считай различия освещения, ракурса или упаковки отдельными вариантами товара и не выдумывай характеристики.\n\n" +
+          "Проанализируй основной снимок товара и подготовь структурированную карточку Yuvion. " +
+          "Не выдумывай характеристики. Точные размеры, материал, состав, мощность, объём, бренд, модель и другие технические параметры добавляй только если они читаются на фото или переданы в подтверждённых данных.\n\n" +
           confirmedDataText(extraData)
       },
       { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "low" }
     ];
-    extraViews.forEach((view) => {
+    for (const view of extraViews) {
       analyzeContent.push({ type: "input_image", image_url: `data:${view.mimeType};base64,${view.image}`, detail: "low" });
-    });
-
-    const makeAnalyzeRequest = (content, model, maxOutputTokens) => client.responses.create({
-      model,
-      reasoning: { effort: "none" },
-      instructions,
-      input: [{
-        role: "user",
-        content
-      }],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "yuvion_product_card",
-          strict: true,
-          schema: productCardSchema
-        }
-      },
-      max_output_tokens: maxOutputTokens
-    });
-
-    let response;
-    try {
-      response = await withTimeout(
-        makeAnalyzeRequest(analyzeContent, process.env.OPENAI_MODEL || "gpt-5.6-luna", 1700),
-        AI_ANALYZE_TIMEOUT_MS,
-        `Первичный AI-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
-      );
-    } catch (firstError) {
-      const retryable = firstError?.code === "operation_timeout" || Number(firstError?.status || 0) >= 500;
-      if (!retryable) throw firstError;
-      stats.analysisRetries = Number(stats.analysisRetries || 0) + 1;
-      const retryContent = [
-        {
-          type: "input_text",
-          text:
-            "Быстро определи товар по фото и заполни карточку Yuvion. Ничего не выдумывай: точные характеристики добавляй только если они читаются на фото или переданы продавцом. " +
-            "Описание сделай продающим, но фактическим. " + confirmedDataText(extraData)
-        },
-        { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "low" }
-      ];
-      response = await withTimeout(
-        makeAnalyzeRequest(retryContent, process.env.OPENAI_FAST_MODEL || "gpt-5.6-luna", 1300),
-        AI_ANALYZE_RETRY_TIMEOUT_MS,
-        `Повторный AI-анализ превысил ${Math.round(AI_ANALYZE_RETRY_TIMEOUT_MS / 1000)} секунд.`
-      );
     }
+
+    const response = await withTimeout(
+      client.responses.create({
+        model: deepSeekModel(),
+        reasoning: { effort: "none" },
+        instructions,
+        input: [{ role: "user", content: analyzeContent }],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "yuvion_product_card",
+            schema: productCardSchema
+          }
+        },
+        max_output_tokens: mode === "fast" ? 1300 : 1800
+      }),
+      AI_ANALYZE_TIMEOUT_MS,
+      `DeepSeek-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
+    );
 
     recordTextUsage(response);
     const raw = response.output_text;
-    if (!raw) return res.status(502).json({ error: "AI не вернул результат." });
+    if (!raw) throw new Error("DeepSeek не вернул результат.");
 
-    let parsed;
-    try {
-      parsed = mergeConfirmedData(JSON.parse(raw), extraData);
-      const sourceAudit = await assessSourcePhoto(sourceBuffer);
-      parsed.photoQuality = { score: sourceAudit.score, issues: sourceAudit.issues };
-    } catch {
-      return res.status(502).json({ error: "Не удалось разобрать ответ AI." });
-    }
+    const parsed = mergeConfirmedData(JSON.parse(raw), extraData);
+    const sourceAudit = await assessSourcePhoto(sourceBuffer);
+    parsed.photoQuality = { score: sourceAudit.score, issues: sourceAudit.issues };
+    parsed.analysisMode = "deepseek";
+    parsed.analysisNotice = "Фото и описание обработаны DeepSeek";
+    parsed.copyProvider = "deepseek";
+    parsed.copyModel = deepSeekModel();
 
     stats.analyses += 1;
     if (mode === "fast") stats.fastMode += 1;
     else stats.fullMode += 1;
 
-    return res.json({ ...parsed, copyProvider: "openai", copyModel: process.env.OPENAI_MODEL || "gpt-5.6-luna" });
+    return res.json(parsed);
   } catch (error) {
     stats.analysisErrors += 1;
-    recordError("analysis", error);
-    console.error("AI analyze error:", { message: error?.message, status: error?.status, code: error?.code });
-    const canFallback = error?.code === "credit_balance_exhausted" || error?.status === 401 || error?.status === 429 || error?.code === "operation_timeout";
-    if (canFallback) {
-      try {
-        return res.json(await localFallbackCard(extraData, Buffer.from(image, "base64"),
-          error?.code === "credit_balance_exhausted"
-            ? "На AI API закончились кредиты — использован бесплатный локальный режим."
-            : "AI-анализ временно недоступен — использован бесплатный локальный режим."
+    recordError("analysis-deepseek", error);
+    console.error("DeepSeek analyze error:", { message: error?.message, status: error?.status, code: error?.code });
+    try {
+      if (image && mimeType) {
+        return res.json(await localFallbackCard(
+          extraData,
+          Buffer.from(image, "base64"),
+          "DeepSeek временно недоступен — использован локальный резервный режим."
         ));
-      } catch {}
-    }
+      }
+    } catch {}
     return res.status(500).json({ error: "Не удалось создать карточку. Попробуйте ещё раз." });
   }
 });
-
 
 
 function cleanVisionList(value, max = 8) {
@@ -4480,5 +4564,5 @@ if (!localCopySelfTest.shortDescription || localCopySelfTest.fullDescription.len
 console.log("Local description self-test OK:", localCopySelfTest.shortDescription.length, localCopySelfTest.fullDescription.length);
 
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.2.6 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.2.7 listening on port ${port}`);
 });
