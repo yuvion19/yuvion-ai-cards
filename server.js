@@ -2447,8 +2447,9 @@ app.get("/api/health", (_req, res) => {
       depthOfFieldBackdrop: true,
       acrylicStageSets: true,
       productReflection: true,
-      zeroImageApiMode: true,
-      imageAiDisabledByProduct: true,
+      zeroImageApiMode: false,
+      referenceGuidedImageAi: true,
+      imageAiDisabledByProduct: false,
       smartBackgroundCutout: true,
       productPhotoEnhancement: true,
       multiPhotoScenes: true,
@@ -2500,12 +2501,13 @@ app.get("/api/health", (_req, res) => {
       manualComposition: true
     },
     imageRendering: {
-      defaultMode: "free",
+      defaultMode: "yuvion-studio-ai",
       freeMode: true,
-      studioLocal: true,
-      aiMode: false,
-      imageAiDisabled: true,
-      freeImageAiCalls: 0
+      studioLocal: false,
+      aiMode: true,
+      imageAiDisabled: false,
+      referenceGuided: true,
+      targetImageAiCallsPerBatch: 2
     },
     estimates: {
       imageOutputUsdPerCard: IMAGE_OUTPUT_ESTIMATE_USD,
@@ -5222,7 +5224,7 @@ app.get("/api/admin/stats", requireAdmin, (_req, res) => {
     estimatedTotalUsd: stats.estimatedTextUsd + stats.estimatedImageOutputUsd,
     privacyMode: true,
     privacyNote: "Статистика агрегированная. Идентификаторы арендаторов, сессии, ФИО, контакты и содержимое товаров в админ-панель не передаются.",
-    estimatedCostNote: "Бесплатный режим изображений выполняется локально через Sharp и не использует image-generation API. Оценка image cost относится только к явно выбранному AI-фоторежиму."
+    estimatedCostNote: "Yuvion Studio AI использует подключённый генеративный провайдер для продуктовых сцен и локальный рендер для точной русской инфографики."
   });
 });
 
