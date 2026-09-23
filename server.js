@@ -2155,24 +2155,54 @@ app.post("/api/analyze", async (req, res) => {
       analyzeContent.push({ type: "input_image", image_url: `data:${view.mimeType};base64,${view.image}`, detail: "low" });
     }
 
-    const response = await withTimeout(
-      client.responses.create({
-        model: deepSeekModel(),
-        reasoning: { effort: "none" },
-        instructions,
-        input: [{ role: "user", content: analyzeContent }],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "yuvion_product_card",
-            schema: productCardSchema
-          }
+    const makeDeepSeekAnalyzeRequest = (content, maxOutputTokens, model = deepSeekModel()) => client.responses.create({
+      model,
+      reasoning: { effort: "none" },
+      instructions,
+      input: [{ role: "user", content }],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "yuvion_product_card",
+          schema: productCardSchema
+        }
+      },
+      max_output_tokens: maxOutputTokens
+    });
+
+    let response;
+    try {
+      response = await withTimeout(
+        makeDeepSeekAnalyzeRequest(analyzeContent, mode === "fast" ? 1300 : 1800),
+        AI_ANALYZE_TIMEOUT_MS,
+        `DeepSeek-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
+      );
+    } catch (firstError) {
+      const retryable = firstError?.code === "operation_timeout" ||
+        Number(firstError?.status || 0) === 429 ||
+        Number(firstError?.status || 0) >= 500;
+      if (!retryable) throw firstError;
+      stats.analysisRetries = Number(stats.analysisRetries || 0) + 1;
+      const retryContent = [
+        {
+          type: "input_text",
+          text:
+            "Быстро определи товар по основной фотографии и верни карточку Yuvion в JSON. " +
+            "Не выдумывай точные характеристики; используй только видимое и подтверждённые данные.\n\n" +
+            confirmedDataText(extraData)
         },
-        max_output_tokens: mode === "fast" ? 1300 : 1800
-      }),
-      AI_ANALYZE_TIMEOUT_MS,
-      `DeepSeek-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
-    );
+        { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "low" }
+      ];
+      response = await withTimeout(
+        makeDeepSeekAnalyzeRequest(
+          retryContent,
+          1300,
+          process.env.DEEPSEEK_FAST_MODEL || deepSeekModel()
+        ),
+        AI_ANALYZE_RETRY_TIMEOUT_MS,
+        `Повторный DeepSeek-анализ превысил ${Math.round(AI_ANALYZE_RETRY_TIMEOUT_MS / 1000)} секунд.`
+      );
+    }
 
     recordTextUsage(response);
     const raw = response.output_text;
