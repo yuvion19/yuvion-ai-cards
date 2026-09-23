@@ -262,6 +262,12 @@ for(const [needle,label] of features){
 if(html.includes('js.puter.com')||html.includes('window.puter')||html.includes('enhanceProductCopyWithPuter'))fail('Puter login fallback still present');else ok('Puter login fallback removed');
 if(server.includes('async function callOpenAiCopy')||server.includes('async function callVireonixCopy')||server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy')||server.includes('async function callDeepSeekCopy')||server.includes('async function callOpenRouterDeepSeekCopy'))fail('retired description AI providers still present');else if(!server.includes('async function callGigaChatCopy'))fail('GigaChat description provider missing');else ok('GigaChat description provider present');
 if(server.includes('api.groq.com/openai/v1')||server.includes('api.cloudflare.com/client/v4/accounts/')||server.includes('openrouter.ai/api/v1')||server.includes('api.deepseek.com'))fail('retired provider endpoints still present');else if(!server.includes('https://api.giga.chat')||!server.includes('ngw.devices.sberbank.ru:9443/api/v2/oauth'))fail('GigaChat endpoints missing');else ok('GigaChat endpoints present');
+if(!server.includes('async function generateGigaChatBackground'))fail('GigaChat text2image generator missing');else ok('GigaChat text2image generator present');
+if(!server.includes('functions: [{ name: "text2image" }]'))fail('GigaChat text2image function declaration missing');else ok('GigaChat text2image function declaration present');
+if(!server.includes('async function makeGigaBackgroundVariant'))fail('GigaChat four-scene derivation missing');else ok('GigaChat four-scene derivation present');
+if(!server.includes('gigaChatImageGeneration: gigaImageCalls > 0'))fail('GigaChat image-generation response metadata missing');else ok('GigaChat image-generation response metadata present');
+if(server.includes('[0,1,2,3].map((index) =>\n          generateGigaChatBackground'))fail('parallel GigaChat image calls still present');else ok('GigaChat image generation serialized for personal API');
+if(!server.includes('GigaChat copy self-test OK:'))fail('GigaChat copy runtime self-test missing');else ok('GigaChat copy runtime self-test present');
 
 
 
