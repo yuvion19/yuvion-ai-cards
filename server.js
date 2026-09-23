@@ -4455,6 +4455,30 @@ app.post("/api/generate-cards", async (req, res) => {
     const primaryAspect=Number(renderSelections[0]?.primary?.audit?.aspect||sourceQuality.aspect||1);
     let studioProfile=buildStudioProfile(normalized,styleKey,variant,primaryAspect);
 
+    const gigaBackgrounds = [null, null, null, null];
+    let gigaImageCalls = 0;
+    if (gigaChatConfigured()) {
+      const generated = await Promise.allSettled(
+        [0,1,2,3].map((index) =>
+          generateGigaChatBackground(normalized, index, styleKey, renderPalette, studioProfile)
+        )
+      );
+      generated.forEach((result, index) => {
+        if (result.status === "fulfilled" && result.value) {
+          gigaBackgrounds[index] = result.value;
+          gigaImageCalls += 1;
+        } else if (result.status === "rejected") {
+          console.warn("GigaChat background fallback:", {
+            index,
+            message: result.reason?.message,
+            status: result.reason?.status,
+            code: result.reason?.code,
+            details: result.reason?.details
+          });
+        }
+      });
+    }
+
     scenes = await Promise.all(renderSelections.map(({ index, primary, inset }) =>
       renderFreeScene(
         primary.buffer,
@@ -4469,7 +4493,8 @@ app.post("/api/generate-cards", async (req, res) => {
         inset?.buffer || null,
         primary.role,
         inset?.role || "",
-        studioProfile
+        studioProfile,
+        gigaBackgrounds[index]
       )
     ));
     stats.freeSceneRenders += 4;
@@ -4480,7 +4505,7 @@ app.post("/api/generate-cards", async (req, res) => {
         const profile=candidateVariant===variant?studioProfile:buildStudioProfile(normalized,styleKey,candidateVariant,primaryAspect);
         const scene=candidateVariant===variant?scenes[0]:await renderFreeScene(
           selected.primary.buffer,0,styleKey,renderPalette,candidateVariant,renderComposition,intensity,substyle,visual,
-          selected.inset?.buffer||null,selected.primary.role,selected.inset?.role||"",profile
+          selected.inset?.buffer||null,selected.primary.role,selected.inset?.role||"",profile,gigaBackgrounds[0]
         );
         const cached=await normalizeSceneForCache(scene);
         const cover=await composeCard(cached,overlayForCard(0,normalized,styleKey,renderPalette,intensity,substyle,visual,profile));
@@ -4519,14 +4544,16 @@ app.post("/api/generate-cards", async (req, res) => {
       format: "900x1200",
       style: styleKey,
       renderMode: mode,
-      aiImageCalls: 0,
+      aiImageCalls: gigaImageCalls,
+      gigaChatImageCalls: gigaImageCalls,
+      gigaChatImageGeneration: gigaImageCalls > 0,
       palette: renderPalette,
       designVariant: variant,
       designIntensity: intensity,
       designSubstyle: substyle,
       visualOptions: visual,
       composition: renderComposition,
-      renderEngine: "studio-director-v11",
+      renderEngine: gigaImageCalls > 0 ? "studio-gigachat-v12" : "studio-director-v11",
       primaryRole: renderSelections[0]?.primary?.role || "main",
       insetRole: renderSelections[0]?.inset?.role || "",
       photoEnhancement: true,
