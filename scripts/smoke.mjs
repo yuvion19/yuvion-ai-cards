@@ -183,17 +183,22 @@ const features=[
   ['urlImportEmbeddedJsonFallback: true','embedded JSON URL import fallback metadata'],
   ['guaranteedDescriptions: true','guaranteed description metadata'],
   ['deepSeekPrimary: true','DeepSeek primary health flag'],
+  ['openRouterDeepSeekFallback: true','OpenRouter DeepSeek fallback health flag'],
+  ['function openRouterConfigured','OpenRouter configuration helper'],
+  ['function callOpenRouterDeepSeekCopy','OpenRouter free DeepSeek copy implementation'],
+  ['deepseek/deepseek-v4-flash-0731:free','free DeepSeek model slug'],
+  ['openrouter/free','free multimodal router slug'],
   ['gptProductCopyEnabled: true','DeepSeek product-copy AI enabled'],
-  ['gptProductCopyConfigured: deepSeekConfigured()','DeepSeek configured health flag'],
-  ['gptProductCopyModel: deepSeekModel()','DeepSeek model metadata'],
+  ['gptProductCopyConfigured: deepSeekConfigured() || openRouterConfigured()','DeepSeek/OpenRouter configured health flag'],
+  ['gptProductCopyModel: deepSeekDirectAvailable() ? deepSeekModel() : openRouterDeepSeekModel()','DeepSeek effective model metadata'],
   ['gptProductCopyFallback: true','local description safety fallback metadata'],
   ['/api/generate-copy','DeepSeek copy endpoint'],
   ['function callDeepSeekCopy','DeepSeek copy implementation'],
   ['function generateProductCopyWithProviders','DeepSeek copy router'],
   ['copyProviderCircuitBreaker: false','external copy circuit breaker disabled'],
-  ['copyProviderPriority: ["deepseek","local"]','DeepSeek provider priority metadata'],
+  ['copyProviderPriority: ["deepseek-direct","deepseek-openrouter-free","local"]','DeepSeek provider priority metadata'],
   ['noLoginAiFallback: true','local emergency fallback metadata'],
-  ['deepseek: { configured: deepSeekConfigured()','DeepSeek health provider metadata'],
+  ['openrouterDeepseek: { configured: openRouterConfigured()','OpenRouter DeepSeek health provider metadata'],
 
 
   ["data.provider||copy.copyProvider","frontend preserves actual server provider"],
@@ -255,8 +260,8 @@ for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
 }
 if(html.includes('js.puter.com')||html.includes('window.puter')||html.includes('enhanceProductCopyWithPuter'))fail('Puter login fallback still present');else ok('Puter login fallback removed');
-if(server.includes('async function callOpenAiCopy')||server.includes('async function callVireonixCopy')||server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy'))fail('retired description AI providers still present');else if(!server.includes('async function callDeepSeekCopy'))fail('DeepSeek description provider missing');else ok('DeepSeek is the only external description provider');
-if(server.includes('api.groq.com/openai/v1')||server.includes('api.cloudflare.com/client/v4/accounts/')||server.includes('openrouter.ai/api/v1'))fail('legacy description provider endpoints still present');else ok('legacy description provider endpoints removed');
+if(server.includes('async function callOpenAiCopy')||server.includes('async function callVireonixCopy')||server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy'))fail('retired description AI providers still present');else if(!server.includes('async function callDeepSeekCopy')||!server.includes('async function callOpenRouterDeepSeekCopy'))fail('DeepSeek provider chain missing');else ok('DeepSeek direct + OpenRouter free fallback present');
+if(server.includes('api.groq.com/openai/v1')||server.includes('api.cloudflare.com/client/v4/accounts/'))fail('legacy description provider endpoints still present');else if(!server.includes('https://openrouter.ai/api/v1'))fail('OpenRouter fallback endpoint missing');else ok('legacy providers removed; OpenRouter fallback present');
 
 
 
@@ -347,7 +352,8 @@ if(!html.includes("register('/sw.js?v=32',{updateViaCache:'none'})"))fail('servi
 
 if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
-if(!server.includes('deepSeekVision: true'))fail('DeepSeek-only vision metadata missing');else ok('DeepSeek-only vision metadata present');
+if(!server.includes('deepSeekVision: true'))fail('DeepSeek vision metadata missing');else ok('DeepSeek vision metadata present');
+if(!server.includes('openRouterFreeVisionFallback: true'))fail('OpenRouter free vision fallback metadata missing');else ok('OpenRouter free vision fallback metadata present');
 if(!server.includes('perCardSceneVariants: true'))fail('per-card scene variants metadata missing');else ok('per-card scene variants metadata present');
 if(!server.includes('transformProductForScene'))fail('safe product scene transform missing');else ok('safe product scene transform present');
 if(!server.includes('sceneVariant=Number.isInteger'))fail('scene-specific background variant missing');else ok('scene-specific background variant present');
