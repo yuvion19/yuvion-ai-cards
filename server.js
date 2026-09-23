@@ -7,6 +7,7 @@ import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import dns from "node:dns/promises";
 import net from "node:net";
+import crypto from "node:crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -113,8 +114,8 @@ const stats = {
   gptCopyRequests: 0,
   gptCopySuccesses: 0,
   gptCopyFallbacks: 0,
-  copyProviderAttempts: { deepseek: 0, openrouterDeepseek: 0, local: 0 },
-  copyProviderSuccesses: { deepseek: 0, openrouterDeepseek: 0, local: 0 },
+  copyProviderAttempts: { gigachat: 0, local: 0 },
+  copyProviderSuccesses: { gigachat: 0, local: 0 },
   recentErrors: []
 };
 
@@ -1041,169 +1042,206 @@ function buildLocalProductCopy(cardRaw = {}) {
   };
 }
 
-const deepSeekCopySchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["seoTitle","shortDescription","fullDescription","benefits","keywords"],
-  properties: {
-    seoTitle: { type: "string" },
-    shortDescription: { type: "string" },
-    fullDescription: { type: "string" },
-    benefits: { type: "array", maxItems: 5, items: { type: "string" } },
-    keywords: { type: "array", maxItems: 30, items: { type: "string" } }
-  }
-};
-
-function deepSeekConfigured() {
-  return Boolean(String(process.env.DEEPSEEK_API_KEY || "").trim());
-}
-
-function deepSeekClient() {
-  if (!deepSeekConfigured()) return null;
-  return new OpenAI({
-    apiKey: process.env.DEEPSEEK_API_KEY,
-    baseURL: String(process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "")
-  });
-}
-
-function deepSeekModel() {
-  return process.env.DEEPSEEK_MODEL || "deepseek-flash";
-}
-
-function openRouterConfigured() {
-  return Boolean(String(process.env.OPENROUTER_API_KEY || "").trim());
-}
-
-function openRouterClient() {
-  if (!openRouterConfigured()) return null;
-  return new OpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
-    defaultHeaders: {
-      "HTTP-Referer": process.env.PUBLIC_APP_URL || "https://yuvion-ai-cards-marketplace-production.up.railway.app",
-      "X-Title": "Yuvion AI Cards"
-    }
-  });
-}
-
-function openRouterDeepSeekModel() {
-  return process.env.OPENROUTER_DEEPSEEK_MODEL || "deepseek/deepseek-v4-flash-0731:free";
-}
-
-function openRouterVisionModel() {
-  return process.env.OPENROUTER_VISION_MODEL || "openrouter/free";
-}
 
 function parseJsonObjectText(value) {
   const raw = String(value || "").trim();
-  if (!raw) throw new Error("AI returned empty JSON");
+  if (!raw) throw Object.assign(new Error("GigaChat returned empty JSON"), { code: "gigachat_empty_json" });
   const unfenced = raw.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/i, "").trim();
   try { return JSON.parse(unfenced); } catch {}
   const first = unfenced.indexOf("{");
   const last = unfenced.lastIndexOf("}");
   if (first >= 0 && last > first) return JSON.parse(unfenced.slice(first, last + 1));
-  throw new Error("AI returned invalid JSON");
+  throw Object.assign(new Error("GigaChat returned invalid JSON"), { code: "gigachat_invalid_json" });
 }
 
-let deepSeekDirectBlockedUntil = 0;
-function deepSeekDirectAvailable() {
-  return deepSeekConfigured() && Date.now() >= deepSeekDirectBlockedUntil;
-}
-function blockDeepSeekDirect(error) {
-  if (Number(error?.status || 0) === 402) deepSeekDirectBlockedUntil = Date.now() + 60 * 60 * 1000;
+function gigaChatConfigured() {
+  return Boolean(String(process.env.GIGACHAT_AUTH_KEY || "").trim());
 }
 
-async function callDeepSeekCopy(cardRaw = {}) {
-  const fallback = normalizeCard(cardRaw);
-  const client = deepSeekClient();
-  if (!client) {
-    const error = new Error("DeepSeek API key is not configured");
-    error.code = "deepseek_not_configured";
-    throw error;
+function gigaChatApiBase() {
+  return String(process.env.GIGACHAT_API_BASE || "https://api.giga.chat").replace(/\/+$/, "");
+}
+
+function gigaChatOauthUrl() {
+  return String(process.env.GIGACHAT_OAUTH_URL || "https://ngw.devices.sberbank.ru:9443/api/v2/oauth");
+}
+
+function gigaChatScope() {
+  return process.env.GIGACHAT_SCOPE || "GIGACHAT_API_PERS";
+}
+
+function gigaChatModel() {
+  return process.env.GIGACHAT_MODEL || "GigaChat-Pro";
+}
+
+let gigaChatTokenCache = { accessToken: "", expiresAt: 0 };
+
+function clearGigaChatToken() {
+  gigaChatTokenCache = { accessToken: "", expiresAt: 0 };
+}
+
+async function getGigaChatAccessToken() {
+  if (!gigaChatConfigured()) {
+    throw Object.assign(new Error("GigaChat Authorization Key is not configured"), { code: "gigachat_not_configured" });
   }
-  const facts = {
-    seoTitle: fallback.seoTitle,
-    category: fallback.category,
-    characteristics: fallback.characteristics,
-    confirmedData: fallback.confirmedData
-  };
-  const response = await client.responses.create({
-    model: deepSeekModel(),
-    reasoning: { effort: "none" },
-    instructions:
-      "Ты пишешь карточку товара для покупателя на русском языке. Используй ТОЛЬКО переданные подтверждённые факты. " +
-      "Не выдумывай размеры, материал, состав, мощность, объём, бренд, модель, комплектацию или другие точные параметры. " +
-      "Краткое описание: 100–260 знаков. Полное описание: 350–900 знаков, 3–6 связных предложений. " +
-      "Текст должен быть продающим, естественным и без служебных фраз об источниках данных. Верни строго JSON по схеме.",
-    input: [{
-      role: "user",
-      content: [{ type: "input_text", text: JSON.stringify(facts) }]
-    }],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "yuvion_product_copy",
-        schema: deepSeekCopySchema
-      }
+  if (gigaChatTokenCache.accessToken && Date.now() < Number(gigaChatTokenCache.expiresAt || 0) - 60000) {
+    return gigaChatTokenCache.accessToken;
+  }
+
+  const response = await fetch(gigaChatOauthUrl(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+      RqUID: crypto.randomUUID(),
+      Authorization: "Basic " + String(process.env.GIGACHAT_AUTH_KEY || "").trim()
     },
-    max_output_tokens: 1400
+    body: new URLSearchParams({ scope: gigaChatScope() }).toString()
   });
-  recordTextUsage(response);
-  const parsed = JSON.parse(response.output_text || "{}");
-  const merged = normalizeCard({
-    ...fallback,
-    ...parsed,
-    category: fallback.category,
-    characteristics: fallback.characteristics,
-    confirmedData: fallback.confirmedData,
-    needsClarification: fallback.needsClarification,
-    usage: fallback.usage,
-    photoQuality: fallback.photoQuality
-  });
-  if (merged.shortDescription.length < 70 || merged.fullDescription.length < 180) {
-    const error = new Error("DeepSeek returned undersized product copy");
-    error.code = "deepseek_copy_too_short";
+
+  const raw = await response.text();
+  if (!response.ok) {
+    const error = new Error("GigaChat OAuth failed");
+    error.status = response.status;
+    error.code = "gigachat_oauth_failed";
+    error.details = raw.slice(0, 500);
     throw error;
   }
-  return {
-    ...merged,
-    copyProvider: "deepseek",
-    copyModel: deepSeekModel()
-  };
+
+  let data;
+  try { data = JSON.parse(raw); }
+  catch {
+    throw Object.assign(new Error("GigaChat OAuth returned invalid JSON"), { code: "gigachat_oauth_invalid_json" });
+  }
+
+  if (!data?.access_token) {
+    throw Object.assign(new Error("GigaChat OAuth response has no access_token"), { code: "gigachat_oauth_missing_token" });
+  }
+
+  let expiresAt = Number(data.expires_at || 0);
+  if (expiresAt && expiresAt < 1000000000000) expiresAt *= 1000;
+  if (!expiresAt) expiresAt = Date.now() + 29 * 60 * 1000;
+
+  gigaChatTokenCache = { accessToken: String(data.access_token), expiresAt };
+  return gigaChatTokenCache.accessToken;
 }
 
-async function callOpenRouterDeepSeekCopy(cardRaw = {}) {
-  const fallback = normalizeCard(cardRaw);
-  const client = openRouterClient();
-  if (!client) {
-    const error = new Error("OpenRouter API key is not configured");
-    error.code = "openrouter_not_configured";
-    throw error;
+async function gigaChatFetch(pathname, options = {}, retryAuth = true) {
+  const token = await getGigaChatAccessToken();
+  const response = await fetch(gigaChatApiBase() + pathname, {
+    ...options,
+    headers: {
+      Accept: "application/json",
+      ...(options.headers || {}),
+      Authorization: "Bearer " + token
+    }
+  });
+
+  if (response.status === 401 && retryAuth) {
+    clearGigaChatToken();
+    return gigaChatFetch(pathname, options, false);
   }
+  return response;
+}
+
+function gigaChatRequestError(response, bodyText, code) {
+  const error = new Error("GigaChat request failed");
+  error.status = response.status;
+  error.code = code;
+  error.details = String(bodyText || "").slice(0, 600);
+  return error;
+}
+
+async function gigaChatCompletion(messages, options = {}) {
+  const response = await gigaChatFetch("/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: gigaChatModel(),
+      messages,
+      temperature: Number(options.temperature ?? 0.1),
+      stream: false,
+      update_interval: 0,
+      max_tokens: Number(options.maxTokens || 1600)
+    })
+  });
+
+  const raw = await response.text();
+  if (!response.ok) throw gigaChatRequestError(response, raw, "gigachat_completion_failed");
+
+  let data;
+  try { data = JSON.parse(raw); }
+  catch {
+    throw Object.assign(new Error("GigaChat completion returned invalid JSON envelope"), { code: "gigachat_completion_invalid_envelope" });
+  }
+
+  recordTextUsage(data);
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw Object.assign(new Error("GigaChat returned an empty answer"), { code: "gigachat_empty_answer" });
+  return { data, content: String(content) };
+}
+
+async function normalizeGigaChatImage(buffer, mimeType = "image/jpeg") {
+  const normalizedMime = String(mimeType || "").toLowerCase();
+  if (normalizedMime === "image/jpeg" || normalizedMime === "image/png") {
+    return { buffer, mimeType: normalizedMime, extension: normalizedMime === "image/png" ? "png" : "jpg" };
+  }
+  const converted = await sharp(buffer).rotate().jpeg({ quality: 90, mozjpeg: true }).toBuffer();
+  return { buffer: converted, mimeType: "image/jpeg", extension: "jpg" };
+}
+
+async function uploadImageToGigaChat(buffer, mimeType, index = 0) {
+  const prepared = await normalizeGigaChatImage(buffer, mimeType);
+  const form = new FormData();
+  const filename = "yuvion-product-" + Date.now() + "-" + index + "." + prepared.extension;
+  form.append("file", new Blob([prepared.buffer], { type: prepared.mimeType }), filename);
+  form.append("purpose", "general");
+
+  const response = await gigaChatFetch("/v1/files", { method: "POST", body: form });
+  const raw = await response.text();
+  if (!response.ok) throw gigaChatRequestError(response, raw, "gigachat_file_upload_failed");
+
+  let data;
+  try { data = JSON.parse(raw); }
+  catch {
+    throw Object.assign(new Error("GigaChat file upload returned invalid JSON"), { code: "gigachat_file_upload_invalid_json" });
+  }
+  if (!data?.id) {
+    throw Object.assign(new Error("GigaChat file upload returned no file id"), { code: "gigachat_file_id_missing" });
+  }
+  return String(data.id);
+}
+
+async function deleteGigaChatFile(fileId) {
+  if (!fileId) return;
+  try {
+    await gigaChatFetch("/v1/files/" + encodeURIComponent(fileId) + "/delete", { method: "POST" });
+  } catch (error) {
+    console.warn("GigaChat file cleanup error:", { code: error?.code, status: error?.status });
+  }
+}
+
+async function callGigaChatCopy(cardRaw = {}) {
+  const fallback = normalizeCard(cardRaw);
   const facts = {
     seoTitle: fallback.seoTitle,
     category: fallback.category,
     characteristics: fallback.characteristics,
     confirmedData: fallback.confirmedData
   };
-  const completion = await client.chat.completions.create({
-    model: openRouterDeepSeekModel(),
-    messages: [
-      {
-        role: "system",
-        content:
-          "Ты пишешь карточку товара для покупателя на русском языке. Используй только подтверждённые факты. " +
-          "Не выдумывай размеры, материал, состав, мощность, объём, бренд, модель или комплектацию. " +
-          "Верни только JSON с ключами seoTitle, shortDescription, fullDescription, benefits, keywords. " +
-          "shortDescription 100–260 знаков; fullDescription 350–900 знаков и 3–6 предложений."
-      },
-      { role: "user", content: JSON.stringify(facts) }
-    ],
-    temperature: 0.25,
-    max_tokens: 1200
+  const prompt =
+    "Подготовь продающее описание товара на русском языке. Верни ТОЛЬКО JSON без markdown с ключами " +
+    "seoTitle, shortDescription, fullDescription, benefits, keywords. " +
+    "Используй только подтверждённые факты. Не выдумывай размеры, материал, состав, мощность, объём, бренд, модель и комплектацию. " +
+    "shortDescription: 100–260 знаков. fullDescription: 350–900 знаков, 3–6 предложений. " +
+    "benefits: до 5 пунктов. keywords: до 30 строк. Данные: " + JSON.stringify(facts);
+
+  const result = await gigaChatCompletion([{ role: "user", content: prompt }], {
+    maxTokens: 1500,
+    temperature: 0.15
   });
-  recordTextUsage(completion);
-  const parsed = parseJsonObjectText(completion.choices?.[0]?.message?.content || "");
+
+  const parsed = parseJsonObjectText(result.content);
   const merged = normalizeCard({
     ...fallback,
     ...parsed,
@@ -1214,26 +1252,22 @@ async function callOpenRouterDeepSeekCopy(cardRaw = {}) {
     usage: fallback.usage,
     photoQuality: fallback.photoQuality
   });
+
   if (merged.shortDescription.length < 70 || merged.fullDescription.length < 180) {
-    const error = new Error("OpenRouter DeepSeek returned undersized product copy");
-    error.code = "openrouter_deepseek_copy_too_short";
-    throw error;
+    throw Object.assign(new Error("GigaChat returned undersized product copy"), { code: "gigachat_copy_too_short" });
   }
-  return {
-    ...merged,
-    copyProvider: "deepseek-openrouter",
-    copyModel: openRouterDeepSeekModel()
-  };
+
+  return { ...merged, copyProvider: "gigachat", copyModel: gigaChatModel() };
 }
 
 function finalizeCopyResponse(card, { provider = "local", used = false, reason = "", model = "" } = {}) {
-  const aiProvider = provider === "deepseek" || provider === "deepseek-openrouter";
-  const safe = aiProvider ? normalizeCard(card) : buildLocalProductCopy(card);
+  const safe = provider === "gigachat" ? normalizeCard(card) : buildLocalProductCopy(card);
   const finalCard = {
     ...safe,
     copyProvider: provider,
-    copyModel: aiProvider ? (model || (provider === "deepseek" ? deepSeekModel() : openRouterDeepSeekModel())) : "yuvion-safe-copy"
+    copyModel: provider === "gigachat" ? (model || gigaChatModel()) : "yuvion-safe-copy"
   };
+
   console.info("Copy result:", {
     provider,
     used,
@@ -1242,47 +1276,36 @@ function finalizeCopyResponse(card, { provider = "local", used = false, reason =
     substantiveDescription: finalCard.fullDescription.length >= 180,
     titleChars: String(finalCard.seoTitle || "").length
   });
-  return {
-    card: finalCard,
-    provider,
-    model: finalCard.copyModel,
-    used,
-    reason
-  };
+
+  return { card: finalCard, provider, model: finalCard.copyModel, used, reason };
 }
 
 async function generateProductCopyWithProviders(cardRaw = {}) {
   stats.gptCopyRequests += 1;
 
-  if (deepSeekDirectAvailable()) {
-    stats.copyProviderAttempts.deepseek = Number(stats.copyProviderAttempts.deepseek || 0) + 1;
+  if (gigaChatConfigured()) {
+    stats.copyProviderAttempts.gigachat = Number(stats.copyProviderAttempts.gigachat || 0) + 1;
     try {
-      const card = await withTimeout(callDeepSeekCopy(cardRaw), 25000, "DeepSeek copy generation timed out");
-      stats.copyProviderSuccesses.deepseek = Number(stats.copyProviderSuccesses.deepseek || 0) + 1;
-      stats.gptCopySuccesses += 1;
-      return finalizeCopyResponse(card, { provider: "deepseek", used: true, model: deepSeekModel() });
-    } catch (error) {
-      blockDeepSeekDirect(error);
-      recordError("copy-deepseek", error);
-      console.error("DeepSeek copy error:", { message: error?.message, status: error?.status, code: error?.code });
-    }
-  }
-
-  if (openRouterConfigured()) {
-    stats.copyProviderAttempts.openrouterDeepseek = Number(stats.copyProviderAttempts.openrouterDeepseek || 0) + 1;
-    try {
-      const card = await withTimeout(callOpenRouterDeepSeekCopy(cardRaw), 30000, "OpenRouter DeepSeek copy generation timed out");
-      stats.copyProviderSuccesses.openrouterDeepseek = Number(stats.copyProviderSuccesses.openrouterDeepseek || 0) + 1;
+      const card = await withTimeout(
+        callGigaChatCopy(cardRaw),
+        32000,
+        "GigaChat copy generation timed out"
+      );
+      stats.copyProviderSuccesses.gigachat = Number(stats.copyProviderSuccesses.gigachat || 0) + 1;
       stats.gptCopySuccesses += 1;
       return finalizeCopyResponse(card, {
-        provider: "deepseek-openrouter",
+        provider: "gigachat",
         used: true,
-        model: openRouterDeepSeekModel(),
-        reason: "official_deepseek_unavailable"
+        model: gigaChatModel()
       });
     } catch (error) {
-      recordError("copy-openrouter-deepseek", error);
-      console.error("OpenRouter DeepSeek copy error:", { message: error?.message, status: error?.status, code: error?.code });
+      recordError("copy-gigachat", error);
+      console.error("GigaChat copy error:", {
+        message: error?.message,
+        status: error?.status,
+        code: error?.code,
+        details: error?.details
+      });
     }
   }
 
@@ -1290,9 +1313,7 @@ async function generateProductCopyWithProviders(cardRaw = {}) {
   return finalizeCopyResponse(cardRaw, {
     provider: "local",
     used: false,
-    reason: openRouterConfigured()
-      ? "deepseek_providers_unavailable"
-      : "openrouter_key_required_for_free_deepseek"
+    reason: gigaChatConfigured() ? "gigachat_unavailable" : "gigachat_not_configured"
   });
 }
 
@@ -2037,7 +2058,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.2.8",
+    version: "11.2.9",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -2053,21 +2074,21 @@ app.get("/api/health", (_req, res) => {
     analyzeFastVision: true,
     freeTextLocalFirst: false,
     photoOpenAiPrimary: false,
-    deepSeekPrimary: true,
-    openRouterDeepSeekFallback: true,
+    gigaChatPrimary: true,
+    deepSeekPrimary: false,
+    openRouterDeepSeekFallback: false,
     localDescriptionOnly: false,
     gptProductCopyEnabled: true,
-    gptProductCopyConfigured: deepSeekConfigured() || openRouterConfigured(),
-    gptProductCopyModel: deepSeekDirectAvailable() ? deepSeekModel() : openRouterDeepSeekModel(),
+    gptProductCopyConfigured: gigaChatConfigured(),
+    gptProductCopyModel: gigaChatModel(),
     gptProductCopyFallback: true,
-    copyProviderPriority: ["deepseek-direct","deepseek-openrouter-free","local"],
+    copyProviderPriority: ["gigachat","local"],
     vireonixOnlyProductCopy: false,
     noLoginAiFallback: true,
     copyResponseDescriptionGuard: true,
     copyResponseTelemetry: true,
     copyProviders: {
-      deepseek: { configured: deepSeekConfigured(), available: deepSeekDirectAvailable(), model: deepSeekModel(), auth: "api_key", cooldown: !deepSeekDirectAvailable() },
-      openrouterDeepseek: { configured: openRouterConfigured(), model: openRouterDeepSeekModel(), visionModel: openRouterVisionModel(), auth: "api_key", freeModel: true },
+      gigachat: { configured: gigaChatConfigured(), model: gigaChatModel(), auth: "authorization_key", imageAttachments: true },
       local: { configured: true, model: "yuvion-safe-copy", auth: "none", cooldown: false }
     },
     copyProviderCircuitBreaker: false,
@@ -2128,8 +2149,10 @@ app.get("/api/health", (_req, res) => {
       smolVlmWebGpu: false,
       smolVlmWasmFallback: false,
       mobileVitOnlyVision: false,
-      deepSeekVision: true,
-      openRouterFreeVisionFallback: true,
+      deepSeekVision: false,
+      openRouterFreeVisionFallback: false,
+      gigaChatVision: true,
+      gigaChatFileAttachments: true,
       visionWorkerCacheBypass: true,
       perCardSceneVariants: true,
       safeProductSceneTransform: true,
@@ -2212,6 +2235,8 @@ app.post("/api/analyze", async (req, res) => {
   let image = "";
   let mimeType = "";
   let extraData = {};
+  const uploadedFileIds = [];
+
   try {
     if (limitMap(requestsByIp, ip, MAX_REQUESTS_PER_WINDOW)) {
       stats.rateLimitErrors += 1;
@@ -2247,7 +2272,8 @@ app.post("/api/analyze", async (req, res) => {
     }
 
     const sourceBuffer = Buffer.from(image, "base64");
-    if (preferLocal || (!deepSeekConfigured() && !openRouterConfigured())) {
+
+    if (preferLocal || !gigaChatConfigured()) {
       stats.analyses += 1;
       if (mode === "fast") stats.fastMode += 1;
       else stats.fullMode += 1;
@@ -2256,125 +2282,84 @@ app.post("/api/analyze", async (req, res) => {
         sourceBuffer,
         preferLocal
           ? "Использован локальный резервный режим."
-          : "DeepSeek/OpenRouter API key не настроен — использован локальный резервный режим."
+          : "GigaChat Authorization Key не настроен — использован локальный резервный режим."
       ));
     }
 
-    const directClient = deepSeekClient();
-    const analyzeContent = [
-      {
-        type: "input_text",
-        text:
-          "Проанализируй основной снимок товара и подготовь структурированную карточку Yuvion. " +
-          "Не выдумывай характеристики. Точные размеры, материал, состав, мощность, объём, бренд, модель и другие технические параметры добавляй только если они читаются на фото или переданы в подтверждённых данных.\n\n" +
-          confirmedDataText(extraData)
-      },
-      { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "low" }
+    const images = [
+      { buffer: sourceBuffer, mimeType },
+      ...extraViews.map((view) => ({
+        buffer: Buffer.from(view.image, "base64"),
+        mimeType: view.mimeType
+      }))
     ];
-    for (const view of extraViews) {
-      analyzeContent.push({ type: "input_image", image_url: `data:${view.mimeType};base64,${view.image}`, detail: "low" });
-    }
 
-    const makeDirectDeepSeekAnalyzeRequest = (content, maxOutputTokens, model = deepSeekModel()) => {
-      if (!directClient) throw Object.assign(new Error("DeepSeek API key is not configured"), { code: "deepseek_not_configured" });
-      return directClient.responses.create({
-        model,
-        reasoning: { effort: "none" },
-        instructions,
-        input: [{ role: "user", content }],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "yuvion_product_card",
-            schema: productCardSchema
-          }
-        },
-        max_output_tokens: maxOutputTokens
-      });
-    };
-
-    const makeOpenRouterVisionRequest = async () => {
-      const client = openRouterClient();
-      if (!client) throw Object.assign(new Error("OpenRouter API key is not configured"), { code: "openrouter_not_configured" });
-      const messageContent = [
-        {
-          type: "text",
-          text:
-            "Проанализируй товар по фото. Верни ТОЛЬКО JSON по структуре карточки Yuvion: seoTitle, category, shortDescription, fullDescription, characteristics, keywords, benefits, usage, needsClarification, confidence. " +
-            "Не выдумывай точные размеры, материал, состав, мощность, объём, бренд или модель. Используй только видимое и подтверждённые данные.\n\n" +
-            confirmedDataText(extraData)
-        },
-        { type: "image_url", image_url: { url: `data:${mimeType};base64,${image}` } }
-      ];
-      for (const view of extraViews) {
-        messageContent.push({ type: "image_url", image_url: { url: `data:${view.mimeType};base64,${view.image}` } });
-      }
-      const completion = await client.chat.completions.create({
-        model: openRouterVisionModel(),
-        messages: [{ role: "user", content: messageContent }],
-        temperature: 0.1,
-        max_tokens: mode === "fast" ? 1300 : 1800
-      });
-      recordTextUsage(completion);
-      return {
-        parsed: parseJsonObjectText(completion.choices?.[0]?.message?.content || ""),
-        provider: "openrouter-free-vision",
-        model: openRouterVisionModel()
-      };
-    };
-
-    let response = null;
-    let parsedRaw = null;
-    let analysisProvider = "";
-    let analysisModel = "";
-
-    if (deepSeekDirectAvailable()) {
-      try {
-        response = await withTimeout(
-          makeDirectDeepSeekAnalyzeRequest(analyzeContent, mode === "fast" ? 1300 : 1800),
-          AI_ANALYZE_TIMEOUT_MS,
-          `DeepSeek-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
-        );
-        analysisProvider = "deepseek";
-        analysisModel = deepSeekModel();
-      } catch (firstError) {
-        blockDeepSeekDirect(firstError);
-        recordError("analysis-deepseek-direct", firstError);
-        console.error("DeepSeek direct analyze error:", { message: firstError?.message, status: firstError?.status, code: firstError?.code });
-      }
-    }
-
-    if (!response && openRouterConfigured()) {
-      const openResult = await withTimeout(
-        makeOpenRouterVisionRequest(),
-        AI_ANALYZE_TIMEOUT_MS,
-        `Бесплатный OpenRouter vision-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
+    for (let i = 0; i < images.length; i += 1) {
+      const fileId = await withTimeout(
+        uploadImageToGigaChat(images[i].buffer, images[i].mimeType, i),
+        24000,
+        "Загрузка фотографии в GigaChat превысила лимит времени."
       );
-      parsedRaw = openResult.parsed;
-      analysisProvider = openResult.provider;
-      analysisModel = openResult.model;
+      uploadedFileIds.push(fileId);
     }
 
-    if (!response && !parsedRaw) {
-      throw Object.assign(new Error("DeepSeek providers unavailable"), { code: "deepseek_providers_unavailable" });
-    }
+    const schemaHint = {
+      seoTitle: "точное понятное название товара",
+      category: "категория",
+      shortDescription: "100–260 знаков",
+      fullDescription: "350–900 знаков, 3–6 предложений",
+      characteristics: [{ name: "характеристика", value: "значение", source: "Фото" }],
+      keywords: ["ключевое слово"],
+      benefits: ["подтверждённое преимущество"],
+      usage: ["вариант использования"],
+      needsClarification: ["что нельзя подтвердить по фото"],
+      confidence: "Высокая | Средняя | Низкая"
+    };
 
-    if (response) {
-      recordTextUsage(response);
-      const raw = response.output_text;
-      if (!raw) throw new Error("DeepSeek не вернул результат.");
-      parsedRaw = JSON.parse(raw);
-    }
+    const prompt =
+      "Проанализируй товар на фотографиях и создай карточку Yuvion на русском языке. " +
+      "Верни ТОЛЬКО JSON без markdown. Структура результата: " + JSON.stringify(schemaHint) + ". " +
+      "Не выдумывай размеры, материал, состав, мощность, объём, бренд, модель, комплектацию или другие точные параметры. " +
+      "Добавляй их только если они явно видны или читаются на фото либо присутствуют в подтверждённых данных. " +
+      "Описание должно быть нормальным продающим текстом о реально распознанном товаре, а не шаблоном «Товар». " +
+      "В characteristics поле source для данных с фотографии ставь «Фото». " +
+      "Если параметр нельзя подтвердить — не придумывай его, при необходимости добавь в needsClarification. " +
+      confirmedDataText(extraData);
 
+    const messages = uploadedFileIds.map((fileId, index) => ({
+      role: "user",
+      content: index === 0
+        ? prompt
+        : "Дополнительный ракурс того же товара. Уточни карточку только по видимым подтверждённым данным.",
+      attachments: [fileId]
+    }));
+
+    const result = await withTimeout(
+      gigaChatCompletion(messages, {
+        maxTokens: mode === "fast" ? 1500 : 2200,
+        temperature: 0.1
+      }),
+      AI_ANALYZE_TIMEOUT_MS,
+      "GigaChat-анализ превысил лимит времени."
+    );
+
+    const parsedRaw = parseJsonObjectText(result.content);
     const parsed = mergeConfirmedData(parsedRaw, extraData);
     const sourceAudit = await assessSourcePhoto(sourceBuffer);
     parsed.photoQuality = { score: sourceAudit.score, issues: sourceAudit.issues };
-    parsed.analysisMode = analysisProvider;
-    parsed.analysisNotice = analysisProvider === "deepseek"
-      ? "Фото и описание обработаны DeepSeek"
-      : "Фото распознано бесплатным OpenRouter vision; описание подготовит DeepSeek";
-    parsed.copyProvider = analysisProvider === "deepseek" ? "deepseek" : "";
-    parsed.copyModel = analysisProvider === "deepseek" ? analysisModel : "";
+    parsed.analysisMode = "gigachat";
+    parsed.analysisNotice = "Фото, характеристики и описание обработаны GigaChat";
+    parsed.copyProvider = "gigachat";
+    parsed.copyModel = gigaChatModel();
+
+    if (!parsed.shortDescription || !parsed.fullDescription || parsed.fullDescription.length < 180) {
+      const enhanced = await callGigaChatCopy(parsed);
+      parsed.seoTitle = enhanced.seoTitle;
+      parsed.shortDescription = enhanced.shortDescription;
+      parsed.fullDescription = enhanced.fullDescription;
+      parsed.benefits = enhanced.benefits;
+      parsed.keywords = enhanced.keywords;
+    }
 
     stats.analyses += 1;
     if (mode === "fast") stats.fastMode += 1;
@@ -2383,21 +2368,29 @@ app.post("/api/analyze", async (req, res) => {
     return res.json(parsed);
   } catch (error) {
     stats.analysisErrors += 1;
-    recordError("analysis-deepseek", error);
-    console.error("DeepSeek analyze error:", { message: error?.message, status: error?.status, code: error?.code });
+    recordError("analysis-gigachat", error);
+    console.error("GigaChat analyze error:", {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      details: error?.details
+    });
+
     try {
       if (image && mimeType) {
         return res.json(await localFallbackCard(
           extraData,
           Buffer.from(image, "base64"),
-          "DeepSeek временно недоступен — использован локальный резервный режим."
+          "GigaChat временно недоступен — использован локальный резервный режим."
         ));
       }
     } catch {}
+
     return res.status(500).json({ error: "Не удалось создать карточку. Попробуйте ещё раз." });
+  } finally {
+    await Promise.allSettled(uploadedFileIds.map((fileId) => deleteGigaChatFile(fileId)));
   }
 });
-
 
 function cleanVisionList(value, max = 8) {
   const arr = Array.isArray(value) ? value : value ? [value] : [];
@@ -4754,5 +4747,5 @@ if (!localCopySelfTest.shortDescription || localCopySelfTest.fullDescription.len
 console.log("Local description self-test OK:", localCopySelfTest.shortDescription.length, localCopySelfTest.fullDescription.length);
 
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.2.8 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.2.9 listening on port ${port}`);
 });
