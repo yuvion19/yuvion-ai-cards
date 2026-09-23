@@ -4681,19 +4681,25 @@ app.post("/api/generate-cards", async (req, res) => {
           "Yuvion Studio reference upload timed out"
         );
 
-        // Two real AI scenes give product-aware art direction without making the personal API wait for four serial generations.
+        const referenceBrief = await describeGigaChatProductReference(
+          productReferenceFileId,
+          normalized
+        );
+
+        // Vision and image generation are separate supported GigaChat stages.
+        // Two AI backgrounds give the series real visual variety while the exact product is composited locally.
         for (const index of [0, 1]) {
           try {
-            const scene = await generateGigaChatReferenceScene(
-              productReferenceFileId,
+            const sceneBackground = await generateGigaChatReferenceScene(
+              referenceBrief,
               normalized,
               index,
               styleKey,
               renderPalette,
               studioProfile
             );
-            if (scene) {
-              referenceScenes[index] = scene;
+            if (sceneBackground) {
+              referenceScenes[index] = sceneBackground;
               aiImageCalls += 1;
             }
           } catch (error) {
@@ -4733,10 +4739,6 @@ app.post("/api/generate-cards", async (req, res) => {
 
     const scenes = [];
     for (const { index, primary, inset } of renderSelections) {
-      if (referenceScenes[index]) {
-        scenes[index] = referenceScenes[index];
-        continue;
-      }
       scenes[index] = await renderFreeScene(
         primary.buffer,
         index,
@@ -4751,7 +4753,7 @@ app.post("/api/generate-cards", async (req, res) => {
         primary.role,
         inset?.role || "",
         studioProfile,
-        null
+        referenceScenes[index] || null
       );
       stats.freeSceneRenders += 1;
     }
@@ -4879,7 +4881,7 @@ app.post("/api/generate-cards", async (req, res) => {
       primaryRole: renderSelections[0]?.primary?.role || "main",
       insetRole: renderSelections[0]?.inset?.role || "",
       photoEnhancement: true,
-      smartCutout: aiImageCalls === 0,
+      smartCutout: true,
       usedAdditionalImages: additionalSources.length,
       sourceQuality,
       studioProfile,
@@ -4998,15 +5000,36 @@ app.post("/api/regenerate-card", async (req, res) => {
           24000,
           "Yuvion Studio reference upload timed out"
         );
-        scene = await generateGigaChatReferenceScene(
+        const referenceBrief = await describeGigaChatProductReference(
           productReferenceFileId,
+          normalized
+        );
+        const referenceBackground = await generateGigaChatReferenceScene(
+          referenceBrief,
           normalized,
           cardIndex,
           styleKey,
           renderPalette,
           studioProfile
         );
-        if (scene) {
+        if (referenceBackground) {
+          scene = await renderFreeScene(
+            selectedSource.buffer,
+            cardIndex,
+            styleKey,
+            renderPalette,
+            variant,
+            renderComposition,
+            intensity,
+            substyle,
+            visual,
+            insetSource?.buffer || null,
+            selectedSource.role,
+            insetSource?.role || "",
+            studioProfile,
+            referenceBackground
+          );
+          stats.freeSceneRenders += 1;
           aiImageCalls = 1;
           stats.aiSceneRenders += 1;
         }
@@ -5501,14 +5524,20 @@ app.listen(port, "0.0.0.0", () => {
           "Yuvion reference self-test upload timed out"
         );
 
-        const scene = await withTimeout(
+        const testCard = {
+          seoTitle: "Золотые смарт-часы",
+          category: "Электроника / Смарт-часы",
+          benefits: ["Металлический браслет", "Прямоугольный дисплей"]
+        };
+        const referenceBrief = await withTimeout(
+          describeGigaChatProductReference(testReferenceFileId, testCard),
+          35000,
+          "Yuvion reference Vision self-test timed out"
+        );
+        const sceneBackground = await withTimeout(
           generateGigaChatReferenceScene(
-            testReferenceFileId,
-            {
-              seoTitle: "Золотые смарт-часы",
-              category: "Электроника / Смарт-часы",
-              benefits: ["Металлический браслет", "Прямоугольный дисплей"]
-            },
+            referenceBrief,
+            testCard,
             0,
             "marketplace",
             ["#D6A62A", "#111214", "#F7F2E8"],
@@ -5518,8 +5547,26 @@ app.listen(port, "0.0.0.0", () => {
           "Yuvion reference image self-test timed out"
         );
 
-        const meta = scene ? await sharp(scene).metadata() : {};
+        const finalScene = await renderFreeScene(
+          testImage,
+          0,
+          "marketplace",
+          ["#D6A62A", "#111214", "#F7F2E8"],
+          0,
+          { scale: 1, shiftX: 0, shiftY: 0 },
+          "selling",
+          "contrast",
+          normalizeVisualOptions({}),
+          null,
+          "main",
+          "",
+          buildStudioProfile(normalizeCard(testCard), "marketplace", 0, 0.75),
+          sceneBackground
+        );
+
+        const meta = finalScene ? await sharp(finalScene).metadata() : {};
         console.log("Yuvion reference image self-test OK:", {
+          briefChars: referenceBrief.length,
           width: meta.width,
           height: meta.height,
           format: meta.format
