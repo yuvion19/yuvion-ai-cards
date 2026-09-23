@@ -1572,8 +1572,8 @@ app.post("/m/add", rateLimit("mobile-events",5,15*60*1000), async (req,res) => {
     }
     if(!planned.length)planned.push({event_type:"Памятная дата",event_date:deathDate,urgent:false});
     const rows=planned.map(x=>({id:id(),...base,...x}));
-    await sb("memorial_events",{method:"POST",body:rows,prefer:"return=minimal"});
-    res.status(201).send(mobileShell("Отправлено",`<div class="ok"><b>Готово.</b><br>На модерацию отправлено событий: ${rows.length}. До одобрения они не видны публично.</div><div class="nav"><a class="btn" href="/m">Главная</a><a class="btn secondary" href="/m/add">Добавить ещё</a></div>`));
+    const saved=await sb("rpc/memorial_admin_insert_pending_events",{method:"POST",body:{p_token:ADMIN_TOKEN,p_rows:rows}});
+    res.status(201).send(mobileShell("Отправлено",`<div class="ok"><b>Готово.</b><br>На модерацию отправлено событий: ${Number(saved?.created ?? rows.length)}. До одобрения они не видны публично.</div><div class="nav"><a class="btn" href="/m">Главная</a><a class="btn secondary" href="/m/add">Добавить ещё</a></div>`));
   } catch(e) {
     console.error("mobile add",e.data||e);
     res.status(500).send(mobileShell("Ошибка",'<div class="err">Не удалось сохранить событие. Попробуйте ещё раз.</div><p><a class="btn" href="/m/add">Вернуться</a></p>'));
@@ -2814,13 +2814,9 @@ app.get("/api/events", async (req, res) => {
       body: { p_query: q, p_city: city, p_type: type, p_limit: 300 }
     });
     if (!events.length) return res.json([]);
-    const ids = events.map(x => x.id);
-    const params = new URLSearchParams();
-    params.set("select", "event_id,count");
-    params.set("event_id", "in.(" + ids.join(",") + ")");
-    const candles = await sb("memorial_candles?" + params.toString());
-    const counts = Object.fromEntries(candles.map(x => [x.event_id, x.count]));
-    res.json(events.map(x => ({ ...x, candles: counts[x.id] || 0 })));
+    // Candle totals are loaded on the memorial page through protected RPCs.
+    // Do not directly read memorial_candles with the anon key.
+    res.json(events.map(x => ({ ...x, candles: Number(x.candles || 0) })));
   } catch (e) {
     console.error("events", e.data || e);
     res.status(500).json({ error: "load_failed" });
@@ -3166,9 +3162,11 @@ app.post("/api/events", rateLimit("events", 5, 15 * 60 * 1000), async (req, res)
     const unique = new Map();
     for (const x of planned) unique.set(x.event_type + "|" + x.event_date, x);
     const rows = [...unique.values()].map(x => ({ id: id(), ...base, ...x }));
-    await sb("memorial_events", { method: "POST", body: rows, prefer: "return=minimal" });
+    const saved=await sb("rpc/memorial_admin_insert_pending_events",{
+      method:"POST",body:{p_token:ADMIN_TOKEN,p_rows:rows}
+    });
     res.status(201).json({
-      ok: true, ids: rows.map(x => x.id), created: rows.length, status: "pending",
+      ok: true, ids: saved?.ids || rows.map(x => x.id), created: Number(saved?.created ?? rows.length), status: "pending",
       derived: base.derived, hebrew_death_label: base.hebrew_death_label
     });
   } catch (e) {
@@ -3508,8 +3506,9 @@ function reminderProviderStatus(){
 
 
 app.get("/api/whatsapp/webhook",(req,res)=>{
-  if(!WHATSAPP_VERIFY_TOKEN)return res.status(503).send("whatsapp_not_configured");
   const mode=String(req.query["hub.mode"]||""),token=String(req.query["hub.verify_token"]||""),challenge=String(req.query["hub.challenge"]||"");
+  if(!mode)return res.redirect(302,"/m");
+  if(!WHATSAPP_VERIFY_TOKEN)return res.status(503).send("whatsapp_not_configured");
   if(mode==="subscribe"&&token===WHATSAPP_VERIFY_TOKEN)return res.status(200).send(challenge);
   return res.sendStatus(403);
 });
