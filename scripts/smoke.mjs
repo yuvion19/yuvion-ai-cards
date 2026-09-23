@@ -336,7 +336,7 @@ if(!html.includes('Авто · арт-директор'))fail('batch art directo
 
 if(!server.includes('zeroCreditTextFallback: true'))fail('zero-credit text fallback metadata missing');else ok('zero-credit text fallback metadata present');
 if(!server.includes('analysisMode: "local-fallback"'))fail('local fallback response missing');else ok('local fallback response present');
-if(!server.includes('reason: deepSeekConfigured() ? "deepseek_unavailable" : "deepseek_not_configured"'))fail('DeepSeek fallback path missing');else ok('DeepSeek fallback path present');
+if(!server.includes('"openrouter_key_required_for_free_deepseek"'))fail('DeepSeek/OpenRouter fallback path missing');else ok('DeepSeek/OpenRouter fallback path present');
 if(!html.includes('currentStaleCards=[0,1,2,3];currentScenes=[]'))fail('post-analysis full scene refresh missing');else ok('post-analysis full scene refresh present');
 if(!html.includes('currentStaleCards.length<4'))fail('full-set stale cards must bypass overlay-only rebuild');else ok('full-set stale cards bypass overlay-only rebuild');
 
