@@ -351,7 +351,7 @@ if(!html.includes('upgradeFallbackWithBrowserVision'))fail('browser vision fallb
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=29',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=30',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
@@ -369,9 +369,9 @@ if(!server.includes('Преобладающий цвет на фото'))fail('g
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(!html.includes('improveProductWithLocalVisionInBackground'))fail('legacy recovery helper missing');else ok('legacy recovery helper retained');
 if(!html.includes("const improved=await upgradeFallbackWithBrowserVision(provisional,src)"))fail('final local vision before first render missing');else ok('final local vision before first render present');
-if(!html.includes("register('/sw.js?v=29'"))fail('service worker v29 registration missing');else ok('service worker v29 registration present');
-if(!sw.includes("yuvion-ai-shell-v29"))fail('service worker v29 cache missing');else ok('service worker v29 cache present');
-if(!server.includes('freeTextLocalFirst: true'))fail('local-first text analysis metadata missing');else ok('local-first text analysis metadata present');
+if(!html.includes("register('/sw.js?v=30'"))fail('service worker v30 registration missing');else ok('service worker v30 registration present');
+if(!sw.includes("yuvion-ai-shell-v30"))fail('service worker v30 cache missing');else ok('service worker v30 cache present');
+if(!server.includes('freeTextLocalFirst: false'))fail('OpenAI-first text analysis metadata missing');else ok('OpenAI-first text analysis metadata present');
 if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
 if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first metadata missing');else ok('final-data-first metadata present');
 if(!server.includes('minimalUiFlow: true'))fail('minimal UI metadata missing');else ok('minimal UI metadata present');
@@ -420,7 +420,7 @@ if(!server.includes('width="772" height="108"'))fail('visible description panel 
 
 if(!server.includes('preferLocal === true'))fail('local-first analyze branch missing');else ok('local-first analyze branch present');
 if(!html.includes('requestImmediateLocalCard'))fail('immediate local description helper missing');else ok('immediate local description helper present');
-if(!html.includes('preferLocal:true'))fail('frontend local-first analyze request missing');else ok('frontend local-first analyze request present');
+if(!html.includes('preferLocal:false'))fail('frontend primary AI analyze request missing');else ok('frontend primary AI analyze request present');
 if(server.includes('}\n  try { visual = { ...visual, product: await transformProductForScene(visual.product,index) };'))fail('whole photo panel rotation regression present');else ok('whole photo panels are not rotated');
 if(html.includes("const response=await fetch('/api/label-ocr',{method:'POST'"))fail('paid OCR still wired into automatic/main label flow');else ok('main label flow avoids paid OCR');
 
