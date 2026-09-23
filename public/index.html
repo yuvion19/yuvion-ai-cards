@@ -4339,6 +4339,18 @@ async function enhanceProductCopyWithGigaChat(card,{force=false}={}){
   }
 }
 
+function beginImageGenerationNotice(label='GigaChat создаёт изображения'){
+  const startedAt=Date.now();
+  const update=()=>{
+    const seconds=Math.max(0,Math.floor((Date.now()-startedAt)/1000));
+    creativeStatus.className='creative-status show';
+    creativeStatus.textContent=label+'. Это может занять некоторое время. Сайт работает — генерация продолжается. Прошло '+seconds+' сек.';
+  };
+  update();
+  const timer=setInterval(update,5000);
+  return ()=>clearInterval(timer);
+}
+
 async function createImmediateFreeCards(file){
   if(!file||currentMode!=='full'||!autoCards?.checked||cardsBusy)return false;
   const productId=currentHistoryId;
@@ -4378,12 +4390,18 @@ async function createImmediateFreeCards(file){
         :'GigaChat недоступен · использовано резервное описание';
       creativeStatus.textContent='Описание и данные готовы. Создаём 4 финальные продающие карточки.';
     }
-    const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({
-      ...src,card:provisional,style:styleSelect.value,renderMode:'free',palette:currentPalette,
-      designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,
-      visualOptions:currentVisualOptions,composition:currentComposition,
-      additionalImages:additionalPhotosForRender()
-    })});
+    const stopGenerationNotice=beginImageGenerationNotice('GigaChat создаёт 4 карточки');
+    let response;
+    try{
+      response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({
+        ...src,card:provisional,style:styleSelect.value,renderMode:'free',palette:currentPalette,
+        designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,
+        visualOptions:currentVisualOptions,composition:currentComposition,
+        additionalImages:additionalPhotosForRender()
+      })});
+    }finally{
+      stopGenerationNotice();
+    }
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось создать быстрый комплект.');
     if(productId!==currentHistoryId)return false;
@@ -4787,7 +4805,13 @@ generateAll.onclick=async()=>{
       addCurrentActivity('Точечная AI-перегенерация','Обновлены карточки №'+currentStaleCards.map(x=>x+1).join(', '));
     }else{
       const src=await getSource();
-      const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,composition:currentComposition,additionalImages:additionalPhotosForRender()})});
+      const stopGenerationNotice=beginImageGenerationNotice('GigaChat создаёт изображения для карточек');
+      let response;
+      try{
+        response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({...src,card:currentData,style:styleSelect.value,renderMode:renderModeSelect.value,palette:currentPalette,designVariant:currentDesignVariant,designIntensity:currentDesignIntensity,designSubstyle:currentDesignSubstyle,visualOptions:currentVisualOptions,composition:currentComposition,additionalImages:additionalPhotosForRender()})});
+      }finally{
+        stopGenerationNotice();
+      }
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||'Не удалось создать карточки.');
       currentCards=data.cards||[];
@@ -4905,7 +4929,12 @@ async function regenerateOne(index,el){
   const btn=el.querySelector('.regen-one');btn.disabled=true;btn.textContent='Генерация…';
   try{
     const src=await getSource();
-    currentCards[index]=await regenerateCardApi(index,src,currentData,styleSelect.value);
+    const stopGenerationNotice=beginImageGenerationNotice('GigaChat переделывает карточку №'+(index+1));
+    try{
+      currentCards[index]=await regenerateCardApi(index,src,currentData,styleSelect.value);
+    }finally{
+      stopGenerationNotice();
+    }
     currentStaleCards=currentStaleCards.filter(x=>x!==index);
     cardsStale=currentStaleCards.length>0;
     currentQuality=null;
@@ -8115,7 +8144,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=33',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=34',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
