@@ -3952,7 +3952,8 @@ async function renderFreeScene(
   secondarySourceBuffer = null,
   primaryRole = "main",
   secondaryRole = "",
-  studioProfile = {}
+  studioProfile = {},
+  backgroundBuffer = null
 ) {
   let sourceAspect = 1;
   try {
@@ -4035,7 +4036,14 @@ async function renderFreeScene(
   const sceneVariant=Number.isInteger(Number(studioProfile?.scenes?.[index]?.variant))
     ? Number(studioProfile.scenes[index].variant)
     : designVariant;
-  return sharp(Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, sceneVariant, intensity, substyle, visualOptions)))
+  const background = backgroundBuffer
+    ? await sharp(backgroundBuffer)
+        .rotate()
+        .resize(900, 1200, { fit: "cover", position: "centre" })
+        .png({ compressionLevel: 9, adaptiveFiltering: true })
+        .toBuffer()
+    : Buffer.from(freeSceneBackgroundSvg(index, styleKey, palette, sceneVariant, intensity, substyle, visualOptions));
+  return sharp(background)
     .composite(composites)
     .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer();
