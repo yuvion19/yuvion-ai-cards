@@ -113,8 +113,8 @@ const stats = {
   gptCopyRequests: 0,
   gptCopySuccesses: 0,
   gptCopyFallbacks: 0,
-  copyProviderAttempts: { vireonix: 0 },
-  copyProviderSuccesses: { vireonix: 0 },
+  copyProviderAttempts: { openai: 0, vireonix: 0 },
+  copyProviderSuccesses: { openai: 0, vireonix: 0 },
   recentErrors: []
 };
 
@@ -1067,7 +1067,9 @@ function normalizeProviderCopy(parsedRaw, fallback, provider, model) {
 }
 
 function copyProviderConfigured(name) {
-  return name === "vireonix" && String(process.env.VIREONIX_TEXT_ENABLED ?? "true").toLowerCase() !== "false";
+  if (name === "openai") return Boolean(process.env.OPENAI_API_KEY);
+  if (name === "vireonix") return String(process.env.VIREONIX_TEXT_ENABLED ?? "true").toLowerCase() !== "false";
+  return false;
 }
 
 function copyProviderOnCooldown(name) {
@@ -1094,6 +1096,39 @@ function copyChatMessages(facts) {
     { role: "system", content: copySystemInstructions() },
     { role: "user", content: "Подтверждённые данные товара:\n" + JSON.stringify(facts) }
   ];
+}
+
+async function callOpenAiCopy(facts) {
+  if (!process.env.OPENAI_API_KEY) {
+    const error = new Error("OpenAI API key is not configured");
+    error.code = "openai_not_configured";
+    throw error;
+  }
+  const model = process.env.OPENAI_COPY_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-luna";
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const response = await client.responses.create({
+    model,
+    reasoning: { effort: "none" },
+    instructions: copySystemInstructions(),
+    input: [{
+      role: "user",
+      content: [{
+        type: "input_text",
+        text: "Подтверждённые данные товара:\n" + JSON.stringify(facts)
+      }]
+    }],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "yuvion_product_copy",
+        strict: true,
+        schema: productCopySchema
+      }
+    },
+    max_output_tokens: 1700
+  });
+  recordTextUsage(response);
+  return { parsed: parseCopyJson(response.output_text || "{}"), model, provider: "openai" };
 }
 
 async function callVireonixCopy(facts) {
@@ -1146,33 +1181,46 @@ async function generateProductCopyWithProviders(cardRaw = {}) {
   const facts = confirmedCopyFacts(cardRaw);
   stats.gptCopyRequests += 1;
 
-  if (!copyProviderConfigured("vireonix")) {
-    stats.gptCopyFallbacks += 1;
-    return { card: { ...fallback, copyProvider: "local", copyModel: "" }, used: false, provider: "local", reason: "vireonix_disabled" };
-  }
-  if (copyProviderOnCooldown("vireonix")) {
-    stats.gptCopyFallbacks += 1;
-    return { card: { ...fallback, copyProvider: "local", copyModel: "" }, used: false, provider: "local", reason: "vireonix_cooldown" };
+  const providers = [
+    {
+      name: "openai",
+      call: () => callOpenAiCopy(facts),
+      timeoutMs: Math.max(COPY_PROVIDER_TIMEOUT_MS, 22000)
+    },
+    {
+      name: "vireonix",
+      call: () => callVireonixCopy(facts),
+      timeoutMs: COPY_PROVIDER_TIMEOUT_MS
+    }
+  ];
+
+  for (const provider of providers) {
+    if (!copyProviderConfigured(provider.name) || copyProviderOnCooldown(provider.name)) continue;
+    stats.copyProviderAttempts[provider.name] = Number(stats.copyProviderAttempts[provider.name] || 0) + 1;
+    try {
+      const result = await withTimeout(
+        provider.call(),
+        provider.timeoutMs,
+        provider.name + " copy generation timed out"
+      );
+      const card = normalizeProviderCopy(result.parsed, fallback, provider.name, result.model);
+      stats.copyProviderSuccesses[provider.name] = Number(stats.copyProviderSuccesses[provider.name] || 0) + 1;
+      stats.gptCopySuccesses += 1;
+      return { card, used: true, provider: provider.name, model: result.model };
+    } catch (error) {
+      setCopyProviderCooldown(provider.name, error);
+      recordError("copy-" + provider.name, error);
+      console.error("Copy provider error:", { provider: provider.name, status: error?.status, code: error?.code });
+    }
   }
 
-  stats.copyProviderAttempts.vireonix = Number(stats.copyProviderAttempts.vireonix || 0) + 1;
-  try {
-    const result = await withTimeout(
-      callVireonixCopy(facts),
-      COPY_PROVIDER_TIMEOUT_MS,
-      "vireonix copy generation timed out"
-    );
-    const card = normalizeProviderCopy(result.parsed, fallback, "vireonix", result.model);
-    stats.copyProviderSuccesses.vireonix = Number(stats.copyProviderSuccesses.vireonix || 0) + 1;
-    stats.gptCopySuccesses += 1;
-    return { card, used: true, provider: "vireonix", model: result.model };
-  } catch (error) {
-    setCopyProviderCooldown("vireonix", error);
-    recordError("copy-vireonix", error);
-    console.error("Copy provider error:", { provider: "vireonix", status: error?.status, code: error?.code });
-    stats.gptCopyFallbacks += 1;
-    return { card: { ...fallback, copyProvider: "local", copyModel: "" }, used: false, provider: "local", reason: "vireonix_temporarily_unavailable" };
-  }
+  stats.gptCopyFallbacks += 1;
+  return {
+    card: { ...fallback, copyProvider: "local", copyModel: "" },
+    used: false,
+    provider: "local",
+    reason: "ai_providers_unavailable"
+  };
 }
 
 async function generateProductCopyWithGpt(cardRaw = {}) {
@@ -1960,7 +2008,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.2.4",
+    version: "11.2.5",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1974,17 +2022,19 @@ app.get("/api/health", (_req, res) => {
     analyzeTimeoutSeconds: AI_ANALYZE_TIMEOUT_MS / 1000,
     analyzeRetryTimeoutSeconds: AI_ANALYZE_RETRY_TIMEOUT_MS / 1000,
     analyzeFastVision: true,
-    freeTextLocalFirst: true,
+    freeTextLocalFirst: false,
+    photoOpenAiPrimary: true,
     gptProductCopyEnabled: true,
-    gptProductCopyConfigured: copyProviderConfigured("vireonix"),
-    gptProductCopyModel: process.env.VIREONIX_TEXT_MODEL || "auto",
+    gptProductCopyConfigured: copyProviderConfigured("openai") || copyProviderConfigured("vireonix"),
+    gptProductCopyModel: process.env.OPENAI_COPY_MODEL || process.env.OPENAI_MODEL || process.env.VIREONIX_TEXT_MODEL || "auto",
     gptProductCopyFallback: true,
-    copyProviderPriority: ["vireonix","local"],
-    vireonixOnlyProductCopy: true,
+    copyProviderPriority: ["openai","vireonix","local"],
+    vireonixOnlyProductCopy: false,
     noLoginAiFallback: true,
     copyResponseDescriptionGuard: true,
     copyResponseTelemetry: true,
     copyProviders: {
+      openai: { configured: copyProviderConfigured("openai"), model: process.env.OPENAI_COPY_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-luna", auth: "api_key", cooldown: copyProviderOnCooldown("openai") },
       vireonix: { configured: copyProviderConfigured("vireonix"), model: process.env.VIREONIX_TEXT_MODEL || "auto", auth: "none", cooldown: copyProviderOnCooldown("vireonix") },
       local: { configured: true, model: "yuvion-safe-copy", cooldown: false }
     },
