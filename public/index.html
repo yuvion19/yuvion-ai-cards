@@ -1940,24 +1940,57 @@ function renderActivity(){
 }
 
 
+async function runBrowserTextHints(photo){
+  if(!photo?.dataUrl||!['package','label','barcode'].includes(photo.role)||!('TextDetector' in window))return [];
+  try{
+    const blob=await (await fetch(photo.dataUrl)).blob();
+    const bitmap=await createImageBitmap(blob);
+    const detector=new TextDetector();
+    const detected=await detector.detect(bitmap);
+    bitmap.close?.();
+    const lines=(detected||[]).map(x=>String(x.rawValue||'').trim()).filter(Boolean).slice(0,80);
+    if(!lines.length)return [];
+    const response=await fetch('/api/local-label-hints',{method:'POST',headers:apiHeaders(),body:JSON.stringify({lines})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)return [];
+    const incoming=(data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||'',local:true}));
+    const known=new Set(currentLabelSuggestions.map(x=>normalizedFactText(x.name)+'|'+normalizedFactText(x.value)));
+    for(const field of incoming){
+      const key=normalizedFactText(field.name)+'|'+normalizedFactText(field.value);
+      if(!known.has(key)){known.add(key);currentLabelSuggestions.push(field)}
+    }
+    currentLabelSuggestions=currentLabelSuggestions.slice(0,20);
+    if(incoming.length){
+      addCurrentActivity('Локальное чтение упаковки','Найдено подсказок: '+incoming.length+' · требуется подтверждение');
+      renderLabelSuggestions();
+    }
+    return incoming;
+  }catch{return []}
+}
 async function addAdditionalPhotos(files){
   const list=[...(files||[])].slice(0,Math.max(0,4-currentAdditionalPhotos.length));
+  const added=[];
   for(const file of list){
     if(!['image/jpeg','image/png','image/webp'].includes(file.type))continue;
     if(file.size>10*1024*1024)continue;
     const dataUrl=await compressFileToDataUrl(file,1200,.78);
-    currentAdditionalPhotos.push({
+    const photo={
       id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
       name:String(file.name||'photo').slice(0,120),
       mimeType:(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',
       dataUrl,
-      role:'angle'
-    });
+      role:inferPhotoRole(file.name)
+    };
+    currentAdditionalPhotos.push(photo);added.push(photo);
   }
   currentAdditionalPhotos=currentAdditionalPhotos.slice(0,4);
   if(currentData){currentScenes=[];markCardsStale([0,1,2,3]);}
   renderExtraPhotos();
   extraPhotosInput.value='';
+  for(const photo of added)if(['package','label','barcode'].includes(photo.role))await runBrowserTextHints(photo);
+  if(added.some(x=>x.role==='angle')&&!cardsBusy&&!busy){
+    try{await chooseBestMainPhoto()}catch{}
+  }
   if(currentData)saveHistoryDebounced();
 }
 
@@ -3811,12 +3844,22 @@ function inspectImage(file){
         notes.push('Яркость, контраст и резкость выглядят приемлемо.');
       }
 
+      const tips=[];
+      if(img.width<800||img.height<800)tips.push('Используйте фотографию большего разрешения и снимите товар чуть ближе.');
+      if(avg<48)tips.push('Добавьте мягкий свет спереди.');
+      if(avg>226)tips.push('Уберите прямой свет и немного снизьте экспозицию.');
+      if(st<22||edge<7)tips.push('Зафиксируйте телефон, протрите объектив и дождитесь фокусировки.');
+      if(fgRatio>0&&fgRatio<.07)tips.push('Снимите товар ближе, сохранив небольшой запас вокруг него.');
+      if(borderStd>48&&edge>16)tips.push('По возможности используйте простой однотонный фон.');
+      const severe=(img.width<520||img.height<520||avg<38||avg>242||edge<4.5);
+      currentPhotoAdvice={score:Math.max(0,Math.min(100,Math.round(100-warnings.length*13))),warnings:warnings.slice(0,5),tips:[...new Set(tips)].slice(0,3),reshootRecommended:severe};
+      renderSimplePhotoAdvice();
       localQuality.className='quality-box show '+(warnings.length?'warn':'good');
       localQuality.innerHTML=
         '<strong>'+(warnings.length?'Есть замечания к фото':'Фото подходит для анализа')+'</strong>'+
         (warnings.length?warnings.map(x=>'• '+esc(x)).join('<br>'):notes.map(x=>'• '+esc(x)).join('<br>'))+
-        '<br><span class="muted" style="font-size:11px">Это локальная эвристическая проверка до платного AI-запроса; она не заменяет визуальную проверку результата.</span>';
-      URL.revokeObjectURL(url);resolve();
+        '<br><span class="muted" style="font-size:11px">Проверка выполняется локально до анализа товара.</span>';
+      URL.revokeObjectURL(url);resolve(currentPhotoAdvice);
     };
     img.onerror=()=>{URL.revokeObjectURL(url);resolve()};
     img.src=url;
@@ -4109,6 +4152,69 @@ function applyRecommendedPersonality(){
   if(!designSubstyle?.dataset.userChanged)currentDesignSubstyle=rec.substyle;
   renderDesignStudio();
 }
+function relationTokens(value){
+  const stop=new Set(['товар','для','и','в','на','с','из','по','the','a','an','with']);
+  return [...new Set(String(value||'').toLocaleLowerCase('ru').replace(/[^a-zа-яё0-9 ]/gi,' ').split(/\s+/).filter(x=>x.length>2&&!stop.has(x)))].slice(0,24);
+}
+function relationBrand(card,extra={}){
+  const direct=String(extra.brand||card?.confirmedData?.brand||'').trim().toLocaleLowerCase('ru');
+  if(direct)return direct;
+  const spec=(card?.characteristics||[]).find(x=>normalizedFactText(x.name).includes('бренд'));
+  return String(spec?.value||'').trim().toLocaleLowerCase('ru');
+}
+function relationCategory(card){return String(card?.category||'').trim().toLocaleLowerCase('ru')}
+function productRelationScore(card,item){
+  const other=item?.data||{};if(!other?.seoTitle)return 0;
+  const aBrand=relationBrand(card,collectExtraData()),bBrand=relationBrand(other,item.extraData||{});
+  if(aBrand&&bBrand&&aBrand!==bBrand)return 0;
+  const a=relationTokens(card?.seoTitle),b=relationTokens(other?.seoTitle);
+  const common=a.filter(x=>b.includes(x)).length,union=new Set([...a,...b]).size||1,jaccard=common/union;
+  const ca=relationCategory(card),cb=relationCategory(other);
+  const sameCategory=Boolean(ca&&cb&&(ca===cb||ca.startsWith(cb+' /')||cb.startsWith(ca+' /')));
+  const brandBonus=aBrand&&bBrand&&aBrand===bBrand?.28:0;
+  const categoryBonus=sameCategory?.22:0;
+  return Math.min(1,jaccard*.68+brandBonus+categoryBonus);
+}
+async function catalogRelationsForData(card,currentId=currentHistoryId){
+  try{
+    const all=await dbAll();let best=null;
+    for(const item of all){
+      if(item.id===currentId||!item.data)continue;
+      const score=productRelationScore(card,item);
+      if(!best||score>best.score)best={item,score};
+    }
+    return best;
+  }catch{return null}
+}
+async function catalogSeriesStyleForData(card,currentId){
+  const best=await catalogRelationsForData(card,currentId);
+  if(best&&best.score>=.52&&best.item.style)return {style:best.item.style,item:best.item,score:best.score};
+  return null;
+}
+async function applyCatalogRelations(card){
+  const best=await catalogRelationsForData(card,currentHistoryId);
+  currentSeriesReference=null;probableDuplicateId=null;
+  if(best){
+    if(best.score>=.76)probableDuplicateId=best.item.id;
+    if(best.score>=.52&&Array.isArray(best.item.cards)&&best.item.cards.length===4){
+      currentSeriesReference={id:best.item.id,title:best.item.title||best.item.data?.seoTitle||'Товар серии',score:best.score};
+      if(!styleSelect.dataset.userChanged&&best.item.style){
+        styleSelect.value=best.item.style;
+        const ds=best.item.designState||{};
+        if(ds.intensity)currentDesignIntensity=ds.intensity;
+        if(ds.substyle)currentDesignSubstyle=ds.substyle;
+        if(Number.isInteger(ds.variant))currentDesignVariant=ds.variant;
+        if(ds.composition)currentComposition={...currentComposition,...ds.composition};
+        if(Array.isArray(ds.palette)&&ds.palette.length)currentPalette=ds.palette.slice(0,4);
+        if(ds.visualOptions)currentVisualOptions=normalizeClientVisualOptions({...currentVisualOptions,...ds.visualOptions});
+      }
+    }
+  }
+  if(!currentSeriesReference)prepareAutomaticCardStyle();
+  renderSimpleResult();renderDesignStudio();
+  return best;
+}
+
 function recommendedStyleForProduct(card){
   const text=[card?.category,card?.seoTitle,card?.shortDescription].filter(Boolean).join(' ').toLowerCase();
   if(/игруш|детск|реб[её]н|антистресс|конструктор|кукл|машинк|настольн/.test(text))return 'kids';
@@ -4311,6 +4417,7 @@ async function createImmediateFreeCards(file){
       applyCategoryRule({applyTemplate:true});
       currentData=collectEdits();
       provisional=currentData;
+      await applyCatalogRelations(currentData);
       renderAiQuality(currentData);updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
       confidence.textContent=provisional.analysisMode==='browser-vision'
         ?'Товар распознан локально · описание и характеристики готовы до рендера'
@@ -4338,7 +4445,7 @@ async function createImmediateFreeCards(file){
     creativeStatus.textContent='Готово: описание, характеристики и 4 карточки созданы из одного финального набора данных.';
     addCurrentActivity('Финальный бесплатный комплект','Распознавание и описание завершены до создания 4 карточек');
     await saveHistory();
-    await checkQualityAndAutofix(false);
+    await checkQualityAndAutofix(true);
     addCurrentActivity('Быстрый бесплатный QA','4 карточки проверены локально до завершения текстового анализа');
     return currentCards.length===4;
   }catch(e){
@@ -4352,7 +4459,7 @@ async function createImmediateFreeCards(file){
 
 async function autoCreateCardsIfEnabled(){
   if(!autoCards?.checked||currentMode!=='full'||cardsBusy||!currentData)return;
-  prepareAutomaticCardStyle();
+  await applyCatalogRelations(currentData);
   await refreshDesignPalette();
   window.setTimeout(()=>{ if(!cardsBusy&&currentData&&(currentCards.length!==4||cardsStale))generateAll.click(); },80);
 }
@@ -4396,6 +4503,7 @@ analyzeBtn.onclick=async()=>{
       currentData=collectEdits();
       rememberCategory(pendingSimilarTemplate.category,editor.title.value);
     }
+    await applyCatalogRelations(currentData);
     renderAiQuality(currentData);updatePlan();renderCategoryMemory();renderYuvionExport();renderProductCockpit();syncModeUi();
     if(!hadImmediateCards){creative.classList.remove('show');cardsPreview.innerHTML='';}
     else{creative.classList.add('show');renderCards();}
@@ -4432,7 +4540,28 @@ function fillEditor(d){
   editor.short.value=d.shortDescription||'';editor.full.value=d.fullDescription||'';
   editor.specs.value=(d.characteristics||[]).map(x=>x.name+': '+x.value).join('\n');
   editor.benefits.value=(d.benefits||[]).join('\n');editor.usage.value=(d.usage||[]).join('\n');
+  const q=d.photoQuality||{};
+  if(q&&Object.keys(q).length){
+    currentPhotoAdvice={
+      score:Number(q.score||0),warnings:Array.isArray(q.issues)?q.issues.slice(0,5):[],
+      tips:Array.isArray(q.tips)?q.tips.slice(0,3):[],reshootRecommended:Boolean(q.reshootRecommended)
+    };
+  }
+  renderSimplePhotoAdvice();
   renderSimpleResult();
+}
+function renderSimplePhotoAdvice(){
+  const box=document.getElementById('simplePhotoAdvice');if(!box)return;
+  const q=currentPhotoAdvice;
+  if(!q){box.className='simple-photo-advice';box.innerHTML='';return}
+  const severe=Boolean(q.reshootRecommended);
+  const warnings=Array.isArray(q.warnings)?q.warnings.filter(Boolean):[];
+  const tips=Array.isArray(q.tips)?q.tips.filter(Boolean):[];
+  if(!severe&&!warnings.length){box.className='simple-photo-advice show good';box.innerHTML='<b>Фото подходит</b>Можно продолжать — критических проблем исходника не найдено.';return}
+  box.className='simple-photo-advice show '+(severe?'bad':'warn');
+  box.innerHTML='<b>'+(severe?'Лучше переснять фото':'Можно улучшить фото')+'</b>'+
+    (warnings.length?'<div>'+warnings.slice(0,2).map(esc).join(' · ')+'</div>':'')+
+    (tips.length?'<ul>'+tips.slice(0,3).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'');
 }
 function renderSimpleResult(){
   const box=document.getElementById('simpleResult');if(!box)return;
@@ -4441,6 +4570,14 @@ function renderSimpleResult(){
   const specs=String(editor?.specs?.value||'').split('\n').map(x=>x.trim()).filter(Boolean).slice(0,5);
   document.getElementById('simpleResultTitle').textContent=title;
   document.getElementById('simpleResultDescription').textContent=desc||'Описание появится после анализа фотографии.';
+  const metaBox=document.getElementById('simpleResultMeta');
+  const meta=[];
+  if(currentSeriesReference)meta.push('<span class="simple-meta-pill series">Стиль серии: '+esc(currentSeriesReference.title||'похожий товар')+'</span>');
+  if(probableDuplicateId)meta.push('<button type="button" class="simple-meta-pill duplicate" id="openProbableDuplicate">Похожий товар уже есть · открыть</button>');
+  metaBox.innerHTML=meta.join('');
+  document.getElementById('openProbableDuplicate')?.addEventListener('click',async()=>{
+    const item=await dbGet(probableDuplicateId);if(item)await restoreHistory(item);
+  });
   const specsBox=document.getElementById('simpleResultSpecs');
   specsBox.innerHTML=specs.length?specs.map(x=>'<span>'+esc(x)+'</span>').join(''):'';
 }
@@ -4526,10 +4663,16 @@ function markCardsStale(indexes=[0,1,2,3]){
   }
 }
 
+function renderSimpleCompletion(){
+  const panel=document.getElementById('simpleDonePanel');if(!panel)return;
+  const ready=currentCards.length===4&&Boolean(currentQuality)&&knownQaBlockers().length===0&&!cardsStale;
+  panel.classList.toggle('show',ready);
+}
 function syncQualityDownloadState(){
   const blocked=currentCards.length!==4||!currentQuality||knownQaBlockers().length>0;
   zipImages.disabled=blocked;
   zipFull.disabled=blocked;
+  renderSimpleCompletion();
 }
 
 function qualitySummaryHtml(data,prefix='Проверка'){
@@ -4582,29 +4725,24 @@ async function checkQualityAndAutofix(autoFix=true){
     qaSummary.innerHTML=qualitySummaryHtml(data,data.local?'Локальная проверка':'AI-проверка');
 
     if(autoFix){
-      const repaired=new Set();
-      for(let round=0;round<2;round+=1){
-        const bad=(data.cards||[])
-          .filter(x=>x.needsRegeneration&&Number.isInteger(x.index)&&!repaired.has(x.index))
-          .map(x=>x.index)
-          .slice(0,2);
+      await autoVisualRevision('До автоматического QA-ремонта');
+      for(let round=0;round<3;round+=1){
+        const bad=[...new Set((data.cards||[])
+          .filter(x=>x.needsRegeneration&&Number.isInteger(x.index))
+          .map(x=>x.index))].slice(0,4);
         if(!bad.length)break;
 
         creativeStatus.className='creative-status show';
-        creativeStatus.textContent='QA-блокеры: автоматически исправляем карточки №'+bad.map(x=>x+1).join(', ')+' · проход '+(round+1)+'/2.';
+        creativeStatus.textContent='QA: автоматически исправляем карточки №'+bad.map(x=>x+1).join(', ')+' · проход '+(round+1)+'/3.';
         const src=await getSource();
-        for(const index of bad){
-          const updated=await regenerateCardApi(index,src,collectEdits(),styleSelect.value,round+1);
-          currentCards[index]=updated;
-          repaired.add(index);
-        }
+        for(const index of bad)currentCards[index]=await regenerateCardApi(index,src,collectEdits(),styleSelect.value,round+1);
         renderCards();
         await saveHistory();
 
         data=await requestCardQuality(qaSource);
         currentQuality=data;
         renderCards();
-        qaSummary.innerHTML=qualitySummaryHtml(data,(data.local?'Повторная локальная проверка':'Повторная AI-проверка')+' · проход '+(round+1));
+        qaSummary.innerHTML=qualitySummaryHtml(data,'Локальная QA v5 · проход '+(round+1));
       }
     }
 
@@ -4659,7 +4797,9 @@ async function renderOverlayCardsApi(indexes,cardData,styleValue){
 
 generateAll.onclick=async()=>{
   if(cardsBusy||!currentData)return;
-  currentData=collectEdits();cardsBusy=true;generateAll.disabled=true;creative.classList.add('show');
+  currentData=collectEdits();
+  if(currentCards.length===4)await autoVisualRevision('До пересборки комплекта');
+  cardsBusy=true;generateAll.disabled=true;creative.classList.add('show');
   currentQuality=null;qaSummary.style.display='none';
   const canLocalOverlay=currentCards.length===4&&currentScenes.length===4&&cardsStale&&currentStaleCards.length>0&&currentStaleCards.length<4;
   const selectiveAi=currentCards.length===4&&cardsStale&&currentStaleCards.length>0&&currentStaleCards.length<4&&!canLocalOverlay;
@@ -4714,7 +4854,7 @@ generateAll.onclick=async()=>{
       creativeStatus.textContent='Комплект создан, но QA не пропустила его в выгрузку. Исправьте отмеченные карточки — PNG и ZIP разблокируются автоматически.';
     }else{
       creativeStatus.className='creative-status show done';
-      creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена и QA пройдена.':(renderModeSelect.value==='free'?'Комплект готов бесплатно и прошёл QA v4.':'AI-комплект готов и прошёл QA v4.');
+      creativeStatus.textContent=canLocalOverlay?'Инфографика обновлена и QA пройдена.':(renderModeSelect.value==='free'?'Комплект готов бесплатно и прошёл QA v5.':'AI-комплект готов и прошёл QA v5.');
       await downloadPackage(false,true);
     }
   }catch(e){
@@ -4798,7 +4938,7 @@ function renderCards(){
 
 async function regenerateOne(index,el){
   if(cardsBusy||!currentData)return;
-  currentData=collectEdits();cardsBusy=true;
+  currentData=collectEdits();await autoVisualRevision('До переделки карточки №'+(index+1));cardsBusy=true;
   const btn=el.querySelector('.regen-one');btn.disabled=true;btn.textContent='Генерация…';
   try{
     const src=await getSource();
@@ -4859,10 +4999,10 @@ document.getElementById('newProduct').onclick=()=>resetProduct(false);
 
 function resetProduct(keepSimilar=false){
   document.querySelectorAll('.force-visible').forEach(el=>el.classList.remove('force-visible'));
-  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentPalette=[];currentDesignVariant=0;currentDesignIntensity='selling';currentDesignSubstyle='auto';currentDesignSnapshots=[];currentVisualOptions={showBrand:true,showTitle:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,showPrice:false,coverTitle:'',season:'none',safeZone:false};currentComposition={scale:1,shiftX:0,shiftY:0};currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;duplicatePhotoId=null;currentBarcodeValid=true;fileInput.value='';cameraFile.value='';
+  selectedFile=null;sourceDataUrl=null;currentPhotoHash='';currentData=null;currentSourceReference=null;currentCards=[];currentScenes=[];currentPalette=[];currentDesignVariant=0;currentDesignIntensity='selling';currentDesignSubstyle='auto';currentDesignSnapshots=[];currentVisualOptions={showBrand:true,showTitle:true,showCategory:true,showBenefits:true,showSpecs:true,showUsage:true,showDescription:true,showPrice:false,coverTitle:'',season:'none',safeZone:false};currentComposition={scale:1,shiftX:0,shiftY:0};currentQuality=null;currentStaleCards=[];currentVariations=[];currentAdditionalPhotos=[];currentRevisions=[];currentModeration={status:'none',reason:'',log:[]};currentLabelSuggestions=[];currentActivity=[];currentAnalysisCache=null;currentPhotoAdvice=null;currentSeriesReference=null;probableDuplicateId=null;currentPrivateData={cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''};renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderActivity();currentHistoryId=null;busy=false;cardsBusy=false;cardsStale=false;duplicateSkuId=null;duplicateBarcodeId=null;duplicatePhotoId=null;currentBarcodeValid=true;fileInput.value='';cameraFile.value='';
   skuWarning.className='sku-warning';skuWarning.textContent='';barcodeWarning.className='barcode-warning';barcodeWarning.textContent='';photoHashWarning.className='photo-hash-warning';photoHashWarning.textContent='';
   if(!keepSimilar){pendingSimilarTemplate=null;similarBanner.classList.remove('show');}
-  renderModeration();
+  renderModeration();renderSimplePhotoAdvice();renderSimpleResult();renderSimpleCompletion();
   clearExtraData();renderSourceReference();renderYuvionExport();renderCategoryMemory();updateWorkflow();preview.src='';preview.classList.remove('show');drop.classList.remove('has');dropText.style.display='';meta.textContent='Файл ещё не выбран';analyzeBtn.disabled=true;workspace.classList.remove('show');creative.classList.remove('show');cardsPreview.innerHTML='';creativeStatus.className='creative-status';localQuality.className='quality-box';clearError();window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -5091,7 +5231,7 @@ function saveHistoryDebounced(){
   saveTimer=setTimeout(()=>saveHistory(),700);
 }
 
-function revisionSnapshot(label=''){
+function revisionSnapshot(label='',includeVisual=false){
   if(!currentData)return null;
   return {
     id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),
@@ -5103,11 +5243,34 @@ function revisionSnapshot(label=''){
     variations:variationsForExport(),
     mode:currentMode,
     style:styleSelect.value,
-    renderMode:renderModeSelect.value
+    renderMode:renderModeSelect.value,
+    visual:Boolean(includeVisual&&currentCards.length===4),
+    cards:includeVisual&&currentCards.length===4?currentCards.map(x=>({...x})):[],
+    quality:includeVisual&&currentCards.length===4?currentQuality:null,
+    designState:{intensity:currentDesignIntensity,substyle:currentDesignSubstyle,variant:currentDesignVariant,composition:{...currentComposition},palette:[...currentPalette],visualOptions:{...currentVisualOptions}}
   };
+}
+async function autoVisualRevision(label='Предыдущий вариант'){
+  if(!currentData||currentCards.length!==4)return null;
+  const snapshot=revisionSnapshot(label,true);if(!snapshot)return null;
+  const previousVisual=currentRevisions.filter(x=>x.visual).slice(0,3);
+  const nonVisual=currentRevisions.filter(x=>!x.visual).slice(0,8);
+  currentRevisions=[snapshot,...previousVisual,...nonVisual].slice(0,12);
+  renderRevisionList();renderMinimalVersions();
+  return snapshot;
+}
+function renderMinimalVersions(){
+  const list=document.getElementById('minimalVersionsList');if(!list)return;
+  const visual=currentRevisions.filter(x=>x.visual&&Array.isArray(x.cards)&&x.cards.length===4).slice(0,4);
+  list.innerHTML=visual.length?visual.map(v=>{
+    const when=new Date(v.createdAt||Date.now()).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return '<div class="minimal-version-row"><b>'+esc(v.label||'Вариант карточек')+'</b><small>'+esc(when)+'</small><div class="minimal-version-thumbs">'+v.cards.map(c=>'<img alt="" src="data:image/png;base64,'+c.base64+'">').join('')+'</div><button data-minimal-restore="'+esc(v.id)+'">Вернуть этот вариант</button></div>';
+  }).join(''):'<div class="muted">Предыдущих комплектов пока нет. Они появятся автоматически перед переделкой.</div>';
+  list.querySelectorAll('[data-minimal-restore]').forEach(btn=>btn.onclick=()=>restoreRevision(btn.dataset.minimalRestore));
 }
 
 function renderRevisionList(){
+  renderMinimalVersions();
   revisionCount.textContent=currentRevisions.length+' '+(currentRevisions.length===1?'сохранённая':'сохранённых');
   revisionList.innerHTML='';
   if(!currentRevisions.length){
@@ -5195,7 +5358,8 @@ async function saveCurrentRevision(){
 async function restoreRevision(id){
   const revision=currentRevisions.find(x=>x.id===id);
   if(!revision)return;
-  if(!confirm('Вернуть данные товара к этой локальной версии? Текущие изображения останутся, но будут помечены как устаревшие.'))return;
+  const hasVisual=revision.visual&&Array.isArray(revision.cards)&&revision.cards.length===4;
+  if(!confirm(hasVisual?'Вернуть этот комплект карточек и данные товара?':'Вернуть данные товара к этой локальной версии?'))return;
   currentData={...(revision.data||{})};
   fillEditor(currentData);
   fillExtraData(revision.extraData||{});
@@ -5205,13 +5369,27 @@ async function restoreRevision(id){
   currentMode=revision.mode||currentMode;
   styleSelect.value=revision.style||styleSelect.value;
   renderModeSelect.value=revision.renderMode||renderModeSelect.value||'free';
+  if(revision.designState){
+    currentDesignIntensity=revision.designState.intensity||currentDesignIntensity;
+    currentDesignSubstyle=revision.designState.substyle||currentDesignSubstyle;
+    if(Number.isInteger(revision.designState.variant))currentDesignVariant=revision.designState.variant;
+    if(revision.designState.composition)currentComposition={...currentComposition,...revision.designState.composition};
+    if(Array.isArray(revision.designState.palette))currentPalette=revision.designState.palette.slice(0,4);
+    if(revision.designState.visualOptions)currentVisualOptions=normalizeClientVisualOptions(revision.designState.visualOptions);
+  }
+  if(hasVisual){
+    currentCards=revision.cards.map(x=>({...x}));
+    currentScenes=[];currentQuality=revision.quality||null;cardsStale=false;currentStaleCards=[];
+    creative.classList.add('show');renderCards();renderDesignStudio();
+  }
   document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===currentMode));
   renderAiQuality(currentData);
   updatePlan();
   renderCategoryMemory();
   renderSpecTemplateHint();
   renderYuvionExport();
-  markCardsStale([0,1,2,3]);
+  if(!hasVisual)markCardsStale([0,1,2,3]);
+  document.getElementById('minimalVersionsSheet')?.classList.remove('show');
   addCurrentActivity('Версия восстановлена',revision.label||revision.data?.seoTitle||'Версия');
   syncModeUi();
   await checkDuplicateSku();
@@ -5251,6 +5429,9 @@ async function saveHistory(){
       mode:currentMode,
       style:styleSelect.value,
       renderMode:renderModeSelect.value,
+      designState:{intensity:currentDesignIntensity,substyle:currentDesignSubstyle,variant:currentDesignVariant,composition:{...currentComposition},palette:[...currentPalette],visualOptions:{...currentVisualOptions}},
+      designSnapshots:currentDesignSnapshots,
+      seriesReference:currentSeriesReference,
       cardRenderSchema:(currentCards.length===4&&!cardsStale)?CARD_RENDER_SCHEMA:Number(previous?.cardRenderSchema||0),
       published:false,
       publishedAt:null
@@ -6659,7 +6840,11 @@ async function processExcelAutopilotItem(item,style){
     if(!analyze.ok)throw new Error(analyzed.error||'Не удалось проанализировать товар.');
   }
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
-  const directedStyle=style==='auto'?recommendedStyleForProduct(analyzed):style;
+  let directedStyle=style==='auto'?recommendedStyleForProduct(analyzed):style;
+  if(style==='auto'){
+    const series=await catalogSeriesStyleForData(analyzed,item.id);
+    if(series?.style)directedStyle=series.style;
+  }
 
   const generationFp=await generationFingerprintForItem(item,analyzed,directedStyle);
   const reusableCards=item.cardRenderSchema===CARD_RENDER_SCHEMA&&item.generationFingerprint===generationFp&&Array.isArray(item.cards)&&item.cards.length===4&&!item.cardsStale;
@@ -6669,7 +6854,7 @@ async function processExcelAutopilotItem(item,style){
     item.analysisCache={fingerprint:analysisFp,data:analyzed,at:Date.now()};
     item.updatedAt=Date.now();
     item.excelAutopilot={state:'done',error:'',completedAt:Date.now(),cacheHit:true};
-    item.activity=[{at:Date.now(),type:'Автопилот · кэш',detail:'Анализ, изображения и QA v4 уже актуальны'},...(item.activity||[])].slice(0,80);
+    item.activity=[{at:Date.now(),type:'Автопилот · кэш',detail:'Анализ, изображения и QA v5 уже актуальны'},...(item.activity||[])].slice(0,80);
     await dbPut(item);
     return item;
   }
@@ -6688,7 +6873,7 @@ async function processExcelAutopilotItem(item,style){
   }
 
   const repaired=await repairBatchCardsToQa({
-    cards,scenes,card:analyzed,src:{base64:src.base64,mime:src.mime},style:directedStyle,maxRounds:2
+    cards,scenes,card:analyzed,src:{base64:src.base64,mime:src.mime},style:directedStyle,maxRounds:3
   });
   cards=repaired.cards;
   scenes=repaired.scenes;
@@ -6721,11 +6906,11 @@ async function processExcelAutopilotItem(item,style){
     type:qaBlocked?'Автопилот · QA карантин':'Автопилот завершён',
     detail:(analysisFromCache?'Анализ из кэша · ':'')+
       (generatedFresh?'4 карточки · ':'существующие карточки · ')+
-      'QA v4 · проверок '+repaired.qualityChecks+' · перегенераций '+repaired.regenerated+
+      'QA v5 · проверок '+repaired.qualityChecks+' · перегенераций '+repaired.regenerated+
       (qaBlocked?' · блокеров '+repaired.blockers.length:'')
   },...(item.activity||[])].slice(0,80);
   item.excelAutopilot=qaBlocked
-    ?{state:'qa_blocked',error:'QA v4 не пройдена после автоматического исправления.',completedAt:Date.now()}
+    ?{state:'qa_blocked',error:'QA v5 не пройдена после автоматического исправления.',completedAt:Date.now()}
     :{state:'done',error:'',completedAt:Date.now()};
   await dbPut(item);
   return item;
@@ -6741,7 +6926,7 @@ async function runExcelAutopilotQueue(){
   const queue=excelQueueItems(all).slice(0,EXCEL_AUTOPILOT_LIMIT);
   if(!queue.length){saveLargeQueueState({pending:false,paused:true});await refreshDiagnosticsNow(all);return}
   excelAutopilotBusy=true;largeQueuePaused=false;runExcelAutopilot.disabled=true;excelAutoProgress.classList.add('show');
-  saveLargeQueueState({pending:true,paused:false,totalRemaining:excelQueueItems(all).length});
+  saveLargeQueueState({pending:true,paused:false,offline:false,autoResume:true,totalRemaining:excelQueueItems(all).length});
   const style=excelAutopilotStyle.value||loadSellerDefaults().style||'minimal';
   if(!publicHealthCache){try{const h=await fetch('/api/health');if(h.ok)publicHealthCache=await h.json()}catch{}}
   const imageRate=0;
@@ -6775,7 +6960,7 @@ async function runExcelAutopilotQueue(){
       if(/лимит|слишком много|429/i.test(message))haltedByLimit=true;
     }
     done++;excelAutoBar.style.width=Math.round(done/queue.length*100)+'%';
-    saveLargeQueueState({pending:true,paused:largeQueuePaused,lastProductId:item.id,completedInRun:done,spentImageUsd:spent});
+    saveLargeQueueState({pending:true,paused:largeQueuePaused,lastProductId:item.id,completedInRun:done,spentImageUsd:spent,autoResume:!largeQueuePaused});
     await renderHistory();
     if(haltedByLimit||haltedByBudget||largeQueuePaused)break;
   }
@@ -6783,7 +6968,7 @@ async function runExcelAutopilotQueue(){
   const remaining=excelQueueItems(await dbAll()).length;
   const paused=Boolean(largeQueuePaused||haltedByLimit||haltedByBudget);
   const autoContinue=remaining>0&&!paused;
-  saveLargeQueueState({pending:remaining>0,paused,totalRemaining:remaining,spentImageUsd:spent});
+  saveLargeQueueState({pending:remaining>0,paused,totalRemaining:remaining,spentImageUsd:spent,offline:false,autoResume:Boolean(remaining&&!paused)});
   excelAutoProgressText.textContent=haltedByLimit
     ?'Очередь остановлена защитным лимитом AI. Готово в этой порции: '+success+'. Необработанные товары сохранены.'
     :haltedByBudget
@@ -6954,6 +7139,19 @@ function saveLargeQueueState(patch={}){
   const next={...current,...patch,updatedAt:Date.now()};
   localStorage.setItem(LARGE_QUEUE_KEY,JSON.stringify(next));
   return next;
+}
+
+async function resumePersistedQueueIfNeeded(reason='load'){
+  if(navigator.onLine===false||excelAutopilotBusy)return false;
+  const state=loadLargeQueueState();
+  if(!state.pending)return false;
+  if(state.paused&&!state.offline&&!state.autoResume)return false;
+  const remaining=excelQueueItems(await dbAll()).length;
+  if(!remaining){saveLargeQueueState({pending:false,paused:true,offline:false,autoResume:false});return false}
+  largeQueuePaused=false;
+  saveLargeQueueState({pending:true,paused:false,offline:false,autoResume:true,resumeReason:reason});
+  window.setTimeout(()=>{if(!excelAutopilotBusy&&!largeQueuePaused)runExcelAutopilotQueue()},120);
+  return true;
 }
 
 function labelPhotoForStoredItem(item){
@@ -7143,6 +7341,8 @@ async function restoreHistory(item){
   currentLabelSuggestions=Array.isArray(item.labelSuggestions)?item.labelSuggestions.slice(0,20):[];
   currentActivity=Array.isArray(item.activity)?item.activity.slice(0,80):[];
   currentAnalysisCache=item.analysisCache||null;
+  currentSeriesReference=item.seriesReference||null;
+  probableDuplicateId=null;
   cardsStale=Boolean(item.cardsStale);
   currentStaleCards=Array.isArray(item.staleCardIndexes)?item.staleCardIndexes.filter(x=>[0,1,2,3].includes(Number(x))).map(Number):[];
   renderVariations();renderExtraPhotos();renderLabelSuggestions();renderRevisionList();renderModeration();renderActivity();renderSourceReference();
@@ -7335,24 +7535,18 @@ async function batchQuality(cards,card,source=null){
   return data;
 }
 
-async function repairBatchCardsToQa({cards,scenes,card,src,style,onStatus=()=>{},maxRounds=2}){
+async function repairBatchCardsToQa({cards,scenes,card,src,style,onStatus=()=>{},maxRounds=3}){
   let workingCards=Array.isArray(cards)?cards.slice():[];
   let workingScenes=Array.isArray(scenes)?scenes.slice():[];
   let quality=await batchQuality(workingCards,card,{image:src.image||src.base64||'',mimeType:src.mimeType||src.mime||''});
   let qualityChecks=1;
   let regenerated=0;
-  const attempted=new Set();
-
   for(let round=1;round<=maxRounds&&!batchQaPassed(quality);round+=1){
-    const bad=batchQaBlockers(quality)
-      .map(x=>x.index)
-      .filter(index=>!attempted.has(index))
-      .slice(0,2);
+    const bad=[...new Set(batchQaBlockers(quality).map(x=>x.index))].slice(0,4);
     if(!bad.length)break;
 
-    onStatus('QA v4 · исправление '+round+'/'+maxRounds+': №'+bad.map(x=>x+1).join(', '));
+    onStatus('QA v5 · исправление '+round+'/'+maxRounds+': №'+bad.map(x=>x+1).join(', '));
     for(const index of bad){
-      attempted.add(index);
       const {response:regen,data:payload}=await fetchJsonRetry('/api/regenerate-card',{
         method:'POST',headers:apiHeaders(),
         body:JSON.stringify({
@@ -7366,7 +7560,7 @@ async function repairBatchCardsToQa({cards,scenes,card,src,style,onStatus=()=>{}
       if(payload.scene)workingScenes[index]=payload.scene;
       regenerated+=1;
     }
-    onStatus('QA v4 · повторная проверка…');
+    onStatus('QA v5 · повторная проверка…');
     quality=await batchQuality(workingCards,card,{image:src.image||src.base64||'',mimeType:src.mimeType||src.mime||''});
     qualityChecks+=1;
   }
@@ -7412,7 +7606,7 @@ async function saveBatchHistory({data,dataUrl,cards,scenes=[],quality=null,mode,
     data,extraData:{...extraData},privateData:{cost:'',stock:'',boxes:'',minStock:'',location:'',collections:[],notes:''},
     sourceDataUrl:dataUrl,photoHash,additionalPhotos:[],cards:cards||[],scenes:scenes||[],quality,
     cardsStale:Boolean(qaBlocked),staleCardIndexes:qaBlocked?batchQaBlockers(quality).map(x=>x.index):[],variations:[],revisions:[],moderation:{status:'none',reason:'',log:[]},
-    activity:[{at:Date.now(),type:qaBlocked?'Batch Factory · QA карантин':'Batch Factory',detail:mode==='full'?(qaBlocked?'4 карточки сохранены локально · QA v4 не пройдена':'Анализ · 4 карточки · QA v4 пройдена'):'Текстовый анализ сохранён'}],
+    activity:[{at:Date.now(),type:qaBlocked?'Batch Factory · QA карантин':'Batch Factory',detail:mode==='full'?(qaBlocked?'4 карточки сохранены локально · QA v5 не пройдена':'Анализ · 4 карточки · QA v5 пройдена'):'Текстовый анализ сохранён'}],
     mode,style,renderMode:'free',cardRenderSchema:CARD_RENDER_SCHEMA,published:false
   };
   await dbPut(item);
@@ -7452,7 +7646,7 @@ startBatch.onclick=async()=>{
         cards=genData.cards||[];
         scenes=genData.scenes||[];
 
-        item.label='QA v4…';batchRender();
+        item.label='QA v5…';batchRender();
         const repaired=await repairBatchCardsToQa({
           cards,scenes,card:analyzed.data,src:analyzed.src,style:directedStyle,
           onStatus:(label)=>{item.label=label;batchRender()}
@@ -7467,7 +7661,7 @@ startBatch.onclick=async()=>{
             data:analyzed.data,dataUrl:quarantinedSource,cards,scenes,quality,mode,style:directedStyle,
             extraData:item.extraData||{},qaBlocked:true
           });
-          throw new Error('QA v4 не пройдена после автоисправления. Товар сохранён локально в карантин и не добавлен в общий ZIP.');
+          throw new Error('QA v5 не пройдена после автоисправления. Товар сохранён локально в карантин и не добавлен в общий ZIP.');
         }
       }
 
@@ -7497,7 +7691,7 @@ startBatch.onclick=async()=>{
 
       success++;
       item.state='ok';
-      item.label=mode==='full'?'Готово · QA v4':'Текст готов';
+      item.label=mode==='full'?'Готово · QA v5':'Текст готов';
     }catch(e){
       item.state='fail';item.label=e.message||'Ошибка';
     }
@@ -7887,12 +8081,13 @@ excelPhotoFiles.addEventListener('change',async()=>{
   try{
     const result=await matchExcelPhotos(excelPhotoFiles.files);
     excelPhotoMatchText.textContent='Привязано фото: '+result.matched+' к '+result.products+' товарам · без совпадения: '+result.unmatched+'.';
+    if(result.matched>0){largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,autoResume:true});window.setTimeout(()=>runExcelAutopilotQueue(),220)}
   }catch(e){excelPhotoMatchText.textContent='Не удалось привязать фото: '+(e.message||'ошибка')}
   finally{excelPhotoFiles.value=''}
 });
-runExcelAutopilot.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,spentImageUsd:0});runExcelAutopilotQueue();};
-resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,spentImageUsd:0});runExcelAutopilotQueue();};
-pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueueItems(await dbAll()).length>0;saveLargeQueueState({pending,paused:true});excelAutoProgressText.textContent=excelAutopilotBusy?'Очередь будет поставлена на паузу после текущего товара.':'Очередь на паузе.';await refreshDiagnosticsNow();};
+runExcelAutopilot.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,offline:false,autoResume:true,spentImageUsd:0});runExcelAutopilotQueue();};
+resumeLargeQueue.onclick=()=>{largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,offline:false,autoResume:true,spentImageUsd:0});runExcelAutopilotQueue();};
+pauseLargeQueue.onclick=async()=>{largeQueuePaused=true;const pending=excelQueueItems(await dbAll()).length>0;saveLargeQueueState({pending,paused:true,offline:false,autoResume:false});excelAutoProgressText.textContent=excelAutopilotBusy?'Очередь будет поставлена на паузу после текущего товара.':'Очередь на паузе.';await refreshDiagnosticsNow();};
 exportCatalogReport.onclick=()=>exportCatalogReportNow();
 projectArchive.onclick=()=>createEncryptedBackup();
 refreshDiagnostics.onclick=()=>refreshDiagnosticsNow();
@@ -8039,16 +8234,29 @@ document.getElementById('minimalHistory')?.addEventListener('click',()=>document
 document.getElementById('minimalExcel')?.addEventListener('click',()=>{document.getElementById('minimalMenu')?.removeAttribute('open');setSimpleSource('excel')});
 document.getElementById('minimalUrl')?.addEventListener('click',()=>{document.getElementById('minimalMenu')?.removeAttribute('open');setSimpleSource('url')});
 document.getElementById('minimalAdvanced')?.addEventListener('click',()=>{document.getElementById('minimalMenu')?.removeAttribute('open');applyUiMode('advanced')});
+document.getElementById('minimalVersions')?.addEventListener('click',()=>{
+  document.getElementById('minimalMenu')?.removeAttribute('open');renderMinimalVersions();
+  const sheet=document.getElementById('minimalVersionsSheet');sheet?.classList.add('show');sheet?.setAttribute('aria-hidden','false');
+});
+const closeVersions=()=>{const sheet=document.getElementById('minimalVersionsSheet');sheet?.classList.remove('show');sheet?.setAttribute('aria-hidden','true')};
+document.getElementById('closeMinimalVersions')?.addEventListener('click',closeVersions);
+document.getElementById('minimalVersionsBackdrop')?.addEventListener('click',closeVersions);
+document.getElementById('simpleDoneDownload')?.addEventListener('click',()=>downloadPackage(true,false));
+document.getElementById('simpleDoneNew')?.addEventListener('click',()=>document.getElementById('newProduct')?.click());
 document.getElementById('simpleEdit')?.addEventListener('click',()=>{document.body.classList.add('show-editor');document.querySelector('.editor')?.scrollIntoView({behavior:'smooth',block:'start'})});
 document.getElementById('simpleNewProduct')?.addEventListener('click',()=>document.getElementById('newProduct')?.click());
 document.getElementById('simpleRegenerateAll')?.addEventListener('click',()=>document.getElementById('generateAll')?.click());
-document.getElementById('simpleStyle')?.addEventListener('change',e=>{
+document.getElementById('simpleStyle')?.addEventListener('change',async e=>{
   const value=e.target.value;
-  if(value==='auto'){prepareAutomaticCardStyle();renderDesignStudio()}
-  else{styleSelect.value=value;currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced()}
+  if(currentCards.length===4)await autoVisualRevision('До смены стиля');
+  currentSeriesReference=null;
+  if(value==='auto'){styleSelect.dataset.userChanged='';await applyCatalogRelations(currentData||collectEdits());renderDesignStudio()}
+  else{styleSelect.dataset.userChanged='1';styleSelect.value=value;currentScenes=[];markCardsStale([0,1,2,3]);renderDesignStudio();saveHistoryDebounced()}
+  renderSimpleResult();
 });
 [editor.title,editor.short,editor.full,editor.specs].forEach(el=>el?.addEventListener('input',renderSimpleResult));
 setSimpleSource('photo');
+window.setTimeout(()=>resumePersistedQueueIfNeeded('startup'),350);
 
 renderModeSelect.value='free';renderNetworkState();initUiMode();
 renderDesignStudio();syncRenderModeUi();renderProfile();applySellerDefaults();excelAutopilotStyle.value=loadSellerDefaults().style||'minimal';renderStoreRules();renderFactSources();renderVariations();renderExtraPhotos();renderRevisionList();renderMargin();renderModeration();renderProductCockpit();renderHistory();renderCategoryMemory();renderCategoryValidation();renderSpecTemplateHint();renderYuvionExport();syncModeUi();updateWorkflow();checkDuplicateSku();
