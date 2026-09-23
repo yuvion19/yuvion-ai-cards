@@ -1993,7 +1993,7 @@ app.post("/api/analyze", async (req, res) => {
       return res.status(429).json({ error: "Слишком много запросов. Попробуйте немного позже." });
     }
 
-    const { image, mimeType, mode = "full", preferLocal = false, extraData = {}, additionalImages = [] } = req.body ?? {};
+    const { image, mimeType, mode = "full", preferLocal = true, extraData = {}, additionalImages = [] } = req.body ?? {};
     if (typeof image !== "string" || typeof mimeType !== "string") {
       return res.status(400).json({ error: "Изображение не передано." });
     }
@@ -4469,6 +4469,16 @@ if (!textOverlayGuardState.ready) {
 } else {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
+const localCopySelfTest = buildLocalProductCopy({
+  seoTitle: "Бутылка",
+  category: "Посуда",
+  characteristics: [{ name: "Цвет", value: "синий", source: "Фото" }]
+});
+if (!localCopySelfTest.shortDescription || localCopySelfTest.fullDescription.length < 180) {
+  throw new Error("Local description self-test failed");
+}
+console.log("Local description self-test OK:", localCopySelfTest.shortDescription.length, localCopySelfTest.fullDescription.length);
+
 app.listen(port, "0.0.0.0", () => {
   console.log(`Yuvion AI Cards v11.2.6 listening on port ${port}`);
 });
