@@ -227,23 +227,27 @@ function safeCatalogDescription({ title = "", category = "", brand = "", charact
     if (facts.length >= 5) break;
   }
 
-  if (cleanSource) {
+  const safeTitle = cleanTitle && cleanTitle !== "Товар" ? cleanTitle : "Товар";
+  const factText = facts.slice(0, 4).map((x) => x.text).join("; ");
+  const factualShort = factText
+    ? compact(safeTitle + ". Характеристики: " + factText + ".", 500)
+    : compact(safeTitle + ". Основные сведения о товаре сформированы только по подтверждённым данным.", 500);
+
+  if (cleanSource && cleanSource.length >= 90) {
     const short = compact(cleanSource, 500);
     const full = compact(cleanSource, 1800);
     return { short, full: full || short, generated: false };
   }
 
-  const safeTitle = cleanTitle && cleanTitle !== "Товар" ? cleanTitle : "Товар";
-  const factText = facts.slice(0, 4).map((x) => x.text).join("; ");
-  const short = factText
-    ? compact(safeTitle + ". По данным источника: " + factText + ".", 500)
-    : compact(safeTitle + ". Описание сформировано по доступным подтверждённым данным без добавления неподтверждённых характеристик.", 500);
+  const short = cleanSource
+    ? compact(cleanSource + (factText ? " Характеристики: " + factText + "." : ""), 500)
+    : factualShort;
   const full = compact(
     short +
-    " Точные размеры, материал, состав, мощность и другие технические параметры не добавляются автоматически, если они не указаны или не подтверждены источником.",
+    " В описании используются только подтверждённые сведения о товаре; неподтверждённые размеры, материал, состав, мощность, объём, вес и комплектность не добавляются.",
     1800
   );
-  return { short, full, generated: true };
+  return { short: short || factualShort, full: full || short || factualShort, generated: true };
 }
 
 function wrapWords(value, maxChars = 28, maxLines = 3) {
@@ -1001,7 +1005,7 @@ function copySystemInstructions() {
     "Категорически запрещено придумывать размеры, материал, состав, мощность, объём, вес, комплектность, модель, бренд, страну производства, совместимость и любые технические свойства. " +
     "Если подтверждённых фактов мало, сделай качественное нейтральное описание без технических утверждений. " +
     "SEO-заголовок должен быть понятным и естественным, без спама и без неподтверждённых характеристик. " +
-    "Короткое описание: 1–3 предложения. Полное описание: 2–5 компактных абзацев или связных предложений, без упоминания продавца, источника, ИИ или процесса генерации. " +
+    "Короткое описание должно быть содержательным: ориентир 100–260 символов. Полное описание должно быть полноценным: ориентир 350–900 символов и не менее 3 связных предложений, без упоминания продавца, источника, ИИ или процесса генерации. Не возвращай вместо описания только название товара или одну короткую фразу. " +
     "Преимущества формулируй только как перефразирование подтверждённых фактов, а не новые свойства. " +
     "Ключевые слова должны относиться только к подтверждённому товару. " +
     "Верни только JSON по заданной схеме."
@@ -1022,8 +1026,28 @@ function parseCopyJson(raw) {
 function normalizeProviderCopy(parsedRaw, fallback, provider, model) {
   const parsed = parseCopyJson(parsedRaw);
   const seoTitle = compact(parsed.seoTitle || fallback.seoTitle, 180);
-  const shortDescription = sellerNeutralCopy(parsed.shortDescription || "", 500) || fallback.shortDescription;
-  const fullDescription = sellerNeutralCopy(parsed.fullDescription || "", 2200) || shortDescription || fallback.fullDescription;
+  const generatedFallback = safeCatalogDescription({
+    title: seoTitle || fallback.seoTitle,
+    category: fallback.category,
+    brand: fallback?.confirmedData?.brand || knownValueFromCharacteristics(fallback.characteristics || [], ["бренд","brand"]),
+    characteristics: fallback.characteristics || [],
+    sourceDescription: ""
+  });
+  const providerShort = sellerNeutralCopy(parsed.shortDescription || "", 500);
+  const providerFull = sellerNeutralCopy(parsed.fullDescription || "", 2200);
+  const shortDescription = providerShort.length >= 70
+    ? providerShort
+    : (generatedFallback.short || fallback.shortDescription || providerShort);
+  const fullDescription = providerFull.length >= 180
+    ? providerFull
+    : compact(
+        [providerFull, shortDescription, generatedFallback.full]
+          .map((x) => sellerNeutralCopy(x || "", 2200))
+          .filter(Boolean)
+          .filter((x, index, arr) => arr.indexOf(x) === index)
+          .join(" "),
+        2200
+      ) || shortDescription || fallback.fullDescription;
   const benefits = Array.isArray(parsed.benefits)
     ? parsed.benefits.map((x) => sellerNeutralCopy(x, 120)).filter(Boolean).slice(0, 5)
     : fallback.benefits;
@@ -1182,6 +1206,7 @@ function finalizeCopyResponse(resultRaw, rawCard) {
     used: Boolean(result.used),
     shortChars: shortDescription.length,
     fullChars: fullDescription.length,
+    substantiveDescription: fullDescription.length >= 180,
     titleChars: String(card.seoTitle || "").length
   });
   return {
