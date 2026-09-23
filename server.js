@@ -4496,25 +4496,33 @@ app.post("/api/generate-cards", async (req, res) => {
     const gigaBackgrounds = [null, null, null, null];
     let gigaImageCalls = 0;
     if (gigaChatConfigured()) {
-      const generated = await Promise.allSettled(
-        [0,1,2,3].map((index) =>
-          generateGigaChatBackground(normalized, index, styleKey, renderPalette, studioProfile)
-        )
-      );
-      generated.forEach((result, index) => {
-        if (result.status === "fulfilled" && result.value) {
-          gigaBackgrounds[index] = result.value;
-          gigaImageCalls += 1;
-        } else if (result.status === "rejected") {
-          console.warn("GigaChat background fallback:", {
-            index,
-            message: result.reason?.message,
-            status: result.reason?.status,
-            code: result.reason?.code,
-            details: result.reason?.details
+      try {
+        const masterBackground = await generateGigaChatBackground(
+          normalized,
+          0,
+          styleKey,
+          renderPalette,
+          studioProfile
+        );
+        if (masterBackground) {
+          const variants = await Promise.all(
+            [0,1,2,3].map((index) =>
+              makeGigaBackgroundVariant(masterBackground, index, renderPalette)
+            )
+          );
+          variants.forEach((buffer, index) => {
+            gigaBackgrounds[index] = buffer;
           });
+          gigaImageCalls = 1;
         }
-      });
+      } catch (error) {
+        console.warn("GigaChat background fallback:", {
+          message: error?.message,
+          status: error?.status,
+          code: error?.code,
+          details: error?.details
+        });
+      }
     }
 
     scenes = await Promise.all(renderSelections.map(({ index, primary, inset }) =>
