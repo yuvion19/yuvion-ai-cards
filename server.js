@@ -64,6 +64,7 @@ const MAX_REGENERATIONS_PER_WINDOW = 12;
 const MAX_FREE_CARD_BATCHES_PER_WINDOW = 120;
 const MAX_FREE_REGENERATIONS_PER_WINDOW = 240;
 const MAX_URL_IMPORTS_PER_WINDOW = 20;
+const MAX_COPY_REQUESTS_PER_WINDOW = 120;
 const MAX_REMOTE_HTML_BYTES = 2500000;
 const MAX_REMOTE_IMAGE_BYTES = 12 * 1024 * 1024;
 const REMOTE_FETCH_TIMEOUT_MS = 12000;
@@ -74,6 +75,7 @@ const regenRequestsByIp = new Map();
 const freeCardRequestsByIp = new Map();
 const freeRegenRequestsByIp = new Map();
 const urlImportRequestsByIp = new Map();
+const copyRequestsByIp = new Map();
 let imagesEnabled = true;
 let fontRenderState = { ready: false, paintedPixels: 0, error: "not-checked" };
 let textOverlayGuardState = { ready: false, textPixels: 0, error: "not-checked" };
@@ -108,6 +110,9 @@ const stats = {
   labelOcrFindings: 0,
   urlImports: 0,
   urlImportErrors: 0,
+  gptCopyRequests: 0,
+  gptCopySuccesses: 0,
+  gptCopyFallbacks: 0,
   recentErrors: []
 };
 
@@ -951,6 +956,135 @@ const urlImportSchema = {
   }
 };
 
+const productCopySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["seoTitle","shortDescription","fullDescription","benefits","keywords"],
+  properties: {
+    seoTitle: { type: "string" },
+    shortDescription: { type: "string" },
+    fullDescription: { type: "string" },
+    benefits: { type: "array", minItems: 0, maxItems: 5, items: { type: "string" } },
+    keywords: { type: "array", minItems: 0, maxItems: 24, items: { type: "string" } }
+  }
+};
+
+function confirmedCopyFacts(cardRaw = {}) {
+  const card = normalizeCard(cardRaw);
+  const confirmed = normalizeExtraData(cardRaw?.confirmedData || card.confirmedData || {});
+  const characteristics = (card.characteristics || []).slice(0, 16).map((item) => ({
+    name: compact(item.name, 60),
+    value: compact(item.value, 120),
+    source: normalizeCharacteristicSource(item.source)
+  }));
+  return {
+    title: compact(card.seoTitle || confirmed.name || "Товар", 180),
+    category: compact(card.category || "", 100),
+    brand: compact(confirmed.brand || knownValueFromCharacteristics(characteristics, ["бренд","brand"]), 100),
+    sku: compact(confirmed.sku || knownValueFromCharacteristics(characteristics, ["артикул","sku"]), 100),
+    barcode: compact(confirmed.barcode || knownValueFromCharacteristics(characteristics, ["штрих","ean","gtin"]), 64),
+    size: compact(confirmed.size || knownValueFromCharacteristics(characteristics, ["размер","габарит"]), 120),
+    material: compact(confirmed.material || knownValueFromCharacteristics(characteristics, ["материал","состав"]), 160),
+    characteristics
+  };
+}
+
+async function generateProductCopyWithGpt(cardRaw = {}) {
+  const fallback = normalizeCard(cardRaw);
+  const enabled = String(process.env.OPENAI_TEXT_ENABLED ?? "true").toLowerCase() !== "false";
+  if (!enabled || !process.env.OPENAI_API_KEY) {
+    stats.gptCopyFallbacks += 1;
+    return { card: { ...fallback, copyProvider: "local" }, used: false, reason: !enabled ? "disabled" : "not_configured" };
+  }
+
+  const facts = confirmedCopyFacts(cardRaw);
+  const model = process.env.OPENAI_TEXT_MODEL || "gpt-5.6-luna";
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  stats.gptCopyRequests += 1;
+
+  try {
+    const response = await client.responses.create({
+      model,
+      reasoning: { effort: "none" },
+      store: false,
+      instructions:
+        "Ты пишешь продающий, естественный текст для карточки товара Yuvion на русском языке. " +
+        "Используй ТОЛЬКО факты из JSON пользователя. Не добавляй знания извне и не угадывай. " +
+        "Категорически запрещено придумывать размеры, материал, состав, мощность, объём, вес, комплектность, модель, бренд, страну производства, совместимость и любые технические свойства. " +
+        "Если подтверждённых фактов мало, сделай качественное нейтральное описание без технических утверждений. " +
+        "SEO-заголовок должен быть понятным и естественным, без спама и без неподтверждённых характеристик. " +
+        "Короткое описание: 1–3 предложения. Полное описание: 2–5 компактных абзацев или связных предложений, без упоминания продавца, источника, ИИ или процесса генерации. " +
+        "Преимущества формулируй только как перефразирование подтверждённых фактов, а не новые свойства. " +
+        "Ключевые слова должны относиться только к подтверждённому товару.",
+      input: [{
+        role: "user",
+        content: [{
+          type: "input_text",
+          text: "Подтверждённые данные товара:\n" + JSON.stringify(facts)
+        }]
+      }],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "yuvion_product_copy",
+          strict: true,
+          schema: productCopySchema
+        }
+      },
+      max_output_tokens: 1300
+    });
+
+    recordTextUsage(response);
+    const parsed = JSON.parse(response.output_text || "{}");
+    const seoTitle = compact(parsed.seoTitle || fallback.seoTitle, 180);
+    const shortDescription = sellerNeutralCopy(parsed.shortDescription || "", 500) || fallback.shortDescription;
+    const fullDescription = sellerNeutralCopy(parsed.fullDescription || "", 2200) || shortDescription || fallback.fullDescription;
+    const benefits = Array.isArray(parsed.benefits)
+      ? parsed.benefits.map((x) => sellerNeutralCopy(x, 120)).filter(Boolean).slice(0, 5)
+      : fallback.benefits;
+    const keywords = Array.isArray(parsed.keywords)
+      ? parsed.keywords.map((x) => compact(x, 60)).filter(Boolean).slice(0, 24)
+      : fallback.keywords;
+
+    stats.gptCopySuccesses += 1;
+    return {
+      card: {
+        ...fallback,
+        seoTitle: seoTitle || fallback.seoTitle,
+        shortDescription,
+        fullDescription,
+        benefits,
+        keywords,
+        copyProvider: "openai",
+        copyModel: model
+      },
+      used: true,
+      model
+    };
+  } catch (error) {
+    stats.gptCopyFallbacks += 1;
+    recordError("gpt-copy", error);
+    console.error("GPT copy error:", { message: error?.message, status: error?.status, code: error?.code });
+    return {
+      card: { ...fallback, copyProvider: "local" },
+      used: false,
+      reason: error?.code === "credit_balance_exhausted" ? "credits_exhausted" : "temporarily_unavailable"
+    };
+  }
+}
+
+app.post("/api/generate-copy", async (req, res) => {
+  const ip = req.ip || "unknown";
+  const rawCard = req.body?.card;
+  if (!rawCard || typeof rawCard !== "object") return res.status(400).json({ error: "Данные товара не переданы." });
+  if (limitMap(copyRequestsByIp, ip, MAX_COPY_REQUESTS_PER_WINDOW)) {
+    stats.rateLimitErrors += 1;
+    stats.gptCopyFallbacks += 1;
+    return res.json({ card: { ...normalizeCard(rawCard), copyProvider: "local" }, used: false, reason: "rate_limited" });
+  }
+  return res.json(await generateProductCopyWithGpt(rawCard));
+});
+
 function isBlockedIp(address) {
   const ip = String(address || "").toLowerCase();
   const kind = net.isIP(ip);
@@ -1574,7 +1708,9 @@ app.post("/api/import-url", async (req, res) => {
       confidence: ["Высокая","Средняя","Низкая"].includes(ai?.confidence) ? ai.confidence : (seed.title ? "Средняя" : "Низкая"),
       photoQuality: { score: 0, issues: [] },
       factProvenance,
-      sourceFieldEvidence: fieldEvidence
+      sourceFieldEvidence: fieldEvidence,
+      copyProvider: ai ? "openai" : "local",
+      copyModel: ai ? (process.env.OPENAI_MODEL || "gpt-5.6-luna") : ""
     };
 
     const images = [];
@@ -1678,7 +1814,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.0.1",
+    version: "11.1.0",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1693,6 +1829,10 @@ app.get("/api/health", (_req, res) => {
     analyzeRetryTimeoutSeconds: AI_ANALYZE_RETRY_TIMEOUT_MS / 1000,
     analyzeFastVision: true,
     freeTextLocalFirst: true,
+    gptProductCopyEnabled: String(process.env.OPENAI_TEXT_ENABLED ?? "true").toLowerCase() !== "false",
+    gptProductCopyConfigured: Boolean(process.env.OPENAI_API_KEY),
+    gptProductCopyModel: process.env.OPENAI_TEXT_MODEL || "gpt-5.6-luna",
+    gptProductCopyFallback: true,
     freeLocalPreflight: true,
     mobileVisionClassifierFallback: true,
     finalDataBeforeCardRender: true,
@@ -1945,7 +2085,7 @@ app.post("/api/analyze", async (req, res) => {
     if (mode === "fast") stats.fastMode += 1;
     else stats.fullMode += 1;
 
-    return res.json(parsed);
+    return res.json({ ...parsed, copyProvider: "openai", copyModel: process.env.OPENAI_MODEL || "gpt-5.6-luna" });
   } catch (error) {
     stats.analysisErrors += 1;
     recordError("analysis", error);
@@ -4284,5 +4424,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.0.0 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.1.0 listening on port ${port}`);
 });
