@@ -166,7 +166,7 @@ const features=[
   ['markCardsStale([0,1,2,3])','series forces full-card refresh'],
   ['Studio Director v10','current renderer UI marker'],
   ['localCardVisualMetrics','local visual QA metrics'],
-  ['visualQaVersion: 4','local QA v4 response'],
+  ['visualQaVersion: 5','local QA v5 response'],
   ['localVisualQaV2: true','local visual QA v2 health metadata'],
   ['localVisualQaV3: true','local visual QA v3 health metadata'],
   ['seriesDiversityQa: true','series perceptual diversity QA metadata'],
@@ -200,7 +200,7 @@ const features=[
   ['textOverlayGuardReady','text overlay health readiness field'],
   ['rasterizeOverlayWithTextGuard','rasterized text-layer verification'],
   ['textOverlayChecks','text overlay runtime counters'],
-  ['CARD_RENDER_SCHEMA=3','card render cache schema'],
+  ['CARD_RENDER_SCHEMA=4','card render cache schema'],
   ['legacyCardCacheMigration: true','legacy card cache migration metadata'],
   ['automaticTextOverlayRepair: true','automatic text overlay repair metadata'],
   ['Старый комплект создан до исправления текстовых оверлеев','old-card auto repair UI'],
@@ -253,10 +253,10 @@ if(!server.includes('textPixels < 80'))fail('text overlay pixel threshold missin
 
 if(!server.includes('fontRenderState.ready && textOverlayGuardState.ready'))fail('health must gate on font and overlay guard');else ok('health gates on font and overlay guard');
 
-if(!server.includes('visualQaVersion: 4'))fail('local QA v4 response marker missing');else ok('local QA v4 response marker present');
+if(!server.includes('visualQaVersion: 5'))fail('local QA v5 response marker missing');else ok('local QA v5 response marker present');
 if(!html.includes('syncQualityDownloadState'))fail('QA download gate missing');else ok('QA download gate present');
 if(!html.includes('Скачивание заблокировано: QA нашла карточки'))fail('blocked package messaging missing');else ok('blocked package messaging present');
-if(!html.includes('for(let round=0;round<2;round+=1)'))fail('bounded multi-round auto-fix missing');else ok('bounded multi-round auto-fix present');
+if(!html.includes('for(let round=0;round<3;round+=1)'))fail('bounded multi-round auto-fix missing');else ok('bounded multi-round auto-fix present');
 
 if(!html.includes("state:'qa_blocked'"))fail('Excel QA quarantine state missing');else ok('Excel QA quarantine state present');
 if(!html.includes("Товар сохранён локально в карантин и не добавлен в общий ZIP"))fail('Batch ZIP quarantine gate missing');else ok('Batch ZIP quarantine gate present');
@@ -294,9 +294,9 @@ if(!html.includes('upgradeFallbackWithBrowserVision'))fail('browser vision fallb
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=23',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=24',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
-if(!html.includes('CARD_RENDER_SCHEMA=3'))fail('Studio Director v10.3 old-card invalidation missing');else ok('Studio Director v10.3 old-card invalidation present');
+if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
 if(!server.includes('smolVlmWasmFallback: true'))fail('SmolVLM WASM fallback metadata missing');else ok('SmolVLM WASM fallback metadata present');
 if(!server.includes('perCardSceneVariants: true'))fail('per-card scene variants metadata missing');else ok('per-card scene variants metadata present');
@@ -312,12 +312,35 @@ if(!server.includes('Преобладающий цвет на фото'))fail('g
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(!html.includes('improveProductWithLocalVisionInBackground'))fail('legacy recovery helper missing');else ok('legacy recovery helper retained');
 if(!html.includes("const improved=await upgradeFallbackWithBrowserVision(provisional,src)"))fail('final local vision before first render missing');else ok('final local vision before first render present');
-if(!html.includes("register('/sw.js?v=23'"))fail('service worker v23 registration missing');else ok('service worker v23 registration present');
-if(!sw.includes("yuvion-ai-shell-v23"))fail('service worker v23 cache missing');else ok('service worker v23 cache present');
+if(!html.includes("register('/sw.js?v=24'"))fail('service worker v24 registration missing');else ok('service worker v24 registration present');
+if(!sw.includes("yuvion-ai-shell-v24"))fail('service worker v24 cache missing');else ok('service worker v24 cache present');
 if(!server.includes('freeTextLocalFirst: true'))fail('local-first text analysis metadata missing');else ok('local-first text analysis metadata present');
 if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
 if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first metadata missing');else ok('final-data-first metadata present');
 if(!server.includes('minimalUiFlow: true'))fail('minimal UI metadata missing');else ok('minimal UI metadata present');
+if(!server.includes('autopilotV11: true'))fail('v11 autopilot metadata missing');else ok('v11 autopilot metadata present');
+if(!server.includes('coverOptimizerVariants: 4'))fail('best-of-four cover optimizer metadata missing');else ok('best-of-four cover optimizer metadata present');
+if(!server.includes('candidateVariants=[0,1,2,3]'))fail('four cover candidates missing');else ok('four cover candidates present');
+if(!server.includes('qaSelfRepairRounds: 3'))fail('three-round QA metadata missing');else ok('three-round QA metadata present');
+if(!server.includes('sourcePhotoRetakeGate: true'))fail('source photo retake gate missing');else ok('source photo retake gate present');
+if(!server.includes('reshootRecommended'))fail('source retake recommendation missing');else ok('source retake recommendation present');
+if(!server.includes('prepareDetailCrop'))fail('truthful detail zoom helper missing');else ok('truthful detail zoom helper present');
+if(!server.includes('threeStageEdgeFeathering: true'))fail('three-stage cutout feathering metadata missing');else ok('three-stage cutout feathering metadata present');
+if(!server.includes('/api/local-label-hints'))fail('free local label hints endpoint missing');else ok('free local label hints endpoint present');
+if(!html.includes('detectBrowserLabelFields'))fail('browser local label reader missing');else ok('browser local label reader present');
+if(!html.includes('id="simplePhotoAdvice"'))fail('minimal photo advice missing');else ok('minimal photo advice present');
+if(!html.includes('Лучше переснять фото'))fail('retake-photo UX missing');else ok('retake-photo UX present');
+if(!html.includes('autoVisualRevision'))fail('automatic visual revision history missing');else ok('automatic visual revision history present');
+if(!html.includes('id="minimalVersionsSheet"'))fail('minimal visual versions sheet missing');else ok('minimal visual versions sheet present');
+if(!html.includes('applyCatalogRelations'))fail('automatic catalog series style missing');else ok('automatic catalog series style present');
+if(!html.includes('probableDuplicateId'))fail('semantic duplicate warning missing');else ok('semantic duplicate warning present');
+if(!html.includes('resumePersistedQueueIfNeeded'))fail('persistent queue auto-resume missing');else ok('persistent queue auto-resume present');
+if(!html.includes('autoResume:true'))fail('queue auto-resume state missing');else ok('queue auto-resume state present');
+if(!html.includes('const skuIndex=new Map(),barcodeIndex=new Map(),urlIndex=new Map()'))fail('Excel URL index declaration missing');else ok('Excel URL index declaration present');
+if(!html.includes("maxRounds=3"))fail('batch QA three-round repair missing');else ok('batch QA three-round repair present');
+if(!html.includes("await checkQualityAndAutofix(true)"))fail('immediate flow does not self-repair QA');else ok('immediate flow self-repairs QA');
+if(!html.includes('id="simpleDonePanel"'))fail('minimal completion screen missing');else ok('minimal completion screen present');
+
 if(!html.includes('id="minimalMenu"'))fail('minimal top menu missing');else ok('minimal top menu present');
 if(!html.includes('id="simpleResult"'))fail('compact result card missing');else ok('compact result card present');
 if(!html.includes('id="simpleStyle"'))fail('simple style selector missing');else ok('simple style selector present');
@@ -342,4 +365,6 @@ if(!server.includes('preferLocal === true'))fail('local-first analyze branch mis
 if(!html.includes('requestImmediateLocalCard'))fail('immediate local description helper missing');else ok('immediate local description helper present');
 if(!html.includes('preferLocal:true'))fail('frontend local-first analyze request missing');else ok('frontend local-first analyze request present');
 if(server.includes('}\n  try { visual = { ...visual, product: await transformProductForScene(visual.product,index) };'))fail('whole photo panel rotation regression present');else ok('whole photo panels are not rotated');
+if(html.includes("const response=await fetch('/api/label-ocr',{method:'POST'"))fail('paid OCR still wired into automatic/main label flow');else ok('main label flow avoids paid OCR');
+
 
