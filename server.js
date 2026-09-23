@@ -5425,35 +5425,64 @@ if (gigaChatConfigured()) {
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`Yuvion AI Cards v11.2.9 listening on port ${port}`);
+
   if (
     gigaChatConfigured() &&
-    String(process.env.GIGACHAT_POSTSTART_IMAGE_TEST || "").toLowerCase() === "true"
+    String(process.env.YUVION_REFERENCE_SELF_TEST || "").toLowerCase() === "true"
   ) {
     void (async () => {
+      let testReferenceFileId = "";
       try {
-        const imageBuffer = await withTimeout(
-          generateGigaChatBackground(
-            { seoTitle: "Тестовый товар", category: "Дом и интерьер" },
-            0,
-            "minimal",
-            [],
-            { artDirector: "clean studio" }
-          ),
-          80000,
-          "GigaChat post-start text2image test timed out"
+        const testSvg = Buffer.from(
+          '<svg width="420" height="560" xmlns="http://www.w3.org/2000/svg">' +
+          '<rect width="420" height="560" fill="#ece8df"/>' +
+          '<rect x="155" y="20" width="110" height="150" rx="18" fill="#d6a62a"/>' +
+          '<rect x="155" y="390" width="110" height="150" rx="18" fill="#d6a62a"/>' +
+          '<rect x="95" y="145" width="230" height="270" rx="48" fill="#d6a62a"/>' +
+          '<rect x="112" y="163" width="196" height="236" rx="38" fill="#101214"/>' +
+          '<rect x="326" y="245" width="16" height="72" rx="8" fill="#d6a62a"/>' +
+          '</svg>'
         );
-        const meta = imageBuffer ? await sharp(imageBuffer).metadata() : {};
-        console.log("GigaChat text2image post-start test OK:", {
+        const testImage = await sharp(testSvg).png().toBuffer();
+
+        testReferenceFileId = await withTimeout(
+          uploadImageToGigaChat(testImage, "image/png", 777),
+          20000,
+          "Yuvion reference self-test upload timed out"
+        );
+
+        const scene = await withTimeout(
+          generateGigaChatReferenceScene(
+            testReferenceFileId,
+            {
+              seoTitle: "Золотые смарт-часы",
+              category: "Электроника / Смарт-часы",
+              benefits: ["Металлический браслет", "Прямоугольный дисплей"]
+            },
+            0,
+            "marketplace",
+            ["#D6A62A", "#111214", "#F7F2E8"],
+            { artDirector: "premium marketplace product card" }
+          ),
+          190000,
+          "Yuvion reference image self-test timed out"
+        );
+
+        const meta = scene ? await sharp(scene).metadata() : {};
+        console.log("Yuvion reference image self-test OK:", {
           width: meta.width,
-          height: meta.height
+          height: meta.height,
+          format: meta.format
         });
       } catch (error) {
-        console.error("GigaChat text2image post-start test failed:", {
+        console.error("Yuvion reference image self-test failed:", {
           message: error?.message,
           status: error?.status,
           code: error?.code,
           details: error?.details
         });
+      } finally {
+        if (testReferenceFileId) await deleteGigaChatFile(testReferenceFileId);
       }
     })();
   }
