@@ -42,6 +42,22 @@ async function withTimeout(promise, ms, message = "Операция заняла
 const app = express();
 // Production release marker: v11.0.0
 app.set("trust proxy", 1);
+const corsOrigins = new Set([
+  "https://nargila.wixsite.com",
+  "https://yuvion.ru",
+  "https://www.yuvion.ru"
+]);
+app.use((req, res, next) => {
+  const origin = String(req.get("origin") || "");
+  if (corsOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Requested-With");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
   maxAge: "1h",
