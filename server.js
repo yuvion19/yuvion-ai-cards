@@ -1413,47 +1413,66 @@ async function makeGigaBackgroundVariant(masterBuffer, index = 0, palette = []) 
 }
 
 
-function yuvionReferenceScenePrompt(cardRaw, index = 0, styleKey = "premium", palette = [], studioProfile = {}) {
+
+async function describeGigaChatProductReference(productFileId, cardRaw = {}) {
+  if (!productFileId) return "";
   const card = normalizeCard(cardRaw);
-  const style = styleProfiles[styleKey] || styleProfiles.premium || styleProfiles.minimal;
+  const prompt = [
+    "Внимательно проанализируй товар на приложенной фотографии как арт-директор маркетплейса.",
+    "Опиши только визуально подтверждённые свойства: тип товара, форма, пропорции, основные цвета, материал по внешнему виду, экран, кнопки, ремешок, крепления, декоративные элементы и фактуру.",
+    "Отдельно укажи, какие элементы исходной фотографии являются посторонними: рука, ткань, стол, фон, отражения и т.п.",
+    "Не называй точный бренд или модель, если они не читаются и не подтверждены.",
+    "В конце предложи короткое направление рекламной сцены, которое подходит этому конкретному товару.",
+    "Ответь одним компактным абзацем на русском языке.",
+    card.seoTitle ? "Предварительное название из карточки: " + compact(card.seoTitle, 120) + "." : "",
+    card.category ? "Категория: " + compact(card.category, 80) + "." : ""
+  ].filter(Boolean).join(" ");
+
+  const result = await withTimeout(
+    gigaChatCompletion(
+      [{ role: "user", content: prompt, attachments: [productFileId] }],
+      { purpose: "text", maxTokens: 420, temperature: 0.1 }
+    ),
+    32000,
+    "Yuvion Studio reference analysis timed out"
+  );
+
+  return compact(result.content || "", 1800);
+}
+
+function yuvionReferenceScenePrompt(referenceBrief, cardRaw, index = 0, styleKey = "marketplace", palette = [], studioProfile = {}) {
+  const card = normalizeCard(cardRaw);
+  const style = styleProfiles[styleKey] || styleProfiles.marketplace || styleProfiles.premium;
   const colors = normalizePalette(palette).slice(0, 4).join(", ");
-  const benefits = (Array.isArray(card.benefits) ? card.benefits : []).filter(Boolean).slice(0, 4);
-  const specs = (Array.isArray(card.characteristics) ? card.characteristics : [])
-    .filter((item) => item?.name && item?.value)
-    .slice(0, 4)
-    .map((item) => item.name + ": " + item.value);
   const roles = [
-    "главная продающая обложка: товар крупно справа или по центру, премиальный lifestyle-фон, свободная зона сверху и слева под большой заголовок, место для 3–4 компактных преимуществ и нижней полосы характеристик",
-    "карточка преимуществ: товар крупно справа, слева вертикальная колонка из 4 аккуратных зон под иконки и преимущества, чистый коммерческий фон",
-    "карточка характеристик и деталей: товар крупно в центре, 2–3 декоративные зоны под крупные планы реально видимых деталей, структурная техническая композиция",
-    "карточка применения и подарочной подачи: товар в красивой lifestyle-сцене, аккуратная предметная постановка, свободные зоны под сценарии использования и финальный коммерческий акцент"
+    "главная премиальная обложка: свободная зона сверху и слева под крупный заголовок, центрально-правая зона под большой товар, 3–4 аккуратные области под преимущества, нижняя полоса под характеристики",
+    "карточка преимуществ: справа большая чистая зона под товар, слева четыре вертикальные белые или цветные карточки с круглыми зонами под иконки, динамичный коммерческий фон",
+    "карточка характеристик: чистая технологичная композиция, крупная центральная зона под товар, несколько аккуратных круглых зон для деталей и нижняя структурная полоса",
+    "lifestyle-карточка: атмосферная премиальная предметная сцена, центральная зона под товар, свободные зоны под сценарии использования и подарочный акцент"
   ];
 
   return [
-    "Создай вертикальную визуальную основу продающей карточки товара маркетплейса в формате 3:4.",
-    "ИСПОЛЬЗУЙ ПРИЛОЖЕННОЕ ФОТО КАК ГЛАВНЫЙ ВИЗУАЛЬНЫЙ РЕФЕРЕНС ТОВАРА.",
-    "Сохрани узнаваемую форму товара, его реальные пропорции, цвет, материал, экран, кнопки, ремешок, крепления и другие видимые элементы.",
-    "Не заменяй товар другим предметом и не добавляй несуществующие детали.",
-    "Убери из сцены руку, ткань, случайный фон и бытовые предметы исходного снимка, если они не являются частью товара.",
-    "Стилистика: дорогая современная карточка маркетплейса, крупный товар, мягкий рекламный свет, чистые белые или цветные панели, круглые или капсульные акценты, визуальная иерархия как у сильных Ozon/Wildberries карточек.",
-    "Не рисуй читаемый текст, буквы, цифры, цены, логотипы, водяные знаки и выдуманные маркировки — точный русский текст будет наложен после генерации.",
-    "Оставляй чистые зоны под заголовок, преимущества и характеристики, но сама картинка должна выглядеть законченной и профессиональной.",
-    "Задача этой карточки: " + (roles[index] || roles[0]) + ".",
-    "Название товара для понимания сцены: " + compact(card.seoTitle || card.category || "товар", 120) + ".",
+    "Нарисуй вертикальный ФОН И ДЕКОРАТИВНУЮ СЦЕНУ 3:4 для профессиональной карточки товара маркетплейса.",
+    "ВАЖНО: не рисуй сам главный товар. Реальная фотография товара будет помещена поверх этого фона отдельно.",
+    "Не рисуй копию товара, упаковку товара, руки, людей, бренды, логотипы, буквы, цифры, цены, водяные знаки и читаемый текст.",
+    "Сцена должна выглядеть дорого и законченно даже без текста: мягкий рекламный свет, глубина, аккуратные платформы, градиенты, круглые и капсульные декоративные элементы.",
+    "Стилистика — как у сильных современных карточек Ozon/Wildberries: крупный визуальный акцент, чистые панели, коммерческая композиция, но без текста.",
+    "Оставь визуально чистую область для реального товара, не закрывай её мелким декором.",
+    "Задача макета: " + (roles[index] || roles[0]) + ".",
+    referenceBrief ? "Визуальный анализ реального товара: " + referenceBrief : "",
     card.category ? "Категория: " + compact(card.category, 80) + "." : "",
-    benefits.length ? "Подтвержденные преимущества для визуального контекста: " + benefits.join("; ") + "." : "",
-    specs.length ? "Подтвержденные характеристики для визуального контекста: " + specs.join("; ") + "." : "",
-    "Базовое арт-направление: " + String(style.scene || "современная предметная съемка") + ".",
-    colors ? "Предпочтительная палитра: " + colors + "." : "",
+    "Арт-направление: " + String(style.scene || "профессиональная предметная съемка") + ".",
+    colors ? "Палитра: " + colors + "." : "",
     studioProfile?.artDirector ? "Дополнительное направление: " + String(studioProfile.artDirector) + "." : "",
-    "Высокое качество, реалистичная предметная фотография, коммерческий свет, без текста."
+    "Высокое качество, реалистичная предметная фотография, без текста и без главного товара."
   ].filter(Boolean).join(" ");
 }
 
-async function generateGigaChatReferenceScene(productFileId, cardRaw, index, styleKey, palette, studioProfile) {
-  if (!gigaChatConfigured() || !productFileId) return null;
-  const prompt = yuvionReferenceScenePrompt(cardRaw, index, styleKey, palette, studioProfile);
+async function generateGigaChatReferenceScene(referenceBrief, cardRaw, index, styleKey, palette, studioProfile) {
+  if (!gigaChatConfigured()) return null;
+  const prompt = yuvionReferenceScenePrompt(referenceBrief, cardRaw, index, styleKey, palette, studioProfile);
   let generatedFileId = "";
+
   try {
     const result = await withTimeout(
       gigaChatCompletion(
@@ -1461,15 +1480,11 @@ async function generateGigaChatReferenceScene(productFileId, cardRaw, index, sty
           {
             role: "system",
             content:
-              "Ты арт-директор карточек товаров для маркетплейсов. " +
-              "Сначала внимательно используй приложенное фото как визуальный референс товара, затем обязательно вызови встроенную функцию text2image и создай новую коммерческую сцену. " +
-              "Не добавляй текст внутрь изображения."
+              "Ты арт-директор профессиональных карточек товаров. " +
+              "Когда пользователь просит нарисовать сцену, обязательно используй встроенную функцию text2image. " +
+              "Не рисуй текст и не рисуй главный товар, если пользователь просит фон."
           },
-          {
-            role: "user",
-            content: prompt,
-            attachments: [productFileId]
-          }
+          { role: "user", content: prompt }
         ],
         {
           purpose: "image",
@@ -1479,20 +1494,20 @@ async function generateGigaChatReferenceScene(productFileId, cardRaw, index, sty
         }
       ),
       180000,
-      "Yuvion Studio reference image generation timed out"
+      "Yuvion Studio image generation timed out"
     );
 
     generatedFileId = extractGigaChatImageId(result.content);
     if (!generatedFileId) {
-      throw Object.assign(new Error("Reference-guided image generation returned no image id"), {
-        code: "gigachat_reference_image_id_missing"
+      throw Object.assign(new Error("Yuvion Studio did not return generated image id"), {
+        code: "yuvion_image_id_missing"
       });
     }
 
     const rawImage = await withTimeout(
       downloadGigaChatImage(generatedFileId),
       25000,
-      "Yuvion Studio reference image download timed out"
+      "Yuvion Studio image download timed out"
     );
 
     return sharp(rawImage)
@@ -1503,6 +1518,42 @@ async function generateGigaChatReferenceScene(productFileId, cardRaw, index, sty
   } finally {
     if (generatedFileId) await deleteGigaChatFile(generatedFileId);
   }
+}
+
+async function makeGigaBackgroundVariant(masterBuffer, index = 0, palette = []) {
+  if (!masterBuffer) return null;
+  const colors = normalizePalette(palette);
+  const tint = colors[index % Math.max(1, colors.length)] || ["#F6F4F2", "#EDF3F7", "#F4F1FA", "#F2F7F2"][index] || "#F6F4F2";
+  let pipeline = sharp(masterBuffer)
+    .rotate()
+    .resize(900, 1200, { fit: "cover", position: "centre" });
+
+  if (index === 1) {
+    pipeline = pipeline.flop().modulate({ brightness: 1.02, saturation: 1.08, hue: 4 });
+  } else if (index === 2) {
+    pipeline = pipeline
+      .resize(990, 1320, { fit: "cover", position: "centre" })
+      .extract({ left: 45, top: 35, width: 900, height: 1200 })
+      .modulate({ brightness: 1.04, saturation: 0.92, hue: -4 });
+  } else if (index === 3) {
+    pipeline = pipeline
+      .resize(960, 1280, { fit: "cover", position: "south" })
+      .extract({ left: 30, top: 70, width: 900, height: 1200 })
+      .modulate({ brightness: 0.99, saturation: 1.12, hue: 7 });
+  }
+
+  const tintOverlay = Buffer.from(
+    '<svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+    '<stop offset="0%" stop-color="' + tint + '" stop-opacity="' + (index === 0 ? '0.02' : '0.07') + '"/>' +
+    '<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>' +
+    '</linearGradient></defs><rect width="900" height="1200" fill="url(#g)"/></svg>'
+  );
+
+  return pipeline
+    .composite([{ input: tintOverlay, blend: "soft-light" }])
+    .jpeg({ quality: 91, mozjpeg: true })
+    .toBuffer();
 }
 
 async function callGigaChatCopy(cardRaw = {}) {
