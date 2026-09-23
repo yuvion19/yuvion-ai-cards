@@ -1775,8 +1775,8 @@ async function importFromProductUrl(){
     }
     currentData.confirmedData={...importedExtra};
     fillExtraData(importedExtra);
-    setUrlImportStatus('Данные получены. AI готовит описание товара…','');
-    currentData=await enhanceProductCopyWithGpt(currentData);
+    setUrlImportStatus('Данные получены. Готовим описание товара…','');
+    currentData=await enhanceProductCopyLocally(currentData);
 
     const images=Array.isArray(payload.images)?payload.images:[];
     const main=images[0]?.dataUrl||'';
@@ -4258,7 +4258,7 @@ function parseLocalVisionJson(text){
 
 function ensureLocalVisionWorker(){
   if(localVisionWorker)return localVisionWorker;
-  localVisionWorker=new Worker('/local-vision-worker.js?v=11.0.0',{type:'module'});
+  localVisionWorker=new Worker('/local-vision-worker.js?v=11.2.6',{type:'module'});
   return localVisionWorker;
 }
 
@@ -4381,7 +4381,7 @@ async function requestImmediateLocalCard(src,file){
     const fallbackName=String(extra.name||fallback.seoTitle||'').trim();
     const response=await fetch('/api/analyze',{
       method:'POST',headers:apiHeaders(),
-      body:JSON.stringify({...src,mode:currentMode,preferLocal:false,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})
+      body:JSON.stringify({...src,mode:currentMode,preferLocal:true,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})
     });
     const data=await response.json().catch(()=>({}));
     if(response.ok&&data?.shortDescription&&data?.fullDescription)return data;
@@ -4414,7 +4414,7 @@ function ensureVisibleProductDescription(card){
   return {...data,seoTitle:title,shortDescription:localShort,fullDescription:localFull};
 }
 
-async function enhanceProductCopyWithGpt(card,{force=false}={}){
+async function enhanceProductCopyLocally(card,{force=false}={}){
   if(!card||typeof card!=='object')return card;
   card=ensureVisibleProductDescription(card);
   if(!force&&card.copyProvider&&card.copyProvider!=='local'&&card.shortDescription&&card.fullDescription)return card;
@@ -4424,7 +4424,7 @@ async function enhanceProductCopyWithGpt(card,{force=false}={}){
     },1);
     if(!response.ok||!data?.card)return ensureVisibleProductDescription(card);
     const copy=ensureVisibleProductDescription(data.card);
-    const provider=data.provider||copy.copyProvider||(data.used?'openai':'local');
+    const provider=data.provider||copy.copyProvider||'local';
     const finalCard=ensureVisibleProductDescription({
       ...card,
       seoTitle:String(copy.seoTitle||card.seoTitle||'Товар').trim(),
@@ -4479,15 +4479,15 @@ async function createImmediateFreeCards(file){
       applyCategoryRule({applyTemplate:true});
       currentData=collectEdits();
       provisional=currentData;
-      creativeStatus.textContent='AI готовит описание товара по подтверждённым данным…';
-      provisional=await enhanceProductCopyWithGpt(provisional);
+      creativeStatus.textContent='Готовим описание локально по распознанным и подтверждённым данным…';
+      provisional=await enhanceProductCopyLocally(provisional);
       if(productId!==currentHistoryId)return false;
       currentData=provisional;
       fillEditor(provisional);
       await applyCatalogRelations(currentData);
       renderAiQuality(currentData);updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
       confidence.textContent=provisional.copyProvider&&provisional.copyProvider!=='local'
-        ?'Описание подготовлено AI · характеристики остаются подтверждёнными отдельно'
+        ?'Описание подготовлено локально · без платного AI'
         :provisional.analysisMode==='browser-vision'
           ?'Товар распознан локально · использовано резервное описание'
           :'Базовое описание готово · точные неподтверждённые параметры не добавлены';
@@ -4546,7 +4546,7 @@ analyzeBtn.onclick=async()=>{
       {
         const extra=collectExtraData();
         const fallbackName=String(extra.name||currentData?.seoTitle||'').trim();
-        response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,preferLocal:false,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})});
+        response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,preferLocal:true,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})});
       }
     }finally{clearTimeout(timeoutId)}
     let data=await response.json().catch(()=>({}));
@@ -4557,9 +4557,9 @@ analyzeBtn.onclick=async()=>{
       const improved=await upgradeFallbackWithBrowserVision(data,src);
       if(improved&&improved.analysisMode==='browser-vision')data=improved;
     }
-    loadingTitle.textContent='AI готовит описание';
+    loadingTitle.textContent='Готовим описание';
     loadingText.textContent='Пишем описание только по подтверждённым данным товара.';
-    data=await enhanceProductCopyWithGpt(data);
+    data=await enhanceProductCopyLocally(data);
     const hadImmediateCards=currentCards.length===4&&currentScenes.length===4;
     currentData=data;
     if(hadImmediateCards){cardsStale=true;currentStaleCards=[0,1,2,3];currentScenes=[];}
@@ -6932,7 +6932,7 @@ async function processExcelAutopilotItem(item,style){
   }
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
   analyzed=ensureVisibleProductDescription(analyzed);
-  analyzed=await enhanceProductCopyWithGpt(analyzed);
+  analyzed=await enhanceProductCopyLocally(analyzed);
   analyzed=ensureVisibleProductDescription(analyzed);
   let directedStyle=style==='auto'?recommendedStyleForProduct(analyzed):style;
   if(style==='auto'){
@@ -8236,7 +8236,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=30',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=31',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
