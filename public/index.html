@@ -4436,9 +4436,26 @@ function productFactsForClientCopy(card){
   };
 }
 
+async function ensurePuterAiReady(){
+  if(window.puter?.ai?.chat)return true;
+  const existing=[...document.scripts].find(x=>String(x.src||'').includes('js.puter.com/v2'));
+  if(!existing){
+    const script=document.createElement('script');
+    script.src='https://js.puter.com/v2/';
+    script.async=true;
+    document.head.appendChild(script);
+  }
+  const started=Date.now();
+  while(Date.now()-started<3500){
+    if(window.puter?.ai?.chat)return true;
+    await new Promise(resolve=>setTimeout(resolve,120));
+  }
+  return Boolean(window.puter?.ai?.chat);
+}
+
 async function enhanceProductCopyWithPuter(card){
   card=ensureVisibleProductDescription(card);
-  if(!window.puter?.ai?.chat)return card;
+  if(!(await ensurePuterAiReady()))return card;
   const facts=productFactsForClientCopy(card);
   const system=
     'Ты пишешь продающий естественный текст карточки товара Yuvion на русском языке. '+
