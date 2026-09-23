@@ -30,6 +30,10 @@ const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || "";
 const WHATSAPP_GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "";
 const WHATSAPP_TEMPLATE_NAME = process.env.WHATSAPP_TEMPLATE_NAME || "";
 const WHATSAPP_TEMPLATE_LANG = process.env.WHATSAPP_TEMPLATE_LANG || "ru";
+const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "";
+const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET || "";
+const WHATSAPP_PARSE_MODEL = process.env.WHATSAPP_PARSE_MODEL || "gpt-5.6-luna";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || "";
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || "";
 const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER || "";
@@ -70,7 +74,12 @@ app.use((req, res, next) => {
     "connect-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   next();
 });
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({
+  limit: "2mb",
+  verify:(req,_res,buf)=>{
+    if(String(req.originalUrl||"").startsWith("/api/whatsapp/webhook")) req.rawBody=Buffer.from(buf);
+  }
+}));
 app.use(express.urlencoded({ extended: false, limit: "256kb" }));
 app.use((req,res,next)=>{
   const p=req.path;
@@ -115,6 +124,170 @@ async function verifyTurnstileToken(token){
     });
     const d=await r.json();return Boolean(d.success);
   }catch{return false}
+}
+
+
+function stableUuid(seed){
+  const h=crypto.createHash("sha256").update(String(seed)).digest();
+  h[6]=(h[6]&0x0f)|0x50;
+  h[8]=(h[8]&0x3f)|0x80;
+  const x=h.toString("hex").slice(0,32);
+  return x.slice(0,8)+"-"+x.slice(8,12)+"-"+x.slice(12,16)+"-"+x.slice(16,20)+"-"+x.slice(20);
+}
+function whatsappSignatureOk(req){
+  if(!WHATSAPP_APP_SECRET||!req.rawBody)return false;
+  const got=String(req.get("x-hub-signature-256")||"");
+  if(!got.startsWith("sha256="))return false;
+  const expected="sha256="+crypto.createHmac("sha256",WHATSAPP_APP_SECRET).update(req.rawBody).digest("hex");
+  const a=Buffer.from(got),b=Buffer.from(expected);
+  return a.length===b.length&&crypto.timingSafeEqual(a,b);
+}
+function whatsappInboundText(message){
+  if(message?.type==="text")return clean(message?.text?.body,5000);
+  if(message?.type==="image")return clean(message?.image?.caption,5000);
+  if(message?.type==="video")return clean(message?.video?.caption,5000);
+  if(message?.type==="document")return clean(message?.document?.caption,5000);
+  return "";
+}
+function responsesOutputText(data){
+  if(typeof data?.output_text==="string")return data.output_text;
+  for(const item of data?.output||[])for(const c of item?.content||[])if(c?.type==="output_text"&&typeof c.text==="string")return c.text;
+  return "";
+}
+async function extractWhatsappMemorialNotices(rawText,sender){
+  if(!OPENAI_API_KEY)throw new Error("openai_not_configured");
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Moscow",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const schema={
+    type:"object",additionalProperties:false,
+    properties:{
+      notices:{
+        type:"array",maxItems:5,
+        items:{
+          type:"object",additionalProperties:false,
+          properties:{
+            full_name:{type:"string"},
+            death_date:{type:"string"},
+            funeral_date:{type:"string"},
+            event_time:{type:"string"},
+            city:{type:"string"},
+            place:{type:"string"},
+            note:{type:"string"},
+            confidence:{type:"number",minimum:0,maximum:1}
+          },
+          required:["full_name","death_date","funeral_date","event_time","city","place","note","confidence"]
+        }
+      }
+    },
+    required:["notices"]
+  };
+  const r=await fetch("https://api.openai.com/v1/responses",{
+    method:"POST",
+    headers:{authorization:"Bearer "+OPENAI_API_KEY,"content-type":"application/json"},
+    body:JSON.stringify({
+      model:WHATSAPP_PARSE_MODEL,
+      store:false,
+      safety_identifier:crypto.createHash("sha256").update(String(sender||"unknown")).digest("hex").slice(0,64),
+      instructions:
+        "Извлеки из входящего WhatsApp-сообщения только достоверно указанные сведения об умерших людях для мемориального сайта. "+
+        "Не выдумывай ФИО, даты, место или время. Если сообщение не является сообщением о смерти/похоронах, верни пустой массив notices. "+
+        "death_date и funeral_date возвращай только как YYYY-MM-DD; если дата не указана и её нельзя однозначно вывести из слов сегодня/вчера/завтра, верни пустую строку. "+
+        "event_time возвращай как HH:MM или пустую строку. Сегодня по Москве: "+today+". "+
+        "Одно сообщение может содержать несколько людей. confidence оценивает уверенность именно в ФИО и дате смерти.",
+      input:rawText,
+      text:{format:{type:"json_schema",name:"memorial_whatsapp_extract",strict:true,schema}}
+    })
+  });
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error("openai_"+r.status+":"+clean(data?.error?.message,240));
+  const out=responsesOutputText(data);
+  if(!out)throw new Error("openai_empty_output");
+  const parsed=JSON.parse(out);
+  return Array.isArray(parsed?.notices)?parsed.notices:[];
+}
+async function whatsappSessionReply(phone,body){
+  if(!WHATSAPP_ACCESS_TOKEN||!WHATSAPP_PHONE_NUMBER_ID||!WHATSAPP_GRAPH_VERSION||!phone)return false;
+  const to=String(phone).replace(/^\+/,"");
+  const r=await fetch("https://graph.facebook.com/"+encodeURIComponent(WHATSAPP_GRAPH_VERSION)+"/"+encodeURIComponent(WHATSAPP_PHONE_NUMBER_ID)+"/messages",{
+    method:"POST",
+    headers:{authorization:"Bearer "+WHATSAPP_ACCESS_TOKEN,"content-type":"application/json"},
+    body:JSON.stringify({messaging_product:"whatsapp",to,type:"text",text:{body:String(body).slice(0,3500),preview_url:false}})
+  });
+  if(!r.ok)console.error("whatsapp reply",r.status,await r.text().catch(()=>""));
+  return r.ok;
+}
+async function publishWhatsappNotice(notice,messageId,noticeIndex,sender){
+  const fullName=clean(notice?.full_name,180),deathDate=clean(notice?.death_date,10);
+  const confidence=Number(notice?.confidence||0);
+  if(!fullName||!validDate(deathDate)||confidence<0.72)return {published:false,reason:"missing_or_uncertain",full_name:fullName};
+
+  const city=clean(notice?.city,120)||null,place=clean(notice?.place,180)||null,note=clean(notice?.note,1500)||null;
+  const funeralDate=validDate(clean(notice?.funeral_date,10))?clean(notice.funeral_date,10):null;
+  const eventTime=/^([01]\d|2[0-3]):[0-5]\d$/.test(String(notice?.event_time||""))?String(notice.event_time):null;
+  const yahrzeit=nextYahrzeit(deathDate,new Date(),"standard");
+  const base={
+    full_name:fullName,death_date:deathDate,event_time:null,city,place,note,
+    cemetery_link:null,cemetery_record_key:null,visibility:"public",status:"approved",
+    relation_confirmed:false,family_verified:false,source_verified:false,quality_status:"needs_review",
+    publish_day7:true,publish_day40:true,publish_year1:true,publish_annual:true,
+    hebrew_death_label:hebrewLabel(deathDate),yahrzeit_date:yahrzeit,
+    hebrew_after_sunset:false,yahrzeit_rule:"standard",urgent:false,
+    event_timezone:"Europe/Moscow",
+    derived:{...derivedDates(deathDate),yahrzeit,hebrew_source_date:deathDate,source:"whatsapp_auto"},
+    submitter_name:"WhatsApp",submitter_contact:clean(sender,80)||null
+  };
+  const planned=[
+    {event_type:"Памятная дата",event_date:deathDate,urgent:false,event_time:null},
+    {event_type:"7 дней",event_date:addDays(deathDate,7),urgent:false,event_time:null},
+    {event_type:"40 дней",event_date:addDays(deathDate,40),urgent:false,event_time:null},
+    {event_type:"1 год",event_date:addYear(deathDate),urgent:false,event_time:null},
+    {event_type:"Годовщина",event_date:addYear(deathDate),urgent:false,event_time:null}
+  ];
+  if(yahrzeit)planned.push({event_type:"Йорцайт",event_date:yahrzeit,urgent:false,event_time:null});
+  if(funeralDate)planned.unshift({event_type:"Похороны",event_date:funeralDate,urgent:true,event_time:eventTime});
+
+  let existing=[];
+  try{
+    existing=await sb("rpc/memorial_duplicate_candidates",{method:"POST",body:{
+      p_full_name:fullName,p_death_date:deathDate,p_city:city,p_limit:20
+    }})||[];
+  }catch(e){console.error("whatsapp duplicate check",e.data||e.message)}
+  const exact=(existing||[]).filter(e=>String(e.full_name||"").trim().toLowerCase()===fullName.toLowerCase()&&String(e.death_date||"")===deathDate);
+  const existingKeys=new Set(exact.map(e=>String(e.event_type||"")+"|"+String(e.event_date||"")));
+  const rows=planned
+    .filter(x=>!existingKeys.has(x.event_type+"|"+x.event_date))
+    .map((x,j)=>({
+      id:stableUuid("wa:"+messageId+":"+noticeIndex+":"+x.event_type+":"+x.event_date+":"+j),
+      ...base,...x,
+      event_time:x.event_time||null
+    }));
+  if(rows.length)await sb("memorial_events?on_conflict=id",{method:"POST",body:rows,prefer:"resolution=ignore-duplicates,return=minimal"});
+  const firstId=rows[0]?.id||exact[0]?.id||null;
+  return {published:Boolean(firstId),full_name:fullName,event_id:firstId,created:rows.length,duplicate:rows.length===0};
+}
+async function handleWhatsappInboundMessage(message){
+  const sender=clean(message?.from,80),messageId=clean(message?.id,220),rawText=whatsappInboundText(message);
+  if(!messageId||!sender||!rawText)return;
+  try{
+    const notices=await extractWhatsappMemorialNotices(rawText,sender);
+    if(!notices.length){
+      await whatsappSessionReply(sender,"Сообщение получено, но я не нашёл в нём однозначных данных об умершем. Укажите ФИО и дату смерти.");
+      return;
+    }
+    const results=[];
+    for(let i=0;i<notices.length;i++)results.push(await publishWhatsappNotice(notices[i],messageId,i,sender));
+    const published=results.filter(x=>x.published);
+    if(!published.length){
+      await whatsappSessionReply(sender,"Для автоматической публикации нужны однозначные ФИО и дата смерти. Пожалуйста, отправьте эти данные одним сообщением.");
+      return;
+    }
+    const base=(PUBLIC_BASE_URL||APP_PUBLIC_URL||"").replace(/\/$/,"");
+    const lines=published.slice(0,3).map(x=>x.full_name+(x.event_id&&base?"\n"+base+"/m/memorial/"+encodeURIComponent(x.event_id):""));
+    await whatsappSessionReply(sender,"Опубликовано автоматически в «Память»:\n"+lines.join("\n\n"));
+    console.log("whatsapp auto-published",JSON.stringify(published.map(x=>({event_id:x.event_id,created:x.created,duplicate:x.duplicate}))));
+  }catch(e){
+    console.error("whatsapp inbound",e.message||e);
+    await whatsappSessionReply(sender,"Не удалось автоматически обработать сообщение. Проверьте, что указаны ФИО и дата смерти, и отправьте сообщение ещё раз.").catch(()=>{});
+  }
 }
 
 function safeSourceLink(v){
@@ -3330,6 +3503,22 @@ function reminderProviderStatus(){
     sms:Boolean(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER)
   };
 }
+
+
+app.get("/api/whatsapp/webhook",(req,res)=>{
+  if(!WHATSAPP_VERIFY_TOKEN)return res.status(503).send("whatsapp_not_configured");
+  const mode=String(req.query["hub.mode"]||""),token=String(req.query["hub.verify_token"]||""),challenge=String(req.query["hub.challenge"]||"");
+  if(mode==="subscribe"&&token===WHATSAPP_VERIFY_TOKEN)return res.status(200).send(challenge);
+  return res.sendStatus(403);
+});
+app.post("/api/whatsapp/webhook",(req,res)=>{
+  if(!WHATSAPP_APP_SECRET||!WHATSAPP_VERIFY_TOKEN)return res.status(503).json({error:"whatsapp_not_configured"});
+  if(!whatsappSignatureOk(req))return res.status(401).json({error:"bad_signature"});
+  const messages=[];
+  for(const entry of req.body?.entry||[])for(const change of entry?.changes||[])for(const m of change?.value?.messages||[])messages.push(m);
+  res.sendStatus(200);
+  for(const m of messages)Promise.resolve(handleWhatsappInboundMessage(m)).catch(e=>console.error("whatsapp handler",e));
+});
 
 app.get("/api/notification-groups", async (_req,res)=>{
   try{
