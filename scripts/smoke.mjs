@@ -183,40 +183,26 @@ const features=[
   ['urlImportEmbeddedJsonFallback: true','embedded JSON URL import fallback metadata'],
   ['guaranteedDescriptions: true','guaranteed description metadata'],
   ['gptProductCopyEnabled:','GPT product copy health flag'],
-  ['gptProductCopyConfigured: ["openai","groq","cloudflare","openrouter"].some(copyProviderConfigured)','multi-provider copy configured flag'],
-  ['gptProductCopyModel: process.env.OPENAI_TEXT_MODEL || "gpt-5.6-luna"','GPT copy model metadata'],
-  ['gptProductCopyFallback: true','GPT copy local fallback metadata'],
-  ['/api/generate-copy','GPT copy endpoint'],
-  ['function generateProductCopyWithGpt','GPT copy generator'],
-  ['function generateProductCopyWithProviders','multi-provider copy router'],
-  ['["openai", callOpenAiCopy]','OpenAI first copy provider'],
-  ['["groq", callGroqCopy]','Groq second copy provider'],
-  ['["cloudflare", callCloudflareCopy]','Cloudflare third copy provider'],
-  ['["openrouter", callOpenRouterCopy]','OpenRouter fourth copy provider'],
-  ['"https://api.groq.com/openai/v1"','Groq OpenAI-compatible endpoint'],
-  ['"openai/gpt-oss-120b"','Groq GPT-OSS 120B default'],
-  ['"https://api.cloudflare.com/client/v4/accounts/"','Cloudflare Workers AI endpoint'],
-  ['"@cf/openai/gpt-oss-120b"','Cloudflare GPT-OSS 120B default'],
-  ['"https://openrouter.ai/api/v1"','OpenRouter endpoint'],
-  ['"openrouter/free"','OpenRouter free router default'],
-  ['copyProviderCircuitBreaker: true','copy provider circuit breaker metadata'],
-  ['copyProviderPriority: ["openai","groq","cloudflare","openrouter","vireonix","local"]','copy provider priority metadata'],
-  ['function setCopyProviderCooldown','provider cooldown implementation'],
-  ['credit_balance_exhausted','provider credit exhaustion failover'],
+  ['gptProductCopyConfigured: copyProviderConfigured("vireonix")','Vireonix-only copy configured flag'],
+  ['gptProductCopyModel: process.env.VIREONIX_TEXT_MODEL || "auto"','Vireonix copy model metadata'],
+  ['gptProductCopyFallback: true','local description safety fallback metadata'],
+  ['/api/generate-copy','AI copy endpoint'],
+  ['function generateProductCopyWithGpt','copy compatibility wrapper'],
+  ['function generateProductCopyWithProviders','Vireonix-only copy router'],
+  ['copyProviderCircuitBreaker: true','Vireonix circuit breaker metadata'],
+  ['copyProviderPriority: ["vireonix","local"]','Vireonix-only provider priority metadata'],
+  ['vireonixOnlyProductCopy: true','Vireonix-only product copy metadata'],
+  ['function setCopyProviderCooldown','Vireonix cooldown implementation'],
   ['noLoginAiFallback: true','no-login AI fallback metadata'],
-  ['["vireonix", callVireonixCopy]','Vireonix no-auth provider in fallback chain'],
   ['https://vireonix.ai/v1/chat/completions','Vireonix no-auth endpoint'],
   ['async function callVireonixCopy','Vireonix caller implementation'],
   ['name === "vireonix"','Vireonix configured without API key'],
   ['vireonix: { configured: copyProviderConfigured("vireonix")','Vireonix health provider metadata'],
   ['auth: "none"','Vireonix no-auth health marker'],
+  ['stats.copyProviderAttempts.vireonix','Vireonix attempt telemetry'],
+  ['stats.copyProviderSuccesses.vireonix','Vireonix success telemetry'],
 
   ["data.provider||copy.copyProvider","frontend preserves actual server provider"],
-
-
-  ['store: false','OpenAI copy storage disabled'],
-  ['name: "yuvion_product_copy"','GPT structured output schema'],
-  ['copyProvider: provider','dynamic copy provider marker'],
   ['async function enhanceProductCopyWithGpt','frontend GPT copy helper'],
   ['function ensureVisibleProductDescription','client visible-description guard'],
   ['copyResponseDescriptionGuard: true','server copy response description guard'],
@@ -275,6 +261,9 @@ for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
 }
 if(html.includes('js.puter.com')||html.includes('window.puter')||html.includes('enhanceProductCopyWithPuter'))fail('Puter login fallback still present');else ok('Puter login fallback removed');
+if(server.includes('async function callOpenAiCopy')||server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy'))fail('legacy description AI providers still present');else ok('Vireonix is the only external description AI provider');
+if(server.includes('api.groq.com/openai/v1')||server.includes('api.cloudflare.com/client/v4/accounts/')||server.includes('openrouter.ai/api/v1'))fail('legacy description provider endpoints still present');else ok('legacy description provider endpoints removed');
+
 
 
 const urlSecurity=[
