@@ -4961,6 +4961,65 @@ if (gigaChatConfigured()) {
       completionModel: ping.model,
       reply: String(ping.content || "").slice(0, 20)
     });
+
+    if (String(process.env.GIGACHAT_STARTUP_MEDIA_TEST || "").toLowerCase() === "true") {
+      let testFileId = "";
+      try {
+        const testImage = await sharp({
+          create: {
+            width: 96,
+            height: 96,
+            channels: 3,
+            background: { r: 220, g: 45, b: 45 }
+          }
+        }).png().toBuffer();
+
+        testFileId = await withTimeout(
+          uploadImageToGigaChat(testImage, "image/png", 99),
+          20000,
+          "GigaChat vision test upload timed out"
+        );
+
+        const vision = await withTimeout(
+          gigaChatCompletion([
+            {
+              role: "user",
+              content: "Кратко назови основной цвет изображения одним словом.",
+              attachments: [testFileId]
+            }
+          ], {
+            model: textModel,
+            maxTokens: 20,
+            temperature: 0
+          }),
+          25000,
+          "GigaChat Vision self-test timed out"
+        );
+        console.log("GigaChat Vision self-test OK:", {
+          model: vision.model,
+          reply: String(vision.content || "").slice(0, 40)
+        });
+      } finally {
+        if (testFileId) await deleteGigaChatFile(testFileId);
+      }
+
+      const imageBuffer = await withTimeout(
+        generateGigaChatBackground(
+          { seoTitle: "Тестовый товар", category: "Дом и интерьер" },
+          0,
+          "minimal",
+          [],
+          { artDirector: "clean studio" }
+        ),
+        80000,
+        "GigaChat text2image self-test timed out"
+      );
+      const generatedMeta = imageBuffer ? await sharp(imageBuffer).metadata() : {};
+      console.log("GigaChat text2image self-test OK:", {
+        width: generatedMeta.width,
+        height: generatedMeta.height
+      });
+    }
   } catch (error) {
     console.error("GigaChat self-test failed:", {
       message: error?.message,
