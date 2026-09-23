@@ -2175,7 +2175,7 @@ app.post("/api/quality-check", async (req, res) => {
         overall: failures ? "Нужно исправить" : warningsCount ? "Есть замечания" : "Отлично",
         cards: cardsResult,
         local: true,
-        visualQaVersion: 4,
+        visualQaVersion: 5,
         seriesSimilarity,
         qualityScoreVersion: 3,
         recommendedCoverIndex: cardsResult.reduce((best,item,idx,arr)=>item.coverScore>arr[best].coverScore?idx:best,0),
