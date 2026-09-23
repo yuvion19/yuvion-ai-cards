@@ -4630,5 +4630,5 @@ if (!textOverlayGuardState.ready) {
   console.log("Text overlay guard self-test OK:", textOverlayGuardState.textPixels, "text pixels");
 }
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.2.4 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.2.5 listening on port ${port}`);
 });
