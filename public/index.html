@@ -4381,7 +4381,7 @@ async function requestImmediateLocalCard(src,file){
     const fallbackName=String(extra.name||fallback.seoTitle||'').trim();
     const response=await fetch('/api/analyze',{
       method:'POST',headers:apiHeaders(),
-      body:JSON.stringify({...src,mode:currentMode,preferLocal:true,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})
+      body:JSON.stringify({...src,mode:currentMode,preferLocal:false,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})
     });
     const data=await response.json().catch(()=>({}));
     if(response.ok&&data?.shortDescription&&data?.fullDescription)return data;
@@ -4546,7 +4546,7 @@ analyzeBtn.onclick=async()=>{
       {
         const extra=collectExtraData();
         const fallbackName=String(extra.name||currentData?.seoTitle||'').trim();
-        response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,preferLocal:true,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})});
+        response=await fetch('/api/analyze',{method:'POST',headers:apiHeaders(),signal:controller.signal,body:JSON.stringify({...src,mode:currentMode,preferLocal:false,extraData:{...extra,name:fallbackName},additionalImages:additionalPhotosForAnalyze()})});
       }
     }finally{clearTimeout(timeoutId)}
     let data=await response.json().catch(()=>({}));
@@ -8236,7 +8236,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=29',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=30',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
