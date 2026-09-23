@@ -289,7 +289,7 @@ if(!html.includes('currentStaleCards.length<4'))fail('full-set stale cards must 
 if(!server.includes('browserVisionFallback: true'))fail('browser vision fallback metadata missing');else ok('browser vision fallback metadata present');
 if(!server.includes('uniqueMultiAngleRouting: true'))fail('unique multi-angle routing metadata missing');else ok('unique multi-angle routing metadata present');
 if(!server.includes('/api/local-vision-normalize'))fail('local vision normalize endpoint missing');else ok('local vision normalize endpoint present');
-if(!html.includes("new Worker('/local-vision-worker.js?v=10.9.0'"))fail('local vision worker hook missing');else ok('local vision worker hook present');
+if(!html.includes("new Worker('/local-vision-worker.js?v=11.0.0'"))fail('local vision worker hook missing');else ok('local vision worker hook present');
 if(!html.includes('upgradeFallbackWithBrowserVision'))fail('browser vision fallback integration missing');else ok('browser vision fallback integration present');
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
@@ -302,7 +302,7 @@ if(!server.includes('smolVlmWasmFallback: true'))fail('SmolVLM WASM fallback met
 if(!server.includes('perCardSceneVariants: true'))fail('per-card scene variants metadata missing');else ok('per-card scene variants metadata present');
 if(!server.includes('transformProductForScene'))fail('safe product scene transform missing');else ok('safe product scene transform present');
 if(!server.includes('sceneVariant=Number.isInteger'))fail('scene-specific background variant missing');else ok('scene-specific background variant present');
-if(!html.includes("local-vision-worker.js?v=10.9.0"))fail('vision worker cache bust missing');else ok('vision worker cache bust present');
+if(!html.includes("local-vision-worker.js?v=11.0.0"))fail('vision worker cache bust missing');else ok('vision worker cache bust present');
 if(!worker.includes('/+esm'))fail('worker ESM CDN endpoint missing');else ok('worker ESM CDN endpoint present');
 if(!worker.includes('dtype:"q8"'))fail('worker WASM q8 fallback missing');else ok('worker WASM q8 fallback present');
 if(!worker.includes('sequences[0].slice(inputLength)'))fail('generated-only vision decode missing');else ok('generated-only vision decode present');
