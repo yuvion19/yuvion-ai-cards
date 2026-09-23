@@ -369,7 +369,7 @@ if(html.includes('local-vision-worker.js'))fail('obsolete vision worker referenc
 if(!server.includes('Преобладающий цвет на фото'))fail('guaranteed visible fallback characteristic missing');else ok('guaranteed visible fallback characteristic present');
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(html.includes('improveProductWithLocalVisionInBackground'))fail('obsolete local vision recovery remains');else ok('obsolete local vision recovery removed');
-if(!html.includes("register('/sw.js?v=35'"))fail('service worker v36 registration missing');else ok('service worker v36 registration present');
+if(!html.includes("register('/sw.js?v=36'"))fail('service worker v36 registration missing');else ok('service worker v36 registration present');
 if(!sw.includes("yuvion-ai-shell-v36"))fail('service worker v36 cache missing');else ok('service worker v36 cache present');
 if(!html.includes('<title>Yuvion Studio — карточки товара из фото, Excel и ссылки</title>'))fail('Yuvion Studio page title missing');else ok('Yuvion Studio page title present');
 if(!html.includes('<div class="eyebrow">Yuvion Studio</div>'))fail('Yuvion Studio hero branding missing');else ok('Yuvion Studio hero branding present');
