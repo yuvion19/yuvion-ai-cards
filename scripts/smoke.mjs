@@ -331,7 +331,7 @@ if(!html.includes('Авто · арт-директор'))fail('batch art directo
 
 if(!server.includes('zeroCreditTextFallback: true'))fail('zero-credit text fallback metadata missing');else ok('zero-credit text fallback metadata present');
 if(!server.includes('analysisMode: "local-fallback"'))fail('local fallback response missing');else ok('local fallback response present');
-if(!server.includes('credit_balance_exhausted" || error?.status === 401'))fail('credit fallback path missing');else ok('credit fallback path present');
+if(!server.includes('reason: deepSeekConfigured() ? "deepseek_unavailable" : "deepseek_not_configured"'))fail('DeepSeek fallback path missing');else ok('DeepSeek fallback path present');
 if(!html.includes('currentStaleCards=[0,1,2,3];currentScenes=[]'))fail('post-analysis full scene refresh missing');else ok('post-analysis full scene refresh present');
 if(!html.includes('currentStaleCards.length<4'))fail('full-set stale cards must bypass overlay-only rebuild');else ok('full-set stale cards bypass overlay-only rebuild');
 
@@ -394,7 +394,7 @@ if(!html.includes('.simple-ui .workflow,.simple-ui .focus-panel,.simple-ui .smar
 
 if(!server.includes('singlePhotoTruthfulVariation: true'))fail('single-photo truthful variation metadata missing');else ok('single-photo truthful variation metadata present');
 if(!html.includes("const complete=await createImmediateFreeCards(file)"))fail('duplicate analysis suppression missing');else ok('duplicate analysis suppression present');
-if(!html.includes("if(provisional.analysisMode==='local-fallback')"))fail('pre-render local vision finalization missing');else ok('pre-render local vision finalization present');
+if(!html.includes('const fastLocal=await requestImmediateDeepSeekCard(src,file)'))fail('pre-render DeepSeek analysis missing');else ok('pre-render DeepSeek analysis present');
 if(html.includes("window.setTimeout(()=>improveProductWithLocalVisionInBackground(src,productId,baseData),250)"))fail('background vision race trigger still active');else ok('background vision race trigger removed');
 if(!server.includes('extractProductPalette(buffer)'))fail('photo color enrichment missing');else ok('photo color enrichment present');
 if(!server.includes('if (index > 0 && !secondarySourceBuffer)'))fail('single-photo detail variation missing');else ok('single-photo detail variation present');
