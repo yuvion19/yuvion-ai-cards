@@ -1278,6 +1278,94 @@ async function deleteGigaChatFile(fileId) {
   }
 }
 
+function extractGigaChatImageId(content) {
+  const text = String(content || "");
+  const match = text.match(/<img[^>]+src=["']([0-9a-f-]{20,})["'][^>]*>/i);
+  return match ? match[1] : "";
+}
+
+async function downloadGigaChatImage(fileId) {
+  const response = await gigaChatFetch("/v1/files/" + encodeURIComponent(fileId) + "/content", {
+    method: "GET",
+    headers: { Accept: "application/jpg" }
+  });
+  if (!response.ok) {
+    const raw = await response.text();
+    throw gigaChatRequestError(response, raw, "gigachat_image_download_failed");
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
+function gigaChatBackgroundPrompt(cardRaw, index = 0, styleKey = "minimal", palette = [], studioProfile = {}) {
+  const card = normalizeCard(cardRaw);
+  const roles = [
+    "премиальная студийная обложка с мягким светом и чистой центральной зоной",
+    "динамичный рекламный фон для преимуществ, с глубиной и мягкими геометрическими акцентами",
+    "чистый технический фон для характеристик, аккуратный и структурный",
+    "атмосферный lifestyle-фон для сценария использования, без конкретных товаров и людей"
+  ];
+  const style = styleProfiles[styleKey] || styleProfiles.minimal;
+  const colors = normalizePalette(palette).slice(0, 4).join(", ");
+  const artDirector = String(studioProfile?.artDirector || "").trim();
+
+  return [
+    "Нарисуй вертикальный фон 3:4 для продающей карточки товара маркетплейса.",
+    "Это ФОН, не изображение самого товара.",
+    "Не рисуй товар, упаковку, людей, руки, бренды, логотипы, буквы, цифры, ценники, водяные знаки или читаемый текст.",
+    "Оставь большую чистую зону для размещения реальной фотографии товара и отдельную спокойную область для инфографики.",
+    "Стиль: " + String(style.scene || "современная предметная студия") + ".",
+    "Задача кадра: " + (roles[index] || roles[0]) + ".",
+    card.category ? "Категория товара для понимания атмосферы: " + card.category + "." : "",
+    colors ? "Предпочтительная палитра: " + colors + "." : "",
+    artDirector ? "Арт-направление: " + artDirector + "." : "",
+    "Высокое качество, реалистичный студийный свет, без текста и без главного объекта."
+  ].filter(Boolean).join(" ");
+}
+
+async function generateGigaChatBackground(cardRaw, index, styleKey, palette, studioProfile) {
+  if (!gigaChatConfigured()) return null;
+  const prompt = gigaChatBackgroundPrompt(cardRaw, index, styleKey, palette, studioProfile);
+  let generatedFileId = "";
+  try {
+    const result = await withTimeout(
+      gigaChatCompletion(
+        [
+          {
+            role: "system",
+            content: "Ты арт-директор товарной фотографии. Когда пользователь просит нарисовать фон, обязательно используй встроенную функцию text2image. Не добавляй текст на изображение."
+          },
+          { role: "user", content: prompt }
+        ],
+        {
+          purpose: "image",
+          functionCall: "auto",
+          maxTokens: 420,
+          temperature: 0.25
+        }
+      ),
+      70000,
+      "GigaChat image generation timed out"
+    );
+    generatedFileId = extractGigaChatImageId(result.content);
+    if (!generatedFileId) {
+      throw Object.assign(new Error("GigaChat did not return generated image id"), { code: "gigachat_image_id_missing" });
+    }
+    const rawImage = await withTimeout(
+      downloadGigaChatImage(generatedFileId),
+      25000,
+      "GigaChat image download timed out"
+    );
+    const normalized = await sharp(rawImage)
+      .rotate()
+      .resize(900, 1200, { fit: "cover", position: "centre" })
+      .jpeg({ quality: 91, mozjpeg: true })
+      .toBuffer();
+    return normalized;
+  } finally {
+    if (generatedFileId) await deleteGigaChatFile(generatedFileId);
+  }
+}
+
 async function callGigaChatCopy(cardRaw = {}) {
   const fallback = normalizeCard(cardRaw);
   const facts = {
