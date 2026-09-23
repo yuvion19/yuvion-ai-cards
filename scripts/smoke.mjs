@@ -200,9 +200,18 @@ const features=[
   ['"https://openrouter.ai/api/v1"','OpenRouter endpoint'],
   ['"openrouter/free"','OpenRouter free router default'],
   ['copyProviderCircuitBreaker: true','copy provider circuit breaker metadata'],
-  ['copyProviderPriority: ["openai","groq","cloudflare","openrouter","local"]','copy provider priority metadata'],
+  ['copyProviderPriority: ["openai","groq","cloudflare","openrouter","puter","local"]','copy provider priority metadata'],
   ['function setCopyProviderCooldown','provider cooldown implementation'],
   ['credit_balance_exhausted','provider credit exhaustion failover'],
+  ['clientPuterFallback: true','keyless Puter fallback metadata'],
+  ['puter: { configured: true, model: "z-ai/glm-5.3", clientOnly: true','Puter health provider metadata'],
+  ['https://js.puter.com/v2/','Puter SDK include'],
+  ['async function ensurePuterAiReady','Puter SDK readiness helper'],
+  ['async function enhanceProductCopyWithPuter','Puter copy fallback helper'],
+  ["model:'z-ai/glm-5.3',normalize:true","Puter GLM normalized request"],
+  ["copyProvider:'puter'","Puter copy provider marker"],
+  ["data.provider||copy.copyProvider","frontend preserves actual server provider"],
+
 
   ['store: false','OpenAI copy storage disabled'],
   ['name: "yuvion_product_copy"','GPT structured output schema'],
@@ -338,7 +347,7 @@ if(!html.includes('upgradeFallbackWithBrowserVision'))fail('browser vision fallb
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=26',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=27',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
@@ -356,8 +365,8 @@ if(!server.includes('Преобладающий цвет на фото'))fail('g
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(!html.includes('improveProductWithLocalVisionInBackground'))fail('legacy recovery helper missing');else ok('legacy recovery helper retained');
 if(!html.includes("const improved=await upgradeFallbackWithBrowserVision(provisional,src)"))fail('final local vision before first render missing');else ok('final local vision before first render present');
-if(!html.includes("register('/sw.js?v=26'"))fail('service worker v26 registration missing');else ok('service worker v26 registration present');
-if(!sw.includes("yuvion-ai-shell-v26"))fail('service worker v26 cache missing');else ok('service worker v26 cache present');
+if(!html.includes("register('/sw.js?v=27'"))fail('service worker v27 registration missing');else ok('service worker v27 registration present');
+if(!sw.includes("yuvion-ai-shell-v27"))fail('service worker v27 cache missing');else ok('service worker v27 cache present');
 if(!server.includes('freeTextLocalFirst: true'))fail('local-first text analysis metadata missing');else ok('local-first text analysis metadata present');
 if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
 if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first metadata missing');else ok('final-data-first metadata present');
