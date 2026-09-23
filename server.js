@@ -113,8 +113,8 @@ const stats = {
   gptCopyRequests: 0,
   gptCopySuccesses: 0,
   gptCopyFallbacks: 0,
-  copyProviderAttempts: { deepseek: 0, local: 0 },
-  copyProviderSuccesses: { deepseek: 0, local: 0 },
+  copyProviderAttempts: { deepseek: 0, openrouterDeepseek: 0, local: 0 },
+  copyProviderSuccesses: { deepseek: 0, openrouterDeepseek: 0, local: 0 },
   recentErrors: []
 };
 
@@ -154,8 +154,8 @@ function recordError(type, error) {
 
 function recordTextUsage(response) {
   const usage = response?.usage || {};
-  const input = Number(usage.input_tokens || 0);
-  const output = Number(usage.output_tokens || 0);
+  const input = Number(usage.input_tokens || usage.prompt_tokens || 0);
+  const output = Number(usage.output_tokens || usage.completion_tokens || 0);
   stats.textInputTokens += input;
   stats.textOutputTokens += output;
   stats.estimatedTextUsd += (input / 1_000_000) * TEXT_INPUT_USD_PER_M;
@@ -1070,6 +1070,49 @@ function deepSeekModel() {
   return process.env.DEEPSEEK_MODEL || "deepseek-flash";
 }
 
+function openRouterConfigured() {
+  return Boolean(String(process.env.OPENROUTER_API_KEY || "").trim());
+}
+
+function openRouterClient() {
+  if (!openRouterConfigured()) return null;
+  return new OpenAI({
+    apiKey: process.env.OPENROUTER_API_KEY,
+    baseURL: "https://openrouter.ai/api/v1",
+    defaultHeaders: {
+      "HTTP-Referer": process.env.PUBLIC_APP_URL || "https://yuvion-ai-cards-marketplace-production.up.railway.app",
+      "X-Title": "Yuvion AI Cards"
+    }
+  });
+}
+
+function openRouterDeepSeekModel() {
+  return process.env.OPENROUTER_DEEPSEEK_MODEL || "deepseek/deepseek-v4-flash-0731:free";
+}
+
+function openRouterVisionModel() {
+  return process.env.OPENROUTER_VISION_MODEL || "openrouter/free";
+}
+
+function parseJsonObjectText(value) {
+  const raw = String(value || "").trim();
+  if (!raw) throw new Error("AI returned empty JSON");
+  const unfenced = raw.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/i, "").trim();
+  try { return JSON.parse(unfenced); } catch {}
+  const first = unfenced.indexOf("{");
+  const last = unfenced.lastIndexOf("}");
+  if (first >= 0 && last > first) return JSON.parse(unfenced.slice(first, last + 1));
+  throw new Error("AI returned invalid JSON");
+}
+
+let deepSeekDirectBlockedUntil = 0;
+function deepSeekDirectAvailable() {
+  return deepSeekConfigured() && Date.now() >= deepSeekDirectBlockedUntil;
+}
+function blockDeepSeekDirect(error) {
+  if (Number(error?.status || 0) === 402) deepSeekDirectBlockedUntil = Date.now() + 60 * 60 * 1000;
+}
+
 async function callDeepSeekCopy(cardRaw = {}) {
   const fallback = normalizeCard(cardRaw);
   const client = deepSeekClient();
@@ -1129,12 +1172,67 @@ async function callDeepSeekCopy(cardRaw = {}) {
   };
 }
 
-function finalizeCopyResponse(card, { provider = "local", used = false, reason = "" } = {}) {
-  const safe = provider === "deepseek" ? normalizeCard(card) : buildLocalProductCopy(card);
+async function callOpenRouterDeepSeekCopy(cardRaw = {}) {
+  const fallback = normalizeCard(cardRaw);
+  const client = openRouterClient();
+  if (!client) {
+    const error = new Error("OpenRouter API key is not configured");
+    error.code = "openrouter_not_configured";
+    throw error;
+  }
+  const facts = {
+    seoTitle: fallback.seoTitle,
+    category: fallback.category,
+    characteristics: fallback.characteristics,
+    confirmedData: fallback.confirmedData
+  };
+  const completion = await client.chat.completions.create({
+    model: openRouterDeepSeekModel(),
+    messages: [
+      {
+        role: "system",
+        content:
+          "Ты пишешь карточку товара для покупателя на русском языке. Используй только подтверждённые факты. " +
+          "Не выдумывай размеры, материал, состав, мощность, объём, бренд, модель или комплектацию. " +
+          "Верни только JSON с ключами seoTitle, shortDescription, fullDescription, benefits, keywords. " +
+          "shortDescription 100–260 знаков; fullDescription 350–900 знаков и 3–6 предложений."
+      },
+      { role: "user", content: JSON.stringify(facts) }
+    ],
+    temperature: 0.25,
+    max_tokens: 1200
+  });
+  recordTextUsage(completion);
+  const parsed = parseJsonObjectText(completion.choices?.[0]?.message?.content || "");
+  const merged = normalizeCard({
+    ...fallback,
+    ...parsed,
+    category: fallback.category,
+    characteristics: fallback.characteristics,
+    confirmedData: fallback.confirmedData,
+    needsClarification: fallback.needsClarification,
+    usage: fallback.usage,
+    photoQuality: fallback.photoQuality
+  });
+  if (merged.shortDescription.length < 70 || merged.fullDescription.length < 180) {
+    const error = new Error("OpenRouter DeepSeek returned undersized product copy");
+    error.code = "openrouter_deepseek_copy_too_short";
+    throw error;
+  }
+  return {
+    ...merged,
+    copyProvider: "deepseek-openrouter",
+    copyModel: openRouterDeepSeekModel()
+  };
+}
+
+function finalizeCopyResponse(card, { provider = "local", used = false, reason = "", model = "" } = {}) {
+  const aiProvider = provider === "deepseek" || provider === "deepseek-openrouter";
+  const safe = aiProvider ? normalizeCard(card) : buildLocalProductCopy(card);
   const finalCard = {
     ...safe,
     copyProvider: provider,
-    copyModel: provider === "deepseek" ? deepSeekModel() : "yuvion-safe-copy"
+    copyModel: aiProvider ? (model || (provider === "deepseek" ? deepSeekModel() : openRouterDeepSeekModel())) : "yuvion-safe-copy"
   };
   console.info("Copy result:", {
     provider,
@@ -1155,27 +1253,46 @@ function finalizeCopyResponse(card, { provider = "local", used = false, reason =
 
 async function generateProductCopyWithProviders(cardRaw = {}) {
   stats.gptCopyRequests += 1;
-  if (deepSeekConfigured()) {
+
+  if (deepSeekDirectAvailable()) {
     stats.copyProviderAttempts.deepseek = Number(stats.copyProviderAttempts.deepseek || 0) + 1;
     try {
-      const card = await withTimeout(
-        callDeepSeekCopy(cardRaw),
-        25000,
-        "DeepSeek copy generation timed out"
-      );
+      const card = await withTimeout(callDeepSeekCopy(cardRaw), 25000, "DeepSeek copy generation timed out");
       stats.copyProviderSuccesses.deepseek = Number(stats.copyProviderSuccesses.deepseek || 0) + 1;
       stats.gptCopySuccesses += 1;
-      return finalizeCopyResponse(card, { provider: "deepseek", used: true });
+      return finalizeCopyResponse(card, { provider: "deepseek", used: true, model: deepSeekModel() });
     } catch (error) {
+      blockDeepSeekDirect(error);
       recordError("copy-deepseek", error);
       console.error("DeepSeek copy error:", { message: error?.message, status: error?.status, code: error?.code });
     }
   }
+
+  if (openRouterConfigured()) {
+    stats.copyProviderAttempts.openrouterDeepseek = Number(stats.copyProviderAttempts.openrouterDeepseek || 0) + 1;
+    try {
+      const card = await withTimeout(callOpenRouterDeepSeekCopy(cardRaw), 30000, "OpenRouter DeepSeek copy generation timed out");
+      stats.copyProviderSuccesses.openrouterDeepseek = Number(stats.copyProviderSuccesses.openrouterDeepseek || 0) + 1;
+      stats.gptCopySuccesses += 1;
+      return finalizeCopyResponse(card, {
+        provider: "deepseek-openrouter",
+        used: true,
+        model: openRouterDeepSeekModel(),
+        reason: "official_deepseek_unavailable"
+      });
+    } catch (error) {
+      recordError("copy-openrouter-deepseek", error);
+      console.error("OpenRouter DeepSeek copy error:", { message: error?.message, status: error?.status, code: error?.code });
+    }
+  }
+
   stats.gptCopyFallbacks += 1;
   return finalizeCopyResponse(cardRaw, {
     provider: "local",
     used: false,
-    reason: deepSeekConfigured() ? "deepseek_unavailable" : "deepseek_not_configured"
+    reason: openRouterConfigured()
+      ? "deepseek_providers_unavailable"
+      : "openrouter_key_required_for_free_deepseek"
   });
 }
 
@@ -1920,7 +2037,7 @@ app.get("/api/health", (_req, res) => {
   res.status(healthOk ? 200 : 503).json({
     ok: healthOk,
     service: "yuvion-ai-cards",
-    version: "11.2.7",
+    version: "11.2.8",
     aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     imagesEnabled,
     freeImageMode: true,
@@ -1937,18 +2054,20 @@ app.get("/api/health", (_req, res) => {
     freeTextLocalFirst: false,
     photoOpenAiPrimary: false,
     deepSeekPrimary: true,
+    openRouterDeepSeekFallback: true,
     localDescriptionOnly: false,
     gptProductCopyEnabled: true,
-    gptProductCopyConfigured: deepSeekConfigured(),
-    gptProductCopyModel: deepSeekModel(),
+    gptProductCopyConfigured: deepSeekConfigured() || openRouterConfigured(),
+    gptProductCopyModel: deepSeekDirectAvailable() ? deepSeekModel() : openRouterDeepSeekModel(),
     gptProductCopyFallback: true,
-    copyProviderPriority: ["deepseek","local"],
+    copyProviderPriority: ["deepseek-direct","deepseek-openrouter-free","local"],
     vireonixOnlyProductCopy: false,
     noLoginAiFallback: true,
     copyResponseDescriptionGuard: true,
     copyResponseTelemetry: true,
     copyProviders: {
-      deepseek: { configured: deepSeekConfigured(), model: deepSeekModel(), auth: "api_key", cooldown: false },
+      deepseek: { configured: deepSeekConfigured(), available: deepSeekDirectAvailable(), model: deepSeekModel(), auth: "api_key", cooldown: !deepSeekDirectAvailable() },
+      openrouterDeepseek: { configured: openRouterConfigured(), model: openRouterDeepSeekModel(), visionModel: openRouterVisionModel(), auth: "api_key", freeModel: true },
       local: { configured: true, model: "yuvion-safe-copy", auth: "none", cooldown: false }
     },
     copyProviderCircuitBreaker: false,
@@ -2010,6 +2129,7 @@ app.get("/api/health", (_req, res) => {
       smolVlmWasmFallback: false,
       mobileVitOnlyVision: false,
       deepSeekVision: true,
+      openRouterFreeVisionFallback: true,
       visionWorkerCacheBypass: true,
       perCardSceneVariants: true,
       safeProductSceneTransform: true,
@@ -2127,7 +2247,7 @@ app.post("/api/analyze", async (req, res) => {
     }
 
     const sourceBuffer = Buffer.from(image, "base64");
-    if (preferLocal || !deepSeekConfigured()) {
+    if (preferLocal || (!deepSeekConfigured() && !openRouterConfigured())) {
       stats.analyses += 1;
       if (mode === "fast") stats.fastMode += 1;
       else stats.fullMode += 1;
@@ -2136,11 +2256,11 @@ app.post("/api/analyze", async (req, res) => {
         sourceBuffer,
         preferLocal
           ? "Использован локальный резервный режим."
-          : "DeepSeek API key не настроен — использован локальный резервный режим."
+          : "DeepSeek/OpenRouter API key не настроен — использован локальный резервный режим."
       ));
     }
 
-    const client = deepSeekClient();
+    const directClient = deepSeekClient();
     const analyzeContent = [
       {
         type: "input_text",
@@ -2155,66 +2275,106 @@ app.post("/api/analyze", async (req, res) => {
       analyzeContent.push({ type: "input_image", image_url: `data:${view.mimeType};base64,${view.image}`, detail: "low" });
     }
 
-    const makeDeepSeekAnalyzeRequest = (content, maxOutputTokens, model = deepSeekModel()) => client.responses.create({
-      model,
-      reasoning: { effort: "none" },
-      instructions,
-      input: [{ role: "user", content }],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "yuvion_product_card",
-          schema: productCardSchema
-        }
-      },
-      max_output_tokens: maxOutputTokens
-    });
+    const makeDirectDeepSeekAnalyzeRequest = (content, maxOutputTokens, model = deepSeekModel()) => {
+      if (!directClient) throw Object.assign(new Error("DeepSeek API key is not configured"), { code: "deepseek_not_configured" });
+      return directClient.responses.create({
+        model,
+        reasoning: { effort: "none" },
+        instructions,
+        input: [{ role: "user", content }],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "yuvion_product_card",
+            schema: productCardSchema
+          }
+        },
+        max_output_tokens: maxOutputTokens
+      });
+    };
 
-    let response;
-    try {
-      response = await withTimeout(
-        makeDeepSeekAnalyzeRequest(analyzeContent, mode === "fast" ? 1300 : 1800),
-        AI_ANALYZE_TIMEOUT_MS,
-        `DeepSeek-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
-      );
-    } catch (firstError) {
-      const retryable = firstError?.code === "operation_timeout" ||
-        Number(firstError?.status || 0) === 429 ||
-        Number(firstError?.status || 0) >= 500;
-      if (!retryable) throw firstError;
-      stats.analysisRetries = Number(stats.analysisRetries || 0) + 1;
-      const retryContent = [
+    const makeOpenRouterVisionRequest = async () => {
+      const client = openRouterClient();
+      if (!client) throw Object.assign(new Error("OpenRouter API key is not configured"), { code: "openrouter_not_configured" });
+      const messageContent = [
         {
-          type: "input_text",
+          type: "text",
           text:
-            "Быстро определи товар по основной фотографии и верни карточку Yuvion в JSON. " +
-            "Не выдумывай точные характеристики; используй только видимое и подтверждённые данные.\n\n" +
+            "Проанализируй товар по фото. Верни ТОЛЬКО JSON по структуре карточки Yuvion: seoTitle, category, shortDescription, fullDescription, characteristics, keywords, benefits, usage, needsClarification, confidence. " +
+            "Не выдумывай точные размеры, материал, состав, мощность, объём, бренд или модель. Используй только видимое и подтверждённые данные.\n\n" +
             confirmedDataText(extraData)
         },
-        { type: "input_image", image_url: `data:${mimeType};base64,${image}`, detail: "low" }
+        { type: "image_url", image_url: { url: `data:${mimeType};base64,${image}` } }
       ];
-      response = await withTimeout(
-        makeDeepSeekAnalyzeRequest(
-          retryContent,
-          1300,
-          process.env.DEEPSEEK_FAST_MODEL || deepSeekModel()
-        ),
-        AI_ANALYZE_RETRY_TIMEOUT_MS,
-        `Повторный DeepSeek-анализ превысил ${Math.round(AI_ANALYZE_RETRY_TIMEOUT_MS / 1000)} секунд.`
-      );
+      for (const view of extraViews) {
+        messageContent.push({ type: "image_url", image_url: { url: `data:${view.mimeType};base64,${view.image}` } });
+      }
+      const completion = await client.chat.completions.create({
+        model: openRouterVisionModel(),
+        messages: [{ role: "user", content: messageContent }],
+        temperature: 0.1,
+        max_tokens: mode === "fast" ? 1300 : 1800
+      });
+      recordTextUsage(completion);
+      return {
+        parsed: parseJsonObjectText(completion.choices?.[0]?.message?.content || ""),
+        provider: "openrouter-free-vision",
+        model: openRouterVisionModel()
+      };
+    };
+
+    let response = null;
+    let parsedRaw = null;
+    let analysisProvider = "";
+    let analysisModel = "";
+
+    if (deepSeekDirectAvailable()) {
+      try {
+        response = await withTimeout(
+          makeDirectDeepSeekAnalyzeRequest(analyzeContent, mode === "fast" ? 1300 : 1800),
+          AI_ANALYZE_TIMEOUT_MS,
+          `DeepSeek-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
+        );
+        analysisProvider = "deepseek";
+        analysisModel = deepSeekModel();
+      } catch (firstError) {
+        blockDeepSeekDirect(firstError);
+        recordError("analysis-deepseek-direct", firstError);
+        console.error("DeepSeek direct analyze error:", { message: firstError?.message, status: firstError?.status, code: firstError?.code });
+      }
     }
 
-    recordTextUsage(response);
-    const raw = response.output_text;
-    if (!raw) throw new Error("DeepSeek не вернул результат.");
+    if (!response && openRouterConfigured()) {
+      const openResult = await withTimeout(
+        makeOpenRouterVisionRequest(),
+        AI_ANALYZE_TIMEOUT_MS,
+        `Бесплатный OpenRouter vision-анализ превысил ${Math.round(AI_ANALYZE_TIMEOUT_MS / 1000)} секунд.`
+      );
+      parsedRaw = openResult.parsed;
+      analysisProvider = openResult.provider;
+      analysisModel = openResult.model;
+    }
 
-    const parsed = mergeConfirmedData(JSON.parse(raw), extraData);
+    if (!response && !parsedRaw) {
+      throw Object.assign(new Error("DeepSeek providers unavailable"), { code: "deepseek_providers_unavailable" });
+    }
+
+    if (response) {
+      recordTextUsage(response);
+      const raw = response.output_text;
+      if (!raw) throw new Error("DeepSeek не вернул результат.");
+      parsedRaw = JSON.parse(raw);
+    }
+
+    const parsed = mergeConfirmedData(parsedRaw, extraData);
     const sourceAudit = await assessSourcePhoto(sourceBuffer);
     parsed.photoQuality = { score: sourceAudit.score, issues: sourceAudit.issues };
-    parsed.analysisMode = "deepseek";
-    parsed.analysisNotice = "Фото и описание обработаны DeepSeek";
-    parsed.copyProvider = "deepseek";
-    parsed.copyModel = deepSeekModel();
+    parsed.analysisMode = analysisProvider;
+    parsed.analysisNotice = analysisProvider === "deepseek"
+      ? "Фото и описание обработаны DeepSeek"
+      : "Фото распознано бесплатным OpenRouter vision; описание подготовит DeepSeek";
+    parsed.copyProvider = analysisProvider === "deepseek" ? "deepseek" : "";
+    parsed.copyModel = analysisProvider === "deepseek" ? analysisModel : "";
 
     stats.analyses += 1;
     if (mode === "fast") stats.fastMode += 1;
@@ -4594,5 +4754,5 @@ if (!localCopySelfTest.shortDescription || localCopySelfTest.fullDescription.len
 console.log("Local description self-test OK:", localCopySelfTest.shortDescription.length, localCopySelfTest.fullDescription.length);
 
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Yuvion AI Cards v11.2.7 listening on port ${port}`);
+  console.log(`Yuvion AI Cards v11.2.8 listening on port ${port}`);
 });
