@@ -1776,7 +1776,7 @@ async function importFromProductUrl(){
     currentData.confirmedData={...importedExtra};
     fillExtraData(importedExtra);
     setUrlImportStatus('Данные получены. Готовим описание товара…','');
-    currentData=await enhanceProductCopyWithDeepSeek(currentData);
+    currentData=await enhanceProductCopyWithGigaChat(currentData);
 
     const images=Array.isArray(payload.images)?payload.images:[];
     const main=images[0]?.dataUrl||'';
@@ -4267,7 +4267,7 @@ function provisionalCardFromFile(file){
   };
 }
 
-async function requestImmediateDeepSeekCard(src,file){
+async function requestImmediateGigaChatCard(src,file){
   const fallback=provisionalCardFromFile(file);
   try{
     const extra=collectExtraData();
@@ -4279,7 +4279,7 @@ async function requestImmediateDeepSeekCard(src,file){
     const data=await response.json().catch(()=>({}));
     if(response.ok&&data?.shortDescription&&data?.fullDescription)return data;
   }catch(e){
-    addCurrentActivity('DeepSeek-анализ недоступен',e.message||'Используем резервное безопасное описание');
+    addCurrentActivity('GigaChat-анализ недоступен',e.message||'Используем резервное безопасное описание');
   }
   return fallback;
 }
@@ -4307,7 +4307,7 @@ function ensureVisibleProductDescription(card){
   return {...data,seoTitle:title,shortDescription:localShort,fullDescription:localFull};
 }
 
-async function enhanceProductCopyWithDeepSeek(card,{force=false}={}){
+async function enhanceProductCopyWithGigaChat(card,{force=false}={}){
   if(!card||typeof card!=='object')return card;
   card=ensureVisibleProductDescription(card);
   if(!force&&card.copyProvider&&card.copyProvider!=='local'&&card.shortDescription&&card.fullDescription)return card;
@@ -4357,7 +4357,7 @@ async function createImmediateFreeCards(file){
   creativeStatus.textContent='Фото загружено. Сразу создаём 4 бесплатные карточки — анализ текста не блокирует изображения.';
   try{
     const src=await getSource();
-    const fastLocal=await requestImmediateDeepSeekCard(src,file);
+    const fastLocal=await requestImmediateGigaChatCard(src,file);
     if(productId!==currentHistoryId)return false;
     if(fastLocal){
       provisional=fastLocal;
@@ -4366,16 +4366,16 @@ async function createImmediateFreeCards(file){
       applyCategoryRule({applyTemplate:true});
       currentData=collectEdits();
       provisional=currentData;
-      creativeStatus.textContent='Готовим описание через DeepSeek по подтверждённым данным…';
-      provisional=await enhanceProductCopyWithDeepSeek(provisional);
+      creativeStatus.textContent='Готовим описание через GigaChat по подтверждённым данным…';
+      provisional=await enhanceProductCopyWithGigaChat(provisional);
       if(productId!==currentHistoryId)return false;
       currentData=provisional;
       fillEditor(provisional);
       await applyCatalogRelations(currentData);
       renderAiQuality(currentData);updatePlan();renderFactSources();renderYuvionExport();renderProductCockpit();
-      confidence.textContent=provisional.copyProvider==='deepseek'
-        ?'Описание и распознавание подготовлены DeepSeek'
-        :'DeepSeek недоступен · использовано резервное описание';
+      confidence.textContent=provisional.copyProvider==='gigachat'
+        ?'Описание и распознавание подготовлены GigaChat'
+        :'GigaChat недоступен · использовано резервное описание';
       creativeStatus.textContent='Описание и данные готовы. Создаём 4 финальные продающие карточки.';
     }
     const response=await fetch('/api/generate-cards',{method:'POST',headers:apiHeaders(),body:JSON.stringify({
@@ -4397,7 +4397,7 @@ async function createImmediateFreeCards(file){
     zipImages.disabled=true;zipFull.disabled=true;
     creativeStatus.className='creative-status show done';
     creativeStatus.textContent='Готово: описание, характеристики и 4 карточки созданы из одного финального набора данных.';
-    addCurrentActivity('Финальный комплект','DeepSeek-анализ и описание завершены до создания 4 карточек');
+    addCurrentActivity('Финальный комплект','GigaChat-анализ и описание завершены до создания 4 карточек');
     await saveHistory();
     await checkQualityAndAutofix(true);
     addCurrentActivity('Быстрый QA','4 карточки проверены после финального анализа');
@@ -4437,14 +4437,14 @@ analyzeBtn.onclick=async()=>{
     let data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Не удалось проанализировать фотографию.');
     loadingTitle.textContent='Готовим описание';
-    loadingText.textContent='DeepSeek формирует описание только по подтверждённым данным товара.';
-    data=await enhanceProductCopyWithDeepSeek(data);
+    loadingText.textContent='GigaChat формирует описание только по подтверждённым данным товара.';
+    data=await enhanceProductCopyWithGigaChat(data);
     const hadImmediateCards=currentCards.length===4&&currentScenes.length===4;
     currentData=data;
     if(hadImmediateCards){cardsStale=true;currentStaleCards=[0,1,2,3];currentScenes=[];}
     else{currentCards=[];currentScenes=[];cardsStale=false;currentStaleCards=[];}
     currentHistoryId=currentHistoryId||(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36));
-    addCurrentActivity('DeepSeek-анализ завершён','Уверенность: '+(data.confidence||'не указана'));
+    addCurrentActivity('GigaChat-анализ завершён','Уверенность: '+(data.confidence||'не указана'));
     fillEditor(data);
     applyCategoryRule({applyTemplate:true});
     currentData=collectEdits();
@@ -6811,7 +6811,7 @@ async function processExcelAutopilotItem(item,style){
   }
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
   analyzed=ensureVisibleProductDescription(analyzed);
-  analyzed=await enhanceProductCopyWithDeepSeek(analyzed);
+  analyzed=await enhanceProductCopyWithGigaChat(analyzed);
   analyzed=ensureVisibleProductDescription(analyzed);
   let directedStyle=style==='auto'?recommendedStyleForProduct(analyzed):style;
   if(style==='auto'){
@@ -8115,7 +8115,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=32',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=33',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
