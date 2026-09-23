@@ -4849,21 +4849,48 @@ app.post("/api/generate-cards", async (req, res) => {
 app.post("/api/regenerate-card", async (req, res) => {
   const ip = req.ip || "unknown";
   let requestLimitMap = regenRequestsByIp;
+  let productReferenceFileId = "";
+
   try {
-    const { image, mimeType, card, style = "minimal", index, palette = [], designVariant = 0, repairAttempt = 0, composition = {}, designIntensity = "selling", designSubstyle = "auto", visualOptions = {}, additionalImages = [] } = req.body ?? {};
+    const {
+      image,
+      mimeType,
+      card,
+      style = "minimal",
+      index,
+      palette = [],
+      designVariant = 0,
+      repairAttempt = 0,
+      composition = {},
+      designIntensity = "selling",
+      designSubstyle = "auto",
+      visualOptions = {},
+      additionalImages = []
+    } = req.body ?? {};
+
     const mode = "free";
     requestLimitMap = freeRegenRequestsByIp;
+
     if (limitMap(freeRegenRequestsByIp, ip, MAX_FREE_REGENERATIONS_PER_WINDOW)) {
       stats.rateLimitErrors += 1;
-      return res.status(429).json({ error: "Защитный лимит бесплатной Studio Local перегенерации: 240 карточек в час с одного подключения." });
+      return res.status(429).json({
+        error: "Защитный лимит Yuvion Studio временно исчерпан. Попробуйте немного позже."
+      });
     }
+
     const cardIndex = Number(index);
-    if (![0, 1, 2, 3].includes(cardIndex)) return res.status(400).json({ error: "Некорректный номер карточки." });
+    if (![0, 1, 2, 3].includes(cardIndex)) {
+      return res.status(400).json({ error: "Некорректный номер карточки." });
+    }
     if (typeof image !== "string" || typeof mimeType !== "string" || !card || typeof card !== "object") {
       return res.status(400).json({ error: "Не хватает исходного фото или данных товара." });
     }
-    if (!ALLOWED_TYPES.has(mimeType)) return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
-    if (decodedImageSize(image) > MAX_IMAGE_BYTES) return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
+    if (!ALLOWED_TYPES.has(mimeType)) {
+      return res.status(400).json({ error: "Поддерживаются только JPG, PNG и WebP." });
+    }
+    if (decodedImageSize(image) > MAX_IMAGE_BYTES) {
+      return res.status(413).json({ error: "Фотография должна быть не больше 10 МБ." });
+    }
 
     const normalized = normalizeCard(card);
     const styleKey = styleProfiles[style] ? style : "minimal";
@@ -4873,7 +4900,14 @@ app.post("/api/regenerate-card", async (req, res) => {
     const baseVariant = normalizeDesignVariant(designVariant, normalized);
     const attempt = Math.max(0, Math.min(6, Math.round(Number(repairAttempt) || 0)));
     const variant = (baseVariant + attempt + (attempt ? cardIndex + 1 : 0)) % 4;
-    const selectedSource = pickRenderSource(cardIndex, sourceBuffer, additionalSources, mimeType, sourceQuality.score, sourceQuality);
+    const selectedSource = pickRenderSource(
+      cardIndex,
+      sourceBuffer,
+      additionalSources,
+      mimeType,
+      sourceQuality.score,
+      sourceQuality
+    );
     const insetSource = pickInsetSource(cardIndex, selectedSource, additionalSources);
     const suppliedPalette = normalizePalette(palette);
     const renderPalette = suppliedPalette.length ? suppliedPalette : await extractProductPalette(sourceBuffer);
@@ -4883,18 +4917,41 @@ app.post("/api/regenerate-card", async (req, res) => {
     const visual = normalizeVisualOptions(visualOptions);
     const sourceAspect = Number(selectedSource?.audit?.aspect || sourceQuality.aspect || 1);
     const studioProfile = buildStudioProfile(normalized, styleKey, variant, sourceAspect);
+
     if (attempt) {
       const sceneTune = studioProfile.scenes[cardIndex] || {};
       sceneTune.shiftX = Number(sceneTune.shiftX || 0) + (attempt % 2 ? 22 : -24);
       sceneTune.shiftY = Number(sceneTune.shiftY || 0) + (attempt % 3 === 0 ? 18 : -10);
-      sceneTune.scale = Math.max(.90, Math.min(1.08, Number(sceneTune.scale || 1) * (attempt % 2 ? .97 : 1.035)));
+      sceneTune.scale = Math.max(
+        .90,
+        Math.min(1.08, Number(sceneTune.scale || 1) * (attempt % 2 ? .97 : 1.035))
+      );
     }
-    let gigaBackground = null;
+
+    let scene = null;
+    let aiImageCalls = 0;
+
     if (gigaChatConfigured()) {
       try {
-        gigaBackground = await generateGigaChatBackground(normalized, cardIndex, styleKey, renderPalette, studioProfile);
+        productReferenceFileId = await withTimeout(
+          uploadImageToGigaChat(sourceBuffer, mimeType, cardIndex),
+          24000,
+          "Yuvion Studio reference upload timed out"
+        );
+        scene = await generateGigaChatReferenceScene(
+          productReferenceFileId,
+          normalized,
+          cardIndex,
+          styleKey,
+          renderPalette,
+          studioProfile
+        );
+        if (scene) {
+          aiImageCalls = 1;
+          stats.aiSceneRenders += 1;
+        }
       } catch (error) {
-        console.warn("GigaChat regenerate background fallback:", {
+        console.warn("Yuvion Studio regenerate reference fallback:", {
           index: cardIndex,
           message: error?.message,
           status: error?.status,
@@ -4903,14 +4960,42 @@ app.post("/api/regenerate-card", async (req, res) => {
         });
       }
     }
-    const scene = await renderFreeScene(
-      selectedSource.buffer, cardIndex, styleKey, renderPalette, variant, renderComposition,
-      intensity, substyle, visual, insetSource?.buffer || null, selectedSource.role, insetSource?.role || "", studioProfile, gigaBackground
-    );
-    stats.freeSceneRenders += 1;
+
+    if (!scene) {
+      scene = await renderFreeScene(
+        selectedSource.buffer,
+        cardIndex,
+        styleKey,
+        renderPalette,
+        variant,
+        renderComposition,
+        intensity,
+        substyle,
+        visual,
+        insetSource?.buffer || null,
+        selectedSource.role,
+        insetSource?.role || "",
+        studioProfile,
+        null
+      );
+      stats.freeSceneRenders += 1;
+    }
 
     const cachedScene = await normalizeSceneForCache(scene);
-    const buffer = await composeCard(cachedScene, overlayForCard(cardIndex, normalized, styleKey, renderPalette, intensity, substyle, visual, studioProfile));
+    const buffer = await composeCard(
+      cachedScene,
+      overlayForCard(
+        cardIndex,
+        normalized,
+        styleKey,
+        renderPalette,
+        intensity,
+        substyle,
+        visual,
+        studioProfile
+      )
+    );
+
     const names = ["01_cover.png", "02_benefits.png", "03_specs.png", "04_usage.png"];
     const titles = ["Обложка", "Преимущества", "Характеристики", "Применение"];
 
@@ -4929,8 +5014,9 @@ app.post("/api/regenerate-card", async (req, res) => {
         base64: cachedScene.toString("base64")
       },
       renderMode: mode,
-      aiImageCalls: gigaBackground ? 1 : 0,
-      gigaChatImageCalls: gigaBackground ? 1 : 0,
+      aiImageCalls,
+      gigaChatImageCalls: aiImageCalls,
+      referenceGuidedGeneration: aiImageCalls > 0,
       palette: renderPalette,
       designVariant: variant,
       designIntensity: intensity,
@@ -4940,14 +5026,21 @@ app.post("/api/regenerate-card", async (req, res) => {
       repairAttempt: attempt,
       sourceQuality,
       studioProfile,
-      renderEngine: gigaBackground ? "studio-gigachat-v12" : "studio-director-v11"
+      renderEngine: aiImageCalls > 0 ? "yuvion-studio-reference-v13" : "studio-director-v11"
     });
   } catch (error) {
-    console.error("Single card generation error:", { message: error?.message, status: error?.status, code: error?.code });
-    return imageErrorResponse(req, res, error, requestLimitMap, "regenerate-studio-local");
+    console.error("Single card generation error:", {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code
+    });
+    return imageErrorResponse(req, res, error, requestLimitMap, "regenerate-yuvion-studio");
+  } finally {
+    if (productReferenceFileId) {
+      await deleteGigaChatFile(productReferenceFileId);
+    }
   }
 });
-
 app.post("/api/render-card-overlays", async (req, res) => {
   try {
     const { scenes, card, style = "minimal", indexes = [0, 1, 2, 3], palette = [], designIntensity = "selling", designSubstyle = "auto", visualOptions = {} } = req.body ?? {};
