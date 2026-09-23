@@ -1186,7 +1186,7 @@ async function resolveGigaChatModel(force = false, purpose = "text") {
   }
 
   const textPriority = ["GigaChat-3-Ultra", "GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-2", "GigaChat"];
-  const imagePriority = ["GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-2", "GigaChat-3-Ultra", "GigaChat"];
+  const imagePriority = ["GigaChat-2-Pro", "GigaChat-2-Max", "GigaChat-2", "GigaChat-3-Ultra", "GigaChat"];
   const priority = purpose === "image" ? imagePriority : textPriority;
   const selected = priority.find((model) => models.includes(model)) || models[0];
   gigaChatResolvedModel = selected;
