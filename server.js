@@ -5036,4 +5036,36 @@ if (gigaChatConfigured()) {
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`Yuvion AI Cards v11.2.9 listening on port ${port}`);
+  if (
+    gigaChatConfigured() &&
+    String(process.env.GIGACHAT_POSTSTART_IMAGE_TEST || "").toLowerCase() === "true"
+  ) {
+    void (async () => {
+      try {
+        const imageBuffer = await withTimeout(
+          generateGigaChatBackground(
+            { seoTitle: "Тестовый товар", category: "Дом и интерьер" },
+            0,
+            "minimal",
+            [],
+            { artDirector: "clean studio" }
+          ),
+          80000,
+          "GigaChat post-start text2image test timed out"
+        );
+        const meta = imageBuffer ? await sharp(imageBuffer).metadata() : {};
+        console.log("GigaChat text2image post-start test OK:", {
+          width: meta.width,
+          height: meta.height
+        });
+      } catch (error) {
+        console.error("GigaChat text2image post-start test failed:", {
+          message: error?.message,
+          status: error?.status,
+          code: error?.code,
+          details: error?.details
+        });
+      }
+    })();
+  }
 });
