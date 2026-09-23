@@ -1869,22 +1869,17 @@ function renderLabelSuggestions(){
 }
 async function runLabelOcr(photo){
   if(!photo?.dataUrl)return;
-  const parts=dataUrlParts(photo.dataUrl);if(!parts)return;
   photo.role=photo.role==='angle'?'label':photo.role;
   renderExtraPhotos();
   labelOcrBox.classList.add('show');
-  labelOcrList.innerHTML='<div class="muted" style="font-size:10px">Распознаём только читаемый текст на маркировке…</div>';
-  try{
-    const response=await fetch('/api/label-ocr',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:parts.base64,mimeType:parts.mime})});
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'Не удалось распознать маркировку.');
-    currentLabelSuggestions=(data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||''}));
-    addCurrentActivity('OCR маркировки','Найдено полей: '+currentLabelSuggestions.length);
-    renderLabelSuggestions();
-    if(currentData)saveHistoryDebounced();
-  }catch(e){
-    labelOcrList.innerHTML='<div class="fact-blocker-note">'+esc(e.message||'OCR недоступен')+'</div>';
+  labelOcrList.innerHTML='<div class="muted" style="font-size:10px">Читаем маркировку локально на устройстве…</div>';
+  if(!('TextDetector' in window)){
+    labelOcrList.innerHTML='<div class="fact-blocker-note">Этот браузер не поддерживает локальное распознавание текста. Значения можно указать вручную; сайт не будет отправлять фото маркировки в платный OCR автоматически.</div>';
+    return;
   }
+  const fields=await runBrowserTextHints(photo);
+  if(!fields.length)labelOcrList.innerHTML='<div class="muted" style="font-size:10px">Уверенно читаемых структурированных полей не найдено.</div>';
+  if(currentData)saveHistoryDebounced();
 }
 async function runMainPhotoOcr(){
   let dataUrl=sourceDataUrl;
@@ -1940,8 +1935,8 @@ function renderActivity(){
 }
 
 
-async function runBrowserTextHints(photo){
-  if(!photo?.dataUrl||!['package','label','barcode'].includes(photo.role)||!('TextDetector' in window))return [];
+async function detectBrowserLabelFields(photo){
+  if(!photo?.dataUrl||!('TextDetector' in window))return [];
   try{
     const blob=await (await fetch(photo.dataUrl)).blob();
     const bitmap=await createImageBitmap(blob);
@@ -1953,19 +1948,23 @@ async function runBrowserTextHints(photo){
     const response=await fetch('/api/local-label-hints',{method:'POST',headers:apiHeaders(),body:JSON.stringify({lines})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)return [];
-    const incoming=(data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||'',local:true}));
-    const known=new Set(currentLabelSuggestions.map(x=>normalizedFactText(x.name)+'|'+normalizedFactText(x.value)));
-    for(const field of incoming){
-      const key=normalizedFactText(field.name)+'|'+normalizedFactText(field.value);
-      if(!known.has(key)){known.add(key);currentLabelSuggestions.push(field)}
-    }
-    currentLabelSuggestions=currentLabelSuggestions.slice(0,20);
-    if(incoming.length){
-      addCurrentActivity('Локальное чтение упаковки','Найдено подсказок: '+incoming.length+' · требуется подтверждение');
-      renderLabelSuggestions();
-    }
-    return incoming;
+    return (data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||'',local:true}));
   }catch{return []}
+}
+async function runBrowserTextHints(photo){
+  if(!photo?.dataUrl||!['package','label','barcode'].includes(photo.role))return [];
+  const incoming=await detectBrowserLabelFields(photo);
+  const known=new Set(currentLabelSuggestions.map(x=>normalizedFactText(x.name)+'|'+normalizedFactText(x.value)));
+  for(const field of incoming){
+    const key=normalizedFactText(field.name)+'|'+normalizedFactText(field.value);
+    if(!known.has(key)){known.add(key);currentLabelSuggestions.push(field)}
+  }
+  currentLabelSuggestions=currentLabelSuggestions.slice(0,20);
+  if(incoming.length){
+    addCurrentActivity('Локальное чтение упаковки','Найдено подсказок: '+incoming.length+' · требуется подтверждение');
+    renderLabelSuggestions();
+  }
+  return incoming;
 }
 async function addAdditionalPhotos(files){
   const list=[...(files||[])].slice(0,Math.max(0,4-currentAdditionalPhotos.length));
@@ -4165,14 +4164,14 @@ function relationBrand(card,extra={}){
 function relationCategory(card){return String(card?.category||'').trim().toLocaleLowerCase('ru')}
 function productRelationScore(card,item){
   const other=item?.data||{};if(!other?.seoTitle)return 0;
-  const aBrand=relationBrand(card,collectExtraData()),bBrand=relationBrand(other,item.extraData||{});
+  const aBrand=relationBrand(card,card?.confirmedData||{}),bBrand=relationBrand(other,item.extraData||{});
   if(aBrand&&bBrand&&aBrand!==bBrand)return 0;
   const a=relationTokens(card?.seoTitle),b=relationTokens(other?.seoTitle);
   const common=a.filter(x=>b.includes(x)).length,union=new Set([...a,...b]).size||1,jaccard=common/union;
   const ca=relationCategory(card),cb=relationCategory(other);
   const sameCategory=Boolean(ca&&cb&&(ca===cb||ca.startsWith(cb+' /')||cb.startsWith(ca+' /')));
-  const brandBonus=aBrand&&bBrand&&aBrand===bBrand?.28:0;
-  const categoryBonus=sameCategory?.22:0;
+  const brandBonus=aBrand&&bBrand&&aBrand===bBrand?0.28:0;
+  const categoryBonus=sameCategory?0.22:0;
   return Math.min(1,jaccard*.68+brandBonus+categoryBonus);
 }
 async function catalogRelationsForData(card,currentId=currentHistoryId){
@@ -5021,6 +5020,8 @@ function migrateStoredItem(raw){
   if(!Array.isArray(item.staleCardIndexes))item.staleCardIndexes=[];
   if(!Array.isArray(item.designSnapshots))item.designSnapshots=[];
   if(!item.designState||typeof item.designState!=='object')item.designState={};
+  if(!item.seriesReference||typeof item.seriesReference!=='object')item.seriesReference=null;
+  item.revisions=item.revisions.map(x=>x&&typeof x==='object'?{visual:false,cards:[],...x}:x).filter(Boolean);
   const renderSchema=Number(item.cardRenderSchema||0);
   if(item.cards.length===4&&renderSchema<CARD_RENDER_SCHEMA){
     item.cardsStale=true;
@@ -6184,7 +6185,7 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
 
   const defaults=loadSellerDefaults();
   const existing=await dbAll();
-  const skuIndex=new Map(),barcodeIndex=new Map();
+  const skuIndex=new Map(),barcodeIndex=new Map(),urlIndex=new Map();
   for(const item of existing){
     const sku=skuOfStoredItem(item),barcode=barcodeOfStoredItem(item);
     if(sku){
@@ -6371,6 +6372,11 @@ async function importProductRows(rows,filename='таблица',importBatchId=''
     document.getElementById('excelAutopilot').open=true;
     document.getElementById('excelAutopilot').scrollIntoView({behavior:'smooth',block:'start'});
   }else document.getElementById('history').scrollIntoView({behavior:'smooth',block:'start'});
+  const queueNow=excelQueueItems(await dbAll());
+  if(queueNow.some(x=>x.urlImportPending&&x.pendingSourceUrl)){
+    largeQueuePaused=false;saveLargeQueueState({pending:true,paused:false,offline:false,autoResume:true});
+    window.setTimeout(()=>runExcelAutopilotQueue(),250);
+  }
 }
 
 async function rowsFromImportFile(file){
@@ -7178,13 +7184,13 @@ async function runBulkLabelOcrNow(){
   runBulkLabelOcr.disabled=true;runBulkLabelOcr.textContent='OCR работает…';
   let done=0,found=0;
   try{
+    if(!('TextDetector' in window))throw new Error('Локальный OCR не поддерживается этим браузером.');
     for(const item of candidates){
-      const photo=labelPhotoForStoredItem(item);const parts=dataUrlParts(photo.dataUrl);if(!parts)continue;
-      const {response,data}=await fetchJsonRetry('/api/label-ocr',{method:'POST',headers:apiHeaders(),body:JSON.stringify({image:parts.base64,mimeType:parts.mime})},2);
-      if(response.status===429){break}
-      if(response.ok){
-        item.labelSuggestions=(data.fields||[]).map(x=>({...x,photoId:photo.id||'',photoName:photo.name||''}));
-        item.activity=[{at:Date.now(),type:'Массовый OCR маркировки',detail:'Найдено полей: '+item.labelSuggestions.length},...(item.activity||[])].slice(0,80);
+      const photo=labelPhotoForStoredItem(item);if(!photo?.dataUrl)continue;
+      const fields=await detectBrowserLabelFields(photo);
+      if(fields.length){
+        item.labelSuggestions=fields.slice(0,20);
+        item.activity=[{at:Date.now(),type:'Локальный OCR маркировки',detail:'Найдено полей: '+item.labelSuggestions.length+' · требуется подтверждение'},...(item.activity||[])].slice(0,80);
         item.updatedAt=Date.now();await dbPut(item);found+=item.labelSuggestions.length;
       }
       done++;
@@ -7389,6 +7395,7 @@ async function restoreHistory(item){
   syncModeUi();
   renderDesignStudio();
 
+  applyCatalogRelations(currentData).catch(()=>{});
   if(currentCards.length===4){
     renderCards();
     creative.classList.toggle('show',currentMode==='full');
