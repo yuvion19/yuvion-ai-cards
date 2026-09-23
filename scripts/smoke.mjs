@@ -123,9 +123,9 @@ const features=[
   ['hadImmediateCards','preserve cards during analysis'],
   ['AI_ANALYZE_TIMEOUT_MS','server analysis timeout'],
   ['analyzeTimeoutSeconds','health analysis timeout metadata'],
-  ['deepSeekPrimary: true','DeepSeek analysis path'],
-  ['reasoning: { effort: "none" }','fast analysis reasoning'],
-  ['deepSeekModel()','DeepSeek analysis model'],
+  ['gigaChatPrimary: true','GigaChat analysis path'],
+  ['async function uploadImageToGigaChat','GigaChat image upload path'],
+  ['gigaChatModel()','GigaChat analysis model'],
   ['currentCards.length!==4||cardsStale','stale immediate cards refresh'],
   ['smartBackgroundCutout','smart light-background cutout'],
   ['enhanceProductSource','adaptive source photo enhancement'],
@@ -182,27 +182,27 @@ const features=[
   ['urlImportProvenanceAudit: true','URL provenance audit metadata'],
   ['urlImportEmbeddedJsonFallback: true','embedded JSON URL import fallback metadata'],
   ['guaranteedDescriptions: true','guaranteed description metadata'],
-  ['deepSeekPrimary: true','DeepSeek primary health flag'],
-  ['openRouterDeepSeekFallback: true','OpenRouter DeepSeek fallback health flag'],
-  ['function openRouterConfigured','OpenRouter configuration helper'],
-  ['function callOpenRouterDeepSeekCopy','OpenRouter free DeepSeek copy implementation'],
-  ['deepseek/deepseek-v4-flash-0731:free','free DeepSeek model slug'],
-  ['openrouter/free','free multimodal router slug'],
-  ['gptProductCopyEnabled: true','DeepSeek product-copy AI enabled'],
-  ['gptProductCopyConfigured: deepSeekConfigured() || openRouterConfigured()','DeepSeek/OpenRouter configured health flag'],
-  ['gptProductCopyModel: deepSeekDirectAvailable() ? deepSeekModel() : openRouterDeepSeekModel()','DeepSeek effective model metadata'],
+  ['gigaChatPrimary: true','GigaChat primary health flag'],
+  ['gigaChatFileAttachments: true','GigaChat file attachments health flag'],
+  ['function gigaChatConfigured','GigaChat configuration helper'],
+  ['async function callGigaChatCopy','GigaChat copy implementation'],
+  ['https://api.giga.chat','GigaChat API base'],
+  ['/v1/files','GigaChat file endpoint'],
+  ['gptProductCopyEnabled: true','GigaChat product-copy AI enabled'],
+  ['gptProductCopyConfigured: gigaChatConfigured()','GigaChat configured health flag'],
+  ['gptProductCopyModel: gigaChatModel()','GigaChat model metadata'],
   ['gptProductCopyFallback: true','local description safety fallback metadata'],
-  ['/api/generate-copy','DeepSeek copy endpoint'],
-  ['function callDeepSeekCopy','DeepSeek copy implementation'],
-  ['function generateProductCopyWithProviders','DeepSeek copy router'],
+  ['/api/generate-copy','GigaChat copy endpoint'],
+  ['async function callGigaChatCopy','GigaChat copy implementation'],
+  ['function generateProductCopyWithProviders','GigaChat copy router'],
   ['copyProviderCircuitBreaker: false','external copy circuit breaker disabled'],
-  ['copyProviderPriority: ["deepseek-direct","deepseek-openrouter-free","local"]','DeepSeek provider priority metadata'],
+  ['copyProviderPriority: ["gigachat","local"]','GigaChat provider priority metadata'],
   ['noLoginAiFallback: true','local emergency fallback metadata'],
-  ['openrouterDeepseek: { configured: openRouterConfigured()','OpenRouter DeepSeek health provider metadata'],
+  ['gigachat: { configured: gigaChatConfigured()','GigaChat health provider metadata'],
 
 
   ["data.provider||copy.copyProvider","frontend preserves actual server provider"],
-  ['async function enhanceProductCopyWithDeepSeek','frontend DeepSeek copy helper'],
+  ['async function enhanceProductCopyWithGigaChat','frontend GigaChat copy helper'],
   ['function ensureVisibleProductDescription','client visible-description guard'],
   ['copyResponseDescriptionGuard: true','server copy response description guard'],
   ['copyResponseTelemetry: true','copy response telemetry metadata'],
@@ -219,9 +219,9 @@ const features=[
   ['return ensureVisibleProductDescription({','persisted edit description guarantee'],
   ['currentData=ensureVisibleProductDescription(currentData);','URL pre-GPT description guarantee'],
   ['analyzed=ensureVisibleProductDescription(analyzed);','Excel description guarantee'],
-  ["creativeStatus.textContent='Готовим описание через DeepSeek по подтверждённым данным…'","photo flow DeepSeek copy integration"],
+  ["creativeStatus.textContent='Готовим описание через GigaChat по подтверждённым данным…'","photo flow GigaChat copy integration"],
   ["setUrlImportStatus('Данные получены. Готовим описание товара…'","URL flow local copy integration"],
-  ['analyzed=await enhanceProductCopyWithDeepSeek(analyzed);','Excel flow DeepSeek copy integration'],
+  ['analyzed=await enhanceProductCopyWithGigaChat(analyzed);','Excel flow GigaChat copy integration'],
   ['function productSeedFromEmbeddedJson','embedded product parser'],
   ['function mergeProductSeeds','URL seed merge'],
   ['function safeCatalogDescription','safe description fallback helper'],
@@ -260,8 +260,8 @@ for(const [needle,label] of features){
   if(!(html.includes(needle)||server.includes(needle)))fail(label+' missing');else ok(label);
 }
 if(html.includes('js.puter.com')||html.includes('window.puter')||html.includes('enhanceProductCopyWithPuter'))fail('Puter login fallback still present');else ok('Puter login fallback removed');
-if(server.includes('async function callOpenAiCopy')||server.includes('async function callVireonixCopy')||server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy'))fail('retired description AI providers still present');else if(!server.includes('async function callDeepSeekCopy')||!server.includes('async function callOpenRouterDeepSeekCopy'))fail('DeepSeek provider chain missing');else ok('DeepSeek direct + OpenRouter free fallback present');
-if(server.includes('api.groq.com/openai/v1')||server.includes('api.cloudflare.com/client/v4/accounts/'))fail('legacy description provider endpoints still present');else if(!server.includes('https://openrouter.ai/api/v1'))fail('OpenRouter fallback endpoint missing');else ok('legacy providers removed; OpenRouter fallback present');
+if(server.includes('async function callOpenAiCopy')||server.includes('async function callVireonixCopy')||server.includes('async function callGroqCopy')||server.includes('async function callCloudflareCopy')||server.includes('async function callOpenRouterCopy')||server.includes('async function callDeepSeekCopy')||server.includes('async function callOpenRouterDeepSeekCopy'))fail('retired description AI providers still present');else if(!server.includes('async function callGigaChatCopy'))fail('GigaChat description provider missing');else ok('GigaChat description provider present');
+if(server.includes('api.groq.com/openai/v1')||server.includes('api.cloudflare.com/client/v4/accounts/')||server.includes('openrouter.ai/api/v1')||server.includes('api.deepseek.com'))fail('retired provider endpoints still present');else if(!server.includes('https://api.giga.chat')||!server.includes('ngw.devices.sberbank.ru:9443/api/v2/oauth'))fail('GigaChat endpoints missing');else ok('GigaChat endpoints present');
 
 
 
@@ -336,24 +336,24 @@ if(!html.includes('Авто · арт-директор'))fail('batch art directo
 
 if(!server.includes('zeroCreditTextFallback: true'))fail('zero-credit text fallback metadata missing');else ok('zero-credit text fallback metadata present');
 if(!server.includes('analysisMode: "local-fallback"'))fail('local fallback response missing');else ok('local fallback response present');
-if(!server.includes('"openrouter_key_required_for_free_deepseek"'))fail('DeepSeek/OpenRouter fallback path missing');else ok('DeepSeek/OpenRouter fallback path present');
+if(!server.includes('"gigachat_unavailable"')||!server.includes('"gigachat_not_configured"'))fail('GigaChat fallback path missing');else ok('GigaChat fallback path present');
 if(!html.includes('currentStaleCards=[0,1,2,3];currentScenes=[]'))fail('post-analysis full scene refresh missing');else ok('post-analysis full scene refresh present');
 if(!html.includes('currentStaleCards.length<4'))fail('full-set stale cards must bypass overlay-only rebuild');else ok('full-set stale cards bypass overlay-only rebuild');
 
-if(!server.includes('deepSeekVision: true'))fail('DeepSeek vision metadata missing');else ok('DeepSeek vision metadata present');
+if(!server.includes('gigaChatVision: true'))fail('GigaChat vision metadata missing');else ok('GigaChat vision metadata present');
 if(!server.includes('uniqueMultiAngleRouting: true'))fail('unique multi-angle routing metadata missing');else ok('unique multi-angle routing metadata present');
-if(!server.includes('type: "input_image"'))fail('DeepSeek image input missing');else ok('DeepSeek image input present');
+if(!server.includes('attachments: [fileId]'))fail('GigaChat image attachment input missing');else ok('GigaChat image attachment input present');
 if(html.includes('localVisionWorker'))fail('obsolete local vision worker still active');else ok('local vision worker removed from active UI');
 if(html.includes('upgradeFallbackWithBrowserVision'))fail('obsolete browser vision fallback still active');else ok('browser vision fallback removed');
 if(!server.includes('const slot=Math.min(ranked.length-1,Math.max(0,index-1))'))fail('unique angle slot routing missing');else ok('unique angle slot routing present');
 
 if(!server.includes('name === "index.html" || name === "sw.js" || name === "local-vision-worker.js"'))fail('fresh-shell cache headers missing');else ok('fresh-shell cache headers present');
-if(!html.includes("register('/sw.js?v=32',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
+if(!html.includes("register('/sw.js?v=33',{updateViaCache:'none'})"))fail('service worker forced update missing');else ok('service worker forced update present');
 
 if(!html.includes('CARD_RENDER_SCHEMA=4'))fail('Studio Director v11 old-card invalidation missing');else ok('Studio Director v11 old-card invalidation present');
 
-if(!server.includes('deepSeekVision: true'))fail('DeepSeek vision metadata missing');else ok('DeepSeek vision metadata present');
-if(!server.includes('openRouterFreeVisionFallback: true'))fail('OpenRouter free vision fallback metadata missing');else ok('OpenRouter free vision fallback metadata present');
+if(!server.includes('gigaChatVision: true'))fail('GigaChat vision metadata missing');else ok('GigaChat vision metadata present');
+if(!server.includes('gigaChatFileAttachments: true'))fail('GigaChat file attachment metadata missing');else ok('GigaChat file attachment metadata present');
 if(!server.includes('perCardSceneVariants: true'))fail('per-card scene variants metadata missing');else ok('per-card scene variants metadata present');
 if(!server.includes('transformProductForScene'))fail('safe product scene transform missing');else ok('safe product scene transform present');
 if(!server.includes('sceneVariant=Number.isInteger'))fail('scene-specific background variant missing');else ok('scene-specific background variant present');
@@ -362,9 +362,9 @@ if(html.includes('local-vision-worker.js'))fail('obsolete vision worker referenc
 if(!server.includes('Преобладающий цвет на фото'))fail('guaranteed visible fallback characteristic missing');else ok('guaranteed visible fallback characteristic present');
 if(html.includes('const needsVisionUpgrade='))fail('obsolete nonblocking vision race flag still present');else ok('obsolete nonblocking vision race flag removed');
 if(html.includes('improveProductWithLocalVisionInBackground'))fail('obsolete local vision recovery remains');else ok('obsolete local vision recovery removed');
-if(!html.includes("register('/sw.js?v=32'"))fail('service worker v32 registration missing');else ok('service worker v32 registration present');
-if(!sw.includes("yuvion-ai-shell-v32"))fail('service worker v32 cache missing');else ok('service worker v32 cache present');
-if(!server.includes('freeTextLocalFirst: false'))fail('DeepSeek-first text analysis metadata missing');else ok('DeepSeek-first text analysis metadata present');
+if(!html.includes("register('/sw.js?v=33'"))fail('service worker v33 registration missing');else ok('service worker v33 registration present');
+if(!sw.includes("yuvion-ai-shell-v33"))fail('service worker v33 cache missing');else ok('service worker v33 cache present');
+if(!server.includes('freeTextLocalFirst: false'))fail('GigaChat-first text analysis metadata missing');else ok('GigaChat-first text analysis metadata present');
 if(!server.includes('freeLocalPreflight: true'))fail('free local preflight metadata missing');else ok('free local preflight metadata present');
 if(!server.includes('finalDataBeforeCardRender: true'))fail('final-data-first metadata missing');else ok('final-data-first metadata present');
 if(!server.includes('minimalUiFlow: true'))fail('minimal UI metadata missing');else ok('minimal UI metadata present');
@@ -400,7 +400,7 @@ if(!html.includes('.simple-ui .workflow,.simple-ui .focus-panel,.simple-ui .smar
 
 if(!server.includes('singlePhotoTruthfulVariation: true'))fail('single-photo truthful variation metadata missing');else ok('single-photo truthful variation metadata present');
 if(!html.includes("const complete=await createImmediateFreeCards(file)"))fail('duplicate analysis suppression missing');else ok('duplicate analysis suppression present');
-if(!html.includes('const fastLocal=await requestImmediateDeepSeekCard(src,file)'))fail('pre-render DeepSeek analysis missing');else ok('pre-render DeepSeek analysis present');
+if(!html.includes('const fastLocal=await requestImmediateGigaChatCard(src,file)'))fail('pre-render GigaChat analysis missing');else ok('pre-render GigaChat analysis present');
 if(html.includes("window.setTimeout(()=>improveProductWithLocalVisionInBackground(src,productId,baseData),250)"))fail('background vision race trigger still active');else ok('background vision race trigger removed');
 if(!server.includes('extractProductPalette(buffer)'))fail('photo color enrichment missing');else ok('photo color enrichment present');
 if(!server.includes('if (index > 0 && !secondarySourceBuffer)'))fail('single-photo detail variation missing');else ok('single-photo detail variation present');
@@ -412,8 +412,8 @@ if(!server.includes('localizeVisionLabel'))fail('vision label localization missi
 if(!server.includes('width="772" height="108"'))fail('visible description panel missing');else ok('visible description panel present');
 
 if(!server.includes('preferLocal === true'))fail('local-first analyze branch missing');else ok('local-first analyze branch present');
-if(!html.includes('requestImmediateDeepSeekCard'))fail('immediate DeepSeek description helper missing');else ok('immediate DeepSeek description helper present');
-if(!html.includes('preferLocal:false'))fail('frontend DeepSeek analyze request missing');else ok('frontend DeepSeek analyze request present');
+if(!html.includes('requestImmediateGigaChatCard'))fail('immediate GigaChat description helper missing');else ok('immediate GigaChat description helper present');
+if(!html.includes('preferLocal:false'))fail('frontend GigaChat analyze request missing');else ok('frontend GigaChat analyze request present');
 if(server.includes('}\n  try { visual = { ...visual, product: await transformProductForScene(visual.product,index) };'))fail('whole photo panel rotation regression present');else ok('whole photo panels are not rotated');
 if(html.includes("const response=await fetch('/api/label-ocr',{method:'POST'"))fail('paid OCR still wired into automatic/main label flow');else ok('main label flow avoids paid OCR');
 
