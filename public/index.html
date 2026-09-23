@@ -1752,6 +1752,7 @@ async function importFromProductUrl(){
     currentSourceReference=payload.source||null;
     currentData=payload.data||null;
     if(!currentData)throw new Error('Страница не вернула данные товара.');
+    currentData=ensureVisibleProductDescription(currentData);
 
     const importedExtra={...(payload.extraData||{})};
     const defaults=loadSellerDefaults();
@@ -4385,16 +4386,40 @@ async function requestImmediateLocalCard(src,file){
   return fallback;
 }
 
+function ensureVisibleProductDescription(card){
+  const data=card&&typeof card==='object'?{...card}:{};
+  const title=String(data.seoTitle||data.confirmedData?.name||data.category||'Товар').trim()||'Товар';
+  const category=String(data.category||'').trim();
+  const facts=(Array.isArray(data.characteristics)?data.characteristics:[])
+    .filter(x=>x&&String(x.name||'').trim()&&String(x.value||'').trim())
+    .slice(0,4)
+    .map(x=>String(x.name).trim()+': '+String(x.value).trim());
+  const cleanShort=String(data.shortDescription||'').trim();
+  const cleanFull=String(data.fullDescription||'').trim();
+  const localShort=cleanShort||(
+    facts.length
+      ? title+'. '+facts.join('; ')+'.'
+      : title+(category&&category.toLocaleLowerCase('ru')!=='товар'?' — '+category+'.':'.')+
+        ' Описание сформировано по доступным подтверждённым данным без добавления неподтверждённых характеристик.'
+  );
+  const localFull=cleanFull||(
+    localShort+
+    ' Точные размеры, материал, состав, мощность и другие технические параметры не добавляются автоматически, если они не указаны или не подтверждены.'
+  );
+  return {...data,seoTitle:title,shortDescription:localShort,fullDescription:localFull};
+}
+
 async function enhanceProductCopyWithGpt(card,{force=false}={}){
   if(!card||typeof card!=='object')return card;
+  card=ensureVisibleProductDescription(card);
   if(!force&&card.copyProvider==='openai'&&card.shortDescription&&card.fullDescription)return card;
   try{
     const {response,data}=await fetchJsonRetry('/api/generate-copy',{
       method:'POST',headers:apiHeaders(),body:JSON.stringify({card})
     },1);
-    if(!response.ok||!data?.card)return card;
+    if(!response.ok||!data?.card)return ensureVisibleProductDescription(card);
     const copy=data.card;
-    return {
+    return ensureVisibleProductDescription({
       ...card,
       seoTitle:String(copy.seoTitle||card.seoTitle||'Товар').trim(),
       shortDescription:String(copy.shortDescription||card.shortDescription||'').trim(),
@@ -4404,9 +4429,9 @@ async function enhanceProductCopyWithGpt(card,{force=false}={}){
       copyProvider:data.used?'openai':(card.copyProvider||'local'),
       copyModel:data.used?(data.model||copy.copyModel||''):(card.copyModel||''),
       copyFallbackReason:data.used?'':String(data.reason||'')
-    };
+    });
   }catch{
-    return card;
+    return ensureVisibleProductDescription(card);
   }
 }
 
@@ -4572,8 +4597,10 @@ analyzeBtn.onclick=async()=>{
 };
 
 function fillEditor(d){
+  d=ensureVisibleProductDescription(d);
+  if(currentData===d||currentData?.seoTitle===d.seoTitle)currentData={...(currentData||{}),...d};
   editor.title.value=d.seoTitle||'';editor.category.value=d.category||'';editor.keywords.value=(d.keywords||[]).join(', ');
-  editor.short.value=d.shortDescription||'';editor.full.value=d.fullDescription||'';
+  editor.short.value=d.shortDescription||'';editor.full.value=d.fullDescription||d.shortDescription||'';
   editor.specs.value=(d.characteristics||[]).map(x=>x.name+': '+x.value).join('\n');
   editor.benefits.value=(d.benefits||[]).join('\n');editor.usage.value=(d.usage||[]).join('\n');
   const q=d.photoQuality||{};
@@ -4602,7 +4629,7 @@ function renderSimplePhotoAdvice(){
 function renderSimpleResult(){
   const box=document.getElementById('simpleResult');if(!box)return;
   const title=(editor?.title?.value||currentData?.seoTitle||'Товар').trim()||'Товар';
-  const desc=(editor?.short?.value||editor?.full?.value||currentData?.shortDescription||'').trim();
+  const desc=(editor?.short?.value||editor?.full?.value||currentData?.shortDescription||currentData?.fullDescription||'').trim();
   const specs=String(editor?.specs?.value||'').split('\n').map(x=>x.trim()).filter(Boolean).slice(0,5);
   document.getElementById('simpleResultTitle').textContent=title;
   document.getElementById('simpleResultDescription').textContent=desc||'Описание появится после анализа фотографии.';
@@ -4627,13 +4654,13 @@ function collectEdits(){
     const old=previous.find(x=>normalizedFactText(x.name)===normalizedFactText(base.name)&&normalizedFactText(x.value)===normalizedFactText(base.value));
     return {...base,source:old?factSourceOf(old,currentData):'Продавец',...(old?.evidence?{evidence:old.evidence}:{})};
   }).filter(x=>x.value);
-  return {
+  return ensureVisibleProductDescription({
     ...(currentData||{}),
     seoTitle:editor.title.value.trim(),category:editor.category.value.trim(),
     shortDescription:editor.short.value.trim(),fullDescription:editor.full.value.trim(),
     characteristics:specs,keywords:editor.keywords.value.split(',').map(x=>x.trim()).filter(Boolean),
     benefits:parseLines(editor.benefits.value).slice(0,5),usage:parseLines(editor.usage.value).slice(0,4)
-  };
+  });
 }
 
 function renderAiQuality(d){
@@ -6883,7 +6910,9 @@ async function processExcelAutopilotItem(item,style){
     if(!analyze.ok)throw new Error(analyzed.error||'Не удалось проанализировать товар.');
   }
   if(String(item.data?.category||'').trim())analyzed.category=String(item.data.category).trim();
+  analyzed=ensureVisibleProductDescription(analyzed);
   analyzed=await enhanceProductCopyWithGpt(analyzed);
+  analyzed=ensureVisibleProductDescription(analyzed);
   let directedStyle=style==='auto'?recommendedStyleForProduct(analyzed):style;
   if(style==='auto'){
     const series=await catalogSeriesStyleForData(analyzed,item.id);
@@ -8186,7 +8215,7 @@ window.addEventListener('appinstalled',()=>{
   installAppBtn.style.display='none';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=25',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=26',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}));
 }
 
 catalogSearch.addEventListener('input',()=>{dashboardFilter='all';renderHistory()});
