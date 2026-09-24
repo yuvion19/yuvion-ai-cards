@@ -5687,6 +5687,35 @@ if (gigaChatConfigured()) {
 app.listen(port, "0.0.0.0", () => {
   console.log(`Yuvion AI Cards v11.2.9 listening on port ${port}`);
 
+  if (String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim()) {
+    void (async () => {
+      try {
+        const free = await neuroHubFreeGigaAvailable();
+        if (!free.available) {
+          console.warn("NeuroHub GigaChat self-test: GigaChat-3-Ultra Freemium is not available for this key");
+          return;
+        }
+        const response = await neuroHubGigaFetch("/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "GigaChat-3-Ultra",
+            messages: [{ role: "user", content: "Ответь одним словом: OK" }],
+            temperature: 0,
+            max_tokens: 8,
+            stream: false
+          })
+        });
+        const raw = await response.text();
+        console.log("NeuroHub GigaChat self-test OK:", { status: response.status, model: "GigaChat-3-Ultra", responsePresent: Boolean(raw) });
+      } catch (error) {
+        console.error("NeuroHub GigaChat self-test failed:", { status: error?.status, code: error?.code || "unknown", message: error?.message || "error" });
+      }
+    })();
+  } else {
+    console.warn("NeuroHub GigaChat self-test skipped: secret is not configured");
+  }
+
   if (
     gigaChatConfigured() &&
     String(process.env.YUVION_REFERENCE_SELF_TEST || "").toLowerCase() === "true"
