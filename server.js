@@ -1962,6 +1962,172 @@ app.post("/api/neurohub/gigachat/image", async (req, res) => {
   }
 });
 
+
+function gideonUsageSnapshot() {
+  const day = neuroHubDayKey();
+  if (neuroHubGigaDaily.day !== day) neuroHubGigaDaily = { day, count: 0 };
+  return {
+    day,
+    requests: neuroHubGigaDaily.count,
+    guardLimit: 700,
+    remaining: Math.max(0, 700 - neuroHubGigaDaily.count),
+    percent: Math.min(100, Math.round((neuroHubGigaDaily.count / 700) * 100))
+  };
+}
+
+app.get("/api/gideon/status", async (req, res) => {
+  const configured = Boolean(String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim());
+  if (!configured) return res.json({ name: "Gideon", configured: false, available: false, freeGuard: true, usage: gideonUsageSnapshot() });
+  try {
+    const info = await neuroHubFreeGigaAvailable();
+    return res.json({ name: "Gideon", configured: true, available: info.available, freeGuard: true, usage: gideonUsageSnapshot() });
+  } catch (error) {
+    return res.json({ name: "Gideon", configured: true, available: false, freeGuard: true, usage: gideonUsageSnapshot(), error: error?.code || "unavailable" });
+  }
+});
+
+app.get("/api/gideon/metrics", (req, res) => {
+  return res.json({
+    name: "Gideon",
+    mode: "single-provider",
+    freeGuard: true,
+    usage: gideonUsageSnapshot(),
+    uptimeSeconds: Math.round(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.post("/api/gideon/chat", async (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, "gideon-chat:" + ip, 40)) {
+    return res.status(429).json({ error: "Слишком много запросов. Повторите позже.", code: "free_rate_limit" });
+  }
+  const usage = gideonUsageSnapshot();
+  if (usage.requests >= usage.guardLimit) {
+    return res.status(429).json({ error: "Дневной бесплатный лимит Gideon достигнут.", code: "free_daily_guard", usage });
+  }
+  const incoming = Array.isArray(req.body?.messages) ? req.body.messages : [];
+  const messages = incoming
+    .filter(x => x && ["system","user","assistant"].includes(x.role))
+    .slice(-18)
+    .map(x => ({ role: x.role, content: String(x.content || "").slice(0, 14000) }));
+  if (!messages.length || !messages.some(x => x.role === "user")) {
+    return res.status(400).json({ error: "Сообщение пользователя не передано.", code: "invalid_messages" });
+  }
+  const totalChars = messages.reduce((n, x) => n + x.content.length, 0);
+  if (totalChars > 32000) return res.status(413).json({ error: "Контекст слишком большой.", code: "context_too_large" });
+  try {
+    const result = await neuroHubUltraCompletion(messages, { maxTokens: 1300, temperature: 0.55 });
+    if (!result.content) return res.status(502).json({ error: "Gideon вернул пустой ответ.", code: "empty_answer" });
+    neuroHubGigaDaily.count += 1;
+    return res.json({ answer: result.content, model: "Gideon", freeGuard: true, usage: gideonUsageSnapshot() });
+  } catch (error) {
+    return res.status(error?.status && error.status >= 400 && error.status < 600 ? error.status : 502).json({
+      error: error?.code === "free_model_unavailable" ? "Gideon временно недоступен." : "Gideon временно недоступен.",
+      code: error?.code || "gideon_unavailable",
+      freeGuard: true,
+      usage: gideonUsageSnapshot()
+    });
+  }
+});
+
+app.post("/api/gideon/analyze", async (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, "gideon-file:" + ip, 24)) {
+    return res.status(429).json({ error: "Слишком много файловых запросов. Повторите позже.", code: "free_rate_limit" });
+  }
+  const files = Array.isArray(req.body?.files) ? req.body.files.slice(0, 10) : [];
+  const prompt = String(req.body?.prompt || "Проанализируй приложенные файлы и дай точный ответ на русском языке.").slice(0, 14000);
+  if (!files.length) return res.status(400).json({ error: "Файлы не переданы.", code: "files_missing" });
+  const ids = [];
+  try {
+    for (const file of files) ids.push(await neuroHubUploadFile(file));
+    const result = await neuroHubUltraCompletion([{ role: "user", content: prompt, attachments: ids }], { maxTokens: 1800, temperature: 0.25, functionCall: "auto" });
+    if (!result.content) return res.status(502).json({ error: "Gideon вернул пустой ответ.", code: "empty_answer" });
+    neuroHubGigaDaily.count += 1;
+    return res.json({ answer: result.content, model: "Gideon", freeGuard: true, usage: gideonUsageSnapshot() });
+  } catch (error) {
+    return res.status(error?.status && error.status >= 400 && error.status < 600 ? error.status : 502).json({
+      error: error?.code === "free_model_unavailable" ? "Gideon временно недоступен." : "Gideon не смог обработать файл.",
+      code: error?.code || "analyze_failed",
+      freeGuard: true
+    });
+  } finally {
+    await Promise.allSettled(ids.map(neuroHubDeleteFile));
+  }
+});
+
+app.post("/api/gideon/image", async (req, res) => {
+  const prompt = String(req.body?.prompt || "").trim().slice(0, 7000);
+  if (!prompt) return res.status(400).json({ error: "Описание изображения не передано.", code: "prompt_missing" });
+  let imageId = "";
+  try {
+    const result = await neuroHubUltraCompletion(
+      [
+        { role: "system", content: "Ты — Gideon Image. Для запросов на создание изображения обязательно используй встроенную функцию text2image. Не отвечай только текстом." },
+        { role: "user", content: "Создай изображение: " + prompt }
+      ],
+      { maxTokens: 600, temperature: 0.2, functionCall: "auto" }
+    );
+    imageId = neuroHubImageId(result.content);
+    if (!imageId) return res.status(422).json({ error: "Gideon не вернул изображение для этого запроса.", code: "image_not_generated", answer: result.content });
+    const response = await neuroHubGigaFetch("/v1/files/" + encodeURIComponent(imageId) + "/content", { method: "GET", headers: { Accept: "application/jpg" } });
+    if (!response.ok) return res.status(502).json({ error: "Не удалось скачать созданное изображение.", code: "image_download_failed" });
+    const buffer = Buffer.from(await response.arrayBuffer());
+    neuroHubGigaDaily.count += 1;
+    return res.json({ imageBase64: buffer.toString("base64"), mimeType: response.headers.get("content-type") || "image/jpeg", model: "Gideon", usage: gideonUsageSnapshot() });
+  } catch (error) {
+    return res.status(error?.status && error.status >= 400 && error.status < 600 ? error.status : 502).json({ error: "Генерация изображения Gideon недоступна.", code: error?.code || "image_generation_failed" });
+  } finally {
+    if (imageId) await neuroHubDeleteFile(imageId);
+  }
+});
+
+app.post("/api/gideon/research", async (req, res) => {
+  const urls = (Array.isArray(req.body?.urls) ? req.body.urls : [])
+    .map(x => String(x || "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  const question = String(req.body?.question || "Сделай исследовательскую сводку по источникам.").slice(0, 8000);
+  if (!urls.length) return res.status(400).json({ error: "Добавьте хотя бы одну публичную ссылку.", code: "urls_missing" });
+  const sources = [];
+  for (const rawUrl of urls) {
+    try {
+      const fetched = await fetchPublicResource(rawUrl, { maxBytes: 1200000, accept: "text/html,text/plain;q=0.9,*/*;q=0.2", redirects: 3 });
+      const type = String(fetched.response.headers.get("content-type") || "").toLowerCase();
+      if (!type.includes("text/") && !type.includes("html")) {
+        sources.push({ url: fetched.finalUrl, error: "Формат источника не поддерживается для URL-исследования." });
+        continue;
+      }
+      let text = fetched.buffer.toString("utf8");
+      if (type.includes("html")) {
+        text = text
+          .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+          .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+          .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
+          .replace(/<[^>]+>/g, " ");
+      }
+      text = decodeHtmlText(text).replace(/\s+/g, " ").trim().slice(0, 18000);
+      sources.push({ url: fetched.finalUrl, text });
+    } catch (error) {
+      sources.push({ url: rawUrl, error: error?.message || "Не удалось загрузить источник." });
+    }
+  }
+  const usable = sources.filter(x => x.text);
+  if (!usable.length) return res.status(422).json({ error: "Не удалось прочитать ни один источник.", code: "sources_unavailable", sources });
+  const context = usable.map((s, i) => "[ИСТОЧНИК " + (i + 1) + "] " + s.url + "\n" + s.text).join("\n\n");
+  try {
+    const result = await neuroHubUltraCompletion([
+      { role: "system", content: "Ты Gideon Research. Анализируй только переданные источники. Разделяй факты, выводы и неопределенность. В конце дай раздел 'Источники' с их URL. Не выдумывай сведения, которых нет в источниках." },
+      { role: "user", content: question + "\n\n" + context }
+    ], { maxTokens: 1900, temperature: 0.25 });
+    neuroHubGigaDaily.count += 1;
+    return res.json({ answer: result.content, model: "Gideon", sources: sources.map(x => ({ url: x.url, ok: Boolean(x.text), error: x.error || "" })), usage: gideonUsageSnapshot() });
+  } catch (error) {
+    return res.status(502).json({ error: "Gideon не смог завершить исследование.", code: error?.code || "research_failed", sources });
+  }
+});
+
 async function generateProductCopyWithGpt(cardRaw = {}) {
   return generateProductCopyWithProviders(cardRaw);
 }
