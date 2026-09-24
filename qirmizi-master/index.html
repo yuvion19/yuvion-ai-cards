@@ -72,7 +72,7 @@
         <div class="row wrap"><button id="saveBtn" class="primary" data-i18n="save">Сохранить</button><button id="issueBtn" data-i18n="geometryIssue">Проблема контура</button><button id="shareBtn" data-i18n="share">Ссылка</button></div>
       </section>
     </div>
-    <div class="passportActions"><button id="speakBtn">🔊 <span data-i18n="audioGuide">Аудиогид</span></button><button id="routeHereBtn" data-i18n="routeHere">В маршрут</button><button id="exportHouseBtn">JSON</button></div>
+    <div class="passportActions"><button id="speakBtn">🔊 <span data-i18n="audioGuide">Аудиогид</span></button><button id="routeHereBtn" data-i18n="routeHere">В маршрут</button><button id="qrBtn">QR</button><button id="exportHouseBtn">JSON</button></div>
   </aside>
 
   <aside id="tools" class="toolRail">
@@ -110,6 +110,6 @@
   <div class="timelineDock"><button id="yearReset" data-i18n="today">Сегодня</button><input id="yearSlider" type="range" min="1850" max="2026" value="2026"><b id="yearLabel">2026</b></div>
   <div id="toast" class="toast hidden"></div>
 </div>
-<script src="./vendor/maplibre-gl.js"></script>
+<script src="./vendor/maplibre-gl.js"></script>\n<script src="./vendor/fflate.js"></script>
 <script src="./app.js"></script>
 </body></html>
