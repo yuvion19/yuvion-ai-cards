@@ -1,1 +1,2 @@
 Deploy trigger for Railway v4\n
+NEUROHUB_RU_AI_SELFTEST_20260925_0211
