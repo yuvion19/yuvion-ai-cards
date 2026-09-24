@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0e11">
+  <meta name="description" content="Цифровой двойник и архив Красной Слободы — 3D-карта, дома, маршруты, история, 360° и офлайн-режим.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./vendor/maplibre-gl.css">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Цифровая Красная Слобода</title>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+
+  <header class="topbar">
+    <button id="brandBtn" class="brand">
+      <span class="mark">QQ</span>
+      <span><b data-i18n="brand">Цифровая Красная Слобода</b><small>Qırmızı Qəsəbə · Quba · Azerbaijan</small></span>
+    </button>
+    <div class="topActions">
+      <select id="lang" aria-label="Language"><option value="ru">RU</option><option value="az">AZ</option><option value="en">EN</option><option value="juh">JUH</option><option value="he">HE</option></select>
+      <button id="fitBtn" data-i18n="all">Вся Слобода</button>
+      <button id="modeBtn">3D</button>
+      <button id="gpsBtn" data-i18n="gps">Я здесь</button>
+      <button id="museumBtn" data-i18n="museum">Музей</button>
+      <button id="walkBtn" class="primary" data-i18n="walk">Прогулка</button>
+    </div>
+  </header>
+
+  <aside id="catalog" class="panel left">
+    <div class="panelHead"><div><small data-i18n="catalog">КАТАЛОГ</small><b id="count">0</b></div><button class="iconBtn" data-close="catalog">×</button></div>
+    <div class="search"><input id="search" data-i18n-placeholder="search" placeholder="Адрес, название, QQ-ID"></div>
+    <div id="filters" class="chips">
+      <button data-filter="all" class="on" data-i18n="allFilter">Все</button>
+      <button data-filter="heritage" data-i18n="heritage">Исторические</button>
+      <button data-filter="materials" data-i18n="materials">С материалами</button>
+      <button data-filter="tasks" data-i18n="needsWork">Нужно дополнить</button>
+    </div>
+    <div id="status" class="status">Загрузка…</div>
+    <div id="houseList" class="list"></div>
+  </aside>
+
+  <aside id="passport" class="panel right hidden">
+    <div class="panelHead"><div><small data-i18n="passport">ЦИФРОВОЙ ПАСПОРТ</small><h2 id="houseTitle"></h2><code id="houseId"></code></div><button class="iconBtn" data-close="passport">×</button></div>
+    <div class="badges"><span id="qualityBadge" class="badge">0%</span><span id="verifyBadge" class="badge muted">OSM</span></div>
+    <div id="tabs" class="tabs">
+      <button data-tab="today" class="on" data-i18n="today">Сегодня</button>
+      <button data-tab="history" data-i18n="history">История</button>
+      <button data-tab="media" data-i18n="media">Медиа</button>
+      <button data-tab="sources" data-i18n="sources">Источники</button>
+      <button data-tab="edit" data-i18n="edit">Редактор</button>
+    </div>
+    <div class="panelBody">
+      <section id="today"></section>
+      <section id="history" class="hidden"></section>
+      <section id="media" class="hidden"></section>
+      <section id="sources" class="hidden"></section>
+      <section id="edit" class="hidden editor">
+        <input id="editTitle" placeholder="Название">
+        <textarea id="editDescription" rows="4" placeholder="Описание"></textarea>
+        <div class="grid2"><input id="editYear" type="number" min="1800" max="2100" placeholder="Год"><select id="editStatus"><option value="existing">существует</option><option value="changed">изменено</option><option value="lost">утрачено</option></select></div>
+        <select id="editVerification"><option value="open">открытые данные</option><option value="materials">есть материалы</option><option value="verified">проверено источником</option></select>
+        <input id="editSource" placeholder="Источник URL">
+        <input id="editSourceLabel" placeholder="Название источника">
+        <input id="editPhoto" placeholder="Фото URL">
+        <input id="editPhotoYear" type="number" min="1800" max="2100" placeholder="Год фото">
+        <input id="editPanorama" placeholder="360° URL">
+        <input id="editModel" placeholder="GLB/GLTF URL">
+        <input id="editAudio" placeholder="Аудио URL">
+        <div class="row wrap"><button id="saveBtn" class="primary" data-i18n="save">Сохранить</button><button id="issueBtn" data-i18n="geometryIssue">Проблема контура</button><button id="shareBtn" data-i18n="share">Ссылка</button></div>
+      </section>
+    </div>
+    <div class="passportActions"><button id="speakBtn">🔊 <span data-i18n="audioGuide">Аудиогид</span></button><button id="routeHereBtn" data-i18n="routeHere">В маршрут</button><button id="exportHouseBtn">JSON</button></div>
+  </aside>
+
+  <aside id="tools" class="toolRail">
+    <button data-tool="timeline" title="Timeline">◴</button>
+    <button data-tool="routes" title="Routes">↝</button>
+    <button data-tool="quality" title="Quality">✓</button>
+    <button data-tool="archive" title="Archive">▣</button>
+    <button data-tool="layers" title="Layers">◇</button>
+  </aside>
+
+  <section id="toolPanel" class="floating hidden">
+    <div class="panelHead"><div><small id="toolKicker">ИНСТРУМЕНТ</small><b id="toolTitle"></b></div><button class="iconBtn" data-close="toolPanel">×</button></div>
+    <div id="toolBody" class="toolBody"></div>
+  </section>
+
+  <section id="museum" class="museum hidden">
+    <div class="museumCard">
+      <button class="museumClose" data-close="museum">×</button>
+      <small class="kicker">QIRMIZI QƏSƏBƏ · DIGITAL HERITAGE</small>
+      <h1 data-i18n="museumTitle">Красная Слобода во времени</h1>
+      <p data-i18n="museumLead">Интерактивная карта, архитектурный архив и виртуальная прогулка. Исторические сведения показываются только вместе с источниками или отметкой о степени достоверности.</p>
+      <div id="museumStats" class="museumStats"></div>
+      <div class="row wrap"><button id="museumTourBtn" class="primary big" data-i18n="startTour">Начать экскурсию</button><button id="museumMapBtn" class="big" data-i18n="openMap">Открыть карту</button><button id="screenModeBtn" class="big" data-i18n="screenMode">Режим экрана</button></div>
+    </div>
+  </section>
+
+  <section id="walkHud" class="walk hidden">
+    <div class="crosshair">+</div>
+    <div class="walkHead"><b data-i18n="walkMode">Прогулка по улицам</b><button id="exitWalk" data-i18n="exit">Выйти</button></div>
+    <div id="frontCard" class="frontCard hidden"><b></b><small></small><button id="frontOpen" data-i18n="details">Подробнее</button></div>
+    <div class="walkHint">WASD / стрелки · Shift · мышь/палец</div>
+    <div class="pad"><button data-dir="forward">▲</button><button data-dir="left">◀</button><button data-dir="back">▼</button><button data-dir="right">▶</button></div>
+  </section>
+
+  <div class="timelineDock"><button id="yearReset" data-i18n="today">Сегодня</button><input id="yearSlider" type="range" min="1850" max="2026" value="2026"><b id="yearLabel">2026</b></div>
+  <div id="toast" class="toast hidden"></div>
+</div>
+<script src="./vendor/maplibre-gl.js"></script>
+<script src="./app.js"></script>
+</body></html>
