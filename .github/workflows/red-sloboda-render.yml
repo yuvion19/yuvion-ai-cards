@@ -1,0 +1,39 @@
+name: Red Sloboda Documentary Render
+
+on:
+  push:
+    branches:
+      - red-sloboda-render
+    paths:
+      - 'scripts/render_red_sloboda.sh'
+      - '.github/workflows/red-sloboda-render.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Render documentary
+        run: |
+          chmod +x scripts/render_red_sloboda.sh
+          ./scripts/render_red_sloboda.sh
+
+      - name: Upload final MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: Krasnaya-Sloboda-1080p
+          path: build/out/Krasnaya_Sloboda_Pamyat_Kavkaza_1080p.mp4
+          if-no-files-found: error
+          retention-days: 7
