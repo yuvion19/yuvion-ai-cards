@@ -62,6 +62,76 @@ async function fetchMirror(url) {
   }
 }
 
+
+function attrs(text) {
+  const out = {};
+  for (const m of text.matchAll(/([:\w-]+)="([^"]*)"/g)) out[m[1]] = m[2];
+  return out;
+}
+
+async function fetchOsmApiSnapshot() {
+  const response = await fetch("https://api.openstreetmap.org/api/0.6/map?bbox=48.493,41.36,48.529,41.3875", {
+    headers: { "Accept": "application/xml,text/xml;q=0.9,*/*;q=0.8", "User-Agent": "QirmiziQesebeDigitalTwin/1.0" }
+  });
+  if (!response.ok) throw new Error(`OSM API ${response.status}`);
+  const xml = await response.text();
+  const nodes = new Map();
+  for (const m of xml.matchAll(/<node\b([^>]*?)\/?>(?:<\/node>)?/g)) {
+    const a = attrs(m[1]);
+    const id = a.id, lat = Number(a.lat), lon = Number(a.lon);
+    if (id && Number.isFinite(lat) && Number.isFinite(lon)) nodes.set(id, [lon, lat]);
+  }
+  const features = [];
+  for (const m of xml.matchAll(/<way\b([^>]*)>([\s\S]*?)<\/way>/g)) {
+    const wa = attrs(m[1]);
+    const body = m[2];
+    const tags = {};
+    for (const tm of body.matchAll(/<tag\b([^>]*)\/>/g)) {
+      const ta = attrs(tm[1]);
+      if (ta.k) tags[ta.k] = ta.v || "";
+    }
+    if (!tags.building) continue;
+    const ring = [];
+    for (const nm of body.matchAll(/<nd\b([^>]*)\/>/g)) {
+      const na = attrs(nm[1]);
+      const pt = nodes.get(na.ref);
+      if (pt) ring.push(pt);
+    }
+    if (ring.length < 3) continue;
+    const first = ring[0], last = ring[ring.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) ring.push([...first]);
+    let height = Number.parseFloat(String(tags.height || "").replace(",", "."));
+    let estimated = false;
+    if (!Number.isFinite(height) || height < 1 || height > 100) {
+      const levels = Number.parseFloat(tags["building:levels"]);
+      height = Number.isFinite(levels) && levels > 0 ? Math.max(3.2, levels * 3.2) : 7.2;
+      estimated = true;
+    }
+    const id = Number(wa.id);
+    features.push({
+      type: "Feature",
+      properties: {
+        id,
+        qq: `QQ-OSM-${id}`,
+        name: tags.name || "",
+        street: tags["addr:street"] || "",
+        num: tags["addr:housenumber"] || "",
+        building: tags.building || "building",
+        levels: tags["building:levels"] || "",
+        height,
+        estimated,
+        historic: tags.historic || "",
+        religion: tags.religion || "",
+        tourism: tags.tourism || "",
+        amenity: tags.amenity || ""
+      },
+      geometry: { type: "Polygon", coordinates: [ring] }
+    });
+  }
+  if (!features.length) throw new Error("OSM API returned no buildings");
+  return { type: "FeatureCollection", generatedAt: new Date().toISOString(), features };
+}
+
 async function fetchFlootSnapshot() {
   const response = await fetch("https://qirmizi-qesebe-3d.floot.app/_api/osm-buildings", {
     headers: { "Accept": "application/json" }
@@ -84,8 +154,14 @@ try {
     if (!snapshot.features.length) throw new Error("Empty Overpass snapshot");
     console.log(`Overpass snapshot: ${snapshot.features.length} buildings`);
   } catch (overpassError) {
-    console.warn("All snapshot sources unavailable:", overpassError?.message || overpassError);
-    snapshot = { type: "FeatureCollection", generatedAt: new Date().toISOString(), features: [] };
+    console.warn("Overpass snapshot unavailable:", overpassError?.message || overpassError);
+    try {
+      snapshot = await fetchOsmApiSnapshot();
+      console.log(`OSM API snapshot: ${snapshot.features.length} buildings`);
+    } catch (osmApiError) {
+      console.warn("All snapshot sources unavailable:", osmApiError?.message || osmApiError);
+      snapshot = { type: "FeatureCollection", generatedAt: new Date().toISOString(), features: [] };
+    }
   }
 }
 
