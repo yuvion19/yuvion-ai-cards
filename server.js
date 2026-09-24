@@ -1729,7 +1729,7 @@ function neuroHubDayKey() {
 
 async function getNeuroHubGigaToken() {
   const key = String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim();
-  if (!key) throw Object.assign(new Error("GigaChat for NeuroHub is not configured"), { code: "neurohub_gigachat_not_configured" });
+  if (!key) throw Object.assign(new Error("Gideon is not configured"), { code: "neurohub_gigachat_not_configured" });
   if (neuroHubGigaTokenCache.token && Date.now() < neuroHubGigaTokenCache.expiresAt - 60000) return neuroHubGigaTokenCache.token;
 
   const response = await fetch("https://ngw.devices.sberbank.ru:9443/api/v2/oauth", {
@@ -1743,10 +1743,10 @@ async function getNeuroHubGigaToken() {
     body: new URLSearchParams({ scope: "GIGACHAT_API_PERS" }).toString()
   });
   const raw = await response.text();
-  if (!response.ok) throw Object.assign(new Error("GigaChat authorization failed"), { status: response.status, code: "neurohub_gigachat_auth_failed" });
+  if (!response.ok) throw Object.assign(new Error("Gideon authorization failed"), { status: response.status, code: "neurohub_gigachat_auth_failed" });
   let data;
-  try { data = JSON.parse(raw); } catch { throw Object.assign(new Error("Invalid GigaChat authorization response"), { code: "neurohub_gigachat_auth_invalid" }); }
-  if (!data?.access_token) throw Object.assign(new Error("GigaChat token is missing"), { code: "neurohub_gigachat_token_missing" });
+  try { data = JSON.parse(raw); } catch { throw Object.assign(new Error("Invalid Gideon authorization response"), { code: "neurohub_gigachat_auth_invalid" }); }
+  if (!data?.access_token) throw Object.assign(new Error("Gideon token is missing"), { code: "neurohub_gigachat_token_missing" });
   let expiresAt = Number(data.expires_at || 0);
   if (expiresAt && expiresAt < 1000000000000) expiresAt *= 1000;
   neuroHubGigaTokenCache = { token: String(data.access_token), expiresAt: expiresAt || Date.now() + 29 * 60 * 1000 };
@@ -1778,13 +1778,13 @@ async function neuroHubFreeGigaAvailable() {
 
 app.get("/api/neurohub/russian-ai/status", async (req, res) => {
   if (!String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim()) {
-    return res.json({ configured: false, freeGuard: true, model: "GigaChat-3-Ultra", available: false });
+    return res.json({ configured: false, freeGuard: true, model: "Gideon", available: false });
   }
   try {
     const info = await neuroHubFreeGigaAvailable();
-    return res.json({ configured: true, freeGuard: true, model: "GigaChat-3-Ultra", available: info.available });
+    return res.json({ configured: true, freeGuard: true, model: "Gideon", available: info.available });
   } catch (error) {
-    return res.json({ configured: true, freeGuard: true, model: "GigaChat-3-Ultra", available: false, error: error?.code || "unavailable" });
+    return res.json({ configured: true, freeGuard: true, model: "Gideon", available: false, error: error?.code || "unavailable" });
   }
 });
 
@@ -1816,7 +1816,7 @@ app.post("/api/neurohub/gigachat", async (req, res) => {
     const free = await neuroHubFreeGigaAvailable();
     if (!free.available) {
       return res.status(403).json({
-        error: "GigaChat-3-Ultra Freemium сейчас недоступен этому ключу. Платные модели намеренно не используются.",
+        error: "Gideon временно недоступен. Платный режим намеренно не используется.",
         code: "free_model_unavailable",
         freeGuard: true
       });
@@ -1835,7 +1835,7 @@ app.post("/api/neurohub/gigachat", async (req, res) => {
     const raw = await response.text();
     if (!response.ok) {
       return res.status(response.status >= 400 && response.status < 600 ? response.status : 502).json({
-        error: response.status === 429 ? "Бесплатный лимит GigaChat временно недоступен." : "GigaChat временно недоступен.",
+        error: response.status === 429 ? "Бесплатный лимит GigaChat временно недоступен." : "Gideon временно недоступен.",
         code: "gigachat_request_failed",
         freeGuard: true
       });
@@ -1843,11 +1843,11 @@ app.post("/api/neurohub/gigachat", async (req, res) => {
     let data = {};
     try { data = JSON.parse(raw); } catch {}
     const answer = String(data?.choices?.[0]?.message?.content || "").trim();
-    if (!answer) return res.status(502).json({ error: "GigaChat вернул пустой ответ.", code: "empty_answer", freeGuard: true });
+    if (!answer) return res.status(502).json({ error: "Gideon вернул пустой ответ.", code: "empty_answer", freeGuard: true });
     neuroHubGigaDaily.count += 1;
-    return res.json({ answer, model: "GigaChat-3-Ultra", freeGuard: true, cloud: true });
+    return res.json({ answer, model: "Gideon", freeGuard: true, cloud: true });
   } catch (error) {
-    return res.status(502).json({ error: "GigaChat временно недоступен.", code: error?.code || "gigachat_unavailable", freeGuard: true });
+    return res.status(502).json({ error: "Gideon временно недоступен.", code: error?.code || "gigachat_unavailable", freeGuard: true });
   }
 });
 
@@ -1868,7 +1868,7 @@ async function neuroHubUploadFile({ name, mimeType, base64 }) {
   form.append("purpose", "general");
   const response = await neuroHubGigaFetch("/v1/files", { method: "POST", body: form });
   const text = await response.text();
-  if (!response.ok) throw Object.assign(new Error("GigaChat file upload failed"), { status: response.status, code: "file_upload_failed" });
+  if (!response.ok) throw Object.assign(new Error("Gideon file upload failed"), { status: response.status, code: "file_upload_failed" });
   let data = {};
   try { data = JSON.parse(text); } catch {}
   if (!data?.id) throw Object.assign(new Error("GigaChat did not return file id"), { code: "file_id_missing" });
@@ -1882,7 +1882,7 @@ async function neuroHubDeleteFile(fileId) {
 
 async function neuroHubUltraCompletion(messages, options = {}) {
   const free = await neuroHubFreeGigaAvailable();
-  if (!free.available) throw Object.assign(new Error("GigaChat-3-Ultra Freemium is unavailable"), { code: "free_model_unavailable" });
+  if (!free.available) throw Object.assign(new Error("Gideon is unavailable"), { code: "free_model_unavailable" });
   const payload = {
     model: "GigaChat-3-Ultra",
     messages,
@@ -1897,7 +1897,7 @@ async function neuroHubUltraCompletion(messages, options = {}) {
     body: JSON.stringify(payload)
   });
   const raw = await response.text();
-  if (!response.ok) throw Object.assign(new Error("GigaChat request failed"), { status: response.status, code: response.status === 429 ? "free_limit" : "gigachat_failed" });
+  if (!response.ok) throw Object.assign(new Error("Gideon request failed"), { status: response.status, code: response.status === 429 ? "free_limit" : "gigachat_failed" });
   let data = {};
   try { data = JSON.parse(raw); } catch {}
   return { data, content: String(data?.choices?.[0]?.message?.content || "").trim() };
@@ -1917,12 +1917,12 @@ app.post("/api/neurohub/gigachat/analyze", async (req, res) => {
     for (const file of files) ids.push(await neuroHubUploadFile(file));
     const messages = [{ role: "user", content: prompt, attachments: ids }];
     const result = await neuroHubUltraCompletion(messages, { maxTokens: 1400, temperature: 0.25, functionCall: "auto" });
-    if (!result.content) return res.status(502).json({ error: "GigaChat вернул пустой ответ.", code: "empty_answer" });
+    if (!result.content) return res.status(502).json({ error: "Gideon вернул пустой ответ.", code: "empty_answer" });
     neuroHubGigaDaily.count += 1;
-    return res.json({ answer: result.content, model: "GigaChat-3-Ultra", freeGuard: true });
+    return res.json({ answer: result.content, model: "Gideon", freeGuard: true });
   } catch (error) {
     return res.status(error?.status && error.status >= 400 && error.status < 600 ? error.status : 502).json({
-      error: error?.code === "free_model_unavailable" ? "GigaChat-3-Ultra Freemium сейчас недоступен." : "GigaChat не смог обработать файл.",
+      error: error?.code === "free_model_unavailable" ? "Gideon временно недоступен." : "Gideon не смог обработать файл.",
       code: error?.code || "analyze_failed",
       freeGuard: true
     });
@@ -1938,7 +1938,7 @@ app.post("/api/neurohub/gigachat/image", async (req, res) => {
   try {
     const result = await neuroHubUltraCompletion(
       [
-        { role: "system", content: "Ты генератор изображений GigaChat. Для запроса на изображение обязательно используй встроенную функцию text2image. Не отвечай только текстом." },
+        { role: "system", content: "Ты генератор изображений Gideon. Для запроса на изображение обязательно используй встроенную функцию text2image. Не отвечай только текстом." },
         { role: "user", content: "Нарисуй изображение: " + prompt }
       ],
       { maxTokens: 500, temperature: 0.2, functionCall: "auto" }
@@ -1949,10 +1949,10 @@ app.post("/api/neurohub/gigachat/image", async (req, res) => {
     if (!response.ok) return res.status(502).json({ error: "Не удалось скачать изображение GigaChat.", code: "image_download_failed" });
     const buffer = Buffer.from(await response.arrayBuffer());
     neuroHubGigaDaily.count += 1;
-    return res.json({ imageBase64: buffer.toString("base64"), mimeType: response.headers.get("content-type") || "image/jpeg", model: "GigaChat-3-Ultra", freeGuard: true });
+    return res.json({ imageBase64: buffer.toString("base64"), mimeType: response.headers.get("content-type") || "image/jpeg", model: "Gideon", freeGuard: true });
   } catch (error) {
     return res.status(error?.status && error.status >= 400 && error.status < 600 ? error.status : 502).json({
-      error: error?.code === "free_model_unavailable" ? "GigaChat-3-Ultra Freemium сейчас недоступен." : "Генерация изображения GigaChat недоступна.",
+      error: error?.code === "free_model_unavailable" ? "Gideon временно недоступен." : "Генерация изображения Gideon недоступна.",
       code: error?.code || "image_generation_failed",
       freeGuard: true
     });
