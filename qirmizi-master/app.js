@@ -269,6 +269,7 @@ function applyLanguage(lang){
 function museumOpen(){updateMuseumStats();$("museum").classList.remove("hidden")}
 function close(id){$(id)?.classList.add("hidden")}
 function shareSelected(){if(!state.selected)return;const u=new URL(location.href);u.searchParams.set("house",state.selected.properties.qqId);navigator.clipboard?.writeText(u.href).then(()=>toast("Ссылка скопирована")).catch(()=>toast(u.href))}
+function showQr(){if(!state.selected)return;const u=new URL(location.href);u.searchParams.set("house",state.selected.properties.qqId);$("toolPanel").classList.remove("hidden");$("toolKicker").textContent="QR-КОД";$("toolTitle").textContent=label(state.selected);$("toolBody").innerHTML='<div class="sourceItem"><b>'+esc(state.selected.properties.qqId)+'</b><small>QR ведёт на постоянную ссылку паспорта.</small></div><div style="display:grid;place-items:center;padding:12px"><img width="220" height="220" alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(u.href)+'"></div><input value="'+esc(u.href)+'" readonly>'}
 function addSelectedToRoute(){if(!state.selected)return;const id=state.selected.properties.qqId;if(!state.route.includes(id))state.route.push(id);drawRoute();toast("Добавлено в маршрут")}
 
 function wire(){
@@ -277,7 +278,7 @@ function wire(){
   $("tabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));["today","history","media","sources","edit"].forEach(id=>$(id).classList.toggle("hidden",id!==b.dataset.tab))});
   $("fitBtn").onclick=()=>map.fitBounds(BOUNDS,{padding:50,duration:500});$("modeBtn").onclick=()=>set3d(!state.is3d);$("gpsBtn").onclick=locateUser;$("museumBtn").onclick=museumOpen;$("walkBtn").onclick=startWalk;$("exitWalk").onclick=stopWalk;$("frontOpen").onclick=()=>{const id=$("frontCard").dataset.id;if(id){stopWalk();selectHouse(id)}};
   $("yearSlider").oninput=e=>setYear(Number(e.target.value));$("yearReset").onclick=()=>setYear(CURRENT_YEAR);
-  $("saveBtn").onclick=saveRecord;$("issueBtn").onclick=markIssue;$("shareBtn").onclick=shareSelected;$("speakBtn").onclick=()=>speakCurrent();$("routeHereBtn").onclick=addSelectedToRoute;$("exportHouseBtn").onclick=()=>state.selected&&download(state.selected.properties.qqId+".json",JSON.stringify({feature:state.selected,record:houseRecord(state.selected.properties.qqId)},null,2));
+  $("saveBtn").onclick=saveRecord;$("issueBtn").onclick=markIssue;$("shareBtn").onclick=shareSelected;$("qrBtn").onclick=showQr;$("speakBtn").onclick=()=>speakCurrent();$("routeHereBtn").onclick=addSelectedToRoute;$("exportHouseBtn").onclick=()=>state.selected&&download(state.selected.properties.qqId+".json",JSON.stringify({feature:state.selected,record:houseRecord(state.selected.properties.qqId)},null,2));
   $("tools").querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>openTool(b.dataset.tool));
   $("museumMapBtn").onclick=()=>close("museum");$("museumTourBtn").onclick=()=>{close("museum");makeHeritageRoute();startTour()};$("screenModeBtn").onclick=()=>{state.screenMode=!state.screenMode;document.body.classList.toggle("screenMode",state.screenMode);close("museum")};
   $("brandBtn").onclick=museumOpen;$("lang").onchange=e=>applyLanguage(e.target.value);
