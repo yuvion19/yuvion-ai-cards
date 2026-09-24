@@ -1790,12 +1790,12 @@ app.get("/api/neurohub/russian-ai/status", async (req, res) => {
 app.post("/api/neurohub/gigachat", async (req, res) => {
   const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
   if (limitMap(neuroHubGigaIpLimits, ip, 30)) {
-    return res.status(429).json({ error: "Слишком много запросов. Используйте локальный ruGPT и повторите позже.", code: "free_rate_limit" });
+    return res.status(429).json({ error: "Слишком много запросов. Повторите позже.", code: "free_rate_limit" });
   }
   const day = neuroHubDayKey();
   if (neuroHubGigaDaily.day !== day) neuroHubGigaDaily = { day, count: 0 };
   if (neuroHubGigaDaily.count >= 700) {
-    return res.status(429).json({ error: "Дневной Free Guard достигнут. Доступны локальные модели без лимита API.", code: "free_daily_guard" });
+    return res.status(429).json({ error: "Дневной Free Guard достигнут. Повторите позже.", code: "free_daily_guard" });
   }
 
   const incoming = Array.isArray(req.body?.messages) ? req.body.messages : [];
@@ -1834,7 +1834,7 @@ app.post("/api/neurohub/gigachat", async (req, res) => {
     const raw = await response.text();
     if (!response.ok) {
       return res.status(response.status >= 400 && response.status < 600 ? response.status : 502).json({
-        error: response.status === 429 ? "Бесплатный лимит GigaChat временно недоступен. Используйте локальный ruGPT." : "GigaChat временно недоступен.",
+        error: response.status === 429 ? "Бесплатный лимит GigaChat временно недоступен." : "GigaChat временно недоступен.",
         code: "gigachat_request_failed",
         freeGuard: true
       });
@@ -1846,7 +1846,117 @@ app.post("/api/neurohub/gigachat", async (req, res) => {
     neuroHubGigaDaily.count += 1;
     return res.json({ answer, model: "GigaChat-3-Ultra", freeGuard: true, cloud: true });
   } catch (error) {
-    return res.status(502).json({ error: "GigaChat недоступен. Локальные российские модели продолжают работать.", code: error?.code || "gigachat_unavailable", freeGuard: true });
+    return res.status(502).json({ error: "GigaChat временно недоступен.", code: error?.code || "gigachat_unavailable", freeGuard: true });
+  }
+});
+
+
+function neuroHubSafeFileName(name = "file.bin") {
+  return String(name || "file.bin").replace(/[^a-zA-Z0-9._()\- а-яА-ЯёЁ]/g, "_").slice(0, 120) || "file.bin";
+}
+
+async function neuroHubUploadFile({ name, mimeType, base64 }) {
+  const raw = String(base64 || "").replace(/^data:[^;]+;base64,/, "");
+  if (!raw) throw Object.assign(new Error("Empty file"), { code: "empty_file" });
+  const buffer = Buffer.from(raw, "base64");
+  if (!buffer.length || buffer.length > 15 * 1024 * 1024) {
+    throw Object.assign(new Error("File is too large"), { code: "file_too_large" });
+  }
+  const form = new FormData();
+  form.append("file", new Blob([buffer], { type: String(mimeType || "application/octet-stream") }), neuroHubSafeFileName(name));
+  form.append("purpose", "general");
+  const response = await neuroHubGigaFetch("/v1/files", { method: "POST", body: form });
+  const text = await response.text();
+  if (!response.ok) throw Object.assign(new Error("GigaChat file upload failed"), { status: response.status, code: "file_upload_failed" });
+  let data = {};
+  try { data = JSON.parse(text); } catch {}
+  if (!data?.id) throw Object.assign(new Error("GigaChat did not return file id"), { code: "file_id_missing" });
+  return String(data.id);
+}
+
+async function neuroHubDeleteFile(fileId) {
+  if (!fileId) return;
+  try { await neuroHubGigaFetch("/v1/files/" + encodeURIComponent(fileId) + "/delete", { method: "POST" }); } catch {}
+}
+
+async function neuroHubUltraCompletion(messages, options = {}) {
+  const free = await neuroHubFreeGigaAvailable();
+  if (!free.available) throw Object.assign(new Error("GigaChat-3-Ultra Freemium is unavailable"), { code: "free_model_unavailable" });
+  const payload = {
+    model: "GigaChat-3-Ultra",
+    messages,
+    temperature: Number(options.temperature ?? 0.45),
+    max_tokens: Number(options.maxTokens || 1000),
+    stream: false
+  };
+  if (options.functionCall) payload.function_call = options.functionCall;
+  const response = await neuroHubGigaFetch("/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const raw = await response.text();
+  if (!response.ok) throw Object.assign(new Error("GigaChat request failed"), { status: response.status, code: response.status === 429 ? "free_limit" : "gigachat_failed" });
+  let data = {};
+  try { data = JSON.parse(raw); } catch {}
+  return { data, content: String(data?.choices?.[0]?.message?.content || "").trim() };
+}
+
+function neuroHubImageId(content = "") {
+  return String(content).match(/<img[^>]+src=["']([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})["']/i)?.[1] || "";
+}
+
+app.post("/api/neurohub/gigachat/analyze", async (req, res) => {
+  const files = Array.isArray(req.body?.files) ? req.body.files.slice(0, 10) : [];
+  const prompt = String(req.body?.prompt || "Проанализируй приложенные файлы и дай точный ответ на русском языке.").slice(0, 12000);
+  if (!files.length) return res.status(400).json({ error: "Файлы не переданы.", code: "files_missing" });
+
+  const ids = [];
+  try {
+    for (const file of files) ids.push(await neuroHubUploadFile(file));
+    const messages = [{ role: "user", content: prompt, attachments: ids }];
+    const result = await neuroHubUltraCompletion(messages, { maxTokens: 1400, temperature: 0.25, functionCall: "auto" });
+    if (!result.content) return res.status(502).json({ error: "GigaChat вернул пустой ответ.", code: "empty_answer" });
+    neuroHubGigaDaily.count += 1;
+    return res.json({ answer: result.content, model: "GigaChat-3-Ultra", freeGuard: true });
+  } catch (error) {
+    return res.status(error?.status && error.status >= 400 && error.status < 600 ? error.status : 502).json({
+      error: error?.code === "free_model_unavailable" ? "GigaChat-3-Ultra Freemium сейчас недоступен." : "GigaChat не смог обработать файл.",
+      code: error?.code || "analyze_failed",
+      freeGuard: true
+    });
+  } finally {
+    await Promise.allSettled(ids.map(neuroHubDeleteFile));
+  }
+});
+
+app.post("/api/neurohub/gigachat/image", async (req, res) => {
+  const prompt = String(req.body?.prompt || "").trim().slice(0, 6000);
+  if (!prompt) return res.status(400).json({ error: "Описание изображения не передано.", code: "prompt_missing" });
+  let imageId = "";
+  try {
+    const result = await neuroHubUltraCompletion(
+      [
+        { role: "system", content: "Ты генератор изображений GigaChat. Для запроса на изображение обязательно используй встроенную функцию text2image. Не отвечай только текстом." },
+        { role: "user", content: "Нарисуй изображение: " + prompt }
+      ],
+      { maxTokens: 500, temperature: 0.2, functionCall: "auto" }
+    );
+    imageId = neuroHubImageId(result.content);
+    if (!imageId) return res.status(422).json({ error: "GigaChat-3-Ultra не вернул изображение для этого запроса.", code: "image_not_generated", answer: result.content, freeGuard: true });
+    const response = await neuroHubGigaFetch("/v1/files/" + encodeURIComponent(imageId) + "/content", { method: "GET", headers: { Accept: "application/jpg" } });
+    if (!response.ok) return res.status(502).json({ error: "Не удалось скачать изображение GigaChat.", code: "image_download_failed" });
+    const buffer = Buffer.from(await response.arrayBuffer());
+    neuroHubGigaDaily.count += 1;
+    return res.json({ imageBase64: buffer.toString("base64"), mimeType: response.headers.get("content-type") || "image/jpeg", model: "GigaChat-3-Ultra", freeGuard: true });
+  } catch (error) {
+    return res.status(error?.status && error.status >= 400 && error.status < 600 ? error.status : 502).json({
+      error: error?.code === "free_model_unavailable" ? "GigaChat-3-Ultra Freemium сейчас недоступен." : "Генерация изображения GigaChat недоступна.",
+      code: error?.code || "image_generation_failed",
+      freeGuard: true
+    });
+  } finally {
+    if (imageId) await neuroHubDeleteFile(imageId);
   }
 });
 
