@@ -1712,6 +1712,142 @@ app.post("/api/generate-copy", async (req, res) => {
   return res.json(await generateProductCopyWithProviders(rawCard));
 });
 
+
+/* NeuroHub Zero: isolated GigaChat Freemium bridge.
+   Uses a separate secret from the marketplace GigaChat integration.
+   Free Guard only permits GigaChat-3-Ultra; there is no paid-model fallback. */
+const neuroHubGigaIpLimits = new Map();
+let neuroHubGigaDaily = { day: "", count: 0 };
+let neuroHubGigaTokenCache = { token: "", expiresAt: 0 };
+
+function neuroHubDayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function getNeuroHubGigaToken() {
+  const key = String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim();
+  if (!key) throw Object.assign(new Error("GigaChat for NeuroHub is not configured"), { code: "neurohub_gigachat_not_configured" });
+  if (neuroHubGigaTokenCache.token && Date.now() < neuroHubGigaTokenCache.expiresAt - 60000) return neuroHubGigaTokenCache.token;
+
+  const response = await fetch("https://ngw.devices.sberbank.ru:9443/api/v2/oauth", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+      RqUID: crypto.randomUUID(),
+      Authorization: "Basic " + key
+    },
+    body: new URLSearchParams({ scope: "GIGACHAT_API_PERS" }).toString()
+  });
+  const raw = await response.text();
+  if (!response.ok) throw Object.assign(new Error("GigaChat authorization failed"), { status: response.status, code: "neurohub_gigachat_auth_failed" });
+  let data;
+  try { data = JSON.parse(raw); } catch { throw Object.assign(new Error("Invalid GigaChat authorization response"), { code: "neurohub_gigachat_auth_invalid" }); }
+  if (!data?.access_token) throw Object.assign(new Error("GigaChat token is missing"), { code: "neurohub_gigachat_token_missing" });
+  let expiresAt = Number(data.expires_at || 0);
+  if (expiresAt && expiresAt < 1000000000000) expiresAt *= 1000;
+  neuroHubGigaTokenCache = { token: String(data.access_token), expiresAt: expiresAt || Date.now() + 29 * 60 * 1000 };
+  return neuroHubGigaTokenCache.token;
+}
+
+async function neuroHubGigaFetch(pathname, options = {}, retry = true) {
+  const token = await getNeuroHubGigaToken();
+  const response = await fetch("https://api.giga.chat" + pathname, {
+    ...options,
+    headers: { Accept: "application/json", ...(options.headers || {}), Authorization: "Bearer " + token }
+  });
+  if (response.status === 401 && retry) {
+    neuroHubGigaTokenCache = { token: "", expiresAt: 0 };
+    return neuroHubGigaFetch(pathname, options, false);
+  }
+  return response;
+}
+
+async function neuroHubFreeGigaAvailable() {
+  const response = await neuroHubGigaFetch("/v1/models", { method: "GET" });
+  const raw = await response.text();
+  if (!response.ok) return { available: false, status: response.status, models: [] };
+  let data = {};
+  try { data = JSON.parse(raw); } catch {}
+  const models = (Array.isArray(data?.data) ? data.data : []).map(x => String(x?.id || "")).filter(Boolean);
+  return { available: models.includes("GigaChat-3-Ultra"), status: response.status, models };
+}
+
+app.get("/api/neurohub/russian-ai/status", async (req, res) => {
+  if (!String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim()) {
+    return res.json({ configured: false, freeGuard: true, model: "GigaChat-3-Ultra", available: false });
+  }
+  try {
+    const info = await neuroHubFreeGigaAvailable();
+    return res.json({ configured: true, freeGuard: true, model: "GigaChat-3-Ultra", available: info.available });
+  } catch (error) {
+    return res.json({ configured: true, freeGuard: true, model: "GigaChat-3-Ultra", available: false, error: error?.code || "unavailable" });
+  }
+});
+
+app.post("/api/neurohub/gigachat", async (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, ip, 30)) {
+    return res.status(429).json({ error: "Слишком много запросов. Используйте локальный ruGPT и повторите позже.", code: "free_rate_limit" });
+  }
+  const day = neuroHubDayKey();
+  if (neuroHubGigaDaily.day !== day) neuroHubGigaDaily = { day, count: 0 };
+  if (neuroHubGigaDaily.count >= 700) {
+    return res.status(429).json({ error: "Дневной Free Guard достигнут. Доступны локальные модели без лимита API.", code: "free_daily_guard" });
+  }
+
+  const incoming = Array.isArray(req.body?.messages) ? req.body.messages : [];
+  const messages = incoming
+    .filter(x => x && ["system","user","assistant"].includes(x.role))
+    .slice(-14)
+    .map(x => ({ role: x.role, content: String(x.content || "").slice(0, 12000) }));
+  if (!messages.length || !messages.some(x => x.role === "user")) {
+    return res.status(400).json({ error: "Сообщение пользователя не передано.", code: "invalid_messages" });
+  }
+  const totalChars = messages.reduce((n, x) => n + x.content.length, 0);
+  if (totalChars > 24000) {
+    return res.status(413).json({ error: "Контекст слишком большой для бесплатного облачного режима. Используйте локальную модель.", code: "context_too_large" });
+  }
+
+  try {
+    const free = await neuroHubFreeGigaAvailable();
+    if (!free.available) {
+      return res.status(403).json({
+        error: "GigaChat-3-Ultra Freemium сейчас недоступен этому ключу. Платные модели намеренно не используются.",
+        code: "free_model_unavailable",
+        freeGuard: true
+      });
+    }
+    const response = await neuroHubGigaFetch("/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "GigaChat-3-Ultra",
+        messages,
+        temperature: 0.55,
+        max_tokens: 700,
+        stream: false
+      })
+    });
+    const raw = await response.text();
+    if (!response.ok) {
+      return res.status(response.status >= 400 && response.status < 600 ? response.status : 502).json({
+        error: response.status === 429 ? "Бесплатный лимит GigaChat временно недоступен. Используйте локальный ruGPT." : "GigaChat временно недоступен.",
+        code: "gigachat_request_failed",
+        freeGuard: true
+      });
+    }
+    let data = {};
+    try { data = JSON.parse(raw); } catch {}
+    const answer = String(data?.choices?.[0]?.message?.content || "").trim();
+    if (!answer) return res.status(502).json({ error: "GigaChat вернул пустой ответ.", code: "empty_answer", freeGuard: true });
+    neuroHubGigaDaily.count += 1;
+    return res.json({ answer, model: "GigaChat-3-Ultra", freeGuard: true, cloud: true });
+  } catch (error) {
+    return res.status(502).json({ error: "GigaChat недоступен. Локальные российские модели продолжают работать.", code: error?.code || "gigachat_unavailable", freeGuard: true });
+  }
+});
+
 async function generateProductCopyWithGpt(cardRaw = {}) {
   return generateProductCopyWithProviders(cardRaw);
 }
