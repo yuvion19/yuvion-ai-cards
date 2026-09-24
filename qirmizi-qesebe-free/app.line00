@@ -1,0 +1,70 @@
+(() => {
+  'use strict';
+
+  const CENTER=[48.5106,41.3736];
+  const BOUNDS=[[48.493,41.36],[48.529,41.3875]];
+  const BBOX='41.36,48.493,41.3875,48.529';
+  const CACHE_KEY='qirmizi-static-buildings-v3';
+  const STORE_KEY='qirmizi-archive-v3';
+  const CURRENT_YEAR=2026;
+  const MAX_INLINE_FILE=850000;
+  const ids=['count','status','list','search','passport','houseTitle','houseId','details','intro','introCount','enterBtn','introWalkBtn','fitBtn','modeBtn','walkBtn','walkHud','exitWalk','cacheBadge','refreshBtn','layersBtn','layersPanel','routesBtn','routesPanel','statsBtn','statsPanel','editorBtn','editorModal','editorTitle','editHouseLookup','editTitle','editDescription','editYear','editYearConfidence','editStatus','editVerification','editSourceUrl','editSourceType','editSourceLabel','editPhotoUrl','editPhotoYear','editVideoUrl','edit360Url','editModelUrl','editAudioUrl','editNote','saveRecordBtn','addMediaBtn','markIssueBtn','deleteLocalBtn','batchInput','runBatchImport','batchResult','showLost','showHeritage','showProgress','yearSlider','yearLabel','timelineDockSlider','timelineDockYear','archiveToggle','qualityWarnings','confidenceBadge','qualityBadge','historyTimeline','beforeAfter','mediaGrid','viewerArea','sourceList','versionList','editHouseBtn','qrBtn','qrModal','qrCanvas','qrText','audioBtn','exportHouseBtn','routeList','makeHeritageRoute','clearRoute','tourControls','tourTitle','tourStep','tourPrev','tourPlay','tourNext','statsGrid','coverageBar','qualitySummary','droneTilesUrl','addDroneLayer','removeDroneLayer','backupBtn','backupModal','exportAllBtn','exportGeoBtn','exportCsvBtn','exportContribBtn','importBackup','importBackupBtn','contributeBtn','contributeModal','contribHouse','contribText','contribUrl','saveContribution','frontCard','frontOpen','miniCanvas','catalog','catalogFilters'];
+  const els=Object.fromEntries(ids.map(id=>[id,document.getElementById(id)]));
+
+  let data=null;
+  let selected=null;
+  let is3d=true;
+  let walk=false;
+  let drag=false;
+  let lastX=0,lastY=0,raf=0,lastTime=performance.now();
+  let catalogFilter='all';
+  let selectedYear=CURRENT_YEAR;
+  let currentRoute=[];
+  let routeIndex=0;
+  let tourPlaying=false;
+  let frontFeatureId=null;
+  const pressed=new Set();
+
+  function defaultStore(){return {version:3,records:{},customFeatures:[],contributions:[],routes:[],project:{updatedAt:new Date().toISOString()}}}
+  function loadStore(){try{const v=JSON.parse(localStorage.getItem(STORE_KEY)||'null');return v&&v.version?Object.assign(defaultStore(),v):defaultStore()}catch{return defaultStore()}}
+  let store=loadStore();
+  function saveStore(){store.project.updatedAt=new Date().toISOString();localStorage.setItem(STORE_KEY,JSON.stringify(store));refreshDerived()}
+
+  const map=new maplibregl.Map({container:'map',center:CENTER,zoom:15.2,pitch:55,bearing:-18,maxPitch:85,style:{version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap contributors'}},layers:[{id:'osm-base',type:'raster',source:'osm'}]}});
+  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
+
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const safeUrl=u=>{try{const x=new URL(u,location.href);return ['http:','https:','data:'].includes(x.protocol)?x.href:''}catch{return ''}};
+  const nowIso=()=>new Date().toISOString();
+  const houseIdFromFilename=name=>{const qq=name.match(/QQ-OSM-(\d+)/i);if(qq)return `QQ-OSM-${qq[1]}`;const osm=name.match(/(?:osm[-_ ]?)?(\d{7,})/i);if(osm)return `QQ-OSM-${osm[1]}`;return null};
+  const recordFor=qqId=>store.records[qqId]||null;
+
+  function normalize(osm){
+    const features=[];
+    for(const e of osm.elements||[]){
+      if(e.type!=='way'||!e.geometry||e.geometry.length<3)continue;
+      const t=e.tags||{};let height=Number((t.height||'').replace(',','.').match(/[0-9.]+/)?.[0]);let est=false;
+      if(!Number.isFinite(height)||height<1||height>100){const lv=Number(t['building:levels']);height=Number.isFinite(lv)&&lv>0?Math.max(3.2,lv*3.2):7.2;est=true}
+      const ring=e.geometry.map(p=>[p.lon,p.lat]);const a=ring[0],b=ring[ring.length-1];if(a[0]!==b[0]||a[1]!==b[1])ring.push([...a]);
+      features.push({type:'Feature',id:e.id,properties:{osmId:e.id,qqId:`QQ-OSM-${e.id}`,renderHeight:height,heightEstimated:est,building:t.building||'building',name:t.name||'',levels:t['building:levels']||'',height:t.height||'',houseNumber:t['addr:housenumber']||'',street:t['addr:street']||'',postcode:t['addr:postcode']||'',historic:t.historic||'',tourism:t.tourism||'',religion:t.religion||'',amenity:t.amenity||''},geometry:{type:'Polygon',coordinates:[ring]}})
+    }
+    return {type:'FeatureCollection',features};
+  }
+
+  function centerOf(f){const ring=f.geometry?.coordinates?.[0]||[];if(!ring.length)return CENTER;const usable=ring.length>1?ring.slice(0,-1):ring;const sum=usable.reduce((a,p)=>[a[0]+p[0],a[1]+p[1]],[0,0]);return [sum[0]/usable.length,sum[1]/usable.length]}
+  function distanceMeters(a,b){const R=6371000,lat1=a[1]*Math.PI/180,lat2=b[1]*Math.PI/180,dlat=(b[1]-a[1])*Math.PI/180,dlon=(b[0]-a[0])*Math.PI/180;const h=Math.sin(dlat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dlon/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+  function label(f){const p=f.properties||{};const r=recordFor(p.qqId);return r?.title||p.name||[p.street,p.houseNumber].filter(Boolean).join(' ')||p.qqId||'Объект'}
+  function isHeritage(f){const p=f.properties||{};return !!(p.historic||p.tourism||p.religion||p.amenity==='place_of_worship'||recordFor(p.qqId)?.heritage)}
+
+  function completeness(f){
+    const p=f.properties||{};const r=recordFor(p.qqId);if(!r)return 0;
+    let s=0;if(r.description)s+=15;if(r.year)s+=10;if(r.sources?.length)s+=20;if(r.media?.some(m=>m.type==='photo'))s+=20;if(r.media?.some(m=>m.type==='video'))s+=5;if(r.panoramaUrl)s+=10;if(r.modelUrl)s+=10;if(r.audioUrl)s+=5;if(r.verification==='verified')s+=5;return Math.min(100,s)
+  }
+  function qualityIssues(f){const p=f.properties||{},r=recordFor(p.qqId),issues=[];if(!p.street&&!p.houseNumber)issues.push('Нет адреса в OSM');if(p.heightEstimated)issues.push('Высота здания оценочная');if(!r?.media?.some(m=>m.type==='photo'))issues.push('Нет фотографии дома');if(r&&!r.sources?.length)issues.push('Есть пользовательские сведения, но нет источника');if(r?.yearConfidence==='approx')issues.push('Дата указана приблизительно');if(r?.issues?.length)issues.push(...r.issues.map(x=>x.text||'Отмечена проблема'));return issues}
+
+  function enrichFeature(f){const p={...f.properties};p.progress=completeness(f);p.hasMaterials=p.progress>0;p.hasIssue=qualityIssues(f).length>2;const r=recordFor(p.qqId);p.userStatus=r?.status||'existing';p.userYear=Number(r?.year)||0;return {...f,properties:p}}
+  function mergedFeatures(){return [...(data?.features||[]).map(enrichFeature),...(store.customFeatures||[]).map(f=>enrichFeature(f))]}
+  function geoCollection(){return {type:'FeatureCollection',features:mergedFeatures()}}
+
+  function cache(d){try{localStorage.setItem(CACHE_KEY,JSON.stringify({at:Date.now(),data:d}))}catch{}}
+  function readCache(){try{const v=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');return v?.data?.features?.length?v.data:null}catch{return null}}
