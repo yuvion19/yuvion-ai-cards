@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d10" />
+  <meta name="description" content="Бесплатный цифровой двойник Красной Слободы: 3D-карта, паспорта домов, архив, прогулка и исторические материалы." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://tile.openstreetmap.org" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Цифровая Красная Слобода 3D</title>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+
+  <header class="topbar">
+    <button id="brandBtn" class="brand">
+      <span class="logo">▰</span>
+      <span><b>Цифровая Красная Слобода</b><small>Qırmızı Qəsəbə · Quba · Azerbaijan</small></span>
+    </button>
+    <nav class="actions">
+      <button id="fitBtn">Вся Слобода</button>
+      <button id="modeBtn">3D</button>
+      <button id="layersBtn">Слои</button>
+      <button id="routesBtn">Маршруты</button>
+      <button id="statsBtn">Прогресс</button>
+      <button id="editorBtn">Редактор</button>
+      <button id="walkBtn" class="primary">🚶 Прогулка</button>
+    </nav>
+  </header>
+
+  <aside id="catalog" class="panel leftPanel">
+    <div class="panelHead">
+      <div><small>КАТАЛОГ ДОМОВ</small><strong id="count">0</strong></div>
+      <button data-close="catalog">×</button>
+    </div>
+    <div class="search"><input id="search" placeholder="Адрес, название, QQ-ID или OSM ID" /></div>
+    <div class="chips" id="catalogFilters">
+      <button data-filter="all" class="active">Все</button>
+      <button data-filter="heritage">Исторические</button>
+      <button data-filter="materials">Есть материалы</button>
+      <button data-filter="complete">Оцифрованы</button>
+      <button data-filter="issues">Нужна проверка</button>
+    </div>
+    <div class="status" id="status">Загрузка…</div>
+    <div id="list" class="list"></div>
+  </aside>
+
+  <aside id="passport" class="panel passport hidden">
+    <div class="panelHead">
+      <div><small>ЦИФРОВОЙ ПАСПОРТ</small><h2 id="houseTitle">Дом</h2><code id="houseId"></code></div>
+      <button data-close="passport">×</button>
+    </div>
+    <div class="passportMeta"><span class="badge">OpenStreetMap</span><span id="confidenceBadge" class="badge muted">только открытые данные</span><span id="qualityBadge" class="badge muted">0%</span></div>
+    <div class="tabs" id="passportTabs">
+      <button data-tab="today" class="active">Сегодня</button><button data-tab="history">История</button><button data-tab="media">Фото / видео</button><button data-tab="viewer">360° / 3D</button><button data-tab="sources">Источники</button><button data-tab="versions">Версии</button>
+    </div>
+    <div class="passportBody">
+      <section data-pane="today"><dl id="details"></dl><div id="qualityWarnings" class="warningList"></div></section>
+      <section data-pane="history" class="hidden"><div id="historyTimeline" class="timelineList"></div><div id="beforeAfter" class="beforeAfter hidden"></div></section>
+      <section data-pane="media" class="hidden"><div id="mediaGrid" class="mediaGrid"></div></section>
+      <section data-pane="viewer" class="hidden"><div id="viewerArea" class="viewerArea"></div></section>
+      <section data-pane="sources" class="hidden"><div id="sourceList" class="sourceList"></div></section>
+      <section data-pane="versions" class="hidden"><div id="versionList" class="sourceList"></div></section>
+    </div>
+    <div class="passportActions">
+      <button id="editHouseBtn" class="primary">Редактировать</button>
+      <button id="qrBtn">QR-код</button>
+      <button id="audioBtn">🔊 Аудиогид</button>
+      <button id="exportHouseBtn">JSON</button>
+    </div>
+  </aside>
+
+  <aside id="layersPanel" class="toolPanel hidden">
+    <div class="toolHead"><div><small>СЛОИ И ВРЕМЯ</small><b>Исторический режим</b></div><button data-close="layersPanel">×</button></div>
+    <label class="toggle"><input id="showLost" type="checkbox" checked /> Утраченные здания</label>
+    <label class="toggle"><input id="showHeritage" type="checkbox" checked /> Исторические / общественные объекты</label>
+    <label class="toggle"><input id="showProgress" type="checkbox" /> Цвет по прогрессу оцифровки</label>
+    <label class="field"><span>Год карты <b id="yearLabel">2026</b></span><input id="yearSlider" type="range" min="1850" max="2026" value="2026" step="1" /></label>
+    <p class="hint">Карта скрывает пользовательские материалы, которые относятся к более позднему периоду. Неподтверждённые реконструкции автоматически не создаются.</p>
+    <hr />
+    <label class="field"><span>XYZ-слой аэрофото/дрона</span><input id="droneTilesUrl" placeholder="https://…/{z}/{x}/{y}.png" /></label>
+    <div class="row"><button id="addDroneLayer">Добавить слой</button><button id="removeDroneLayer">Убрать</button></div>
+  </aside>
+
+  <aside id="routesPanel" class="toolPanel hidden">
+    <div class="toolHead"><div><small>МАРШРУТЫ</small><b>Экскурсии по Слободе</b></div><button data-close="routesPanel">×</button></div>
+    <div id="routeList" class="routeList"></div>
+    <div class="row"><button id="makeHeritageRoute">Из исторических объектов</button><button id="clearRoute">Очистить</button></div>
+    <div id="tourControls" class="tourControls hidden"><b id="tourTitle"></b><span id="tourStep"></span><div class="row"><button id="tourPrev">←</button><button id="tourPlay" class="primary">▶ Экскурсия</button><button id="tourNext">→</button></div></div>
+  </aside>
+
+  <aside id="statsPanel" class="toolPanel hidden">
+    <div class="toolHead"><div><small>ПРОГРЕСС</small><b>Оцифровка Красной Слободы</b></div><button data-close="statsPanel">×</button></div>
+    <div id="statsGrid" class="statsGrid"></div>
+    <div id="coverageBar" class="coverageBar"><span></span></div>
+    <div id="qualitySummary" class="qualitySummary"></div>
+  </aside>
+
+  <section id="editorModal" class="modal hidden">
+    <div class="modalCard editorCard">
+      <div class="toolHead"><div><small>РЕДАКТОР ПАСПОРТА</small><b id="editorTitle">Выберите дом</b></div><button data-close="editorModal">×</button></div>
+      <div class="editorGrid">
+        <label class="field"><span>QQ-ID / OSM ID</span><input id="editHouseLookup" placeholder="QQ-OSM-…" /></label>
+        <label class="field"><span>Название / подпись дома</span><input id="editTitle" /></label>
+        <label class="field span2"><span>Описание</span><textarea id="editDescription" rows="4"></textarea></label>
+        <label class="field"><span>Период / год</span><input id="editYear" type="number" min="1800" max="2100" /></label>
+        <label class="field"><span>Точность даты</span><select id="editYearConfidence"><option value="exact">точная</option><option value="approx">примерная</option><option value="unknown">неизвестна</option></select></label>
+        <label class="field"><span>Статус здания</span><select id="editStatus"><option value="existing">существует</option><option value="lost">утрачено</option><option value="changed">сильно изменено</option></select></label>
+        <label class="field"><span>Уровень проверки</span><select id="editVerification"><option value="open">открытые данные</option><option value="materials">есть материалы</option><option value="verified">проверено источником</option></select></label>
+        <label class="field span2"><span>Источник / ссылка</span><input id="editSourceUrl" placeholder="https://…" /></label>
+        <label class="field"><span>Тип источника</span><select id="editSourceType"><option value="official">официальный документ</option><option value="archive">архив</option><option value="publication">публикация</option><option value="photo">фотография</option><option value="video">видео</option><option value="oral">устное свидетельство</option><option value="unverified">не подтверждено</option></select></label>
+        <label class="field"><span>Подпись источника</span><input id="editSourceLabel" /></label>
+        <label class="field"><span>Фото URL</span><input id="editPhotoUrl" placeholder="https://…jpg" /></label>
+        <label class="field"><span>Год фото</span><input id="editPhotoYear" type="number" min="1800" max="2100" /></label>
+        <label class="field"><span>Видео URL</span><input id="editVideoUrl" placeholder="https://…" /></label>
+        <label class="field"><span>360° URL</span><input id="edit360Url" placeholder="https://…" /></label>
+        <label class="field"><span>GLB/GLTF URL</span><input id="editModelUrl" placeholder="https://…glb" /></label>
+        <label class="field"><span>Аудио URL</span><input id="editAudioUrl" placeholder="https://…mp3" /></label>
+        <label class="field span2"><span>Примечание</span><textarea id="editNote" rows="2"></textarea></label>
+      </div>
+      <div class="row wrap"><button id="saveRecordBtn" class="primary">Сохранить запись</button><button id="addMediaBtn">Добавить медиа</button><button id="markIssueBtn">Отметить проблему контура</button><button id="deleteLocalBtn">Удалить локальные сведения</button></div>
+      <hr />
+      <div class="batchBox"><b>Пакетное добавление</b><p class="hint">JSON/GeoJSON/CSV, ZIP с фото или несколько изображений. По QQ-ID/OSM ID в имени файла система попытается сопоставить материал автоматически.</p><input id="batchInput" type="file" multiple accept=".json,.geojson,.csv,.zip,image/*,video/*" /><button id="runBatchImport">Импортировать выбранное</button><div id="batchResult" class="hint"></div></div>
+    </div>
+  </section>
+
+  <section id="qrModal" class="modal hidden"><div class="modalCard smallCard"><div class="toolHead"><b>QR-код объекта</b><button data-close="qrModal">×</button></div><div id="qrCanvas" class="qrBox"></div><p id="qrText" class="hint"></p></div></section>
+
+  <section id="backupModal" class="modal hidden">
+    <div class="modalCard"><div class="toolHead"><div><small>АРХИВ И РЕЗЕРВНЫЕ КОПИИ</small><b>Переносимость проекта</b></div><button data-close="backupModal">×</button></div>
+      <div class="backupGrid">
+        <button id="exportAllBtn">Скачать полный JSON</button><button id="exportGeoBtn">GeoJSON зданий</button><button id="exportCsvBtn">CSV реестра</button><button id="exportContribBtn">Предложения пользователей</button>
+      </div>
+      <label class="field"><span>Импорт резервной копии JSON</span><input id="importBackup" type="file" accept=".json" /></label>
+      <button id="importBackupBtn" class="primary">Импортировать с проверкой</button>
+      <p class="hint">Рекомендуется сохранять резервную копию регулярно и держать её отдельно от сайта.</p>
+    </div>
+  </section>
+
+  <section id="contributeModal" class="modal hidden">
+    <div class="modalCard"><div class="toolHead"><div><small>ПОМОЧЬ ПРОЕКТУ</small><b>Предложить материал</b></div><button data-close="contributeModal">×</button></div>
+      <label class="field"><span>Дом / QQ-ID</span><input id="contribHouse" /></label>
+      <label class="field"><span>Что вы хотите добавить</span><textarea id="contribText" rows="4"></textarea></label>
+      <label class="field"><span>Ссылка на материал / источник</span><input id="contribUrl" /></label>
+      <button id="saveContribution" class="primary">Сохранить предложение</button><p class="hint">В автономной бесплатной версии предложение сохраняется локально и экспортируется JSON. В серверной версии оно будет уходить в очередь редактора.</p>
+    </div>
+  </section>
+
+  <div id="walkHud" class="walkHud hidden">
+    <div class="crosshair">+</div>
+    <div id="frontCard" class="frontCard hidden"><b></b><small></small><button id="frontOpen">Подробнее</button></div>
+    <div class="walkTop"><div><b>Прогулка от первого лица</b><small>Перетаскивай экран, чтобы смотреть вокруг</small></div><button id="exitWalk">Выйти</button></div>
+    <div id="miniMap" class="miniMap"><canvas id="miniCanvas" width="180" height="180"></canvas><span>МИНИ-КАРТА</span></div>
+    <div class="desktopHint">WASD / стрелки — идти · Shift — быстрее · мышь — смотреть · Esc — выйти</div>
+    <div class="pad"><button data-dir="forward">▲</button><button data-dir="left">◀</button><button data-dir="back">▼</button><button data-dir="right">▶</button></div>
+  </div>
+
+  <div class="timelineDock"><button id="archiveToggle">Сегодня</button><input id="timelineDockSlider" type="range" min="1850" max="2026" value="2026" /><b id="timelineDockYear">2026</b></div>
+  <div class="footerBadge"><span id="cacheBadge">OSM</span><button id="refreshBtn">↻</button><button id="backupBtn">Резерв</button><button id="contributeBtn">Добавить материал</button></div>
+
+  <section id="intro" class="intro">
+    <div class="introCard">
+      <small class="kicker">QIRMIZI QƏSƏBƏ · DIGITAL TWIN</small>
+      <h1>Цифровая Красная Слобода <em>3D</em></h1>
+      <p class="lead">Бесплатная интерактивная 3D-карта, цифровой архив и виртуальная прогулка.</p>
+      <p>Здания загружаются из OpenStreetMap. Исторические сведения, фотографии и реконструкции показываются только тогда, когда они реально добавлены с источником.</p>
+      <div class="facts"><div><b id="introCount">…</b><span>зданий из OSM</span></div><div><b>0 ₽</b><span>платных API</span></div><div><b>30+</b><span>архивных функций</span></div></div>
+      <div class="row wrap"><button id="enterBtn" class="primary big">Открыть 3D-карту</button><button id="introWalkBtn" class="big">🚶 Начать прогулку</button></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@6.11.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
