@@ -62,14 +62,31 @@ async function fetchMirror(url) {
   }
 }
 
+async function fetchFlootSnapshot() {
+  const response = await fetch("https://qirmizi-qesebe-3d.floot.app/_api/osm-buildings", {
+    headers: { "Accept": "application/json" }
+  });
+  if (!response.ok) throw new Error(`Floot snapshot ${response.status}`);
+  const body = await response.json();
+  const payload = body?.json ?? body;
+  if (!payload?.features?.length) throw new Error("Floot snapshot empty");
+  return payload;
+}
+
 let snapshot;
 try {
-  snapshot = await Promise.any(mirrors.map(fetchMirror));
-  if (!snapshot.features.length) throw new Error("Empty snapshot");
-  console.log(`OSM snapshot: ${snapshot.features.length} buildings`);
-} catch (error) {
-  console.warn("OSM snapshot unavailable during build:", error?.message || error);
-  snapshot = { type: "FeatureCollection", generatedAt: new Date().toISOString(), features: [] };
+  snapshot = await fetchFlootSnapshot();
+  console.log(`Floot snapshot: ${snapshot.features.length} buildings`);
+} catch (flootError) {
+  console.warn("Floot snapshot unavailable:", flootError?.message || flootError);
+  try {
+    snapshot = await Promise.any(mirrors.map(fetchMirror));
+    if (!snapshot.features.length) throw new Error("Empty Overpass snapshot");
+    console.log(`Overpass snapshot: ${snapshot.features.length} buildings`);
+  } catch (overpassError) {
+    console.warn("All snapshot sources unavailable:", overpassError?.message || overpassError);
+    snapshot = { type: "FeatureCollection", generatedAt: new Date().toISOString(), features: [] };
+  }
 }
 
 await writeFile("qirmizi-live/buildings.json", JSON.stringify(snapshot));
