@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, copyFile } from "node:fs/promises";
 
 const OUT = "qirmizi-master";
 const BBOX = "48.493,41.36,48.529,41.3875";
@@ -161,4 +161,11 @@ await writeFile(`${API}/schema.json`, JSON.stringify({
   verification: ["open", "materials", "verified"],
   buildingStatus: ["existing", "changed", "lost"]
 }, null, 2));
+try {
+  await mkdir(`${OUT}/vendor`, { recursive: true });
+  await copyFile("node_modules/pmtiles/dist/pmtiles.js", `${OUT}/vendor/pmtiles.js`);
+  console.log("PMTiles browser library vendored");
+} catch (error) {
+  console.warn("PMTiles vendor copy skipped:", error?.message || error);
+}
 console.log(`Qirmizi snapshot: ${buildings.length} buildings, ${roads.length} roads, ${places.length} places`);
