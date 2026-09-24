@@ -82,14 +82,13 @@ echo "Voice duration: $VOICE_DUR"
 FONT='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
 FONTB='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 
-# Create a polished 18-second Ken Burns segment for each image.
+# Create an optimized 12-second Full-HD Ken Burns segment for each image.
 for i in $(seq 1 10); do
   label="${LABELS[$((i-1))]}"
   credit="${CREDITS[$((i-1))]}"
-  # Escape punctuation that drawtext treats specially.
   label_esc=$(printf '%s' "$label" | sed "s/:/\\\\:/g; s/'/’/g")
   credit_esc=$(printf '%s' "$credit" | sed "s/:/\\\\:/g; s/'/’/g")
-  ffmpeg -y -hide_banner -loglevel error -loop 1 -t 18 -i "assets/img_${i}.jpg"     -filter_complex "[0:v]split=2[bg][fg];       [bg]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,gblur=sigma=26,eq=brightness=-0.18:saturation=0.85[bg2];       [fg]scale=1800:980:force_original_aspect_ratio=decrease[fg2];       [bg2][fg2]overlay=(W-w)/2:(H-h)/2,zoompan=z='min(zoom+0.00035,1.055)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=450:s=1920x1080:fps=25,       eq=contrast=1.025:saturation=1.02,unsharp=5:5:0.22:5:5:0.0,       drawbox=x=0:y=ih-142:w=iw:h=142:color=black@0.42:t=fill,       drawtext=fontfile=$FONTB:text='${label_esc}':fontcolor=white:fontsize=34:x=60:y=h-112,       drawtext=fontfile=$FONT:text='${credit_esc}':fontcolor=0xD6BD7B:fontsize=22:x=62:y=h-65,       fade=t=in:st=0:d=0.8,fade=t=out:st=17.2:d=0.8[v]"     -map "[v]" -an -c:v libx264 -profile:v high -level 4.1 -preset veryfast -crf 18 -pix_fmt yuv420p "segments/s_${i}.mp4"
+  ffmpeg -y -hide_banner -loglevel error -loop 1 -t 12 -i "assets/img_${i}.jpg"     -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x08090B,       zoompan=z='min(zoom+0.00045,1.05)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=300:s=1920x1080:fps=25,       eq=contrast=1.025:saturation=1.02,unsharp=5:5:0.20:5:5:0.0,       drawbox=x=0:y=ih-142:w=iw:h=142:color=black@0.44:t=fill,       drawtext=fontfile=$FONTB:text='${label_esc}':fontcolor=white:fontsize=34:x=60:y=h-112,       drawtext=fontfile=$FONT:text='${credit_esc}':fontcolor=0xD6BD7B:fontsize=22:x=62:y=h-65,       fade=t=in:st=0:d=0.65,fade=t=out:st=11.35:d=0.65"     -an -c:v libx264 -profile:v high -level 4.1 -preset superfast -crf 18 -pix_fmt yuv420p "segments/s_${i}.mp4"
 done
 
 # Build repeated visual timeline long enough for the full narration.
@@ -97,7 +96,7 @@ done
 reps=$(python3 - <<PY
 import math
 d=float("$VOICE_DUR")
-print(math.ceil(d/(10*18))+1)
+print(math.ceil(d/(10*12))+1)
 PY
 )
 for _ in $(seq 1 "$reps"); do
