@@ -3,7 +3,7 @@
 const CURRENT_YEAR=2026;
 const BOUNDS=[[48.493,41.36],[48.529,41.3875]];
 const CENTER=[48.5106,41.3736];
-const STORE_KEY="qirmizi-master-store-v1";
+const STORE_KEY="qirmizi-master-store-v2";\nconst LEGACY_STORE_KEY="qirmizi-master-store-v1";
 const $=id=>document.getElementById(id);
 const state={data:null,selected:null,filter:"all",year:CURRENT_YEAR,is3d:true,walk:false,pressed:new Set(),drag:false,lastX:0,lastY:0,lastFrame:performance.now(),raf:0,route:[],tourTimer:null,lang:"ru",screenMode:false};
 
@@ -15,10 +15,10 @@ he:{brand:"הכפר האדום הדיגיטלי",all:"כל היישוב",gps:"א
 };
 I18N.juh=I18N.ru;
 
-function defaultStore(){return{version:1,records:{},routes:[],contributions:[],settings:{lang:"ru"},updatedAt:new Date().toISOString()}}
-function loadStore(){try{return Object.assign(defaultStore(),JSON.parse(localStorage.getItem(STORE_KEY)||"{}"))}catch{return defaultStore()}}
+function defaultStore(){return{version:2,records:{},streets:{},materials:{},routes:[],contributions:[],roles:[],stories:[],juhuriItems:[],audit:[],settings:{lang:"ru"},updatedAt:new Date().toISOString()}}
+function loadStore(){try{const cur=JSON.parse(localStorage.getItem(STORE_KEY)||"null"),legacy=JSON.parse(localStorage.getItem(LEGACY_STORE_KEY)||"null");return Object.assign(defaultStore(),cur||legacy||{})}catch{return defaultStore()}}
 let store=loadStore();
-function persist(){store.updatedAt=new Date().toISOString();localStorage.setItem(STORE_KEY,JSON.stringify(store));refreshAll()}
+function persist(){store.updatedAt=new Date().toISOString();store.audit=[...(store.audit||[]),{id:"AUD-"+crypto.randomUUID(),at:store.updatedAt,action:"main-edit",target:state.selected?.properties?.qqId||"project"}].slice(-5000);localStorage.setItem(STORE_KEY,JSON.stringify(store));refreshAll()}
 function t(k){return(I18N[state.lang]||I18N.ru)[k]||I18N.ru[k]||k}
 function toast(msg,ms=2400){const el=$("toast");el.textContent=msg;el.classList.remove("hidden");clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.add("hidden"),ms)}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -55,6 +55,7 @@ function ensureSources(){
     map.addLayer({id:"selected",type:"fill-extrusion",source:"buildings",filter:["==",["get","qqId"],""],paint:{"fill-extrusion-color":"#ef7c62","fill-extrusion-height":["+",["get","height"],.6],"fill-extrusion-opacity":.98}});
     ["buildings2d","buildings3d"].forEach(l=>map.on("click",l,e=>{const id=e.features?.[0]?.properties?.qqId;if(id)selectHouse(String(id))}));
   }
+  const dirFeatures=[];for(const m of Object.values(store.materials||{})){if(!m.gps||!Number.isFinite(m.gps.lon)||!Number.isFinite(m.gps.lat))continue;dirFeatures.push({type:"Feature",properties:{id:m.id,houseId:m.houseId||"",kind:m.kind||"photo"},geometry:{type:"Point",coordinates:[m.gps.lon,m.gps.lat]}});if(Number.isFinite(m.direction)){const rad=m.direction*Math.PI/180,len=18,lat2=m.gps.lat+(Math.cos(rad)*len)/110540,lon2=m.gps.lon+(Math.sin(rad)*len)/(111320*Math.cos(m.gps.lat*Math.PI/180));dirFeatures.push({type:"Feature",properties:{id:m.id,houseId:m.houseId||"",kind:"direction"},geometry:{type:"LineString",coordinates:[[m.gps.lon,m.gps.lat],[lon2,lat2]]}})}}const mediaGeo={type:"FeatureCollection",features:dirFeatures};if(map.getSource("mediaGeo"))map.getSource("mediaGeo").setData(mediaGeo);else{map.addSource("mediaGeo",{type:"geojson",data:mediaGeo});map.addLayer({id:"media-direction",type:"line",source:"mediaGeo",filter:["==",["geometry-type"],"LineString"],paint:{"line-color":"#e8b16e","line-width":2,"line-opacity":.8}});map.addLayer({id:"media-point",type:"circle",source:"mediaGeo",filter:["==",["geometry-type"],"Point"],paint:{"circle-radius":4,"circle-color":"#e8b16e","circle-stroke-width":1,"circle-stroke-color":"#151a20"}})}
   if(state.data.places?.features?.length){
     if(map.getSource("places"))map.getSource("places").setData(state.data.places);else{
       map.addSource("places",{type:"geojson",data:state.data.places});
@@ -185,10 +186,13 @@ function openTool(name){
     title.textContent="Архив, импорт и резерв";
     body.innerHTML=`<div class="toolGrid"><button id="exportBackup">Полный JSON</button><button id="exportGeo">GeoJSON</button><button id="exportCsv">CSV реестра</button><button id="exportReport">HTML-отчёт</button></div><hr><label>Импорт JSON/CSV/ZIP/фото<input id="importFiles" type="file" multiple accept=".json,.geojson,.csv,.zip,image/*"></label><button id="runImport" class="primary">Импортировать</button><div id="importResult" class="muted"></div><hr><textarea id="contributionText" rows="3" placeholder="Предложить исторический материал"></textarea><input id="contributionUrl" placeholder="Ссылка на источник"><button id="saveContribution">Сохранить предложение</button>`;
     $("exportBackup").onclick=exportBackup;$("exportGeo").onclick=exportGeo;$("exportCsv").onclick=exportCsv;$("exportReport").onclick=exportReport;$("runImport").onclick=runImport;$("saveContribution").onclick=saveContribution;
+  }else if(name==="sections"){
+    title.textContent="Разделы проекта";
+    body.innerHTML='<div class="toolGrid"><a class="sectionLink" href="./research.html">Исследовательский архив</a><a class="sectionLink" href="./field.html">Полевая съёмка</a><a class="sectionLink" href="./streetview.html">360° Street View</a><a class="sectionLink" href="./ar.html">AR на месте</a><a class="sectionLink" href="./vr.html">VR / WebXR</a><a class="sectionLink" href="./image-tools.html">Фотоинструменты</a><a class="sectionLink" href="./translate.html">Переводы</a><a class="sectionLink" href="./juhuri.html">Архив джуури</a><a class="sectionLink" href="./learn.html">Образование</a><a class="sectionLink" href="./admin.html">Админ-панель</a><a class="sectionLink" href="./status.html">Статус</a><a class="sectionLink" href="./api.html">Open API</a></div>';
   }else if(name==="layers"){
     title.textContent="Слои карты";
-    body.innerHTML=`<label><input id="baseToggle" type="checkbox" checked> Базовая OSM-карта</label><br><label><input id="roadToggle" type="checkbox" checked> Дороги</label><br><label><input id="placeToggle" type="checkbox" checked> Точки интереса</label><br><label><input id="lostToggle" type="checkbox" ${state.showLost===false?"":"checked"}> Утраченные здания</label><br><label><input id="progressToggle" type="checkbox" ${state.progressLayer?"checked":""}> Цвет по прогрессу</label><hr><div class="sourceItem"><b>Офлайн-режим</b><small>Даже если тайлы OSM недоступны, локальные дороги и 129 контуров зданий остаются в PWA-кеше.</small></div>`;
-    $("baseToggle").onchange=e=>map.setLayoutProperty("osm","visibility",e.target.checked?"visible":"none");$("roadToggle").onchange=e=>map.setLayoutProperty("roads-line","visibility",e.target.checked?"visible":"none");$("placeToggle").onchange=e=>map.getLayer("places-dot")&&map.setLayoutProperty("places-dot","visibility",e.target.checked?"visible":"none");$("lostToggle").onchange=e=>{state.showLost=e.target.checked;updateBuildingPaint()};$("progressToggle").onchange=e=>{state.progressLayer=e.target.checked;updateBuildingPaint()};
+    body.innerHTML=`<label><input id="baseToggle" type="checkbox" checked> Базовая OSM-карта</label><br><label><input id="roadToggle" type="checkbox" checked> Дороги</label><br><label><input id="placeToggle" type="checkbox" checked> Точки интереса</label><br><label><input id="lostToggle" type="checkbox" ${state.showLost===false?"":"checked"}> Утраченные здания</label><br><label><input id="progressToggle" type="checkbox" ${state.progressLayer?"checked":""}> Цвет по прогрессу</label><hr><label>XYZ слой дрона / ортофото<input id="customTiles" placeholder="https://…/{z}/{x}/{y}.png"></label><button id="addCustomTiles">Добавить слой</button><button id="removeCustomTiles">Убрать слой</button><div class="sourceItem"><b>Офлайн-векторный режим</b><small>Даже без тайлов OSM локальные дороги и контуры зданий остаются доступны. Поддержка PMTiles предусмотрена как следующий формат базовой карты.</small></div>`;
+    $("baseToggle").onchange=e=>map.setLayoutProperty("osm","visibility",e.target.checked?"visible":"none");$("roadToggle").onchange=e=>map.setLayoutProperty("roads-line","visibility",e.target.checked?"visible":"none");$("placeToggle").onchange=e=>map.getLayer("places-dot")&&map.setLayoutProperty("places-dot","visibility",e.target.checked?"visible":"none");$("lostToggle").onchange=e=>{state.showLost=e.target.checked;updateBuildingPaint()};$("progressToggle").onchange=e=>{state.progressLayer=e.target.checked;updateBuildingPaint()};$("addCustomTiles").onclick=()=>{const u=$("customTiles").value.trim();if(!u)return;if(map.getLayer("custom-raster"))map.removeLayer("custom-raster");if(map.getSource("custom-raster"))map.removeSource("custom-raster");map.addSource("custom-raster",{type:"raster",tiles:[u],tileSize:256});map.addLayer({id:"custom-raster",type:"raster",source:"custom-raster",paint:{"raster-opacity":.72}},"roads-line");toast("Пользовательский слой добавлен")};$("removeCustomTiles").onclick=()=>{if(map.getLayer("custom-raster"))map.removeLayer("custom-raster");if(map.getSource("custom-raster"))map.removeSource("custom-raster")};
   }
 }
 
