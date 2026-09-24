@@ -122,5 +122,90 @@ qa(".demo").forEach(function(b){b.onclick=function(){toast("Демо‑дейс�
 q("#copy").onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(q("#code").innerText).then(function(){toast("Скопировано")}).catch(function(){toast("Скопируйте вручную")})};
 var nn=4;q("#addNode").onclick=function(){var n=document.createElement("div");n.className="node";n.style.left=(40+(nn*60)%520)+"px";n.style.top=(50+(nn*75)%430)+"px";n.innerHTML="<b>Блок "+nn+"</b><small>Новый шаг</small>";q("#canvas").appendChild(n);nn++;toast("Блок добавлен")};
 </script>
+<script src="https://js.puter.com/v2/"></script>
+<script>
+(function(){
+if(!window.puter){return}
+async function aiText(prompt){
+  var selected=q("#chatModel").value;
+  var map={
+    "GPT":"openai/gpt-5.5",
+    "Claude":"claude-sonnet-5",
+    "Gemini":"google/gemini-3.8-flash",
+    "Grok":"x-ai/grok-4.6"
+  };
+  var opts={normalize:true};
+  if(map[selected])opts.model=map[selected];
+  try{return await puter.ai.chat(prompt,opts)}
+  catch(e){return await puter.ai.chat(prompt,{normalize:true})}
+}
+q("#sendChat").onclick=async function(){
+  var i=q("#chatInput"),t=i.value.trim();if(!t)return;
+  q("#messages").insertAdjacentHTML("beforeend",'<div class="msg me">'+esc(t)+'</div>');
+  i.value="";
+  var wait=document.createElement("div");wait.className="msg ai";wait.textContent="Думаю…";q("#messages").appendChild(wait);
+  q("#messages").scrollTop=q("#messages").scrollHeight;
+  try{
+    var r=await aiText(t);
+    var content=r&&r.message?r.message.content:r;
+    if(Array.isArray(content))content=content.map(function(x){return x.text||""}).join("\n");
+    wait.innerHTML=esc(String(content||"Ответ получен."));
+  }catch(e){wait.textContent="Ошибка AI: "+(e&&e.message?e.message:String(e))}
+};
+q("#genImage").onclick=async function(){
+  var p=q("#imagePrompt").value.trim()||"Футуристический город ночью";
+  q("#imageResult").innerHTML='<div class="placeholder"><b>◌</b><p>Генерирую изображение…</p></div>';
+  try{
+    var img=await puter.ai.txt2img(p);
+    q("#imageResult").innerHTML="";
+    img.style.maxWidth="100%";img.style.maxHeight="100%";img.style.borderRadius="14px";
+    q("#imageResult").appendChild(img);
+    toast("Изображение создано");
+  }catch(e){q("#imageResult").innerHTML='<div class="placeholder"><p>Ошибка генерации: '+esc(e&&e.message?e.message:String(e))+'</p></div>'}
+};
+q("#genVideo").onclick=async function(){
+  var p=q("#videoPrompt").value.trim()||"Кинематографичный полет над городом";
+  q("#videoResult").innerHTML='<div class="placeholder"><b>◌</b><p>Генерирую видео…</p></div>';
+  try{
+    var vid=await puter.ai.txt2vid(p,{model:"vidu/vidu-q3-turbo"});
+    q("#videoResult").innerHTML="";
+    vid.controls=true;vid.autoplay=true;vid.loop=true;vid.style.maxWidth="100%";vid.style.maxHeight="100%";vid.style.borderRadius="14px";
+    q("#videoResult").appendChild(vid);
+    toast("Видео создано");
+  }catch(e){
+    try{
+      var sample=await puter.ai.txt2vid(p,true);
+      q("#videoResult").innerHTML="";sample.controls=true;sample.style.maxWidth="100%";q("#videoResult").appendChild(sample);
+      toast("Показан бесплатный тестовый ролик");
+    }catch(e2){q("#videoResult").innerHTML='<div class="placeholder"><p>Ошибка видео: '+esc(e2&&e2.message?e2.message:String(e2))+'</p></div>'}
+  }
+};
+var audioCards=q("#audio").querySelectorAll("article");
+if(audioCards[1]){
+  var ttsBtn=audioCards[1].querySelector("button"),ttsText=audioCards[1].querySelector("textarea");
+  ttsBtn.onclick=async function(){
+    var t=ttsText.value.trim();if(!t){toast("Введите текст");return}
+    ttsBtn.disabled=true;ttsBtn.textContent="Генерирую…";
+    try{
+      var audio=await puter.ai.txt2speech(t,{provider:"openai",model:"gpt-4o-mini-tts",voice:"alloy",response_format:"mp3"});
+      audio.controls=true;audio.style.width="100%";audioCards[1].appendChild(audio);await audio.play();toast("Озвучка готова");
+    }catch(e){toast("Ошибка озвучки")}
+    ttsBtn.disabled=false;ttsBtn.textContent="Озвучить";
+  };
+}
+if(audioCards[2]){
+  var sttBtn=audioCards[2].querySelector("button"),sttFile=audioCards[2].querySelector("input[type=file]");
+  sttBtn.onclick=async function(){
+    if(!sttFile.files||!sttFile.files[0]){toast("Выберите аудиофайл");return}
+    sttBtn.disabled=true;sttBtn.textContent="Распознаю…";
+    try{
+      var tr=await puter.ai.speech2txt(sttFile.files[0],{response_format:"text"});
+      var out=document.createElement("textarea");out.value=typeof tr==="string"?tr:(tr.text||JSON.stringify(tr));out.style.marginTop="10px";audioCards[2].appendChild(out);toast("Расшифровка готова");
+    }catch(e){toast("Ошибка распознавания")}
+    sttBtn.disabled=false;sttBtn.textContent="Расшифровать";
+  };
+}
+})();
+</script>
 </body>
 </html>
