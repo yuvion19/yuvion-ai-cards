@@ -82,13 +82,20 @@ echo "Voice duration: $VOICE_DUR"
 FONT='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
 FONTB='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 
-# Create an optimized 12-second Full-HD Ken Burns segment for each image.
+# Create a fast 12-second Full-HD documentary segment for each image.
 for i in $(seq 1 10); do
   label="${LABELS[$((i-1))]}"
   credit="${CREDITS[$((i-1))]}"
   label_esc=$(printf '%s' "$label" | sed "s/:/\\\\:/g; s/'/’/g")
   credit_esc=$(printf '%s' "$credit" | sed "s/:/\\\\:/g; s/'/’/g")
-  ffmpeg -y -hide_banner -loglevel error -loop 1 -t 12 -i "assets/img_${i}.jpg"     -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x08090B,       zoompan=z='min(zoom+0.00045,1.05)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=300:s=1920x1080:fps=25,       eq=contrast=1.025:saturation=1.02,unsharp=5:5:0.20:5:5:0.0,       drawbox=x=0:y=ih-142:w=iw:h=142:color=black@0.44:t=fill,       drawtext=fontfile=$FONTB:text='${label_esc}':fontcolor=white:fontsize=34:x=60:y=h-112,       drawtext=fontfile=$FONT:text='${credit_esc}':fontcolor=0xD6BD7B:fontsize=22:x=62:y=h-65,       fade=t=in:st=0:d=0.65,fade=t=out:st=11.35:d=0.65"     -an -c:v libx264 -profile:v high -level 4.1 -preset superfast -crf 18 -pix_fmt yuv420p "segments/s_${i}.mp4"
+  ffmpeg -y -hide_banner -loglevel error -loop 1 -framerate 10 -t 12 -i "assets/img_${i}.jpg" \
+    -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x08090B, \
+      eq=contrast=1.025:saturation=1.02,unsharp=5:5:0.18:5:5:0.0, \
+      drawbox=x=0:y=ih-142:w=iw:h=142:color=black@0.44:t=fill, \
+      drawtext=fontfile=$FONTB:text='${label_esc}':fontcolor=white:fontsize=34:x=60:y=h-112, \
+      drawtext=fontfile=$FONT:text='${credit_esc}':fontcolor=0xD6BD7B:fontsize=22:x=62:y=h-65, \
+      fade=t=in:st=0:d=0.45,fade=t=out:st=11.55:d=0.45" \
+    -an -c:v libx264 -profile:v high -level 4.1 -preset ultrafast -crf 17 -pix_fmt yuv420p -r 10 "segments/s_${i}.mp4"
 done
 
 # Build repeated visual timeline long enough for the full narration.
@@ -105,10 +112,10 @@ done
 ffmpeg -y -hide_banner -loglevel error -f concat -safe 0 -i visuals.txt -t "$VOICE_DUR" -c copy assets/main_visual.mp4
 
 # Opening title 8 seconds.
-ffmpeg -y -hide_banner -loglevel error -f lavfi -i "color=c=0x080b0f:s=1920x1080:r=25:d=8"   -vf "drawtext=fontfile=$FONTB:text='КРАСНАЯ СЛОБОДА':fontcolor=white:fontsize=92:x=(w-text_w)/2:y=315,        drawtext=fontfile=$FONT:text='ПАМЯТЬ КАВКАЗА':fontcolor=0xD6BD7B:fontsize=46:x=(w-text_w)/2:y=435,        drawtext=fontfile=$FONT:text='Документальный фильм о горских евреях Кавказа':fontcolor=0xD0D0D0:fontsize=30:x=(w-text_w)/2:y=535,        drawtext=fontfile=$FONTB:text='Создатель проекта — Давидов Дон Сережович':fontcolor=white:fontsize=31:x=(w-text_w)/2:y=680,        fade=t=in:st=0:d=1,fade=t=out:st=7:d=1"   -an -c:v libx264 -profile:v high -preset veryfast -crf 18 -pix_fmt yuv420p assets/intro.mp4
+ffmpeg -y -hide_banner -loglevel error -f lavfi -i "color=c=0x080b0f:s=1920x1080:r=10:d=8"   -vf "drawtext=fontfile=$FONTB:text='КРАСНАЯ СЛОБОДА':fontcolor=white:fontsize=92:x=(w-text_w)/2:y=315,        drawtext=fontfile=$FONT:text='ПАМЯТЬ КАВКАЗА':fontcolor=0xD6BD7B:fontsize=46:x=(w-text_w)/2:y=435,        drawtext=fontfile=$FONT:text='Документальный фильм о горских евреях Кавказа':fontcolor=0xD0D0D0:fontsize=30:x=(w-text_w)/2:y=535,        drawtext=fontfile=$FONTB:text='Создатель проекта — Давидов Дон Сережович':fontcolor=white:fontsize=31:x=(w-text_w)/2:y=680,        fade=t=in:st=0:d=1,fade=t=out:st=7:d=1"   -an -c:v libx264 -profile:v high -preset veryfast -crf 18 -pix_fmt yuv420p assets/intro.mp4
 
 # End credits 14 seconds.
-ffmpeg -y -hide_banner -loglevel error -f lavfi -i "color=c=0x060708:s=1920x1080:r=25:d=14"   -vf "drawtext=fontfile=$FONTB:text='КРАСНАЯ СЛОБОДА · ПАМЯТЬ КАВКАЗА':fontcolor=white:fontsize=52:x=(w-text_w)/2:y=210,        drawtext=fontfile=$FONTB:text='Создатель проекта':fontcolor=0xD6BD7B:fontsize=28:x=(w-text_w)/2:y=345,        drawtext=fontfile=$FONT:text='Давидов Дон Сережович':fontcolor=white:fontsize=45:x=(w-text_w)/2:y=395,        drawtext=fontfile=$FONT:text='Визуальные материалы · Wikimedia Commons':fontcolor=0xBFC2C7:fontsize=25:x=(w-text_w)/2:y=555,        drawtext=fontfile=$FONT:text='Источники · Azerbaijan Travel · Jewish Languages Project':fontcolor=0xBFC2C7:fontsize=25:x=(w-text_w)/2:y=600,        drawtext=fontfile=$FONT:text='Архивные изображения в фильме помечены отдельно':fontcolor=0x8F949B:fontsize=22:x=(w-text_w)/2:y=665,        fade=t=in:st=0:d=1.2,fade=t=out:st=12.5:d=1.5"   -an -c:v libx264 -profile:v high -preset veryfast -crf 18 -pix_fmt yuv420p assets/outro.mp4
+ffmpeg -y -hide_banner -loglevel error -f lavfi -i "color=c=0x060708:s=1920x1080:r=10:d=14"   -vf "drawtext=fontfile=$FONTB:text='КРАСНАЯ СЛОБОДА · ПАМЯТЬ КАВКАЗА':fontcolor=white:fontsize=52:x=(w-text_w)/2:y=210,        drawtext=fontfile=$FONTB:text='Создатель проекта':fontcolor=0xD6BD7B:fontsize=28:x=(w-text_w)/2:y=345,        drawtext=fontfile=$FONT:text='Давидов Дон Сережович':fontcolor=white:fontsize=45:x=(w-text_w)/2:y=395,        drawtext=fontfile=$FONT:text='Визуальные материалы · Wikimedia Commons':fontcolor=0xBFC2C7:fontsize=25:x=(w-text_w)/2:y=555,        drawtext=fontfile=$FONT:text='Источники · Azerbaijan Travel · Jewish Languages Project':fontcolor=0xBFC2C7:fontsize=25:x=(w-text_w)/2:y=600,        drawtext=fontfile=$FONT:text='Архивные изображения в фильме помечены отдельно':fontcolor=0x8F949B:fontsize=22:x=(w-text_w)/2:y=665,        fade=t=in:st=0:d=1.2,fade=t=out:st=12.5:d=1.5"   -an -c:v libx264 -profile:v high -preset veryfast -crf 18 -pix_fmt yuv420p assets/outro.mp4
 
 printf "file 'assets/intro.mp4'\nfile 'assets/main_visual.mp4'\nfile 'assets/outro.mp4'\n" > final_video.txt
 ffmpeg -y -hide_banner -loglevel error -f concat -safe 0 -i final_video.txt -c copy assets/video_full.mp4
