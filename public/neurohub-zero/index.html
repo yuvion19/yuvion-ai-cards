@@ -18,7 +18,7 @@
 <div class="only"><b>Gideon AI</b><small>единый AI‑ассистент</small></div>
 <nav>
 <button data-route="home" class="active">⌂ Главная</button>
-<button data-route="chat">✦ GigaChat</button>
+<button data-route="chat">✦ Gideon</button>
 <button data-route="files">▤ Файлы</button>
 <button data-route="image">▧ Изображения</button>
 <button data-route="audio">♫ Аудио</button>
@@ -30,7 +30,7 @@
 </aside>
 
 <main>
-<div class="top"><b>Gideon</b><span class="badge" id="topStatus">проверка GigaChat…</span></div>
+<div class="top"><b>Gideon</b><span class="badge" id="topStatus">проверка Gideon…</span></div>
 
 <section id="home" class="view active">
 <div class="hero">
@@ -41,7 +41,7 @@
 <article class="card"><b>Чат</b><p>Единый AI‑движок — Gideon.</p></article>
 <article class="card"><b>Файлы</b><p>Документы, фото и аудио через Gideon.</p></article>
 <article class="card"><b>Изображения</b><p>Генерация изображений через Gideon.</p></article>
-<article class="card"><b>Товары</b><p>Анализ фото, заголовки и описания делает GigaChat.</p></article>
+<article class="card"><b>Товары</b><p>Анализ фото, заголовки и описания делает Gideon.</p></article>
 </div>
 </section>
 
@@ -57,7 +57,7 @@
 <section id="files" class="view">
 <div class="head"><div><span class="eyebrow">GIDEON FILES</span><h2>Документы, фото и аудио</h2><p>Файлы обрабатываются Gideon и после анализа удаляются с сервера.</p></div></div>
 <div class="twocol">
-<div class="panel stack"><label class="drop">Выберите до 10 файлов<input id="filesInput" type="file" multiple></label><textarea id="filesPrompt">Проанализируй приложенные файлы. Дай краткое содержание, ключевые факты, цифры и важные замечания. Не выдумывай отсутствующие данные.</textarea><button id="analyzeFiles" class="primary">Анализировать через GigaChat</button></div>
+<div class="panel stack"><label class="drop">Выберите до 10 файлов<input id="filesInput" type="file" multiple></label><textarea id="filesPrompt">Проанализируй приложенные файлы. Дай краткое содержание, ключевые факты, цифры и важные замечания. Не выдумывай отсутствующие данные.</textarea><button id="analyzeFiles" class="primary">Анализировать через Gideon</button></div>
 <div class="panel"><div id="filesOutput" class="output">Загрузите файл.</div></div>
 </div>
 </section>
@@ -65,7 +65,7 @@
 <section id="image" class="view">
 <div class="head"><div><span class="eyebrow">GIDEON IMAGE</span><h2>Изображения</h2><p>Генерация только через встроенную функцию Gideon Image.</p></div><span class="badge">text2image</span></div>
 <div class="twocol">
-<div class="panel stack"><textarea id="imagePrompt" placeholder="Например: премиальная рекламная фотография чайника на светлом студийном фоне, вертикальная композиция 3:4"></textarea><button id="generateImage" class="primary">Создать через GigaChat</button><label class="drop">Или загрузите изображение для анализа<input id="visionFile" type="file" accept="image/*"></label><textarea id="visionPrompt">Подробно опиши изображение, прочитай видимый текст и перечисли подтверждённые характеристики объекта.</textarea><button id="analyzeImage" class="secondary">Анализировать фото через GigaChat</button></div>
+<div class="panel stack"><textarea id="imagePrompt" placeholder="Например: премиальная рекламная фотография чайника на светлом студийном фоне, вертикальная композиция 3:4"></textarea><button id="generateImage" class="primary">Создать через Gideon</button><label class="drop">Или загрузите изображение для анализа<input id="visionFile" type="file" accept="image/*"></label><textarea id="visionPrompt">Подробно опиши изображение, прочитай видимый текст и перечисли подтверждённые характеристики объекта.</textarea><button id="analyzeImage" class="secondary">Анализировать фото через Gideon</button></div>
 <div class="panel"><div id="imageOutput" class="media">Результат появится здесь.</div><div id="visionOutput" class="output" style="margin-top:12px;min-height:120px">Анализ изображения появится здесь.</div></div>
 </div>
 </section>
@@ -73,7 +73,7 @@
 <section id="audio" class="view">
 <div class="head"><div><span class="eyebrow">GIDEON AUDIO</span><h2>Аудио</h2><p>Gideon принимает аудиофайлы и может извлекать из них содержание.</p></div></div>
 <div class="twocol">
-<div class="panel stack"><input id="audioFile" type="file" accept="audio/*"><textarea id="audioPrompt">Расшифруй речь из аудиофайла максимально точно. Затем сделай краткий конспект и перечисли ключевые тезисы.</textarea><button id="analyzeAudio" class="primary">Обработать через GigaChat</button></div>
+<div class="panel stack"><input id="audioFile" type="file" accept="audio/*"><textarea id="audioPrompt">Расшифруй речь из аудиофайла максимально точно. Затем сделай краткий конспект и перечисли ключевые тезисы.</textarea><button id="analyzeAudio" class="primary">Обработать через Gideon</button></div>
 <div class="panel"><div id="audioOutput" class="output">Выберите аудиофайл.</div></div>
 </div>
 </section>
@@ -81,16 +81,16 @@
 <section id="product" class="view">
 <div class="head"><div><span class="eyebrow">GIDEON MARKETPLACE</span><h2>Фото → карточки товара</h2><p>Gideon анализирует фото и создаёт текст. Браузер только собирает четыре изображения 900×1200 без другой AI‑модели.</p></div><span class="badge">4 × 900×1200</span></div>
 <div class="twocol">
-<div class="panel stack"><input id="productPhoto" type="file" accept="image/*"><textarea id="productNotes" placeholder="Дополнительные подтверждённые данные о товаре…"></textarea><button id="productAnalyze" class="primary">GigaChat: анализ + текст</button><button id="makeCards" class="secondary" disabled>Сделать 4 карточки</button><button id="downloadZip" class="secondary" disabled>Скачать ZIP</button></div>
+<div class="panel stack"><input id="productPhoto" type="file" accept="image/*"><textarea id="productNotes" placeholder="Дополнительные подтверждённые данные о товаре…"></textarea><button id="productAnalyze" class="primary">Gideon: анализ + текст</button><button id="makeCards" class="secondary" disabled>Сделать 4 карточки</button><button id="downloadZip" class="secondary" disabled>Скачать ZIP</button></div>
 <div class="panel stack"><div id="productPreview" class="preview">Фото товара</div><label>Заголовок<input id="productTitle"></label><label>Описание<textarea id="productDescription"></textarea></label></div>
 </div>
 <div id="productCards" class="product-cards"></div>
 </section>
 
 <section id="workflow" class="view">
-<div class="head"><div><span class="eyebrow">GIDEON WORKFLOW</span><h2>Workflow</h2><p>Каждый AI‑шаг выполняет только GigaChat.</p></div></div>
+<div class="head"><div><span class="eyebrow">GIDEON WORKFLOW</span><h2>Workflow</h2><p>Каждый AI‑шаг выполняет только Gideon.</p></div></div>
 <div class="cards" id="wfCards"></div>
-<div class="panel stack" style="margin-top:14px"><div class="row"><span class="step" id="wfName">Выберите сценарий</span></div><input id="wfFile" type="file"><textarea id="wfPrompt" placeholder="Дополнительная задача…"></textarea><button id="runWorkflow" class="primary" disabled>Запустить через GigaChat</button><div id="wfOutput" class="output">Результат Workflow появится здесь.</div></div>
+<div class="panel stack" style="margin-top:14px"><div class="row"><span class="step" id="wfName">Выберите сценарий</span></div><input id="wfFile" type="file"><textarea id="wfPrompt" placeholder="Дополнительная задача…"></textarea><button id="runWorkflow" class="primary" disabled>Запустить через Gideon</button><div id="wfOutput" class="output">Результат Workflow появится здесь.</div></div>
 </section>
 
 <section id="status" class="view">
@@ -101,7 +101,7 @@
 <article class="panel"><h3>API‑ключ</h3><b class="green">Скрыт на сервере</b><p>Не хранится в HTML браузера.</p></article>
 <article class="panel"><h3>Другие AI</h3><b>Отключены</b><p>Другие AI‑модели и сторонние AI‑API не используются.</p></article>
 </div>
-<div class="panel" style="margin-top:14px"><h3>Видео</h3><p>Отдельной генерации видео другими моделями в NeuroHub больше нет. Это сделано намеренно, чтобы соблюдать режим «только GigaChat».</p></div>
+<div class="panel" style="margin-top:14px"><h3>Видео</h3><p>Отдельной генерации видео другими моделями в Gideon больше нет. Это сделано намеренно, чтобы соблюдать режим «только Gideon».</p></div>
 </section>
 
 <div class="mobile-nav">
@@ -113,14 +113,14 @@
 <script>
 const API='https://yuvion-ai-cards-marketplace-production.up.railway.app';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const KEY='neurohub_giga_only_v1';
-let state={messages:[{role:'assistant',content:'GigaChat подключён. Все AI‑запросы NeuroHub теперь отправляются только в Gideon.'}]};
+const KEY='gideon_v1';
+let state={messages:[{role:'assistant',content:'Gideon подключён. Все AI‑запросы Gideon теперь отправляются только в Gideon.'}]};
 try{state=JSON.parse(localStorage.getItem(KEY)||'null')||state}catch{}
 let productFile=null,productUrl=null,productBlobs=[],selectedWf=null;
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(t){let e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2600)}
-function busy(btn,on,label='GigaChat…'){if(!btn)return;if(on){btn.dataset.old=btn.textContent;btn.disabled=true;btn.textContent=label}else{btn.disabled=false;btn.textContent=btn.dataset.old||btn.textContent}}
+function busy(btn,on,label='Gideon…'){if(!btn)return;if(on){btn.dataset.old=btn.textContent;btn.disabled=true;btn.textContent=label}else{btn.disabled=false;btn.textContent=btn.dataset.old||btn.textContent}}
 function route(n){$$('.view').forEach(v=>v.classList.toggle('active',v.id===n));$$('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===n));history.replaceState(null,'','#'+n);scrollTo(0,0)}
 $$('[data-route]').forEach(b=>b.onclick=()=>route(b.dataset.route));
 if(location.hash&&document.getElementById(location.hash.slice(1)))route(location.hash.slice(1));
@@ -150,7 +150,7 @@ refreshStatus();
 $('#sendChat').onclick=async()=>{const inp=$('#chatInput'),t=inp.value.trim();if(!t)return;inp.value='';state.messages.push({role:'user',content:t});save();renderMessages();busy($('#sendChat'),true);$('#chatStatus').textContent='Gideon думает…';try{const d=await chatGiga(state.messages.slice(-14));state.messages.push({role:'assistant',content:d.answer});save();renderMessages();$('#chatStatus').textContent=d.model+' · Free Guard'}catch(e){state.messages.push({role:'assistant',content:'Ошибка Gideon: '+e.message});save();renderMessages();$('#chatStatus').textContent='Gideon недоступен'}finally{busy($('#sendChat'),false)}};
 $('#chatInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#sendChat').click()}};
 
-$('#analyzeFiles').onclick=async()=>{const fs=[...$('#filesInput').files];if(!fs.length)return toast('Выберите файлы');const b=$('#analyzeFiles'),o=$('#filesOutput');busy(b,true);o.textContent='Загружаю файлы в GigaChat…';try{const d=await analyzeWithGiga(fs,$('#filesPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка Gideon: '+e.message}finally{busy(b,false)}};
+$('#analyzeFiles').onclick=async()=>{const fs=[...$('#filesInput').files];if(!fs.length)return toast('Выберите файлы');const b=$('#analyzeFiles'),o=$('#filesOutput');busy(b,true);o.textContent='Загружаю файлы в Gideon…';try{const d=await analyzeWithGiga(fs,$('#filesPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка Gideon: '+e.message}finally{busy(b,false)}};
 
 $('#generateImage').onclick=async()=>{const p=$('#imagePrompt').value.trim();if(!p)return toast('Введите описание');const b=$('#generateImage'),o=$('#imageOutput');busy(b,true,'Gideon рисует…');o.textContent='Gideon создаёт изображение…';try{const d=await api('/api/neurohub/gigachat/image',{prompt:p});const src='data:'+d.mimeType+';base64,'+d.imageBase64;o.innerHTML='<div><img src="'+src+'" alt=""><br><a class="secondary link" download="gigachat-image.jpg" href="'+src+'">Скачать</a></div>'}catch(e){o.innerHTML='<span class="error">'+esc(e.message)+'</span>'}finally{busy(b,false)}};
 $('#analyzeImage').onclick=async()=>{const f=$('#visionFile').files?.[0];if(!f)return toast('Выберите фото');const b=$('#analyzeImage'),o=$('#visionOutput');busy(b,true);o.textContent='Gideon анализирует изображение…';try{const d=await analyzeWithGiga([f],$('#visionPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка Gideon: '+e.message}finally{busy(b,false)}};
