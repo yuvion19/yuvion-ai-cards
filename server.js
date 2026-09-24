@@ -47,7 +47,8 @@ const corsOrigins = new Set([
   "https://yuvion.ru",
   "https://www.yuvion.ru",
   "https://neurohub-zero-yuvion.onrender.com",
-  "https://neurohub-zero-free-ai.onrender.com"
+  "https://neurohub-zero-free-ai.onrender.com",
+  "https://neurohub-gigachat-only.onrender.com"
 ]);
 app.use((req, res, next) => {
   const origin = String(req.get("origin") || "");
