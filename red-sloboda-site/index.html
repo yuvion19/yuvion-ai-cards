@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#172a3a">
+<title>Цифровая Красная Слобода</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--paper:#f2ecdf;--card:#fffaf2;--ink:#201f1c;--muted:#756d63;--blue:#172a3a;--wine:#6f2430;--line:#d3c7b7;--gold:#a47e45;--ok:#376d55}
+*{box-sizing:border-box}html,body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input{font:inherit}
+header{position:sticky;top:0;z-index:1000;background:rgba(23,42,58,.97);color:white;border-bottom:1px solid #ffffff18}.nav{width:min(1380px,calc(100% - 28px));margin:auto;display:flex;align-items:center;gap:18px;padding:14px 0}.brand{font:600 21px Georgia,serif}.nav small{opacity:.62}.grow{flex:1}.status{font-size:11px;border:1px solid #ffffff30;border-radius:99px;padding:5px 9px}
+.wrap{width:min(1380px,calc(100% - 28px));margin:auto}
+.hero{padding:50px 0 30px}.eyebrow{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--wine);font-weight:800}.hero h1{font:600 clamp(42px,6vw,78px)/.95 Georgia,serif;max-width:900px;margin:10px 0 16px}.hero p{max-width:840px;color:var(--muted);line-height:1.65}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:24px}.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px}.stat b{display:block;font-size:28px}.stat span{color:var(--muted);font-size:10px}
+.toolbar{display:grid;grid-template-columns:1fr auto;gap:10px;margin:8px 0 14px}.search{width:100%;padding:13px 15px;border:1px solid var(--line);border-radius:12px;background:var(--card);outline:none}.filters{display:flex;gap:7px;flex-wrap:wrap}.btn{border:1px solid var(--wine);color:var(--wine);background:var(--card);border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:700;font-size:12px}.btn.active,.btn:hover{background:var(--wine);color:white}
+.shell{display:grid;grid-template-columns:300px minmax(0,1fr) 390px;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;min-height:690px;box-shadow:0 16px 50px #392b1c0a}.list{max-height:690px;overflow:auto;background:#ece4d7;border-right:1px solid var(--line)}.item{width:100%;display:block;text-align:left;padding:11px 12px;border:0;border-bottom:1px solid var(--line);background:transparent;cursor:pointer}.item:hover,.item.on{background:white}.item b{display:block;font-size:12px}.item small{font-size:9px;color:var(--muted);line-height:1.45}
+#map{height:690px;background:#e7dfd4}.passport{padding:18px;max-height:690px;overflow:auto;border-left:1px solid var(--line)}.passport h2{font:600 29px Georgia,serif;margin:8px 0}.passport h3{font:600 19px Georgia,serif;margin:22px 0 8px}.code{font-size:10px;letter-spacing:.08em;color:var(--muted)}.badge{display:inline-block;border:1px solid currentColor;border-radius:99px;padding:3px 7px;font-size:9px}.verified{color:var(--ok)}.review{color:#9a641f}.draft{color:var(--wine)}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin:14px 0}.meta div{background:var(--card);padding:9px}.meta span{display:block;font-size:8px;color:var(--muted);text-transform:uppercase}.meta b{font-size:10px;line-height:1.35}.timeline{border-left:2px solid var(--line);padding-left:14px}.event{position:relative;margin-bottom:15px}.event:before{content:"";position:absolute;left:-19px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--wine)}.event b{font-size:11px}.event p,.fact,.note{font-size:11px;line-height:1.55;color:var(--muted)}.event small,.fact small{font-size:9px}.fact{padding:9px 0;border-bottom:1px solid var(--line)}
+.research{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:28px 0 50px}.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px}.card h3{font:600 18px Georgia,serif;margin:7px 0}.card p{font-size:11px;line-height:1.5;color:var(--muted)}
+.loading{padding:70px;text-align:center;color:var(--muted)}
+footer{padding:25px 0 40px;color:var(--muted);font-size:10px}
+@media(max-width:1020px){.shell{grid-template-columns:260px 1fr}.passport{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);max-height:none}.research{grid-template-columns:1fr 1fr}}
+@media(max-width:720px){.nav small{display:none}.stats{grid-template-columns:1fr 1fr}.toolbar{grid-template-columns:1fr}.shell{grid-template-columns:1fr}.list{max-height:240px;border-right:0;border-bottom:1px solid var(--line)}#map{height:480px}.research{grid-template-columns:1fr}.hero{padding-top:34px}.hero h1{font-size:46px}}
+</style>
+</head>
+<body>
+<header><div class="nav"><div class="brand">Цифровая Красная Слобода</div><small>Qırmızı Qəsəbə · Quba · Azerbaijan</small><div class="grow"></div><div class="status">публичный архив</div></div></header>
+<main class="wrap">
+<section class="hero">
+<div class="eyebrow">цифровой архив и карта</div>
+<h1>История домов и зданий Красной Слободы</h1>
+<p>Интерактивный архив с постоянными номерами домов, историей зданий, проверенными источниками и картой. Если индивидуальная история конкретного дома ещё не установлена, это показано прямо — без выдуманных дат и владельцев.</p>
+<div class="stats"><div class="stat"><b id="nPlaces">—</b><span>объектов</span></div><div class="stat"><b id="nHistory">—</b><span>исторических записей</span></div><div class="stat"><b id="nFacts">—</b><span>фактов</span></div><div class="stat"><b id="nSources">—</b><span>источников</span></div></div>
+</section>
+<div class="toolbar"><input id="q" class="search" placeholder="Поиск: KS-H-000001, адрес, музей, синагога…"><div class="filters"><button class="btn active" data-filter="all">Все</button><button class="btn" data-filter="nohist">Без истории</button><button class="btn" data-filter="noaddr">Без адреса</button><button class="btn" data-filter="historic">Исторические объекты</button></div></div>
+<div id="loading" class="loading">Загрузка актуальных данных…</div>
+<div id="shell" class="shell" style="display:none"><aside id="list" class="list"></aside><div id="map"></div><aside id="passport" class="passport"><h2>Выберите объект</h2><p class="note">Нажмите на дом на карте или в списке слева.</p></aside></div>
+<section id="research" class="research"></section>
+<footer>© OpenStreetMap contributors · Источники и уровень проверки указаны в карточках объектов.</footer>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const DATA='https://huvbrphblapbobklttup.supabase.co/storage/v1/object/public/site-public/building-history.json';
+let D={places:[],history:[],facts:[],research_sources:[],research_tasks:[],unlocated_historical_records:[]},selected=null,currentFilter='all',layers=new Map();
+const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const H=p=>D.history.filter(x=>x.place_id===p.id),F=p=>D.facts.filter(x=>x.place_id===p.id);
+const map=L.map('map',{zoomControl:true}).setView([41.3737,48.5171],15);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'© OpenStreetMap contributors'}).addTo(map);
+function color(p){const s=p.verification_status;return s==='verified'?'#376d55':s==='review'?'#9a641f':'#6f2430'}
+function addLayers(arr){layers.forEach(l=>map.removeLayer(l));layers.clear();const group=[];arr.forEach(p=>{if(p.geometry?.coordinates?.[0]?.length>2){const latlng=p.geometry.coordinates[0].map(x=>[x[1],x[0]]);const l=L.polygon(latlng,{color:color(p),weight:1,fillOpacity:.16});l.on('click',()=>pick(p.id));l.addTo(map);layers.set(p.id,l);group.push(l)}});if(group.length){const fg=L.featureGroup(group);map.fitBounds(fg.getBounds(),{padding:[20,20]})}}
+function filtered(){let a=D.places;const v=q.value.trim().toLowerCase();if(v.length>1)a=a.filter(p=>((p.canonical_code||'')+' '+(p.archive_code||'')+' '+(p.name||'')+' '+(p.address||'')+' '+(p.object_type||'')).toLowerCase().includes(v));if(currentFilter==='nohist')a=a.filter(p=>H(p).filter(x=>x.event_type!=='map_evidence').length===0);if(currentFilter==='noaddr')a=a.filter(p=>!p.address);if(currentFilter==='historic')a=a.filter(p=>!p.canonical_code);return a}
+function render(){const a=filtered();list.innerHTML=a.map(p=>'<button class="item '+(selected===p.id?'on':'')+'" data-id="'+p.id+'"><b>'+E(p.canonical_code||p.archive_code||'—')+' · '+E(p.name||p.object_type||'Объект')+'</b><small>'+E(p.address||'адрес уточняется')+' · '+E(p.verification_status||'draft')+'</small></button>').join('');list.querySelectorAll('.item').forEach(b=>b.onclick=()=>pick(b.dataset.id));addLayers(a)}
+function pick(id){selected=id;const p=D.places.find(x=>x.id===id);if(!p)return;const h=H(p),f=F(p),individual=h.filter(x=>x.event_type!=='map_evidence');passport.innerHTML='<div class="code">'+E(p.canonical_code||p.archive_code||'—')+(p.osm_id?' · OSM '+E(p.osm_id):'')+'</div><h2>'+E(p.name||p.object_type||'Объект')+'</h2><span class="badge '+E(p.verification_status||'draft')+'">'+E(p.verification_status||'draft')+'</span><div class="meta"><div><span>Тип</span><b>'+E(p.object_type||'—')+'</b></div><div><span>Адрес</span><b>'+E(p.address||'уточняется')+'</b></div><div><span>Период</span><b>'+E(p.construction_year_from||'—')+(p.construction_year_to&&p.construction_year_to!==p.construction_year_from?'–'+E(p.construction_year_to):'')+'</b></div><div><span>Достоверность</span><b>'+E(p.confidence||'—')+'</b></div></div>'+(p.historical_summary?'<p class="note">'+E(p.historical_summary)+'</p>':'')+'<h3>Индивидуальная история</h3>'+(individual.length?'<div class="timeline">'+individual.map(e=>'<div class="event"><b>'+E(e.year_start||'дата уточняется')+' · '+E(e.title)+'</b><p>'+E(e.description)+'</p><small>'+E(e.source_text||'')+' · '+E(e.verification_status||'')+'</small></div>').join('')+'</div>':'<p class="note"><b>Подтверждённая индивидуальная история пока не установлена.</b></p>')+(h.some(x=>x.event_type==='map_evidence')?'<p class="note">Современный контур OpenStreetMap подтверждает наличие здания на карте, но не дату его строительства.</p>':'')+'<h3>Факты и контекст</h3>'+(f.length?f.slice(0,16).map(x=>'<div class="fact">'+E(x.value_text)+'<br><small>'+E(x.source_text||'')+' · '+E(x.verification_status||'')+'</small></div>').join(''):'<p class="note">Дополнительных фактов пока нет.</p>');render();const l=layers.get(id);if(l)map.fitBounds(l.getBounds(),{maxZoom:19,padding:[40,40]})}
+function researchCards(){const tasks=D.research_tasks||[],unknown=D.unlocated_historical_records||[];research.innerHTML='<article class="card"><small>Идентификация</small><h3>'+unknown.length+' исторических объектов</h3><p>Известны по архивным источникам, но ещё не сопоставлены с современным зданием.</p></article><article class="card"><small>Исследование</small><h3>'+tasks.filter(x=>x.status==='open').length+' открытых задач</h3><p>Сопоставление домов 1946 года, государственного реестра и современных контуров.</p></article><article class="card"><small>Методика</small><h3>Без догадок</h3><p>Привязка исторического дома подтверждается только несколькими независимыми признаками.</p></article>'}
+q.addEventListener('input',render);document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-filter]').forEach(x=>x.classList.remove('active'));b.classList.add('active');currentFilter=b.dataset.filter;render()});
+fetch(DATA+'?v='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(x=>{D=x;nPlaces.textContent=D.places.length;nHistory.textContent=D.history.length;nFacts.textContent=D.facts.length;nSources.textContent=(D.research_sources||[]).length;loading.style.display='none';shell.style.display='grid';render();researchCards();setTimeout(()=>map.invalidateSize(),100)}).catch(()=>{loading.innerHTML='<b>Не удалось загрузить архив.</b><br>Обновите страницу через несколько секунд.'});
+</script>
+</body>
+</html>
