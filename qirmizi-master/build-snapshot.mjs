@@ -131,4 +131,34 @@ const payload = {
   places: { type: "FeatureCollection", features: places }
 };
 await writeFile(`${OUT}/data.json`, JSON.stringify(payload));
+
+const API = `${OUT}/api/v1`;
+await mkdir(API, { recursive: true });
+await writeFile(`${API}/buildings.geojson`, JSON.stringify(payload.buildings));
+await writeFile(`${API}/roads.geojson`, JSON.stringify(payload.roads));
+await writeFile(`${API}/places.geojson`, JSON.stringify(payload.places));
+await writeFile(`${API}/project.json`, JSON.stringify({
+  id: "qirmizi-qesebe-digital-twin",
+  title: "Цифровая Красная Слобода",
+  version: payload.version,
+  generatedAt: payload.generatedAt,
+  bbox: payload.bbox,
+  counts: { buildings: buildings.length, roads: roads.length, places: places.length },
+  license: {
+    mapData: "© OpenStreetMap contributors, ODbL",
+    archiveMaterials: "Per-item rights metadata required"
+  },
+  endpoints: {
+    buildings: "./buildings.geojson",
+    roads: "./roads.geojson",
+    places: "./places.geojson"
+  }
+}, null, 2));
+await writeFile(`${API}/schema.json`, JSON.stringify({
+  qqId: "Permanent project building identifier, usually QQ-OSM-{osmId}",
+  materialId: "Permanent archive material identifier MAT-{uuid}",
+  requiredSourceFields: ["type", "label", "url"],
+  verification: ["open", "materials", "verified"],
+  buildingStatus: ["existing", "changed", "lost"]
+}, null, 2));
 console.log(`Qirmizi snapshot: ${buildings.length} buildings, ${roads.length} roads, ${places.length} places`);
