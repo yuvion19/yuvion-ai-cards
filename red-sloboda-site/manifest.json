@@ -1,0 +1,12 @@
+{
+  "name":"Цифровая Красная Слобода",
+  "short_name":"Красная Слобода",
+  "description":"Публичный цифровой архив домов и зданий Qırmızı Qəsəbə",
+  "lang":"ru",
+  "start_url":"/",
+  "scope":"/",
+  "display":"standalone",
+  "background_color":"#f2ecdf",
+  "theme_color":"#172a3a",
+  "icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
