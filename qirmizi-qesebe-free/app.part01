@@ -1,0 +1,53 @@
+
+      if(!match)return false;if(catalogFilter==='heritage'&&!isHeritage(f))return false;if(catalogFilter==='materials'&&!r)return false;if(catalogFilter==='complete'&&completeness(f)<70)return false;if(catalogFilter==='issues'&&!issues.length)return false;return true
+    }).slice(0,350);
+    els.list.innerHTML=list.map(f=>`<button data-id="${esc(f.properties.qqId)}" class="${selected?.properties?.qqId===f.properties.qqId?'active':''}"><b>${esc(label(f))}</b><small>${esc(f.properties.building||'building')} · ${esc(f.properties.qqId)} · ${completeness(f)}%</small></button>`).join('');
+    els.list.querySelectorAll('button').forEach(b=>b.onclick=()=>selectByQQ(b.dataset.id));
+  }
+
+  function renderData(d,source){data=d;els.count.textContent=mergedFeatures().length;els.introCount.textContent=d.features.length;els.status.textContent=`${d.features.length} зданий OSM · ${source}`;els.cacheBadge.textContent=source;renderList();updateStats();if(map.isStyleLoaded())applySource()}
+
+  function buildingColorExpression(){
+    if(els.showProgress.checked)return ['interpolate',['linear'],['get','progress'],0,'#545b63',25,'#8a6658',50,'#b66b50',75,'#d39b58',100,'#d6bd72'];
+    if(!els.showHeritage.checked)return ['case',['==',['get','userStatus'],'lost'],'#74605b','#79584f'];
+    return ['case',['==',['get','userStatus'],'lost'],'#74605b',['any',['has','historic'],['has','religion'],['has','tourism'],['==',['get','amenity'],'place_of_worship']],'#b84f3d','#79584f']
+  }
+  function visibilityFilter(){const filters=['all'];if(!els.showLost.checked)filters.push(['!=',['get','userStatus'],'lost']);if(!els.showHeritage.checked)filters.push(['!',isHeritageExpression()]);return filters}
+  function isHeritageExpression(){return ['any',['has','historic'],['has','religion'],['has','tourism'],['==',['get','amenity'],'place_of_worship']]}
+
+  function applySource(){
+    if(!data||!map.isStyleLoaded())return;const col=geoCollection();let src=map.getSource('buildings');if(src){src.setData(col)}else{
+      map.addSource('buildings',{type:'geojson',data:col});
+      map.addLayer({id:'buildings-2d',type:'fill',source:'buildings',layout:{visibility:'none'},paint:{'fill-color':buildingColorExpression(),'fill-opacity':['case',['==',['get','userStatus'],'lost'],.28,.74],'fill-outline-color':'#d7c5bb'}});
+      map.addLayer({id:'buildings-3d',type:'fill-extrusion',source:'buildings',paint:{'fill-extrusion-color':buildingColorExpression(),'fill-extrusion-height':['get','renderHeight'],'fill-extrusion-base':0,'fill-extrusion-opacity':['case',['==',['get','userStatus'],'lost'],.28,.86],'fill-extrusion-vertical-gradient':true}});
+      map.addLayer({id:'selected',type:'fill-extrusion',source:'buildings',filter:['==',['get','qqId'],''],paint:{'fill-extrusion-color':'#ef7c62','fill-extrusion-height':['+',['get','renderHeight'],.5],'fill-extrusion-opacity':.98}});
+      ['buildings-3d','buildings-2d'].forEach(layer=>map.on('click',layer,e=>{const qq=e.features?.[0]?.properties?.qqId;if(qq)selectByQQ(String(qq))}));
+    }
+    ['buildings-2d','buildings-3d'].forEach(id=>{if(map.getLayer(id)){map.setPaintProperty(id,id==='buildings-2d'?'fill-color':'fill-extrusion-color',buildingColorExpression())}});
+    applyHistoricalVisibility();
+  }
+
+  function applyHistoricalVisibility(){if(!map.getLayer('buildings-3d'))return;const filter=['all'];if(!els.showLost.checked)filter.push(['!=',['get','userStatus'],'lost']);map.setFilter('buildings-3d',filter);map.setFilter('buildings-2d',filter);}
+
+  async function fetchBuildings(force=false){
+    if(!force){const c=readCache();if(c){renderData(c,'кеш');setTimeout(()=>fetchBuildings(true),800);return}}
+    els.status.textContent='Загрузка зданий…';const q=`[out:json][timeout:20];way["building"](${BBOX});out tags geom;`;const mirrors=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+    try{const d=await Promise.any(mirrors.map(async u=>{const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),8000);try{const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({data:q}),signal:ctl.signal});if(!r.ok)throw new Error(String(r.status));return normalize(await r.json())}finally{clearTimeout(tm)}}));cache(d);renderData(d,'OSM live')}
+    catch{const c=readCache();if(c)renderData(c,'кеш');else els.status.textContent='Не удалось загрузить OSM. Нажми ↻ для повтора.'}
+  }
+
+  function selectByQQ(qqId,fly=true){selected=mergedFeatures().find(f=>f.properties.qqId===qqId);if(!selected)return;renderPassport();els.passport.classList.remove('hidden');if(map.getLayer('selected'))map.setFilter('selected',['==',['get','qqId'],qqId]);if(fly)map.flyTo({center:centerOf(selected),zoom:18.5,pitch:is3d?64:0,duration:650});renderList();const url=new URL(location.href);url.searchParams.set('house',qqId);history.replaceState({},'',url)}
+
+  function renderPassport(){
+    if(!selected)return;const p=selected.properties||{},r=recordFor(p.qqId),score=completeness(selected),issues=qualityIssues(selected);
+    els.houseTitle.textContent=label(selected);els.houseId.textContent=p.qqId;els.confidenceBadge.textContent=r?.verification==='verified'?'проверено':r?'есть материалы':'только открытые данные';els.qualityBadge.textContent=`${score}%`;
+    const address=[p.street,p.houseNumber,p.postcode].filter(Boolean).join(', ')||'Данных пока нет';
+    els.details.innerHTML=[['Адрес',address],['Тип',p.building||'Данных пока нет'],['Этажность',p.levels||'Данных пока нет'],['Высота',p.height||`≈ ${Number(p.renderHeight||0).toFixed(1)} м ${p.heightEstimated?'(условная)':'(OSM)'}`],['Период',r?.year?(r.yearConfidence==='approx'?`≈ ${r.year}`:r.year):'Данных пока нет'],['Статус',r?.status==='lost'?'утрачено':r?.status==='changed'?'сильно изменено':'существует'],['Описание',r?.description||'Данных пока нет'],['OSM ID',p.osmId||'пользовательский объект']].map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+    els.qualityWarnings.innerHTML=issues.length?issues.map(x=>`<div class="warningItem">⚠ ${esc(x)}</div>`).join(''):'<div class="sourceItem">Критических пробелов не найдено.</div>';
+    renderHistory(r);renderMedia(r);renderViewer(r);renderSources(r);renderVersions(r);
+  }
+
+  function renderHistory(r){
+    const events=[];if(r?.year&&Number(r.year)<=selectedYear)events.push({year:r.year,title:r.title||'Сведения о доме',text:r.description||r.note||''});for(const m of r?.media||[])if(m.year&&Number(m.year)<=selectedYear)events.push({year:m.year,title:m.label||m.type,text:m.source||''});events.sort((a,b)=>a.year-b.year);
+    els.historyTimeline.innerHTML=events.length?events.map(e=>`<div class="timelineItem"><b>${esc(e.year)} · ${esc(e.title)}</b><small>${esc(e.text)}</small></div>`).join(''):'<div class="sourceItem">Датированных исторических материалов пока нет.</div>';
+    const photos=(r?.media||[]).filter(m=>m.type==='photo'&&m.url&&m.year&&Number(m.year)<=selectedYear).sort((a,b)=>a.year-b.year);if(photos.length>=2){const a=photos[0],b=photos[photos.length-1];els.beforeAfter.classList.remove('hidden');els.beforeAfter.innerHTML=`<img src="${esc(safeUrl(a.url))}" alt="${esc(a.label||a.year)}"><img class="afterClip" src="${esc(safeUrl(b.url))}" alt="${esc(b.label||b.year)}"><input type="range" min="0" max="100" value="50" aria-label="Сравнение фотографий"><div class="baLabels"><span>${esc(a.year)}</span><span>${esc(b.year)}</span></div>`;const slider=els.beforeAfter.querySelector('input'),after=els.beforeAfter.querySelector('.afterClip');slider.oninput=()=>after.style.clipPath=`inset(0 0 0 ${slider.value}%)`
