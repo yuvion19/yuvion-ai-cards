@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
-<title>NeuroHub · GigaChat Only</title>
+<title>Gideon — AI Assistant</title>
 <style>
 :root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b24;--line:#29303d;--text:#f7f8fb;--muted:#939caf;--accent:#7c5cff;--good:#61dfaa;--warn:#ffca75;--danger:#ff858e}
 *{box-sizing:border-box}html{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}body{margin:0;background:radial-gradient(circle at 75% -10%,rgba(124,92,255,.14),transparent 30%),var(--bg);min-height:100vh}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0}aside{position:fixed;inset:0 auto 0 0;width:238px;background:#090b10f5;border-right:1px solid var(--line);padding:17px 13px;display:flex;flex-direction:column;z-index:30}.brand{font-size:18px;font-weight:850;padding:10px 8px}.brand b{font-size:11px;color:#a993ff}.only{margin:8px 0 14px;padding:11px;border:1px solid rgba(97,223,170,.3);border-radius:12px;background:rgba(97,223,170,.07)}.only b{display:block;color:#7de9b8}.only small{color:#9fb6aa}nav{display:flex;flex-direction:column;gap:4px}nav button{padding:11px 12px;border-radius:10px;background:transparent;color:#919aac;text-align:left}nav button:hover,nav button.active{background:#191d26;color:white}.bottom{margin-top:auto;color:#70798c;font-size:11px;padding:8px}main{margin-left:238px}.top{height:66px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;background:#0b0d12dc;backdrop-filter:blur(14px);z-index:20}.badge{border:1px solid #344052;border-radius:999px;padding:5px 9px;font-size:11px;color:#8de8bc;background:#102119}.view{display:none;padding:42px max(28px,5vw) 86px;max-width:1500px;margin:auto}.view.active{display:block}.eyebrow{font-size:11px;letter-spacing:.17em;color:#9d89ff;font-weight:800}.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:42px;align-items:center;min-height:520px}.hero h1{font-size:67px;line-height:.98;letter-spacing:-3.6px;margin:15px 0}.hero p,.muted{color:var(--muted);line-height:1.6}.hero-card,.panel,.card{background:linear-gradient(180deg,#171a23,#11141b);border:1px solid var(--line);border-radius:18px}.hero-card{min-height:410px;display:grid;place-items:center;position:relative;overflow:hidden}.orb{width:235px;height:235px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#d8fff2 0 6%,transparent 16%),radial-gradient(circle at 65% 63%,#8a65ff 0 8%,transparent 47%),#10131b;box-shadow:0 0 70px rgba(124,92,255,.4)}.hero-card .tag{position:absolute;bottom:22px;border:1px solid #343c4b;border-radius:999px;padding:8px 12px;background:#0b0d12b8}.actions,.row{display:flex;gap:9px;flex-wrap:wrap}.primary,.secondary,.ghost,.link{padding:10px 13px;border-radius:10px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{background:linear-gradient(135deg,#7c5cff,#6250cf);color:#fff;font-weight:750}.secondary{background:#1a1f29;color:#eef1f7;border:1px solid #313949}.ghost{background:transparent;border:1px solid #2e3542;color:#aeb6c5}.full{width:100%}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card,.panel{padding:20px}.card b{display:block;margin-bottom:8px}.card p,.panel p{color:var(--muted);line-height:1.5}.head{display:flex;justify-content:space-between;align-items:end;gap:15px;margin-bottom:22px}.head h2{font-size:36px;letter-spacing:-1.2px;margin:5px 0}.twocol{display:grid;grid-template-columns:360px 1fr;gap:14px}.stack{display:flex;flex-direction:column;gap:11px}input,textarea,select{width:100%;background:#0e1117;color:#fff;border:1px solid #2d3441;border-radius:11px;padding:11px 12px;outline:none}textarea{min-height:120px;resize:vertical}.drop{border:1px dashed #3b4558;background:#0d1016;padding:25px;border-radius:13px;text-align:center}.output{min-height:430px;white-space:pre-wrap;overflow:auto;background:#0b0e13;border:1px solid #252c38;border-radius:12px;padding:14px;color:#ccd3df}.chatbox{min-height:calc(100vh - 180px);display:flex;flex-direction:column}.messages{flex:1;min-height:430px;max-height:65vh;overflow:auto;padding:4px}.msg{max-width:82%;margin:8px 0;padding:12px 14px;border-radius:14px;white-space:pre-wrap;line-height:1.55}.msg.user{margin-left:auto;background:#6f58d8}.msg.assistant{background:#1b202a}.composer{display:grid;grid-template-columns:1fr auto;gap:8px;border-top:1px solid var(--line);padding-top:12px}.composer textarea{min-height:54px;max-height:150px}.statusline{font-size:12px;color:#7f899c;margin-bottom:8px}.media{display:flex;gap:12px;flex-wrap:wrap}.media img{max-width:min(560px,100%);border-radius:14px;border:1px solid #303746}.preview{height:320px;border:1px solid #2c3441;border-radius:13px;background:#0b0e13;display:grid;place-items:center;overflow:hidden;color:#70798a}.preview img{width:100%;height:100%;object-fit:contain}.product-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:15px}.product-cards img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:13px;border:1px solid var(--line)}.step{padding:7px 9px;border-radius:999px;background:#1a1f29;border:1px solid #313949;font-size:12px;color:#b8c0cf}.green{color:var(--good)}.warn{color:var(--warn)}.error{color:#ff9da4}.toast{position:fixed;right:18px;bottom:18px;background:#1a202a;border:1px solid #344052;color:white;border-radius:11px;padding:11px 14px;opacity:0;transform:translateY(8px);transition:.2s;z-index:100}.toast.show{opacity:1;transform:none}.mobile-nav{display:none}
@@ -14,8 +14,8 @@
 </head>
 <body>
 <aside>
-<div class="brand">◉ NeuroHub <b>GIGA ONLY</b></div>
-<div class="only"><b>Только GigaChat</b><small>никаких других AI‑моделей</small></div>
+<div class="brand">◉ Gideon</div>
+<div class="only"><b>Gideon AI</b><small>единый AI‑ассистент</small></div>
 <nav>
 <button data-route="home" class="active">⌂ Главная</button>
 <button data-route="chat">✦ GigaChat</button>
@@ -26,36 +26,36 @@
 <button data-route="workflow">⌘ Workflow</button>
 <button data-route="status">⚙ Статус</button>
 </nav>
-<div class="bottom">GigaChat‑3‑Ultra · Freemium Free Guard</div>
+<div class="bottom">Gideon · Free Guard</div>
 </aside>
 
 <main>
-<div class="top"><b>NeuroHub · GigaChat</b><span class="badge" id="topStatus">проверка GigaChat…</span></div>
+<div class="top"><b>Gideon</b><span class="badge" id="topStatus">проверка GigaChat…</span></div>
 
 <section id="home" class="view active">
 <div class="hero">
-<div><span class="eyebrow">GIGACHAT-ONLY AI SUPERAPP</span><h1>Одна нейросеть.<br>Все AI‑задачи.</h1><p>Чат, анализ документов, изображений и аудио, генерация картинок, товарные описания и AI‑workflow теперь проходят только через GigaChat.</p><div class="actions"><button class="primary" data-route="chat">Открыть GigaChat</button><button class="secondary" data-route="files">Загрузить файл</button></div></div>
-<div class="hero-card"><div class="orb"></div><div class="tag">GigaChat‑3‑Ultra · Free Guard</div></div>
+<div><span class="eyebrow">GIDEON AI</span><h1>Одна нейросеть.<br>Все AI‑задачи.</h1><p>Чат, анализ документов, изображений и аудио, генерация картинок, товарные описания и AI‑workflow работают через Gideon.</p><div class="actions"><button class="primary" data-route="chat">Открыть Gideon</button><button class="secondary" data-route="files">Загрузить файл</button></div></div>
+<div class="hero-card"><div class="orb"></div><div class="tag">Gideon · Free Guard</div></div>
 </div>
 <div class="cards">
-<article class="card"><b>Чат</b><p>Единственный AI‑движок — GigaChat.</p></article>
-<article class="card"><b>Файлы</b><p>Документы, фото и аудио через GigaChat attachments.</p></article>
-<article class="card"><b>Изображения</b><p>Генерация через встроенную функцию GigaChat text2image.</p></article>
+<article class="card"><b>Чат</b><p>Единый AI‑движок — Gideon.</p></article>
+<article class="card"><b>Файлы</b><p>Документы, фото и аудио через Gideon.</p></article>
+<article class="card"><b>Изображения</b><p>Генерация изображений через Gideon.</p></article>
 <article class="card"><b>Товары</b><p>Анализ фото, заголовки и описания делает GigaChat.</p></article>
 </div>
 </section>
 
 <section id="chat" class="view">
-<div class="head"><div><span class="eyebrow">GIGACHAT</span><h2>Чат</h2><p>Модель фиксирована: GigaChat‑3‑Ultra.</p></div><span class="badge">GigaChat ONLY</span></div>
+<div class="head"><div><span class="eyebrow">GIDEON</span><h2>Чат</h2><p>Модель фиксирована: Gideon.</p></div><span class="badge">Gideon ONLY</span></div>
 <div class="panel chatbox">
-<div class="statusline" id="chatStatus">GigaChat‑3‑Ultra</div>
+<div class="statusline" id="chatStatus">Gideon</div>
 <div id="messages" class="messages"></div>
 <div class="composer"><textarea id="chatInput" placeholder="Напишите сообщение…"></textarea><button id="sendChat" class="primary">Отправить</button></div>
 </div>
 </section>
 
 <section id="files" class="view">
-<div class="head"><div><span class="eyebrow">GIGACHAT FILES</span><h2>Документы, фото и аудио</h2><p>Файлы отправляются в хранилище GigaChat, анализируются и затем удаляются нашим сервером.</p></div></div>
+<div class="head"><div><span class="eyebrow">GIDEON FILES</span><h2>Документы, фото и аудио</h2><p>Файлы обрабатываются Gideon и после анализа удаляются с сервера.</p></div></div>
 <div class="twocol">
 <div class="panel stack"><label class="drop">Выберите до 10 файлов<input id="filesInput" type="file" multiple></label><textarea id="filesPrompt">Проанализируй приложенные файлы. Дай краткое содержание, ключевые факты, цифры и важные замечания. Не выдумывай отсутствующие данные.</textarea><button id="analyzeFiles" class="primary">Анализировать через GigaChat</button></div>
 <div class="panel"><div id="filesOutput" class="output">Загрузите файл.</div></div>
@@ -63,7 +63,7 @@
 </section>
 
 <section id="image" class="view">
-<div class="head"><div><span class="eyebrow">GIGACHAT IMAGE</span><h2>Изображения</h2><p>Генерация только через встроенную функцию GigaChat text2image.</p></div><span class="badge">text2image</span></div>
+<div class="head"><div><span class="eyebrow">GIDEON IMAGE</span><h2>Изображения</h2><p>Генерация только через встроенную функцию Gideon Image.</p></div><span class="badge">text2image</span></div>
 <div class="twocol">
 <div class="panel stack"><textarea id="imagePrompt" placeholder="Например: премиальная рекламная фотография чайника на светлом студийном фоне, вертикальная композиция 3:4"></textarea><button id="generateImage" class="primary">Создать через GigaChat</button><label class="drop">Или загрузите изображение для анализа<input id="visionFile" type="file" accept="image/*"></label><textarea id="visionPrompt">Подробно опиши изображение, прочитай видимый текст и перечисли подтверждённые характеристики объекта.</textarea><button id="analyzeImage" class="secondary">Анализировать фото через GigaChat</button></div>
 <div class="panel"><div id="imageOutput" class="media">Результат появится здесь.</div><div id="visionOutput" class="output" style="margin-top:12px;min-height:120px">Анализ изображения появится здесь.</div></div>
@@ -71,7 +71,7 @@
 </section>
 
 <section id="audio" class="view">
-<div class="head"><div><span class="eyebrow">GIGACHAT AUDIO</span><h2>Аудио</h2><p>GigaChat принимает аудиофайлы как attachments и может извлекать из них содержание.</p></div></div>
+<div class="head"><div><span class="eyebrow">GIDEON AUDIO</span><h2>Аудио</h2><p>Gideon принимает аудиофайлы и может извлекать из них содержание.</p></div></div>
 <div class="twocol">
 <div class="panel stack"><input id="audioFile" type="file" accept="audio/*"><textarea id="audioPrompt">Расшифруй речь из аудиофайла максимально точно. Затем сделай краткий конспект и перечисли ключевые тезисы.</textarea><button id="analyzeAudio" class="primary">Обработать через GigaChat</button></div>
 <div class="panel"><div id="audioOutput" class="output">Выберите аудиофайл.</div></div>
@@ -79,7 +79,7 @@
 </section>
 
 <section id="product" class="view">
-<div class="head"><div><span class="eyebrow">GIGACHAT MARKETPLACE</span><h2>Фото → карточки товара</h2><p>GigaChat анализирует фото и создаёт текст. Браузер только собирает четыре изображения 900×1200 без другой AI‑модели.</p></div><span class="badge">4 × 900×1200</span></div>
+<div class="head"><div><span class="eyebrow">GIDEON MARKETPLACE</span><h2>Фото → карточки товара</h2><p>Gideon анализирует фото и создаёт текст. Браузер только собирает четыре изображения 900×1200 без другой AI‑модели.</p></div><span class="badge">4 × 900×1200</span></div>
 <div class="twocol">
 <div class="panel stack"><input id="productPhoto" type="file" accept="image/*"><textarea id="productNotes" placeholder="Дополнительные подтверждённые данные о товаре…"></textarea><button id="productAnalyze" class="primary">GigaChat: анализ + текст</button><button id="makeCards" class="secondary" disabled>Сделать 4 карточки</button><button id="downloadZip" class="secondary" disabled>Скачать ZIP</button></div>
 <div class="panel stack"><div id="productPreview" class="preview">Фото товара</div><label>Заголовок<input id="productTitle"></label><label>Описание<textarea id="productDescription"></textarea></label></div>
@@ -88,16 +88,16 @@
 </section>
 
 <section id="workflow" class="view">
-<div class="head"><div><span class="eyebrow">GIGACHAT WORKFLOW</span><h2>Workflow</h2><p>Каждый AI‑шаг выполняет только GigaChat.</p></div></div>
+<div class="head"><div><span class="eyebrow">GIDEON WORKFLOW</span><h2>Workflow</h2><p>Каждый AI‑шаг выполняет только GigaChat.</p></div></div>
 <div class="cards" id="wfCards"></div>
 <div class="panel stack" style="margin-top:14px"><div class="row"><span class="step" id="wfName">Выберите сценарий</span></div><input id="wfFile" type="file"><textarea id="wfPrompt" placeholder="Дополнительная задача…"></textarea><button id="runWorkflow" class="primary" disabled>Запустить через GigaChat</button><div id="wfOutput" class="output">Результат Workflow появится здесь.</div></div>
 </section>
 
 <section id="status" class="view">
-<div class="head"><div><span class="eyebrow">STATUS</span><h2>GigaChat Only</h2><p>В NeuroHub нет переключения на другие нейросети.</p></div></div>
+<div class="head"><div><span class="eyebrow">STATUS</span><h2>Gideon</h2><p>В Gideon нет переключения на другие нейросети.</p></div></div>
 <div class="cards">
-<article class="panel"><h3>Модель</h3><b>GigaChat‑3‑Ultra</b><p>Единственный AI‑движок.</p></article>
-<article class="panel"><h3>Free Guard</h3><b id="freeGuardState">проверка…</b><p>Если Freemium недоступен, платная модель не включается автоматически.</p></article>
+<article class="panel"><h3>Модель</h3><b>Gideon</b><p>Единый AI‑движок Gideon.</p></article>
+<article class="panel"><h3>Free Guard</h3><b id="freeGuardState">проверка…</b><p>Если бесплатный режим недоступен, платный режим не включается автоматически.</p></article>
 <article class="panel"><h3>API‑ключ</h3><b class="green">Скрыт на сервере</b><p>Не хранится в HTML браузера.</p></article>
 <article class="panel"><h3>Другие AI</h3><b>Отключены</b><p>Другие AI‑модели и сторонние AI‑API не используются.</p></article>
 </div>
@@ -114,7 +114,7 @@
 const API='https://yuvion-ai-cards-marketplace-production.up.railway.app';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const KEY='neurohub_giga_only_v1';
-let state={messages:[{role:'assistant',content:'GigaChat подключён. Все AI‑запросы NeuroHub теперь отправляются только в GigaChat‑3‑Ultra.'}]};
+let state={messages:[{role:'assistant',content:'GigaChat подключён. Все AI‑запросы NeuroHub теперь отправляются только в Gideon.'}]};
 try{state=JSON.parse(localStorage.getItem(KEY)||'null')||state}catch{}
 let productFile=null,productUrl=null,productBlobs=[],selectedWf=null;
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
@@ -143,26 +143,26 @@ function renderMessages(){ $('#messages').innerHTML=state.messages.map(m=>'<div 
 renderMessages();
 
 async function refreshStatus(){
- try{const d=await api('/api/neurohub/russian-ai/status');const ok=d.available;$('#topStatus').textContent=ok?'GigaChat‑3‑Ultra · ONLINE':'GigaChat · недоступен';$('#freeGuardState').innerHTML=ok?'<span class="green">Ultra Freemium доступен</span>':'<span class="warn">Ultra Freemium недоступен</span>'}catch{$('#topStatus').textContent='GigaChat · ошибка связи';$('#freeGuardState').innerHTML='<span class="error">Ошибка проверки</span>'}
+ try{const d=await api('/api/neurohub/russian-ai/status');const ok=d.available;$('#topStatus').textContent=ok?'Gideon · ONLINE':'Gideon · недоступен';$('#freeGuardState').innerHTML=ok?'<span class="green">Gideon доступен</span>':'<span class="warn">Gideon временно недоступен</span>'}catch{$('#topStatus').textContent='Gideon · ошибка связи';$('#freeGuardState').innerHTML='<span class="error">Ошибка проверки</span>'}
 }
 refreshStatus();
 
-$('#sendChat').onclick=async()=>{const inp=$('#chatInput'),t=inp.value.trim();if(!t)return;inp.value='';state.messages.push({role:'user',content:t});save();renderMessages();busy($('#sendChat'),true);$('#chatStatus').textContent='GigaChat думает…';try{const d=await chatGiga(state.messages.slice(-14));state.messages.push({role:'assistant',content:d.answer});save();renderMessages();$('#chatStatus').textContent=d.model+' · Free Guard'}catch(e){state.messages.push({role:'assistant',content:'Ошибка GigaChat: '+e.message});save();renderMessages();$('#chatStatus').textContent='GigaChat недоступен'}finally{busy($('#sendChat'),false)}};
+$('#sendChat').onclick=async()=>{const inp=$('#chatInput'),t=inp.value.trim();if(!t)return;inp.value='';state.messages.push({role:'user',content:t});save();renderMessages();busy($('#sendChat'),true);$('#chatStatus').textContent='Gideon думает…';try{const d=await chatGiga(state.messages.slice(-14));state.messages.push({role:'assistant',content:d.answer});save();renderMessages();$('#chatStatus').textContent=d.model+' · Free Guard'}catch(e){state.messages.push({role:'assistant',content:'Ошибка Gideon: '+e.message});save();renderMessages();$('#chatStatus').textContent='Gideon недоступен'}finally{busy($('#sendChat'),false)}};
 $('#chatInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#sendChat').click()}};
 
-$('#analyzeFiles').onclick=async()=>{const fs=[...$('#filesInput').files];if(!fs.length)return toast('Выберите файлы');const b=$('#analyzeFiles'),o=$('#filesOutput');busy(b,true);o.textContent='Загружаю файлы в GigaChat…';try{const d=await analyzeWithGiga(fs,$('#filesPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка GigaChat: '+e.message}finally{busy(b,false)}};
+$('#analyzeFiles').onclick=async()=>{const fs=[...$('#filesInput').files];if(!fs.length)return toast('Выберите файлы');const b=$('#analyzeFiles'),o=$('#filesOutput');busy(b,true);o.textContent='Загружаю файлы в GigaChat…';try{const d=await analyzeWithGiga(fs,$('#filesPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка Gideon: '+e.message}finally{busy(b,false)}};
 
-$('#generateImage').onclick=async()=>{const p=$('#imagePrompt').value.trim();if(!p)return toast('Введите описание');const b=$('#generateImage'),o=$('#imageOutput');busy(b,true,'GigaChat рисует…');o.textContent='GigaChat запускает text2image…';try{const d=await api('/api/neurohub/gigachat/image',{prompt:p});const src='data:'+d.mimeType+';base64,'+d.imageBase64;o.innerHTML='<div><img src="'+src+'" alt=""><br><a class="secondary link" download="gigachat-image.jpg" href="'+src+'">Скачать</a></div>'}catch(e){o.innerHTML='<span class="error">'+esc(e.message)+'</span>'}finally{busy(b,false)}};
-$('#analyzeImage').onclick=async()=>{const f=$('#visionFile').files?.[0];if(!f)return toast('Выберите фото');const b=$('#analyzeImage'),o=$('#visionOutput');busy(b,true);o.textContent='GigaChat анализирует изображение…';try{const d=await analyzeWithGiga([f],$('#visionPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка GigaChat: '+e.message}finally{busy(b,false)}};
+$('#generateImage').onclick=async()=>{const p=$('#imagePrompt').value.trim();if(!p)return toast('Введите описание');const b=$('#generateImage'),o=$('#imageOutput');busy(b,true,'Gideon рисует…');o.textContent='Gideon создаёт изображение…';try{const d=await api('/api/neurohub/gigachat/image',{prompt:p});const src='data:'+d.mimeType+';base64,'+d.imageBase64;o.innerHTML='<div><img src="'+src+'" alt=""><br><a class="secondary link" download="gigachat-image.jpg" href="'+src+'">Скачать</a></div>'}catch(e){o.innerHTML='<span class="error">'+esc(e.message)+'</span>'}finally{busy(b,false)}};
+$('#analyzeImage').onclick=async()=>{const f=$('#visionFile').files?.[0];if(!f)return toast('Выберите фото');const b=$('#analyzeImage'),o=$('#visionOutput');busy(b,true);o.textContent='Gideon анализирует изображение…';try{const d=await analyzeWithGiga([f],$('#visionPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка Gideon: '+e.message}finally{busy(b,false)}};
 
-$('#analyzeAudio').onclick=async()=>{const f=$('#audioFile').files?.[0];if(!f)return toast('Выберите аудио');const b=$('#analyzeAudio'),o=$('#audioOutput');busy(b,true);o.textContent='GigaChat обрабатывает аудио…';try{const d=await analyzeWithGiga([f],$('#audioPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка GigaChat: '+e.message}finally{busy(b,false)}};
+$('#analyzeAudio').onclick=async()=>{const f=$('#audioFile').files?.[0];if(!f)return toast('Выберите аудио');const b=$('#analyzeAudio'),o=$('#audioOutput');busy(b,true);o.textContent='Gideon обрабатывает аудио…';try{const d=await analyzeWithGiga([f],$('#audioPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка Gideon: '+e.message}finally{busy(b,false)}};
 
 $('#productPhoto').onchange=e=>{productFile=e.target.files?.[0]||null;if(productUrl)URL.revokeObjectURL(productUrl);if(productFile){productUrl=URL.createObjectURL(productFile);$('#productPreview').innerHTML='<img src="'+productUrl+'" alt="">'}else $('#productPreview').textContent='Фото товара'};
-$('#productAnalyze').onclick=async()=>{if(!productFile)return toast('Выберите фото товара');const b=$('#productAnalyze');busy(b,true,'GigaChat анализирует…');const prompt='Проанализируй фотографию товара и дополнительные подтверждённые данные. Создай продающий заголовок для маркетплейса до 110 символов и описание 500–900 символов. Не выдумывай материал, размер, объём, бренд или комплектацию. Не указывай цену. Ответ строго в формате:\nЗАГОЛОВОК: ...\nОПИСАНИЕ: ...\nПРЕИМУЩЕСТВА: ...\nДополнительные данные: '+($('#productNotes').value.trim()||'нет');try{const d=await analyzeWithGiga([productFile],prompt);const text=d.answer;const tm=text.match(/ЗАГОЛОВОК:\s*([^\n]+)/i),dm=text.match(/ОПИСАНИЕ:\s*([\s\S]*?)(?:\nПРЕИМУЩЕСТВА:|$)/i);$('#productTitle').value=(tm?.[1]||text.split('\n')[0]||'').trim();$('#productDescription').value=(dm?.[1]||text).trim();$('#makeCards').disabled=false;toast('GigaChat подготовил карточку')}catch(e){toast('Ошибка GigaChat: '+e.message)}finally{busy(b,false)}};
+$('#productAnalyze').onclick=async()=>{if(!productFile)return toast('Выберите фото товара');const b=$('#productAnalyze');busy(b,true,'Gideon анализирует…');const prompt='Проанализируй фотографию товара и дополнительные подтверждённые данные. Создай продающий заголовок для маркетплейса до 110 символов и описание 500–900 символов. Не выдумывай материал, размер, объём, бренд или комплектацию. Не указывай цену. Ответ строго в формате:\nЗАГОЛОВОК: ...\nОПИСАНИЕ: ...\nПРЕИМУЩЕСТВА: ...\nДополнительные данные: '+($('#productNotes').value.trim()||'нет');try{const d=await analyzeWithGiga([productFile],prompt);const text=d.answer;const tm=text.match(/ЗАГОЛОВОК:\s*([^\n]+)/i),dm=text.match(/ОПИСАНИЕ:\s*([\s\S]*?)(?:\nПРЕИМУЩЕСТВА:|$)/i);$('#productTitle').value=(tm?.[1]||text.split('\n')[0]||'').trim();$('#productDescription').value=(dm?.[1]||text).trim();$('#makeCards').disabled=false;toast('Gideon подготовил карточку')}catch(e){toast('Ошибка Gideon: '+e.message)}finally{busy(b,false)}};
 
 function wrap(ctx,text,maxWidth,maxLines){const w=String(text).split(/\s+/),lines=[];let line='';for(const word of w){const t=(line+' '+word).trim();if(ctx.measureText(t).width>maxWidth&&line){lines.push(line);line=word;if(lines.length>=maxLines-1)break}else line=t}if(line&&lines.length<maxLines)lines.push(line);return lines}
 async function cardBlob(img,title,i){
- const c=document.createElement('canvas');c.width=900;c.height=1200;const x=c.getContext('2d'),pal=[['#faf7f1','#e9e0ff'],['#f4f8fb','#dceef5'],['#fff8ee','#f2ddd4'],['#f7f8f3','#dde8d7']],g=x.createLinearGradient(0,0,900,1200);g.addColorStop(0,pal[i][0]);g.addColorStop(1,pal[i][1]);x.fillStyle=g;x.fillRect(0,0,900,1200);x.fillStyle='#111827';x.font='700 52px Arial';wrap(x,title,760,3).forEach((l,n)=>x.fillText(l,70,100+n*60));const sc=Math.min(760/img.width,720/img.height),w=img.width*sc,h=img.height*sc;x.shadowColor='rgba(0,0,0,.18)';x.shadowBlur=32;x.drawImage(img,(900-w)/2,270+(700-h)/2,w,h);x.shadowBlur=0;const labels=['Главное фото','Преимущества','Детали товара','Готово к публикации'];x.font='600 28px Arial';x.fillText(labels[i],70,1090);x.font='400 21px Arial';x.fillStyle='#566173';x.fillText('Создано локальным макетом · AI-текст GigaChat',70,1130);return new Promise(r=>c.toBlob(r,'image/png'))}
+ const c=document.createElement('canvas');c.width=900;c.height=1200;const x=c.getContext('2d'),pal=[['#faf7f1','#e9e0ff'],['#f4f8fb','#dceef5'],['#fff8ee','#f2ddd4'],['#f7f8f3','#dde8d7']],g=x.createLinearGradient(0,0,900,1200);g.addColorStop(0,pal[i][0]);g.addColorStop(1,pal[i][1]);x.fillStyle=g;x.fillRect(0,0,900,1200);x.fillStyle='#111827';x.font='700 52px Arial';wrap(x,title,760,3).forEach((l,n)=>x.fillText(l,70,100+n*60));const sc=Math.min(760/img.width,720/img.height),w=img.width*sc,h=img.height*sc;x.shadowColor='rgba(0,0,0,.18)';x.shadowBlur=32;x.drawImage(img,(900-w)/2,270+(700-h)/2,w,h);x.shadowBlur=0;const labels=['Главное фото','Преимущества','Детали товара','Готово к публикации'];x.font='600 28px Arial';x.fillText(labels[i],70,1090);x.font='400 21px Arial';x.fillStyle='#566173';x.fillText('Создано локальным макетом · AI-текст Gideon',70,1130);return new Promise(r=>c.toBlob(r,'image/png'))}
 $('#makeCards').onclick=async()=>{if(!productFile)return;busy($('#makeCards'),true,'Создаю 4…');try{const img=await createImageBitmap(productFile),title=$('#productTitle').value.trim()||'Товар';productBlobs=[];$('#productCards').innerHTML='';for(let i=0;i<4;i++){const bl=await cardBlob(img,title,i);productBlobs.push(bl);const u=URL.createObjectURL(bl),im=document.createElement('img');im.src=u;$('#productCards').appendChild(im)}$('#downloadZip').disabled=false;toast('4 карточки готовы')}finally{busy($('#makeCards'),false)}};
 $('#downloadZip').onclick=async()=>{if(productBlobs.length!==4)return;await new Promise((res,rej)=>{if(window.JSZip)return res();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});const z=new JSZip();productBlobs.forEach((b,i)=>z.file('card_'+(i+1)+'_900x1200.png',b));const bl=await z.generateAsync({type:'blob'}),u=URL.createObjectURL(bl),a=document.createElement('a');a.href=u;a.download='gigachat_product_cards.zip';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
 
@@ -174,7 +174,7 @@ const workflows=[
 ];
 $('#wfCards').innerHTML=workflows.map(w=>'<article class="card" data-wf="'+w.id+'"><b>'+esc(w.name)+'</b><p>'+esc(w.prompt)+'</p></article>').join('');
 $$('[data-wf]').forEach(x=>x.onclick=()=>{selectedWf=workflows.find(w=>w.id===x.dataset.wf);$('#wfName').textContent=selectedWf.name;$('#wfPrompt').value=selectedWf.prompt;$('#runWorkflow').disabled=false;toast('Workflow выбран')});
-$('#runWorkflow').onclick=async()=>{if(!selectedWf)return;const f=$('#wfFile').files?.[0],b=$('#runWorkflow'),o=$('#wfOutput');if(!f)return toast('Выберите файл');busy(b,true);o.textContent='GigaChat выполняет Workflow…';try{const d=await analyzeWithGiga([f],$('#wfPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка GigaChat: '+e.message}finally{busy(b,false)}};
+$('#runWorkflow').onclick=async()=>{if(!selectedWf)return;const f=$('#wfFile').files?.[0],b=$('#runWorkflow'),o=$('#wfOutput');if(!f)return toast('Выберите файл');busy(b,true);o.textContent='Gideon выполняет Workflow…';try{const d=await analyzeWithGiga([f],$('#wfPrompt').value.trim());o.textContent=d.answer}catch(e){o.textContent='Ошибка Gideon: '+e.message}finally{busy(b,false)}};
 </script>
 </body>
 </html>
