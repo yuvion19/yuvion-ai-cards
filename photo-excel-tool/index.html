@@ -23,8 +23,18 @@ button:disabled{opacity:.5}.hint{font-size:13px;color:var(--muted);line-height:1
 .progress{height:11px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:12px}.bar{height:100%;width:0;background:var(--accent);transition:width .25s}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.stat{border:1px solid var(--line);background:#f9fafb;border-radius:12px;padding:10px}
 .stat b{display:block;font-size:19px}.stat span{font-size:11px;color:var(--muted)} .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
-.download{display:none;margin-top:12px;background:#059669;color:white;width:100%}.privacy{font-size:12px;color:var(--muted);line-height:1.5}
-@media(max-width:600px){.row{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}h1{font-size:27px}}
+.download{display:none;margin-top:12px;background:#059669;color:white;width:100%}
+.result{display:none;margin-top:14px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:16px;padding:16px}
+.resultHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.resultPct{font-size:34px;font-weight:900;color:var(--ok);letter-spacing:-1px}
+.resultTitle{font-size:18px;font-weight:900}
+.resultSub{font-size:13px;color:var(--muted);margin-top:2px}
+.resultGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.resultItem{border:1px solid #d1fae5;background:#fff;border-radius:12px;padding:10px}
+.resultItem b{display:block;font-size:18px}.resultItem span{font-size:11px;color:var(--muted)}
+.resultWarn{margin-top:10px;padding:10px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px;line-height:1.4}
+.privacy{font-size:12px;color:var(--muted);line-height:1.5}
+@media(max-width:600px){.row{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.resultGrid{grid-template-columns:1fr}.resultHead{align-items:flex-start}.resultPct{font-size:30px}h1{font-size:27px}}
 </style>
 </head>
 <body>
@@ -71,6 +81,21 @@ button:disabled{opacity:.5}.hint{font-size:13px;color:var(--muted);line-height:1
     <div class="stat"><b id="missing" class="bad">0</b><span>нет фото</span></div>
     <div class="stat"><b id="dups" class="warn">0</b><span>дубликатов</span></div>
   </div>
+  <div id="result" class="result">
+    <div class="resultHead">
+      <div>
+        <div id="resultTitle" class="resultTitle">Готово к использованию</div>
+        <div id="resultSub" class="resultSub"></div>
+      </div>
+      <div id="resultPct" class="resultPct">100%</div>
+    </div>
+    <div class="resultGrid">
+      <div class="resultItem"><b id="resultMatched">0 / 0</b><span>товаров сопоставлено</span></div>
+      <div class="resultItem"><b id="resultMissing">0</b><span>без фото</span></div>
+      <div class="resultItem"><b id="resultExtras">0</b><span>лишних фото</span></div>
+    </div>
+    <div id="resultWarn" class="resultWarn" style="display:none"></div>
+  </div>
   <button id="download" class="download">Скачать готовый Excel</button>
 </div>
 
@@ -85,6 +110,27 @@ let currentJob=null, pollTimer=null;
 
 function setProgress(n){el('bar').style.width=Math.max(0,Math.min(100,Number(n)||0))+'%'}
 function setStats(s={}){el('total').textContent=fmt(s.total);el('found').textContent=fmt(s.found);el('missing').textContent=fmt(s.missing);el('dups').textContent=fmt(s.duplicates)}
+function showResult(s={}){
+  const total=Number(s.total)||0, found=Number(s.found)||0, missing=Number(s.missing)||0, extras=Number(s.extras)||0, dups=Number(s.duplicates)||0;
+  const pct=total ? Math.round((found/total)*1000)/10 : 0;
+  el('result').style.display='block';
+  el('resultPct').textContent=(Number.isInteger(pct)?pct.toFixed(0):pct.toFixed(1))+'%';
+  el('resultMatched').textContent=fmt(found)+' / '+fmt(total);
+  el('resultMissing').textContent=fmt(missing);
+  el('resultExtras').textContent=fmt(extras);
+  if(missing===0){
+    el('resultTitle').textContent='Готово к использованию';
+    el('resultSub').textContent='Все товары получили совпадение по фотографии.';
+  }else{
+    el('resultTitle').textContent='Обработка завершена';
+    el('resultSub').textContent='Есть товары без найденной фотографии — проверьте лист «Отчёт сопоставления».';
+  }
+  const notes=[];
+  if(dups>0) notes.push('Дубликаты: '+fmt(dups)+'.');
+  if(extras>0) notes.push('Не использовано фотографий из Яндекс Диска: '+fmt(extras)+'. Они перечислены в отчёте.');
+  el('resultWarn').style.display=notes.length?'block':'none';
+  el('resultWarn').textContent=notes.join(' ');
+}
 
 el('scan').onclick=async()=>{
   const diskUrl=el('disk').value.trim();
@@ -111,6 +157,7 @@ async function poll(){
     if(j.status==='done'){
       clearInterval(pollTimer);pollTimer=null;
       el('run').disabled=false;
+      showResult(j.stats||{});
       el('download').style.display='block';
       el('download').onclick=()=>{location.href=API+'/api/jobs/'+currentJob+'/download'};
       return;
@@ -134,7 +181,7 @@ el('run').onclick=async()=>{
   fd.append('mode',el('mode').value);
   fd.append('fileColumn',el('fileColumn').value.trim());
   fd.append('nameColumn',el('nameColumn').value.trim());
-  el('run').disabled=true;el('download').style.display='none';setProgress(1);setStats({});
+  el('run').disabled=true;el('download').style.display='none';el('result').style.display='none';setProgress(1);setStats({});
   el('status').textContent='Отправляю Excel и запускаю обработку…';
   try{
     const r=await fetch(API+'/api/jobs',{method:'POST',body:fd});
