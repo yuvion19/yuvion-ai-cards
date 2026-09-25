@@ -2128,6 +2128,114 @@ app.post("/api/gideon/research", async (req, res) => {
   }
 });
 
+
+function gideonParseJsonObject(text = "") {
+  const raw = String(text || "").trim().replace(/^\`\`\`json\s*/i, "").replace(/\`\`\`$/i, "").trim();
+  try { return JSON.parse(raw); } catch {}
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (match) {
+    try { return JSON.parse(match[0]); } catch {}
+  }
+  return null;
+}
+
+app.post("/api/gideon/agent", async (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, "gideon-agent:" + ip, 18)) {
+    return res.status(429).json({ error: "Слишком много агентных задач. Повторите позже.", code: "free_rate_limit" });
+  }
+
+  const usage = gideonUsageSnapshot();
+  if (usage.requests >= usage.guardLimit) {
+    return res.status(429).json({ error: "Дневной бесплатный лимит Gideon достигнут.", code: "free_daily_guard", usage });
+  }
+
+  const goal = String(req.body?.goal || "").trim().slice(0, 12000);
+  const projectContext = String(req.body?.projectContext || "").trim().slice(0, 18000);
+  const memory = String(req.body?.memory || "").trim().slice(0, 8000);
+  const urls = (Array.isArray(req.body?.urls) ? req.body.urls : [])
+    .map(x => String(x || "").trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (!goal) return res.status(400).json({ error: "Цель не передана.", code: "goal_missing" });
+
+  const sourcePackets = [];
+  for (const rawUrl of urls) {
+    try {
+      const fetched = await fetchPublicResource(rawUrl, { maxBytes: 900000, accept: "text/html,text/plain;q=0.9,*/*;q=0.1", redirects: 3 });
+      const type = String(fetched.response.headers.get("content-type") || "").toLowerCase();
+      let text = fetched.buffer.toString("utf8");
+      if (type.includes("html")) {
+        text = text
+          .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+          .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+          .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
+          .replace(/<[^>]+>/g, " ");
+      }
+      sourcePackets.push({ url: fetched.finalUrl, text: decodeHtmlText(text).replace(/\s+/g, " ").trim().slice(0, 14000) });
+    } catch (error) {
+      sourcePackets.push({ url: rawUrl, error: error?.message || "Не удалось загрузить источник." });
+    }
+  }
+
+  try {
+    const plannerPrompt = [
+      "Ты Gideon Planner. Разбей цель пользователя на короткий исполнимый план.",
+      "Доступные возможности этой версии: рассуждение и текст, анализ переданного контекста, анализ уже загруженных пользователем файлов через отдельный файловый маршрут, чтение явно переданных публичных URL, подготовка артефактов.",
+      "Не утверждай, что отправил письмо, изменил календарь, совершил покупку, нажал кнопку на сайте или выполнил действие во внешнем сервисе, если такого инструмента нет.",
+      "Верни только JSON вида:",
+      '{"summary":"короткое понимание цели","steps":[{"id":"1","title":"...","kind":"reason|research|draft|review","status":"planned"}],"deliverable":"что будет результатом"}',
+      "Цель: " + goal,
+      memory ? "Постоянные инструкции пользователя: " + memory : "",
+      projectContext ? "Контекст проекта: " + projectContext : "",
+      sourcePackets.length ? "Переданные источники: " + sourcePackets.map((s,i)=>"["+(i+1)+"] "+s.url+(s.error?" ERROR "+s.error:"\n"+s.text)).join("\n\n") : ""
+    ].filter(Boolean).join("\n\n");
+
+    const planResult = await neuroHubUltraCompletion([
+      { role: "system", content: "Ты модуль планирования Gideon. Следуй формату JSON и не описывай недоступные внешние действия как выполненные." },
+      { role: "user", content: plannerPrompt }
+    ], { maxTokens: 900, temperature: 0.15 });
+
+    const plan = gideonParseJsonObject(planResult.content) || {
+      summary: "План подготовлен.",
+      steps: [{ id: "1", title: "Выполнить задачу по доступному контексту", kind: "reason", status: "planned" }],
+      deliverable: "Итоговый результат"
+    };
+
+    const executorPrompt = [
+      "Ты Gideon Operator. Выполни цель пользователя максимально полно, используя только реально доступный контекст.",
+      "Сначала мысленно следуй плану, но не раскрывай скрытые рассуждения. В ответе дай готовый результат, а затем краткий блок 'Выполнено' и, если нужно, 'Требуется действие пользователя'.",
+      "Не заявляй о действиях во внешних сервисах, которых ты фактически не выполнял.",
+      "Цель: " + goal,
+      "План: " + JSON.stringify(plan),
+      memory ? "Память/инструкции: " + memory : "",
+      projectContext ? "Контекст проекта: " + projectContext : "",
+      sourcePackets.length ? "Источники: " + sourcePackets.map((s,i)=>"["+(i+1)+"] "+s.url+(s.error?" ERROR "+s.error:"\n"+s.text)).join("\n\n") : ""
+    ].filter(Boolean).join("\n\n");
+
+    const execResult = await neuroHubUltraCompletion([
+      { role: "system", content: "Ты Gideon Operator — исполняющий AI-агент. Делай результат полезным и завершённым, не выдумывая внешние действия." },
+      { role: "user", content: executorPrompt }
+    ], { maxTokens: 2200, temperature: 0.35 });
+
+    neuroHubGigaDaily.count += 2;
+    return res.json({
+      plan,
+      answer: execResult.content,
+      model: "Gideon",
+      sources: sourcePackets.map(x => ({ url: x.url, ok: Boolean(x.text), error: x.error || "" })),
+      usage: gideonUsageSnapshot()
+    });
+  } catch (error) {
+    return res.status(error?.status && error.status >= 400 && error.status < 600 ? error.status : 502).json({
+      error: "Gideon не смог завершить агентную задачу.",
+      code: error?.code || "agent_failed",
+      usage: gideonUsageSnapshot()
+    });
+  }
+});
+
 async function generateProductCopyWithGpt(cardRaw = {}) {
   return generateProductCopyWithProviders(cardRaw);
 }
