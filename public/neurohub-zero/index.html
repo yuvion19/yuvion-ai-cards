@@ -314,14 +314,14 @@ async function renderNetwork(){
   const i=await ensureIdentity();
   $('#identityName').textContent=state.settings.name||'Gideon Identity';
   $('#identityId').textContent=i.id;$('#settingsIdentityId').textContent=i.id;
-  $('#peerList').innerHTML=state.peers.map(p=>'<div class="peer"><b>'+esc(p.name||'Peer')+'</b><div class="identity-id">'+esc(p.identityId)+'</div><small class="'+(p.encryptionPublicKey?'verified':'unverified')+'">'+(p.encryptionPublicKey?'✓ Network ready':'⚠ только файловый Handoff')+'</small></div>').join('')||'<span class="tiny">Peers пока нет.</span>';
+  $('#peerList').innerHTML=state.peers.map(p=>'<div class="peer"><b>'+esc(p.name||'Peer')+'</b><div class="identity-id">'+esc(p.identityId)+'</div><select data-trust="'+p.identityId+'"><option value="trusted">Trusted</option><option value="known">Known</option><option value="unverified">Unverified</option><option value="blocked">Blocked</option></select><small class="'+(p.encryptionPublicKey?'verified':'unverified')+'">'+(p.encryptionPublicKey?'✓ Network ready':'⚠ только файловый Handoff')+'</small></div>').join('')||'<span class="tiny">Peers пока нет.</span>';$('[data-trust]').forEach(s=>{const p=state.peers.find(x=>x.identityId===s.dataset.trust);s.value=p?.trust||'known';s.onchange=()=>{p.trust=s.value;persist()}});
   $('#handoffPeer').innerHTML='<option value="">Открытый пакет</option>'+state.peers.map(p=>'<option value="'+p.identityId+'">'+esc(p.name||p.identityId)+'</option>').join('');
   $('#inboxList').innerHTML=state.inbox.slice().reverse().map(x=>{const p=currentInboxPayload(x)||{};return'<div class="inbox-row"><b>'+esc(p.title||'Handoff')+'</b><small>'+(x.verified?'<span class="verified">✓ подпись и шифрование проверены</span>':'<span class="unverified">⚠ подпись не подтверждена</span>')+' · '+esc(x.pkg?.sender?.name||'Peer')+(x.network?' · Network':'')+'</small><div class="row" style="margin-top:7px"><button class="secondary" data-accept="'+x.id+'">Принять задачу</button></div></div>'}).join('')||'<span class="tiny">Входящих Handoff нет.</span>';
   $$('[data-accept]').forEach(b=>b.onclick=()=>acceptHandoff(b.dataset.accept));
   try{const s=await api('/api/gideon/network/status');$('#relayStatus').textContent='Relay: ONLINE · '+s.encryption+' · TTL '+s.ttlHours+'ч'}catch{$('#relayStatus').textContent='Relay: недоступен · файловый режим работает'}
 }
 $('#exportIdentity').onclick=async()=>downloadJSON(await identityCard(),'gideon-identity.json');
-$('#importPeer').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const card=JSON.parse(await f.text());if(card.type!=='identity'||!card.identityId||!card.publicKey)throw Error();const old=state.peers.find(p=>p.identityId===card.identityId);if(old)Object.assign(old,card);else state.peers.push(card);persist();renderNetwork();toast(card.encryptionPublicKey?'Peer готов к Network':'Peer добавлен в файловом режиме')}catch{toast('Некорректная Identity')}e.target.value=''};
+$('#importPeer').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const card=JSON.parse(await f.text());if(card.type!=='identity'||!card.identityId||!card.publicKey)throw Error();const old=state.peers.find(p=>p.identityId===card.identityId);if(old)Object.assign(old,card);else state.peers.push({...card,trust:'known'});persist();renderNetwork();toast(card.encryptionPublicKey?'Peer готов к Network':'Peer добавлен в файловом режиме')}catch{toast('Некорректная Identity')}e.target.value=''};
 function handoffPayload(){
   const peerId=$('#handoffPeer').value,title=$('#handoffTitle').value.trim()||'Gideon Handoff',task=$('#handoffTask').value.trim();
   if(!task)throw Error('Опишите задачу');
@@ -341,6 +341,7 @@ async function sendHandoffNetwork(){
   try{
     const payload=handoffPayload(),peer=state.peers.find(p=>p.identityId===payload.to);
     if(!peer)throw Error('Выберите Peer для Network.');
+    if(peer.trust==='blocked')throw Error('Этот Peer заблокирован.');
     if(!peer.encryptionPublicKey)throw Error('Импортируйте свежую Gideon 7.0 Identity этого Peer.');
     const pkg=await sealPayload(payload,peer),r=await api('/api/gideon/network/send',{package:pkg});
     state.outbox.push({id:payload.handoffId,pkg,createdAt:now(),network:true,relayId:r.relayId});persist();
@@ -357,12 +358,18 @@ async function pollNetwork(showToast=true){
       try{
         const payload=await unsealPackage(pkg);
         state.inbox.push({id:idv,pkg,payload,verified:true,network:true,receivedAt:now()});
-        if(!state.peers.some(p=>p.identityId===pkg.sender.identityId))state.peers.push(pkg.sender);
+        if(!state.peers.some(p=>p.identityId===pkg.sender.identityId))state.peers.push({...pkg.sender,trust:'known'});
+        await api('/api/gideon/network/receipt',{receipt:{handoffId:idv,from:me.id,to:pkg.sender.identityId,status:'delivered',at:now()}}).catch(()=>{});
         added++
       }catch{}
     }
     if(added){persist();await renderNetwork();if(showToast)toast('Новых Handoff: '+added)}
-    else if(showToast)toast('Новых Handoff нет')
+    else if(showToast)toast('Новых Handoff нет');
+    const rr=await api('/api/gideon/network/receipts/'+encodeURIComponent(me.id)).catch(()=>({receipts:[]}));
+    state.receipts=rr.receipts||[];
+    for(const r of state.receipts){const o=state.outbox.find(x=>x.id===r.handoffId);if(o)o.status=r.status}
+    persist();
+    if($('#relayStatus'))$('#relayStatus').textContent=$('#relayStatus').textContent+' · receipts '+state.receipts.length
   }catch(e){if(showToast)toast('Network недоступен: '+e.message)}
 }
 $('#exportHandoff').onclick=exportHandoff;
@@ -386,10 +393,10 @@ $('#importHandoff').onchange=async e=>{
 function acceptHandoff(idv){
   const item=state.inbox.find(x=>x.id===idv);if(!item)return;
   const payload=currentInboxPayload(item)||{};
-  const p={id:uid(),name:'Handoff · '+(item.pkg?.sender?.name||'Peer'),description:payload.context||payload.project?.description||'',instructions:'Продолжить задачу, переданную через Gideon Protocol 7.0.',createdAt:now()};
+  const p={id:uid(),name:'Handoff · '+(item.pkg?.sender?.name||'Peer'),description:payload.context||payload.project?.description||'',instructions:'Продолжить задачу, переданную через Gideon Protocol 7.0.',handoffReturnTo:item.pkg?.sender?.identityId||'',sourceHandoffId:payload.handoffId||idv,createdAt:now()};
   state.projects.push(p);state.currentProject=p.id;state.currentChat='';ensureState();
   if(payload.artifact)createArtifactFromText((payload.title||'Handoff')+' · входящий результат',payload.artifact,p.id);
-  persist();renderAll();route('ask');setMode('team');$('#askInput').value=payload.task||'';toast('Handoff принят в новый Project')
+  persist();ensureIdentity().then(me=>{if(p.handoffReturnTo)api('/api/gideon/network/receipt',{receipt:{handoffId:p.sourceHandoffId,from:me.id,to:p.handoffReturnTo,status:'accepted',at:now()}}).catch(()=>{})});renderAll();route('ask');setMode('team');$('#askInput').value=payload.task||'';toast('Handoff принят в новый Project')
 }
 setInterval(()=>pollNetwork(false),60000);
 
