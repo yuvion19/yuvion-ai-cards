@@ -2001,6 +2001,7 @@ app.use("/api/gideon", async (req, res, next) => {
 
 
 const gideonRelayMailboxes = new Map();
+const gideonRelayReceipts = new Map();
 const GIDEON_RELAY_TTL_MS = 24 * 60 * 60 * 1000;
 const GIDEON_RELAY_MAX_MAILBOX = 60;
 
@@ -2080,6 +2081,32 @@ app.post("/api/gideon/network/send", async (req, res) => {
   }
   gideonRelayMailboxes.set(to, list.slice(-GIDEON_RELAY_MAX_MAILBOX));
   return res.json({ ok: true, relayId, expiresInHours: 24 });
+});
+
+
+app.post("/api/gideon/network/receipt", async (req, res) => {
+  const receipt = req.body?.receipt;
+  const to = String(receipt?.to || "");
+  const from = String(receipt?.from || "");
+  const handoffId = String(receipt?.handoffId || "");
+  const status = String(receipt?.status || "");
+  if (!/^gid_[a-f0-9]{16,64}$/i.test(to) || !/^gid_[a-f0-9]{16,64}$/i.test(from) || !handoffId || !["delivered","accepted","completed","rejected"].includes(status)) {
+    return res.status(400).json({ error: "Некорректный receipt.", code: "invalid_receipt" });
+  }
+  const list = gideonRelayReceipts.get(to) || [];
+  const id = handoffId + ":" + status + ":" + from;
+  if (!list.some(x => x.id === id)) list.push({ id, ...receipt, receivedAt: new Date().toISOString(), expiresAt: Date.now() + GIDEON_RELAY_TTL_MS });
+  gideonRelayReceipts.set(to, list.slice(-120));
+  return res.json({ ok: true, id });
+});
+
+app.get("/api/gideon/network/receipts/:identityId", (req, res) => {
+  const identityId = String(req.params.identityId || "");
+  if (!/^gid_[a-f0-9]{16,64}$/i.test(identityId)) return res.status(400).json({ error: "Некорректный Gideon Identity.", code: "invalid_identity" });
+  const now = Date.now();
+  const items = (gideonRelayReceipts.get(identityId) || []).filter(x => Number(x.expiresAt || 0) > now);
+  gideonRelayReceipts.set(identityId, items);
+  return res.json({ protocol: GIDEON_PROTOCOL_VERSION, identityId, receipts: items, count: items.length });
 });
 
 app.get("/api/gideon/network/inbox/:identityId", (req, res) => {
@@ -2375,19 +2402,143 @@ app.post("/api/gideon/agent", async (req, res) => {
 });
 
 
-const GIDEON_PROTOCOL_VERSION = "6.0";
+const GIDEON_PROTOCOL_VERSION = "7.0";
 
 app.get("/api/gideon/capabilities", (req, res) => {
   return res.json({
     name: "Gideon",
-    gideonVersion: "6.0",
+    gideonVersion: "7.0",
     protocol: GIDEON_PROTOCOL_VERSION,
-    modes: ["chat","agent","swarm","knowledge-graph","signed-handoff"],
+    modes: ["chat","agent","swarm","mission-control","knowledge-graph","signed-handoff","receipts"],
     freeGuard: true,
     providerMode: "single-provider",
     maxSwarmAgents: 4,
     handoffTransport: "portable-signed-package"
   });
+});
+
+
+app.get("/api/gideon/tools", (req, res) => {
+  return res.json({
+    protocol: GIDEON_PROTOCOL_VERSION,
+    tools: [
+      { id: "reason", name: "Reasoning", available: true, mutatesExternalState: false },
+      { id: "files", name: "File Analysis", available: true, mutatesExternalState: false },
+      { id: "research", name: "URL Research", available: true, mutatesExternalState: false },
+      { id: "knowledge", name: "Knowledge Graph", available: true, mutatesExternalState: false },
+      { id: "network", name: "Gideon Network", available: true, mutatesExternalState: true },
+      { id: "artifact", name: "Artifact Creation", available: true, mutatesExternalState: false },
+      { id: "automations", name: "Local Automations", available: true, mutatesExternalState: true, limitation: "Runs while Gideon is active." },
+      { id: "browser", name: "Browser Operator", available: false, mutatesExternalState: true, limitation: "No browser-control runtime is connected to the public Gideon service." },
+      { id: "email", name: "Email", available: false, mutatesExternalState: true, limitation: "No user mail account is connected inside Gideon." },
+      { id: "calendar", name: "Calendar", available: false, mutatesExternalState: true, limitation: "No user calendar account is connected inside Gideon." }
+    ]
+  });
+});
+
+app.post("/api/gideon/mission", async (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, "gideon-mission:" + ip, 10)) {
+    return res.status(429).json({ error: "Слишком много Mission-задач. Повторите позже.", code: "free_rate_limit" });
+  }
+  const goal = String(req.body?.goal || "").trim().slice(0, 12000);
+  const projectContext = String(req.body?.projectContext || "").trim().slice(0, 18000);
+  const memory = String(req.body?.memory || "").trim().slice(0, 7000);
+  const permissions = req.body?.permissions && typeof req.body.permissions === "object" ? req.body.permissions : {};
+  if (!goal) return res.status(400).json({ error: "Цель не передана.", code: "goal_missing" });
+
+  const toolCatalog = [
+    { id: "reason", available: true, external: false },
+    { id: "files", available: true, external: false },
+    { id: "research", available: true, external: false },
+    { id: "knowledge", available: true, external: false },
+    { id: "artifact", available: true, external: false },
+    { id: "network", available: true, external: true },
+    { id: "automations", available: true, external: true },
+    { id: "browser", available: false, external: true },
+    { id: "email", available: false, external: true },
+    { id: "calendar", available: false, external: true }
+  ];
+
+  try {
+    const planner = await neuroHubUltraCompletion([
+      { role: "system", content: [
+        "Ты Gideon Mission Planner 7.0.",
+        "Построй ориентированный Task Graph для цели пользователя.",
+        "Используй только инструменты из каталога. Если инструмент недоступен, не изображай действие выполненным.",
+        "Для внешних действий учитывай permission: auto, ask, deny.",
+        "Верни только JSON.",
+        '{"mission":"...","nodes":[{"id":"t1","title":"...","tool":"reason|files|research|knowledge|artifact|network|automations|browser|email|calendar","dependsOn":[],"status":"ready|blocked|approval_required","requiresApproval":false,"reason":"..."}],"finalDeliverable":"...","blockedActions":[{"tool":"...","reason":"..."}]}',
+        "Каталог: " + JSON.stringify(toolCatalog),
+        "Permissions: " + JSON.stringify(permissions)
+      ].join("\n") },
+      { role: "user", content: ["Цель: " + goal, memory ? "Память: " + memory : "", projectContext ? "Контекст проекта: " + projectContext : ""].filter(Boolean).join("\n\n") }
+    ], { maxTokens: 1500, temperature: 0.12 });
+
+    const graph = gideonParseJsonObject(planner.content) || {
+      mission: goal,
+      nodes: [{ id: "t1", title: "Выполнить анализ цели", tool: "reason", dependsOn: [], status: "ready", requiresApproval: false, reason: "Базовое выполнение" }],
+      finalDeliverable: "Готовый результат",
+      blockedActions: []
+    };
+
+    const availableNodes = (Array.isArray(graph.nodes) ? graph.nodes : []).filter(n => {
+      const tool = toolCatalog.find(t => t.id === n.tool);
+      if (!tool?.available) return false;
+      const permission = String(permissions?.[n.tool] || (tool.external ? "ask" : "auto"));
+      return permission !== "deny" && (!tool.external || permission === "auto");
+    });
+
+    const execution = await neuroHubUltraCompletion([
+      { role: "system", content: [
+        "Ты Gideon Mission Executor 7.0.",
+        "Выполни только разрешенные и реально доступные части миссии.",
+        "Не заявляй, что выполнил browser/email/calendar или иное внешнее действие, если оно не было реально выполнено.",
+        "Сформируй максимально завершенный полезный результат по доступному контексту.",
+        "В конце добавь короткие блоки: 'Выполнено', 'Ожидает подтверждения' (если есть), 'Недоступно без подключения' (если есть)."
+      ].join("\n") },
+      { role: "user", content: [
+        "Цель: " + goal,
+        "Task Graph: " + JSON.stringify(graph),
+        "Разрешенные к выполнению сейчас узлы: " + JSON.stringify(availableNodes),
+        memory ? "Память: " + memory : "",
+        projectContext ? "Контекст: " + projectContext : ""
+      ].filter(Boolean).join("\n\n") }
+    ], { maxTokens: 2400, temperature: 0.28 });
+
+    neuroHubGigaDaily.count += 2;
+    return res.json({
+      protocol: GIDEON_PROTOCOL_VERSION,
+      graph,
+      answer: execution.content,
+      executedNodeIds: availableNodes.map(n => n.id),
+      model: "Gideon",
+      usage: gideonUsageSnapshot()
+    });
+  } catch (error) {
+    return res.status(502).json({ error: "Gideon Mission Runtime не смог завершить задачу.", code: error?.code || "mission_failed" });
+  }
+});
+
+app.post("/api/gideon/project-memory", async (req, res) => {
+  const text = String(req.body?.text || "").trim().slice(0, 28000);
+  if (!text) return res.status(400).json({ error: "Контекст проекта не передан.", code: "memory_context_missing" });
+  try {
+    const result = await neuroHubUltraCompletion([
+      { role: "system", content: [
+        "Ты Gideon Project Memory 7.0.",
+        "Сожми контекст проекта в устойчивую рабочую память. Не придумывай.",
+        "Верни только JSON.",
+        '{"status":"...","goal":"...","decisions":["..."],"facts":["..."],"openQuestions":["..."],"nextActions":["..."],"people":["..."],"updatedSummary":"..."}'
+      ].join("\n") },
+      { role: "user", content: text }
+    ], { maxTokens: 1300, temperature: 0.12 });
+    const memory = gideonParseJsonObject(result.content) || { updatedSummary: result.content };
+    neuroHubGigaDaily.count += 1;
+    return res.json({ protocol: GIDEON_PROTOCOL_VERSION, memory, usage: gideonUsageSnapshot() });
+  } catch (error) {
+    return res.status(502).json({ error: "Project Memory не обновлена.", code: error?.code || "project_memory_failed" });
+  }
 });
 
 app.post("/api/gideon/graph", async (req, res) => {
