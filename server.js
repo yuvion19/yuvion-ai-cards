@@ -1968,7 +1968,7 @@ const GIDEON_UPSTREAM = String(process.env.GIDEON_UPSTREAM || "").replace(/\/+$/
 
 app.use("/api/gideon", async (req, res, next) => {
   const hasLocalSecret = Boolean(String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim());
-  if (hasLocalSecret || !GIDEON_UPSTREAM) return next();
+  if (hasLocalSecret || !GIDEON_UPSTREAM || req.path.startsWith("/network")) return next();
 
   try {
     const controller = new AbortController();
@@ -1997,6 +1997,108 @@ app.use("/api/gideon", async (req, res, next) => {
       code: error?.name === "AbortError" ? "gateway_timeout" : "gateway_unavailable"
     });
   }
+});
+
+
+const gideonRelayMailboxes = new Map();
+const GIDEON_RELAY_TTL_MS = 24 * 60 * 60 * 1000;
+const GIDEON_RELAY_MAX_MAILBOX = 60;
+
+function gideonStableStringify(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(gideonStableStringify).join(",") + "]";
+  return "{" + Object.keys(value).sort().map(k => JSON.stringify(k) + ":" + gideonStableStringify(value[k])).join(",") + "}";
+}
+
+function gideonRelayCleanup() {
+  const now = Date.now();
+  for (const [identityId, items] of gideonRelayMailboxes.entries()) {
+    const fresh = items.filter(x => Number(x.expiresAt || 0) > now);
+    if (fresh.length) gideonRelayMailboxes.set(identityId, fresh.slice(-GIDEON_RELAY_MAX_MAILBOX));
+    else gideonRelayMailboxes.delete(identityId);
+  }
+}
+
+async function gideonVerifyEnvelope(pkg) {
+  try {
+    if (!pkg || pkg.type !== "gideon-handoff-sealed") return false;
+    if (!pkg.sender?.publicKey || !pkg.signature || !pkg.envelope) return false;
+    const key = await globalThis.crypto.subtle.importKey(
+      "jwk",
+      pkg.sender.publicKey,
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["verify"]
+    );
+    return await globalThis.crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      key,
+      Buffer.from(String(pkg.signature), "base64"),
+      new TextEncoder().encode(gideonStableStringify(pkg.envelope))
+    );
+  } catch {
+    return false;
+  }
+}
+
+app.get("/api/gideon/network/status", (req, res) => {
+  gideonRelayCleanup();
+  const queued = Array.from(gideonRelayMailboxes.values()).reduce((n, x) => n + x.length, 0);
+  return res.json({
+    protocol: "Gideon/6.0",
+    relay: true,
+    encryption: "ECDH-P256 + HKDF-SHA256 + AES-256-GCM",
+    signatures: "ECDSA-P256-SHA256",
+    persistence: "ephemeral-memory",
+    ttlHours: 24,
+    queued
+  });
+});
+
+app.post("/api/gideon/network/send", async (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, "gideon-network-send:" + ip, 30)) {
+    return res.status(429).json({ error: "Слишком много сетевых Handoff. Повторите позже.", code: "relay_rate_limit" });
+  }
+  const pkg = req.body?.package;
+  const to = String(pkg?.envelope?.to || "");
+  if (!/^gid_[a-f0-9]{16,64}$/i.test(to)) {
+    return res.status(400).json({ error: "Некорректный получатель Gideon Identity.", code: "invalid_recipient" });
+  }
+  const encodedSize = Buffer.byteLength(JSON.stringify(pkg || {}), "utf8");
+  if (encodedSize > 180000) {
+    return res.status(413).json({ error: "Handoff слишком большой для relay.", code: "relay_payload_too_large" });
+  }
+  if (!(await gideonVerifyEnvelope(pkg))) {
+    return res.status(400).json({ error: "Подпись Handoff не прошла проверку.", code: "invalid_signature" });
+  }
+  gideonRelayCleanup();
+  const list = gideonRelayMailboxes.get(to) || [];
+  const relayId = String(pkg?.envelope?.handoffId || crypto.randomUUID());
+  if (!list.some(x => x.relayId === relayId)) {
+    list.push({ relayId, receivedAt: new Date().toISOString(), expiresAt: Date.now() + GIDEON_RELAY_TTL_MS, package: pkg });
+  }
+  gideonRelayMailboxes.set(to, list.slice(-GIDEON_RELAY_MAX_MAILBOX));
+  return res.json({ ok: true, relayId, expiresInHours: 24 });
+});
+
+app.get("/api/gideon/network/inbox/:identityId", (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, "gideon-network-inbox:" + ip, 120)) {
+    return res.status(429).json({ error: "Слишком много проверок inbox.", code: "relay_rate_limit" });
+  }
+  const identityId = String(req.params.identityId || "");
+  if (!/^gid_[a-f0-9]{16,64}$/i.test(identityId)) {
+    return res.status(400).json({ error: "Некорректный Gideon Identity.", code: "invalid_identity" });
+  }
+  gideonRelayCleanup();
+  const items = gideonRelayMailboxes.get(identityId) || [];
+  return res.json({
+    protocol: "Gideon/6.0",
+    identityId,
+    packages: items.map(x => x.package),
+    count: items.length
+  });
 });
 
 function gideonUsageSnapshot() {
