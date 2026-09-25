@@ -1,8 +1,8 @@
 {
-  "name": "Gideon 6.0",
+  "name": "Gideon 7.0",
   "short_name": "Gideon",
-  "description": "Gideon 6.0 — multi-agent AI OS with Projects, Knowledge Graph, Skills and signed Gideon Network handoffs.",
-  "start_url": "./#ask",
+  "description": "Gideon 7.0 — autonomous personal AI infrastructure with Mission Control, approvals, Project Memory, Knowledge Graph and encrypted Gideon Network.",
+  "start_url": "./#mission",
   "scope": "./",
   "display": "standalone",
   "background_color": "#080a0f",
@@ -16,6 +16,18 @@
     }
   ],
   "shortcuts": [
+    {
+      "name": "Mission Control",
+      "short_name": "Mission",
+      "url": "./#mission",
+      "icons": [
+        {
+          "src": "icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
     {
       "name": "Team Mode",
       "short_name": "Team",
