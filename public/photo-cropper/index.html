@@ -6,7 +6,7 @@
 <title>Обрезка фото 2.0</title>
 <style>
 :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#111827;background:#f6f7fb}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;padding:22px;background:#f6f7fb}.app{max-width:1120px;margin:auto;background:#fff;border:1px solid #e5e7eb;border-radius:24px;box-shadow:0 18px 60px rgba(0,0,0,.08);overflow:hidden}.header{padding:22px 26px;border-bottom:1px solid #eef0f4;display:flex;justify-content:space-between;gap:16px;align-items:center}.header h1{margin:0;font-size:22px}.sub{font-size:13px;color:#6b7280;margin-top:4px}.privacy{font-size:12px;color:#047857;background:#ecfdf5;border:1px solid #a7f3d0;padding:8px 10px;border-radius:999px}.main{padding:24px}.drop{border:2px dashed #cfd4dc;border-radius:18px;padding:42px 20px;text-align:center;background:#fafbfc;transition:.2s}.drop.drag{border-color:#111827;background:#f3f4f6}.drop strong{display:block;font-size:18px;margin-bottom:8px}.drop span{font-size:13px;color:#6b7280}.fileBtn,.btn{display:inline-block;border:0;border-radius:12px;padding:10px 14px;cursor:pointer;background:#111827;color:#fff;font:inherit;font-weight:600}.btn.secondary{background:#eef0f4;color:#111827}.btn.danger{background:#fee2e2;color:#991b1b}.btn:disabled{opacity:.45;cursor:not-allowed}.workspace{display:none}.layout{display:grid;grid-template-columns:1fr 300px;gap:18px}.editor{min-width:0}.panel{border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:#fafbfc}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}.control{display:flex;flex-direction:column;gap:6px}.control label{font-size:12px;color:#6b7280}.control input,.control select{width:100%;padding:9px 10px;border:1px solid #d9dde5;border-radius:10px;background:#fff;font:inherit}.stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:520px;background:#111827;border-radius:18px;overflow:hidden;touch-action:none}.stage img{max-width:none;user-select:none;-webkit-user-drag:none;transform-origin:center center;pointer-events:none}.retouchCanvas{position:absolute;display:none;z-index:4;touch-action:none;cursor:crosshair}.retouchCanvas.active{display:block}.crop{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.58);cursor:move;min-width:40px;min-height:40px}.crop.grid:before,.crop.grid:after{content:"";position:absolute;inset:0;pointer-events:none}.crop.grid:before{background:linear-gradient(to right,transparent 33.1%,rgba(255,255,255,.75) 33.2% 33.6%,transparent 33.7% 66.2%,rgba(255,255,255,.75) 66.3% 66.7%,transparent 66.8%)}.crop.grid:after{background:linear-gradient(to bottom,transparent 33.1%,rgba(255,255,255,.75) 33.2% 33.6%,transparent 33.7% 66.2%,rgba(255,255,255,.75) 66.3% 66.7%,transparent 66.8%)}.handle{position:absolute;width:18px;height:18px;background:#fff;border:2px solid #111827;border-radius:50%;z-index:2}.nw{left:-10px;top:-10px;cursor:nwse-resize}.ne{right:-10px;top:-10px;cursor:nesw-resize}.sw{left:-10px;bottom:-10px;cursor:nesw-resize}.se{right:-10px;bottom:-10px;cursor:nwse-resize}.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}.queue{display:flex;gap:8px;overflow:auto;padding:8px 0}.thumb{width:64px;height:64px;border-radius:10px;object-fit:cover;border:2px solid transparent;cursor:pointer}.thumb.active{border-color:#111827}.meta{font-size:12px;color:#6b7280;margin-top:8px}.result{margin-top:16px;display:none;border-top:1px solid #eee;padding-top:14px}.result img{max-width:100%;max-height:320px;border-radius:12px;border:1px solid #e5e7eb}.row{display:flex;gap:8px;flex-wrap:wrap}.retouchHelp{font-size:12px;line-height:1.45;color:#6b7280;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:9px;margin-top:8px}.sourceDot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#ef4444;margin-right:5px}.badge{font-size:12px;padding:6px 8px;border-radius:8px;background:#eef0f4}.sectionTitle{font-size:13px;font-weight:700;margin:2px 0 10px}.sep{height:1px;background:#e5e7eb;margin:12px 0}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;padding:22px;background:#f6f7fb}.app{max-width:1120px;margin:auto;background:#fff;border:1px solid #e5e7eb;border-radius:24px;box-shadow:0 18px 60px rgba(0,0,0,.08);overflow:hidden}.header{padding:22px 26px;border-bottom:1px solid #eef0f4;display:flex;justify-content:space-between;gap:16px;align-items:center}.header h1{margin:0;font-size:22px}.sub{font-size:13px;color:#6b7280;margin-top:4px}.privacy{font-size:12px;color:#047857;background:#ecfdf5;border:1px solid #a7f3d0;padding:8px 10px;border-radius:999px}.main{padding:24px}.drop{border:2px dashed #cfd4dc;border-radius:18px;padding:42px 20px;text-align:center;background:#fafbfc;transition:.2s}.drop.drag{border-color:#111827;background:#f3f4f6}.drop strong{display:block;font-size:18px;margin-bottom:8px}.drop span{font-size:13px;color:#6b7280}.fileBtn,.btn{display:inline-block;border:0;border-radius:12px;padding:10px 14px;cursor:pointer;background:#111827;color:#fff;font:inherit;font-weight:600}.btn.secondary{background:#eef0f4;color:#111827}.btn.danger{background:#fee2e2;color:#991b1b}.btn:disabled{opacity:.45;cursor:not-allowed}.workspace{display:none}.layout{display:grid;grid-template-columns:1fr 300px;gap:18px}.editor{min-width:0}.panel{border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:#fafbfc}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}.control{display:flex;flex-direction:column;gap:6px}.control label{font-size:12px;color:#6b7280}.control input,.control select{width:100%;padding:9px 10px;border:1px solid #d9dde5;border-radius:10px;background:#fff;font:inherit}.stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:520px;background:#111827;border-radius:18px;overflow:hidden;touch-action:none}.stage img{max-width:none;user-select:none;-webkit-user-drag:none;transform-origin:center center;pointer-events:none}.retouchCanvas{position:absolute;display:none;z-index:4;touch-action:none;cursor:crosshair}.retouchCanvas.active{display:block}.crop{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.58);cursor:move;min-width:40px;min-height:40px}.crop.grid:before,.crop.grid:after{content:"";position:absolute;inset:0;pointer-events:none}.crop.grid:before{background:linear-gradient(to right,transparent 33.1%,rgba(255,255,255,.75) 33.2% 33.6%,transparent 33.7% 66.2%,rgba(255,255,255,.75) 66.3% 66.7%,transparent 66.8%)}.crop.grid:after{background:linear-gradient(to bottom,transparent 33.1%,rgba(255,255,255,.75) 33.2% 33.6%,transparent 33.7% 66.2%,rgba(255,255,255,.75) 66.3% 66.7%,transparent 66.8%)}.handle{position:absolute;width:18px;height:18px;background:#fff;border:2px solid #111827;border-radius:50%;z-index:2}.nw{left:-10px;top:-10px;cursor:nwse-resize}.ne{right:-10px;top:-10px;cursor:nesw-resize}.sw{left:-10px;bottom:-10px;cursor:nesw-resize}.se{right:-10px;bottom:-10px;cursor:nwse-resize}.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}.queue{display:flex;gap:8px;overflow:auto;padding:8px 0}.thumb{width:64px;height:64px;border-radius:10px;object-fit:cover;border:2px solid transparent;cursor:pointer}.thumb.active{border-color:#111827}.meta{font-size:12px;color:#6b7280;margin-top:8px}.result{margin-top:16px;display:none;border-top:1px solid #eee;padding-top:14px}.result img{max-width:100%;max-height:320px;border-radius:12px;border:1px solid #e5e7eb}.row{display:flex;gap:8px;flex-wrap:wrap}.urlImport{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.urlImport input{flex:1 1 220px;min-width:0;padding:10px 11px;border:1px solid #d9dde5;border-radius:10px;background:#fff;font:inherit}.urlStatus{display:none;font-size:12px;line-height:1.4;margin-top:8px;padding:8px 10px;border-radius:9px}.urlStatus.show{display:block}.urlStatus.ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}.urlStatus.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}.urlHint{font-size:11px;color:#6b7280;line-height:1.4;margin-top:7px}.retouchHelp{font-size:12px;line-height:1.45;color:#6b7280;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:9px;margin-top:8px}.sourceDot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#ef4444;margin-right:5px}.badge{font-size:12px;padding:6px 8px;border-radius:8px;background:#eef0f4}.sectionTitle{font-size:13px;font-weight:700;margin:2px 0 10px}.sep{height:1px;background:#e5e7eb;margin:12px 0}
 @media(max-width:860px){body{padding:0}.app{border-radius:0;border:0}.layout{grid-template-columns:1fr}.stage{min-height:420px}.header{align-items:flex-start;flex-direction:column}.privacy{border-radius:10px}.controls{grid-template-columns:1fr 1fr}.panel{order:-1}}
 @media(max-width:520px){.main,.header{padding:16px}.stage{min-height:340px}.controls{grid-template-columns:1fr}.btn,.fileBtn{width:100%;text-align:center}.actions{display:grid;grid-template-columns:1fr 1fr}.privacy{font-size:11px}}
 </style>
@@ -14,7 +14,7 @@
 <body>
 <div class="app">
   <div class="header">
-    <div><h1>Обрезка фото 2.1</h1><div class="sub">Обрезка, точечная ретушь, поворот, масштаб, пакетная обработка и ZIP</div></div>
+    <div><h1>Обрезка фото 2.2</h1><div class="sub">Обрезка, загрузка по ссылке, точечная ретушь, поворот, масштаб, пакетная обработка и ZIP</div></div>
     <div class="privacy">Фото обрабатываются только в вашем браузере</div>
   </div>
   <div class="main">
@@ -22,6 +22,13 @@
       <strong>Перетащите фото сюда</strong>
       <span>Можно выбрать сразу несколько JPG, PNG или WEBP. Также работает Ctrl+V.</span><br><br>
       <label class="fileBtn">Выбрать фото<input id="file" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden></label>
+      <div class="urlImport" style="max-width:760px;margin:14px auto 0">
+        <input id="imageUrlStart" type="url" placeholder="Или вставьте ссылку на изображение">
+        <button id="loadUrlStart" class="btn secondary" type="button">Загрузить по ссылке</button>
+        <button id="clearUrlStart" class="btn secondary" type="button">Очистить</button>
+      </div>
+      <div class="urlHint">Поддерживаются прямые ссылки на изображения и обычные ссылки Imgur. Некоторые сайты могут блокировать загрузку извне.</div>
+      <div id="urlStatusStart" class="urlStatus"></div>
     </div>
 
     <div id="workspace" class="workspace">
@@ -49,6 +56,16 @@
         </div>
 
         <div class="panel">
+          <div class="sectionTitle">Загрузить по ссылке</div>
+          <div class="urlImport">
+            <input id="imageUrlEditor" type="url" placeholder="https://...">
+            <button id="loadUrlEditor" class="btn secondary" type="button">Загрузить</button>
+            <button id="clearUrlEditor" class="btn secondary" type="button">Очистить</button>
+          </div>
+          <div id="urlStatusEditor" class="urlStatus"></div>
+          <div class="urlHint">Можно вставить новую ссылку прямо во время редактирования — фото добавится в очередь.</div>
+          <div class="sep"></div>
+
           <div class="sectionTitle">Обрезка</div>
           <div class="controls">
             <div class="control"><label>Пропорции</label><select id="ratio">
@@ -101,16 +118,63 @@
 </div>
 <script>
 const $=id=>document.getElementById(id);
-const file=$('file'),moreFiles=$('moreFiles'),drop=$('drop'),workspace=$('workspace'),stage=$('stage'),img=$('img'),crop=$('crop'),ratio=$('ratio'),grid=$('grid'),zoom=$('zoom'),rotate=$('rotate'),zoomVal=$('zoomVal'),rotateVal=$('rotateVal'),outW=$('outW'),outH=$('outH'),format=$('format'),quality=$('quality'),qualityVal=$('qualityVal'),meta=$('meta'),result=$('result'),out=$('out'),queueEl=$('queue'),batchMeta=$('batchMeta'),downloadBtn=$('downloadBtn'),zipBtn=$('zipBtn'),retouchCanvas=$('retouchCanvas'),retouchMode=$('retouchMode'),brushSize=$('brushSize'),brushVal=$('brushVal');
+const file=$('file'),moreFiles=$('moreFiles'),drop=$('drop'),workspace=$('workspace'),stage=$('stage'),img=$('img'),crop=$('crop'),ratio=$('ratio'),grid=$('grid'),zoom=$('zoom'),rotate=$('rotate'),zoomVal=$('zoomVal'),rotateVal=$('rotateVal'),outW=$('outW'),outH=$('outH'),format=$('format'),quality=$('quality'),qualityVal=$('qualityVal'),meta=$('meta'),result=$('result'),out=$('out'),queueEl=$('queue'),batchMeta=$('batchMeta'),downloadBtn=$('downloadBtn'),zipBtn=$('zipBtn'),retouchCanvas=$('retouchCanvas'),retouchMode=$('retouchMode'),brushSize=$('brushSize'),brushVal=$('brushVal'),imageUrlStart=$('imageUrlStart'),imageUrlEditor=$('imageUrlEditor'),urlStatusStart=$('urlStatusStart'),urlStatusEditor=$('urlStatusEditor');
 let files=[],current=0,state={x:0,y:0,w:100,h:100},drag=null,resultBlob=null,resultExt='jpg',baseRotation=0,batch=[];
 let editCanvas=document.createElement('canvas'),editCtx=editCanvas.getContext('2d'),retouchActive=false,retouchDrawing=false,retouchPicking=false,cloneSource=null,cloneStart=null,undoStack=[];
 function valid(f){return f&&/^image\/(jpeg|png|webp)$/.test(f.type)}
+function normalizeImageUrl(raw){
+  let u=(raw||'').trim();
+  if(!u)return '';
+  try{
+    const x=new URL(u);
+    const host=x.hostname.toLowerCase();
+    if((host==='imgur.com'||host==='www.imgur.com')&&!x.pathname.includes('/a/')&&!x.pathname.includes('/gallery/')){
+      const id=x.pathname.split('/').filter(Boolean)[0];
+      if(id&&!id.includes('.')) return 'https://i.imgur.com/'+id+'.jpg';
+    }
+    return x.href;
+  }catch{return u}
+}
+function nameFromUrl(raw){
+  try{
+    const x=new URL(raw),p=decodeURIComponent(x.pathname.split('/').filter(Boolean).pop()||'photo');
+    return (p.replace(/\.[^.]+$/,'')||'photo').replace(/[^a-zA-Z0-9а-яА-ЯёЁ._-]+/g,'-').slice(0,80)||'photo';
+  }catch{return 'photo'}
+}
+function setUrlStatus(el,msg,type='ok'){el.textContent=msg;el.className='urlStatus show '+(type==='err'?'err':'ok')}
+function clearUrlStatus(el){el.textContent='';el.className='urlStatus'}
+async function importFromUrl(input,status){
+  const raw=(input.value||'').trim();
+  if(!raw){setUrlStatus(status,'Вставьте ссылку на изображение.','err');return}
+  const url=normalizeImageUrl(raw);
+  try{
+    setUrlStatus(status,'Загружаю изображение...');
+    const res=await fetch(url,{mode:'cors'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const blob=await res.blob();
+    if(!blob.type.startsWith('image/'))throw new Error('not image');
+    const ext=(blob.type.split('/')[1]||'jpg').replace('jpeg','jpg');
+    const f=new File([blob],nameFromUrl(url)+'.'+ext,{type:blob.type});
+    addFiles([f]);
+    setUrlStatus(status,'Готово. Фото добавлено в очередь.');
+    input.value='';
+  }catch(e){
+    console.error(e);
+    setUrlStatus(status,'Не удалось загрузить. Нужна прямая ссылка на изображение или ссылка Imgur; некоторые сайты запрещают внешнюю загрузку.','err');
+  }
+}
 function addFiles(list){const a=[...list].filter(valid);if(!a.length)return;files.push(...a);renderQueue();drop.style.display='none';workspace.style.display='block';if(files.length===a.length)loadIndex(0)}
 file.onchange=e=>addFiles(e.target.files);moreFiles.onchange=e=>addFiles(e.target.files);
+$('loadUrlStart').onclick=()=>importFromUrl(imageUrlStart,urlStatusStart);
+$('loadUrlEditor').onclick=()=>importFromUrl(imageUrlEditor,urlStatusEditor);
+$('clearUrlStart').onclick=()=>{imageUrlStart.value='';clearUrlStatus(urlStatusStart);imageUrlStart.focus()};
+$('clearUrlEditor').onclick=()=>{imageUrlEditor.value='';clearUrlStatus(urlStatusEditor);imageUrlEditor.focus()};
+imageUrlStart.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();importFromUrl(imageUrlStart,urlStatusStart)}});
+imageUrlEditor.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();importFromUrl(imageUrlEditor,urlStatusEditor)}});
 ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')}));
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')}));
 drop.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
-window.addEventListener('paste',e=>{const imgs=[...(e.clipboardData?.files||[])].filter(valid);if(imgs.length)addFiles(imgs)});
+window.addEventListener('paste',e=>{const imgs=[...(e.clipboardData?.files||[])].filter(valid);if(imgs.length){addFiles(imgs);return}const text=(e.clipboardData?.getData('text/plain')||'').trim();if(/^https?:\/\//i.test(text)){const target=workspace.style.display==='block'?imageUrlEditor:imageUrlStart;const status=workspace.style.display==='block'?urlStatusEditor:urlStatusStart;target.value=text;importFromUrl(target,status)}});
 function renderQueue(){queueEl.innerHTML='';files.forEach((f,i)=>{const t=document.createElement('img');t.className='thumb'+(i===current?' active':'');t.src=URL.createObjectURL(f);t.title=f.name;t.onclick=()=>loadIndex(i);queueEl.appendChild(t)})}
 function loadIndex(i){current=i;renderQueue();const f=files[i];if(!f)return;const u=URL.createObjectURL(f);img.onload=()=>{editCanvas.width=img.naturalWidth;editCanvas.height=img.naturalHeight;editCtx.clearRect(0,0,editCanvas.width,editCanvas.height);editCtx.drawImage(img,0,0);undoStack=[];cloneSource=null;resetImageTransform();requestAnimationFrame(initCrop);updateMeta()};img.src=u;result.style.display='none';downloadBtn.disabled=true;resultBlob=null;disableRetouch()}
 function resetImageTransform(){zoom.value=100;rotate.value=0;baseRotation=0;applyTransform();outW.value='';outH.value=''}
