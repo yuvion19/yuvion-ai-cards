@@ -24,7 +24,6 @@
     <button data-route="chat">✦ Чат</button>
     <button data-route="research">⌕ Research</button>
     <button data-route="documents">▤ Документы / Excel</button>
-    <button data-route="marketplace">◆ Marketplace Studio</button>
     <button data-route="media">▧ Камера / Медиа</button>
     <button data-route="workflows">⌘ Workflow</button>
     <button data-route="archive">◫ Архив файлов</button>
@@ -46,7 +45,7 @@
       <span class="eyebrow">GIDEON · AI WORKSPACE</span>
       <h1>Один интерфейс.<br>Вся работа с AI.</h1>
       <p>Диалоги, файлы, рабочие пространства, память, исследования, документы, Excel, изображения, аудио и маркетплейсы объединены в одном приложении.</p>
-      <div class="toolbar"><button class="primary" data-route="chat">Открыть Gideon</button><button class="secondary" data-route="marketplace">Marketplace Studio</button><button class="ghost" data-route="research">Research</button></div>
+      <div class="toolbar"><button class="primary" data-route="chat">Открыть Gideon</button><button class="ghost" data-route="research">Research</button></div>
     </div>
     <div class="hero-visual">
       <div class="orb"></div>
@@ -60,7 +59,6 @@
   <div class="grid four">
     <article class="card"><h3>Единый чат</h3><p>Файлы, память, шаблоны и результат справа как редактируемый артефакт.</p></article>
     <article class="card"><h3>Документы и Excel</h3><p>Резюме, сравнение, поиск фактов, анализ таблиц и экспорт результатов.</p></article>
-    <article class="card"><h3>Marketplace</h3><p>Фото товара → анализ → заголовок → описание → 4 карточки → ZIP.</p></article>
     <article class="card"><h3>Research</h3><p>Gideon читает переданные публичные источники и собирает отчёт с URL.</p></article>
   </div>
 </section>
@@ -128,31 +126,6 @@
     <div class="panel stack">
       <div class="toolbar"><button id="docToArtifact" class="ghost">В артефакт</button><button data-doc-export="txt" class="ghost">TXT</button><button data-doc-export="pdf" class="ghost">PDF</button><button data-doc-export="docx" class="ghost">DOCX</button><button data-doc-export="xlsx" class="ghost">XLSX</button></div>
       <div id="docOutput" class="output">Выберите файлы и действие.</div>
-    </div>
-  </div>
-</section>
-
-<section id="marketplace" class="view">
-  <div class="head"><div><span class="eyebrow">MARKETPLACE STUDIO</span><h2>Фото → готовый комплект товара</h2><p>Gideon анализирует товар и создаёт текст; браузер собирает 4 карточки 900×1200 без обрезки исходного товара.</p></div><span class="status-pill">4 × 900×1200</span></div>
-  <div class="market-grid">
-    <div class="panel stack">
-      <input id="productPhoto" type="file" accept="image/*">
-      <label class="secondary">📷 Снять товар<input id="productCamera" type="file" accept="image/*" capture="environment" hidden></label>
-      <textarea id="productNotes" placeholder="Подтверждённые данные: материал, размер, объём, комплект и т. д."></textarea>
-      <button id="analyzeProduct" class="primary">Анализ + продающий текст</button>
-      <button id="makeProductCards" class="secondary" disabled>Сделать 4 карточки</button>
-      <button id="downloadProductZip" class="secondary" disabled>Скачать ZIP</button>
-      <hr style="border:0;border-top:1px solid #28313f;width:100%">
-      <label class="drop">Пакет до 8 товаров<input id="batchProducts" type="file" accept="image/*" multiple></label>
-      <button id="runBatch" class="ghost">Пакетный анализ</button>
-    </div>
-    <div class="stack">
-      <div class="panel grid two">
-        <div id="productPreview" class="preview">Фото товара</div>
-        <div class="stack"><div class="field"><label>Заголовок</label><input id="productTitle"></div><div class="field"><label>Описание</label><textarea id="productDescription"></textarea></div><div class="field"><label>Преимущества</label><textarea id="productBenefits"></textarea></div></div>
-      </div>
-      <div id="productCards" class="product-cards"></div>
-      <div class="panel"><b>Пакет</b><div id="batchList" class="batch-list" style="margin-top:10px"><span class="tiny">Пакетная обработка ещё не запускалась.</span></div></div>
     </div>
   </div>
 </section>
@@ -244,7 +217,7 @@
   <button data-route="home">⌂<span>Главная</span></button>
   <button data-route="chat">✦<span>Чат</span></button>
   <button data-route="documents">▤<span>Файлы</span></button>
-  <button data-route="marketplace">◆<span>Товар</span></button>
+  <button data-route="research">⌕<span>Research</span></button>
   <button data-route="media">▧<span>Медиа</span></button>
 </nav>
 </main>
@@ -257,7 +230,7 @@ const STATE_KEY='gideon_workspace_v3';
 const DB_NAME='gideon_files_v1';
 const DB_STORE='files';
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-let deferredInstall=null, chatPendingFiles=[], productFile=null, productUrl='', productBlobs=[], archiveSelected=null, mediaRecorder=null, audioChunks=[], recordedAudioFile=null, selectedWorkflow=null;
+let deferredInstall=null, chatPendingFiles=[], archiveSelected=null, mediaRecorder=null, audioChunks=[], recordedAudioFile=null, selectedWorkflow=null;
 
 function id(){return (crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2))}
 function now(){return new Date().toISOString()}
@@ -272,7 +245,7 @@ function logEvent(text){state.events=(state.events||[]).slice(-99);state.events.
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2400)}
 function busy(btn,on,label='Gideon…'){if(!btn)return;if(on){btn.dataset.old=btn.textContent;btn.disabled=true;btn.textContent=label}else{btn.disabled=false;btn.textContent=btn.dataset.old||btn.textContent}}
-function route(name){$$('.view').forEach(v=>v.classList.toggle('active',v.id===name));$$('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===name));history.replaceState(null,'','#'+name);$('#topTitle').textContent=name==='home'?'Gideon':({chat:'Чат',research:'Research',documents:'Документы / Excel',marketplace:'Marketplace Studio',media:'Камера / Медиа',workflows:'Workflow',archive:'Архив',settings:'Настройки',admin:'Админка'}[name]||'Gideon');window.scrollTo(0,0)}
+function route(name){$$('.view').forEach(v=>v.classList.toggle('active',v.id===name));$$('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===name));history.replaceState(null,'','#'+name);$('#topTitle').textContent=name==='home'?'Gideon':({chat:'Чат',research:'Research',documents:'Документы / Excel',media:'Камера / Медиа',workflows:'Workflow',archive:'Архив',settings:'Настройки',admin:'Админка'}[name]||'Gideon');window.scrollTo(0,0)}
 $$('[data-route]').forEach(b=>b.addEventListener('click',()=>route(b.dataset.route)));
 if(location.hash&&document.getElementById(location.hash.slice(1)))route(location.hash.slice(1));
 
@@ -399,28 +372,6 @@ $('#runDocTask').onclick=async()=>{const files=Array.from($('#docFiles').files);
 $('#archiveDocs').onclick=async()=>{const files=Array.from($('#docFiles').files);if(!files.length)return toast('Выберите файлы');for(const f of files)await archiveFile(f,'documents');toast('Сохранено в архив');renderArchive()};
 $('#docToArtifact').onclick=()=>setArtifact($('#docOutput').textContent);
 $$('[data-doc-export]').forEach(b=>b.onclick=()=>exportText($('#docOutput').textContent,b.dataset.docExport,'gideon-document'));
-
-// Marketplace
-function setProductFile(f){productFile=f||null;if(productUrl)URL.revokeObjectURL(productUrl);if(productFile){productUrl=URL.createObjectURL(productFile);$('#productPreview').innerHTML='<img src="'+productUrl+'" alt="">'}else{$('#productPreview').textContent='Фото товара'}}
-$('#productPhoto').onchange=e=>setProductFile(e.target.files?.[0]);
-$('#productCamera').onchange=e=>setProductFile(e.target.files?.[0]);
-function parseProductAnswer(text){
- let t=String(text||'').replace(/^```json/i,'').replace(/```$/,'').trim();try{const j=JSON.parse(t);return{title:j.title||'',description:j.description||'',benefits:Array.isArray(j.benefits)?j.benefits.join('\n'):String(j.benefits||'')}}catch{}
- const title=(t.match(/ЗАГОЛОВОК:\s*([^\n]+)/i)||[])[1]||t.split('\n')[0]||'';
- const desc=(t.match(/ОПИСАНИЕ:\s*([\s\S]*?)(?:\nПРЕИМУЩЕСТВА:|$)/i)||[])[1]||t;
- const ben=(t.match(/ПРЕИМУЩЕСТВА:\s*([\s\S]*)/i)||[])[1]||'';
- return{title:title.trim(),description:desc.trim(),benefits:ben.trim()}
-}
-async function analyzeProductFile(file,notes=''){
- const prompt='Проанализируй фотографию товара. Используй только видимые или явно указанные факты. Не выдумывай бренд, материал, размеры, объём, комплектацию или свойства. Сформируй продающий заголовок до 110 символов, описание 500–900 символов и 4–6 преимуществ. Не указывай цену. Верни только JSON: {"title":"...","description":"...","benefits":["..."]}. Дополнительные подтверждённые данные: '+(notes||'нет');
- const d=await analyzeFiles([file],prompt);return parseProductAnswer(d.answer)
-}
-$('#analyzeProduct').onclick=async()=>{if(!productFile)return toast('Выберите фото');const b=$('#analyzeProduct');busy(b,true,'Анализ…');try{const p=await analyzeProductFile(productFile,$('#productNotes').value.trim());$('#productTitle').value=p.title;$('#productDescription').value=p.description;$('#productBenefits').value=p.benefits;$('#makeProductCards').disabled=false;await archiveFile(productFile,'marketplace');toast('Текст готов');logEvent('Marketplace: анализ товара')}catch(e){toast('Ошибка: '+e.message)}finally{busy(b,false)}};
-function wrapCanvas(ctx,text,max,maxLines){const words=String(text).split(/\s+/),lines=[];let line='';for(const w of words){const t=(line+' '+w).trim();if(ctx.measureText(t).width>max&&line){lines.push(line);line=w;if(lines.length>=maxLines-1)break}else line=t}if(line&&lines.length<maxLines)lines.push(line);return lines}
-async function cardBlob(file,title,benefits,i){const bmp=await createImageBitmap(file),c=document.createElement('canvas');c.width=900;c.height=1200;const x=c.getContext('2d'),pal=[['#fbf8f3','#e7dcff'],['#f4f9fc','#d8edf4'],['#fff8ef','#f1ddd3'],['#f7f9f2','#dce8d4']],g=x.createLinearGradient(0,0,900,1200);g.addColorStop(0,pal[i][0]);g.addColorStop(1,pal[i][1]);x.fillStyle=g;x.fillRect(0,0,900,1200);x.fillStyle='#101725';x.font='700 48px Arial';wrapCanvas(x,title,760,3).forEach((l,n)=>x.fillText(l,70,92+n*58));const sc=Math.min(760/bmp.width,690/bmp.height),w=bmp.width*sc,h=bmp.height*sc;x.shadowColor='rgba(0,0,0,.16)';x.shadowBlur=30;x.drawImage(bmp,(900-w)/2,245+(690-h)/2,w,h);x.shadowBlur=0;x.font='600 27px Arial';x.fillStyle='#172033';const tags=['Главное фото','Преимущества','Детали','Готово к публикации'];x.fillText(tags[i],70,1030);x.font='400 22px Arial';x.fillStyle='#526071';const ben=String(benefits||'').split('\n').filter(Boolean);wrapCanvas(x,ben[i%Math.max(ben.length,1)]||'Товар представлен полностью, без обрезки',760,2).forEach((l,n)=>x.fillText(l,70,1070+n*28));return new Promise(r=>c.toBlob(r,'image/png'))}
-$('#makeProductCards').onclick=async()=>{if(!productFile)return;const b=$('#makeProductCards');busy(b,true,'4 карточки…');try{productBlobs=[];$('#productCards').innerHTML='';for(let i=0;i<4;i++){const bl=await cardBlob(productFile,$('#productTitle').value||'Товар',$('#productBenefits').value,i);productBlobs.push(bl);const im=document.createElement('img');im.src=URL.createObjectURL(bl);$('#productCards').appendChild(im)}$('#downloadProductZip').disabled=false;toast('4 карточки готовы')}finally{busy(b,false)}};
-$('#downloadProductZip').onclick=async()=>{if(productBlobs.length!==4)return;await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',()=>window.JSZip);const z=new JSZip();productBlobs.forEach((b,i)=>z.file('card_'+(i+1)+'_900x1200.png',b));downloadBlob(await z.generateAsync({type:'blob'}),'gideon-product-cards.zip')};
-$('#runBatch').onclick=async()=>{const files=Array.from($('#batchProducts').files).slice(0,8);if(!files.length)return toast('Выберите фотографии');const b=$('#runBatch'),list=$('#batchList');busy(b,true,'Пакет…');list.innerHTML='';for(let i=0;i<files.length;i++){const box=document.createElement('div');box.className='batch-item';box.innerHTML='<b>'+esc(files[i].name)+'</b><small>Gideon анализирует…</small>';list.appendChild(box);try{const p=await analyzeProductFile(files[i],'');box.innerHTML='<b>'+esc(p.title||files[i].name)+'</b><small>'+esc((p.description||'').slice(0,240))+'</small>';await archiveFile(files[i],'marketplace-batch')}catch(e){box.innerHTML='<b>'+esc(files[i].name)+'</b><small class="bad">'+esc(e.message)+'</small>'}}busy(b,false);logEvent('Marketplace batch: '+files.length+' товаров')};
 
 // Media
 $('#generateImage').onclick=async()=>{const p=$('#imagePrompt').value.trim();if(!p)return toast('Введите описание');const b=$('#generateImage'),o=$('#generatedImage');busy(b,true,'Создаю…');o.textContent='Gideon создаёт изображение…';try{const d=await api('/api/gideon/image',{prompt:p});const src='data:'+d.mimeType+';base64,'+d.imageBase64;o.innerHTML='<div><img src="'+src+'" alt=""><br><a class="secondary" download="gideon-image.jpg" href="'+src+'">Скачать</a></div>';logEvent('Создано изображение')}catch(e){o.textContent='Ошибка: '+e.message}finally{busy(b,false)}};
