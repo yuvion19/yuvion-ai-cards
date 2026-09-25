@@ -1,4 +1,5 @@
-import { mkdir, writeFile, copyFile } from "node:fs/promises";\nimport { execFileSync } from "node:child_process";
+import { mkdir, writeFile, copyFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 
 const OUT = "qirmizi-master";
 const BBOX = "48.493,41.36,48.529,41.3875";
