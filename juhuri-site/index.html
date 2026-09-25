@@ -46,7 +46,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;color:var(--muted);f
 </main>
 <footer><div class="wrap"><span>Juhuri AI · открытый бесплатный доступ</span><span id="foot">Корпус загружается…</span></div></footer>
 
-<script src="data0.js"></script><script src="data1.js"></script><script src="data2.js"></script><script src="data3.js"></script>
+
 <script>
 let DATA=null,ENTRIES=[],LEARN=[],learnIndex=0,revealed=false;
 const SRC_LABEL={N:"Нафталиев 2023",A:"Амир 2022",S:"Семендуевы 2021"};
@@ -54,10 +54,24 @@ function norm(s){return String(s||"").toLowerCase().replace(/ё/g,"е").replace(
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function boot(){
  try{
-  const bin=Uint8Array.from(atob(window.__JH_B64),c=>c.charCodeAt(0));
-  const stream=new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"));
-  DATA=JSON.parse(await new Response(stream).text());
-  ENTRIES=DATA.entries.map((e,i)=>({src:e[0],h:e[1],t:e[2],p:e[3],pos:e[4],id:i}));
+  const [n,s,a]=await Promise.all([
+    fetch("naftaliev.json").then(r=>{if(!r.ok)throw new Error("Naftaliev");return r.json()}),
+    fetch("semen.json").then(r=>{if(!r.ok)throw new Error("Semenduev");return r.json()}),
+    fetch("amir.json").then(r=>{if(!r.ok)throw new Error("Amir");return r.json()})
+  ]);
+  let id=0;
+  const nEntries=(n.entries||[]).map(e=>({src:"N",h:e.h,t:e.t,p:e.g,pos:e.p||"",id:id++}));
+  const sEntries=(s.entries||[]).map(e=>({src:"S",h:e[0],t:e[1],p:e[2],pos:"",id:id++}));
+  const aEntries=(a.entries||[]).map(e=>({src:"A",h:e[0],t:e[1],p:e[2],pos:"",id:id++}));
+  ENTRIES=[...nEntries,...sEntries,...aEntries];
+  DATA={
+    sources:{
+      N:[n.source?.author||"М. Н. Нафталиев",n.source?.title||"Русско-еврейский (джуури) словарь",n.source?.year||2023,"Русский → джуури","Основной индекс; в предисловии указана преимущественно губинская база с материалом других диалектов."],
+      S:[s.source[0],s.source[1],s.source[2],s.source[3],"Словарь джуури → русский; издание описывает рукописную базу более 5 тысяч слов."],
+      A:[a.source[0],a.source[1],a.source[2],a.source[3],"Словарь джуури → русский; многие статьи содержат диалектные пометы."]
+    },
+    counts:{N:nEntries.length,S:sEntries.length,A:aEntries.length,total:ENTRIES.length}
+  };
   LEARN=ENTRIES.filter(e=>e.src==="N"&&e.h.length<22&&e.t.length<35).slice(0,250);
   document.getElementById("totalCount").textContent=DATA.counts.total.toLocaleString("ru-RU");
   document.getElementById("foot").textContent=`${DATA.counts.total.toLocaleString("ru-RU")} извлечённых статей · ${Object.keys(DATA.sources).length} книги`;
