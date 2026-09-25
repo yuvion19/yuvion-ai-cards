@@ -10,9 +10,9 @@
 <title>Gideon 7.0</title>
 <style>
 :root{--bg:#080a0f;--panel:#11161f;--panel2:#171d28;--line:#293242;--text:#f5f7fb;--muted:#8e99ab;--accent:#7c5cff;--green:#32d6a4;--gold:#f0c56c;--danger:#ff7e8b}
-*{box-sizing:border-box}html{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}body{margin:0;min-height:100vh;background:radial-gradient(circle at 75% -8%,rgba(124,92,255,.16),transparent 32%),radial-gradient(circle at 4% 105%,rgba(50,214,164,.08),transparent 31%),var(--bg)}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0}a{color:inherit}.hidden{display:none!important}.sidebar{position:fixed;left:0;top:0;bottom:0;width:252px;background:#07090df2;border-right:1px solid var(--line);padding:15px 12px;display:flex;flex-direction:column;z-index:40}.brand{display:flex;align-items:center;gap:9px;font-size:20px;font-weight:850;padding:7px 8px 15px}.brandmark{width:35px;height:35px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--green));box-shadow:0 0 34px rgba(124,92,255,.34)}.v6{font-size:9px;letter-spacing:.13em;border:1px solid #415163;border-radius:999px;padding:4px 7px;color:#a5eacf}.nav{display:flex;flex-direction:column;gap:4px;overflow:auto}.nav button{background:transparent;color:#8d98aa;text-align:left;padding:11px 12px;border-radius:10px}.nav button:hover,.nav button.active{background:#181e28;color:#fff}.divider{height:1px;background:#202735;margin:6px}.sidefoot{margin-top:auto;border-top:1px solid #202735;padding:11px 8px;color:#6c7789;font-size:11px}.main{margin-left:252px}.topbar{position:sticky;top:0;height:64px;z-index:30;background:#080a0fdd;backdrop-filter:blur(16px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 24px}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.status{font-size:11px;padding:6px 10px;border:1px solid #2f5947;background:#102019;color:#8ee8bc;border-radius:999px}.status.warn{border-color:#5b482e;background:#21190e;color:#efca7e}.view{display:none;max-width:1560px;margin:auto;padding:31px max(22px,4vw) 92px}.view.active{display:block}.eyebrow{font-size:11px;letter-spacing:.16em;color:#9d89ff;font-weight:800}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:20px}.head h1,.head h2{margin:5px 0;letter-spacing:-1.2px}.head h1{font-size:42px}.head h2{font-size:34px}.head p,.muted{color:var(--muted);line-height:1.55}.panel,.card{background:linear-gradient(180deg,#151a24,#0f131a);border:1px solid var(--line);border-radius:17px}.panel{padding:18px}.card{padding:16px}.card h3,.panel h3{margin:0 0 8px}.card p,.panel p{color:var(--muted);line-height:1.5}.grid{display:grid;gap:12px}.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:repeat(3,1fr)}.grid.four{grid-template-columns:repeat(4,1fr)}.primary,.secondary,.ghost,.danger{padding:10px 13px;border-radius:10px}.primary{background:linear-gradient(135deg,var(--accent),#6352d3);color:#fff;font-weight:750}.secondary{background:#1a202b;color:#edf1f8;border:1px solid #323c4c}.ghost{background:transparent;color:#aab4c5;border:1px solid #2d3543}.danger{background:#2a1519;color:#ff9ca5;border:1px solid #5b3038}.icon{width:36px;height:36px;border-radius:10px;background:#171c25;border:1px solid #2e3745;color:#b3bcc9}.stack{display:flex;flex-direction:column;gap:10px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:#8e99aa}input,textarea,select{width:100%;background:#0b0f15;color:#fff;border:1px solid #2c3543;border-radius:11px;padding:11px 12px;outline:none}textarea{resize:vertical;min-height:100px}input:focus,textarea:focus,select:focus{border-color:#6556cf;box-shadow:0 0 0 3px rgba(124,92,255,.08)}.tiny{font-size:11px;color:#748095}.ask-layout{display:grid;grid-template-columns:255px 1fr 390px;gap:12px}.rail,.ask-main,.side-panel{min-height:700px}.project-list,.item-list{display:flex;flex-direction:column;gap:7px;max-height:550px;overflow:auto}.list-item{padding:10px;border:1px solid #293242;background:#0d1118;border-radius:11px}.list-item.active{border-color:#6a59cf;background:#18152a}.list-item b{display:block}.list-item small{color:#6f7a8d}.messages{height:445px;overflow:auto;padding:4px}.msg{max-width:86%;padding:11px 13px;border-radius:14px;margin:7px 0;line-height:1.57;white-space:pre-wrap}.msg.user{margin-left:auto;background:#6c56d6}.msg.assistant{background:#1a202a;border:1px solid #2a3341}.mode-switch{display:grid;grid-template-columns:repeat(3,1fr);padding:4px;background:#0c1016;border:1px solid #293241;border-radius:12px}.mode-switch button{background:transparent;color:#8490a4;border-radius:8px;padding:8px}.mode-switch button.active{background:#282151;color:#fff}.attach-row{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:11px;padding:5px 8px;border:1px solid #315142;border-radius:999px;background:#122019;color:#9fe3c2}.team-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.agent-card{padding:10px;border:1px solid #303a49;border-radius:11px;background:#0c1016}.agent-card b{display:block;font-size:12px}.agent-card small{color:#778397}.artifact-editor{min-height:290px}.output{min-height:230px;white-space:pre-wrap;line-height:1.58;background:#0a0e14;border:1px solid #252d39;border-radius:12px;padding:14px;overflow:auto;color:#d0d7e1}.projects-grid,.knowledge-layout,.network-layout,.skills-layout{display:grid;grid-template-columns:330px 1fr;gap:12px}.count-row{display:flex;gap:7px;flex-wrap:wrap}.count{font-size:11px;border:1px solid #2d3746;border-radius:999px;padding:5px 8px;color:#93a0b3}.graph-wrap{height:530px;border:1px solid #28313e;border-radius:15px;background:radial-gradient(circle at 50% 50%,#121827,#090d13);overflow:hidden;position:relative}.graph-wrap svg{width:100%;height:100%}.node-label{font-size:11px;fill:#eef2f8;pointer-events:none}.graph-summary{max-height:150px;overflow:auto}.skill-card{padding:13px;border:1px solid #2b3544;border-radius:12px;background:#0d1118}.skill-card.disabled{opacity:.48}.skill-card b{display:block}.switch{width:44px;height:24px;border-radius:999px;background:#252d39;position:relative}.switch:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#9ba5b5;top:3px;left:3px;transition:.2s}.switch.on{background:#2d6955}.switch.on:after{left:23px;background:#78e0b3}.identity-card{padding:16px;border:1px solid #324052;border-radius:15px;background:linear-gradient(135deg,#151a25,#101721)}.identity-id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;word-break:break-all;color:#9aa6b8}.peer-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.peer{padding:10px;border:1px solid #2d3746;border-radius:11px;background:#0d1118}.verified{color:#70e0ae}.unverified{color:#f0c56c}.protocol-box{padding:12px;border:1px dashed #3a4659;border-radius:12px;background:#0b0f15}.inbox-row{padding:10px;border:1px solid #2c3645;border-radius:11px;background:#0d1118}.inbox-row b{display:block}.automation-list,.artifact-list{display:flex;flex-direction:column;gap:8px;max-height:550px;overflow:auto}.progress{height:8px;border-radius:999px;background:#151a23;overflow:hidden}.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--green));width:0}.palette-overlay{position:fixed;inset:0;background:rgba(3,4,7,.75);backdrop-filter:blur(8px);z-index:100;display:grid;place-items:start center;padding-top:10vh}.palette{width:min(720px,92vw);background:#10151e;border:1px solid #303a49;border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}.palette input{border:0;border-bottom:1px solid #28313f;border-radius:0;padding:16px}.palette-list{max-height:55vh;overflow:auto;padding:8px}.palette-item{padding:11px;border-radius:10px}.palette-item:hover{background:#1a202b}.global-drop{position:fixed;inset:14px;border:2px dashed var(--accent);border-radius:24px;background:rgba(8,10,15,.9);z-index:120;display:grid;place-items:center;font-size:26px;font-weight:800}.toast{position:fixed;right:18px;bottom:18px;background:#19202a;border:1px solid #374253;color:#fff;border-radius:11px;padding:11px 14px;opacity:0;transform:translateY(8px);transition:.2s;z-index:130}.toast.show{opacity:1;transform:none}.mission-layout{display:grid;grid-template-columns:1.05fr .95fr;gap:12px}.mission-graph{display:flex;flex-direction:column;gap:8px}.mission-node{padding:12px;border:1px solid #303a49;border-radius:12px;background:#0c1016}.mission-node.ready{border-left:4px solid var(--green)}.mission-node.approval_required{border-left:4px solid var(--gold)}.mission-node.blocked{border-left:4px solid var(--danger)}.mission-node.done{border-left:4px solid #6f61e5}.mission-node small{color:#778397}.permission-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.permission-row{padding:10px;border:1px solid #2b3544;border-radius:11px;background:#0d1118}.permission-row select{margin-top:6px}.approval-row{padding:10px;border:1px solid #3b3544;border-radius:11px;background:#121019}.receipt{font-size:10px;padding:3px 6px;border-radius:999px;border:1px solid #354050;color:#9ca8b9}.function-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.function-card{padding:12px;border:1px solid #2c3645;border-radius:12px;background:#0d1118;cursor:pointer}.function-card.active{border-color:#7460df;background:#19152c}.function-card b{display:block}.function-card small{color:#758196}.studio-layout{display:grid;grid-template-columns:320px 1fr;gap:12px}.watch-row,.reminder-row{padding:10px;border:1px solid #2c3645;border-radius:11px;background:#0d1118}.live-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.danger-banner{padding:12px;border:1px solid #61323b;border-radius:12px;background:#251317;color:#ffc2c8}.vault-box{border:1px solid #3a3554;border-radius:12px;background:#100f19;padding:12px}.mobile-nav{display:none}
+*{box-sizing:border-box}html{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}body{margin:0;min-height:100vh;background:radial-gradient(circle at 75% -8%,rgba(124,92,255,.16),transparent 32%),radial-gradient(circle at 4% 105%,rgba(50,214,164,.08),transparent 31%),var(--bg)}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0}a{color:inherit}.hidden{display:none!important}.sidebar{position:fixed;left:0;top:0;bottom:0;width:252px;background:#07090df2;border-right:1px solid var(--line);padding:15px 12px;display:flex;flex-direction:column;z-index:40}.brand{display:flex;align-items:center;gap:9px;font-size:20px;font-weight:850;padding:7px 8px 15px}.brandmark{width:35px;height:35px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--green));box-shadow:0 0 34px rgba(124,92,255,.34)}.v6{font-size:9px;letter-spacing:.13em;border:1px solid #415163;border-radius:999px;padding:4px 7px;color:#a5eacf}.nav{display:flex;flex-direction:column;gap:4px;overflow:auto}.nav button{background:transparent;color:#8d98aa;text-align:left;padding:11px 12px;border-radius:10px}.nav button:hover,.nav button.active{background:#181e28;color:#fff}.divider{height:1px;background:#202735;margin:6px}.sidefoot{margin-top:auto;border-top:1px solid #202735;padding:11px 8px;color:#6c7789;font-size:11px}.main{margin-left:252px}.topbar{position:sticky;top:0;height:64px;z-index:30;background:#080a0fdd;backdrop-filter:blur(16px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 24px}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.status{font-size:11px;padding:6px 10px;border:1px solid #2f5947;background:#102019;color:#8ee8bc;border-radius:999px}.status.warn{border-color:#5b482e;background:#21190e;color:#efca7e}.view{display:none;max-width:1560px;margin:auto;padding:31px max(22px,4vw) 92px}.view.active{display:block}.eyebrow{font-size:11px;letter-spacing:.16em;color:#9d89ff;font-weight:800}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:20px}.head h1,.head h2{margin:5px 0;letter-spacing:-1.2px}.head h1{font-size:42px}.head h2{font-size:34px}.head p,.muted{color:var(--muted);line-height:1.55}.panel,.card{background:linear-gradient(180deg,#151a24,#0f131a);border:1px solid var(--line);border-radius:17px}.panel{padding:18px}.card{padding:16px}.card h3,.panel h3{margin:0 0 8px}.card p,.panel p{color:var(--muted);line-height:1.5}.grid{display:grid;gap:12px}.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:repeat(3,1fr)}.grid.four{grid-template-columns:repeat(4,1fr)}.primary,.secondary,.ghost,.danger{padding:10px 13px;border-radius:10px}.primary{background:linear-gradient(135deg,var(--accent),#6352d3);color:#fff;font-weight:750}.secondary{background:#1a202b;color:#edf1f8;border:1px solid #323c4c}.ghost{background:transparent;color:#aab4c5;border:1px solid #2d3543}.danger{background:#2a1519;color:#ff9ca5;border:1px solid #5b3038}.icon{width:36px;height:36px;border-radius:10px;background:#171c25;border:1px solid #2e3745;color:#b3bcc9}.stack{display:flex;flex-direction:column;gap:10px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:#8e99aa}input,textarea,select{width:100%;background:#0b0f15;color:#fff;border:1px solid #2c3543;border-radius:11px;padding:11px 12px;outline:none}textarea{resize:vertical;min-height:100px}input:focus,textarea:focus,select:focus{border-color:#6556cf;box-shadow:0 0 0 3px rgba(124,92,255,.08)}.tiny{font-size:11px;color:#748095}.ask-layout{display:grid;grid-template-columns:255px 1fr 390px;gap:12px}.rail,.ask-main,.side-panel{min-height:700px}.project-list,.item-list{display:flex;flex-direction:column;gap:7px;max-height:550px;overflow:auto}.list-item{padding:10px;border:1px solid #293242;background:#0d1118;border-radius:11px}.list-item.active{border-color:#6a59cf;background:#18152a}.list-item b{display:block}.list-item small{color:#6f7a8d}.messages{height:445px;overflow:auto;padding:4px}.msg{max-width:86%;padding:11px 13px;border-radius:14px;margin:7px 0;line-height:1.57;white-space:pre-wrap}.msg.user{margin-left:auto;background:#6c56d6}.msg.assistant{background:#1a202a;border:1px solid #2a3341}.mode-switch{display:grid;grid-template-columns:repeat(3,1fr);padding:4px;background:#0c1016;border:1px solid #293241;border-radius:12px}.mode-switch button{background:transparent;color:#8490a4;border-radius:8px;padding:8px}.mode-switch button.active{background:#282151;color:#fff}.attach-row{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:11px;padding:5px 8px;border:1px solid #315142;border-radius:999px;background:#122019;color:#9fe3c2}.team-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.agent-card{padding:10px;border:1px solid #303a49;border-radius:11px;background:#0c1016}.agent-card b{display:block;font-size:12px}.agent-card small{color:#778397}.artifact-editor{min-height:290px}.output{min-height:230px;white-space:pre-wrap;line-height:1.58;background:#0a0e14;border:1px solid #252d39;border-radius:12px;padding:14px;overflow:auto;color:#d0d7e1}.projects-grid,.knowledge-layout,.network-layout,.skills-layout{display:grid;grid-template-columns:330px 1fr;gap:12px}.count-row{display:flex;gap:7px;flex-wrap:wrap}.count{font-size:11px;border:1px solid #2d3746;border-radius:999px;padding:5px 8px;color:#93a0b3}.graph-wrap{height:530px;border:1px solid #28313e;border-radius:15px;background:radial-gradient(circle at 50% 50%,#121827,#090d13);overflow:hidden;position:relative}.graph-wrap svg{width:100%;height:100%}.node-label{font-size:11px;fill:#eef2f8;pointer-events:none}.graph-summary{max-height:150px;overflow:auto}.skill-card{padding:13px;border:1px solid #2b3544;border-radius:12px;background:#0d1118}.skill-card.disabled{opacity:.48}.skill-card b{display:block}.switch{width:44px;height:24px;border-radius:999px;background:#252d39;position:relative}.switch:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#9ba5b5;top:3px;left:3px;transition:.2s}.switch.on{background:#2d6955}.switch.on:after{left:23px;background:#78e0b3}.identity-card{padding:16px;border:1px solid #324052;border-radius:15px;background:linear-gradient(135deg,#151a25,#101721)}.identity-id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;word-break:break-all;color:#9aa6b8}.peer-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.peer{padding:10px;border:1px solid #2d3746;border-radius:11px;background:#0d1118}.verified{color:#70e0ae}.unverified{color:#f0c56c}.protocol-box{padding:12px;border:1px dashed #3a4659;border-radius:12px;background:#0b0f15}.inbox-row{padding:10px;border:1px solid #2c3645;border-radius:11px;background:#0d1118}.inbox-row b{display:block}.automation-list,.artifact-list{display:flex;flex-direction:column;gap:8px;max-height:550px;overflow:auto}.progress{height:8px;border-radius:999px;background:#151a23;overflow:hidden}.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--green));width:0}.palette-overlay{position:fixed;inset:0;background:rgba(3,4,7,.75);backdrop-filter:blur(8px);z-index:100;display:grid;place-items:start center;padding-top:10vh}.palette{width:min(720px,92vw);background:#10151e;border:1px solid #303a49;border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}.palette input{border:0;border-bottom:1px solid #28313f;border-radius:0;padding:16px}.palette-list{max-height:55vh;overflow:auto;padding:8px}.palette-item{padding:11px;border-radius:10px}.palette-item:hover{background:#1a202b}.global-drop{position:fixed;inset:14px;border:2px dashed var(--accent);border-radius:24px;background:rgba(8,10,15,.9);z-index:120;display:grid;place-items:center;font-size:26px;font-weight:800}.toast{position:fixed;right:18px;bottom:18px;background:#19202a;border:1px solid #374253;color:#fff;border-radius:11px;padding:11px 14px;opacity:0;transform:translateY(8px);transition:.2s;z-index:130}.toast.show{opacity:1;transform:none}.mission-layout{display:grid;grid-template-columns:1.05fr .95fr;gap:12px}.mission-graph{display:flex;flex-direction:column;gap:8px}.mission-node{padding:12px;border:1px solid #303a49;border-radius:12px;background:#0c1016}.mission-node.ready{border-left:4px solid var(--green)}.mission-node.approval_required{border-left:4px solid var(--gold)}.mission-node.blocked{border-left:4px solid var(--danger)}.mission-node.done{border-left:4px solid #6f61e5}.mission-node small{color:#778397}.permission-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.permission-row{padding:10px;border:1px solid #2b3544;border-radius:11px;background:#0d1118}.permission-row select{margin-top:6px}.approval-row{padding:10px;border:1px solid #3b3544;border-radius:11px;background:#121019}.receipt{font-size:10px;padding:3px 6px;border-radius:999px;border:1px solid #354050;color:#9ca8b9}.function-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.function-card{padding:12px;border:1px solid #2c3645;border-radius:12px;background:#0d1118;cursor:pointer}.function-card.active{border-color:#7460df;background:#19152c}.function-card b{display:block}.function-card small{color:#758196}.studio-layout{display:grid;grid-template-columns:320px 1fr;gap:12px}.watch-row,.reminder-row{padding:10px;border:1px solid #2c3645;border-radius:11px;background:#0d1118}.live-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.danger-banner{padding:12px;border:1px solid #61323b;border-radius:12px;background:#251317;color:#ffc2c8}.vault-box{border:1px solid #3a3554;border-radius:12px;background:#100f19;padding:12px}.voice-shell{max-width:980px;margin:0 auto}.call-panel{min-height:680px;display:flex;flex-direction:column;align-items:center;text-align:center;padding:28px;background:radial-gradient(circle at 50% 26%,rgba(124,92,255,.16),transparent 28%),linear-gradient(180deg,#131925,#0d1118);border:1px solid var(--line);border-radius:24px}.voice-orb{width:210px;height:210px;border-radius:50%;margin:22px 0 14px;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.86),transparent 6%),radial-gradient(circle at 64% 66%,rgba(124,92,255,.95),transparent 32%),radial-gradient(circle at 39% 70%,rgba(50,214,164,.75),transparent 36%),#121620;box-shadow:0 0 70px rgba(124,92,255,.35);transition:.25s;position:relative}.voice-orb.listening{box-shadow:0 0 55px rgba(50,214,164,.55),0 0 120px rgba(50,214,164,.16);transform:scale(1.035)}.voice-orb.thinking{box-shadow:0 0 70px rgba(240,197,108,.5);animation:voicePulse 1.1s infinite}.voice-orb.speaking{box-shadow:0 0 70px rgba(124,92,255,.75),0 0 130px rgba(124,92,255,.2);animation:voicePulse .7s infinite}.voice-orb.offline{opacity:.45;filter:grayscale(.6)}@keyframes voicePulse{50%{transform:scale(1.06)}}.voice-state{font-size:24px;font-weight:800}.voice-sub{color:var(--muted);margin-top:5px}.voice-controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:18px 0}.call-btn{width:58px;height:58px;border-radius:50%;background:#1b222e;color:white;border:1px solid #354052;font-size:21px}.call-btn.primary-call{background:linear-gradient(135deg,var(--green),#219b78);border:0}.call-btn.end{background:#7e2632;border:0}.call-btn.active{outline:3px solid rgba(124,92,255,.3);background:#29234c}.voice-settings{width:min(800px,100%);display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}.voice-transcript{width:min(800px,100%);height:210px;overflow:auto;text-align:left;background:#090d13;border:1px solid #28313e;border-radius:14px;padding:12px;margin-top:14px}.voice-line{padding:7px 9px;border-radius:10px;margin:5px 0;line-height:1.45}.voice-line.user{background:#26204d;margin-left:14%}.voice-line.assistant{background:#171d27;margin-right:14%}.voice-interim{color:#7c899d;font-style:italic}.voice-preview{width:min(800px,100%);display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.voice-preview video{width:100%;max-height:210px;object-fit:cover;border-radius:12px;background:#05070a}.voice-fallback{width:min(800px,100%);padding:10px;border:1px dashed #465369;border-radius:12px;color:#a1acbd}.mobile-nav{display:none}
 @media(max-width:1220px){.ask-layout{grid-template-columns:220px 1fr}.side-panel{grid-column:1/-1;min-height:auto}.grid.four{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:900px){.sidebar{display:none}.main{margin-left:0}.topbar{height:58px;padding:0 13px}.view{padding:22px 13px 84px}.ask-layout,.projects-grid,.knowledge-layout,.network-layout,.skills-layout,.mission-layout,.studio-layout,.grid.two,.grid.three,.grid.four{grid-template-columns:1fr}.rail{min-height:auto}.project-list{max-height:170px}.messages{height:420px}.team-grid,.peer-grid,.permission-grid,.live-grid,.function-cards{grid-template-columns:1fr}.mobile-nav{display:grid;position:fixed;left:0;right:0;bottom:0;height:68px;background:#07090df5;border-top:1px solid var(--line);grid-template-columns:repeat(5,1fr);z-index:45}.mobile-nav button{background:transparent;color:#8792a5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.mobile-nav button.active{color:white}.mobile-nav span{font-size:10px}}
+@media(max-width:900px){.sidebar{display:none}.main{margin-left:0}.topbar{height:58px;padding:0 13px}.view{padding:22px 13px 84px}.ask-layout,.projects-grid,.knowledge-layout,.network-layout,.skills-layout,.mission-layout,.studio-layout,.voice-settings,.voice-preview,.grid.two,.grid.three,.grid.four{grid-template-columns:1fr}.rail{min-height:auto}.project-list{max-height:170px}.messages{height:420px}.team-grid,.peer-grid,.permission-grid,.live-grid,.function-cards{grid-template-columns:1fr}.mobile-nav{display:grid;position:fixed;left:0;right:0;bottom:0;height:68px;background:#07090df5;border-top:1px solid var(--line);grid-template-columns:repeat(5,1fr);z-index:45}.mobile-nav button{background:transparent;color:#8792a5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.mobile-nav button.active{color:white}.mobile-nav span{font-size:10px}}
 </style>
 </head>
 <body>
@@ -20,6 +20,7 @@
   <div class="brand"><span class="brandmark">G</span> Gideon <span class="v6">7.0</span></div>
   <nav class="nav">
     <button data-route="mission" class="active">◉ Mission Control</button>
+    <button data-route="voice">☎ Live Voice</button>
     <button data-route="functions">✺ Function Studio</button>
     <button data-route="ask">✦ Ask / Team</button>
     <button data-route="projects">◈ Projects</button>
@@ -39,7 +40,7 @@
 <main class="main">
 <header class="topbar">
   <div class="row"><b id="topTitle">Mission Control</b><span id="statusPill" class="status">проверка…</span></div>
-  <div class="row"><span id="usageText" class="tiny">—</span><button id="searchBtn" class="ghost">⌕</button><button id="commandBtn" class="ghost">⌘K</button></div>
+  <div class="row"><span id="usageText" class="tiny">—</span><button id="voiceQuickBtn" class="ghost">☎ Voice</button><button id="searchBtn" class="ghost">⌕</button><button id="commandBtn" class="ghost">⌘K</button></div>
 </header>
 
 <section id="mission" class="view active">
@@ -58,6 +59,64 @@
       <div class="panel stack"><div class="row"><b>Project Memory</b><span id="memoryUpdated" class="tiny"></span></div><div id="projectMemoryBox" class="output" style="min-height:190px">Память проекта ещё не сформирована.</div></div>
       <div class="panel stack"><div class="row"><b>Approval Center</b><span id="approvalCount" class="count">0</span></div><div id="approvalList" class="item-list"><span class="tiny">Нет действий, ожидающих подтверждения.</span></div></div>
       <div class="panel stack"><b>Tool Permissions</b><div id="permissionGrid" class="permission-grid"></div><div class="tiny">auto — выполнять доступное действие автоматически; ask — вынести в Approval Center; deny — запретить.</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="voice" class="view">
+  <div class="head"><div><span class="eyebrow">GIDEON LIVE VOICE</span><h1>Разговор с Gideon</h1><p>Hands-free разговор с контекстом Project, перебиванием ответа, голосовыми действиями, Camera и Screen Assistant.</p></div><button id="voiceStartCallTop" class="primary">☎ Позвонить Gideon</button></div>
+  <div class="voice-shell">
+    <div class="call-panel">
+      <div id="voiceCallTime" class="tiny">00:00</div>
+      <div id="voiceOrb" class="voice-orb offline"></div>
+      <div id="voiceState" class="voice-state">Готов к разговору</div>
+      <div id="voiceSub" class="voice-sub">Нажмите «Позвонить Gideon»</div>
+      <div class="voice-controls">
+        <button id="voiceCallToggle" class="call-btn primary-call" title="Начать разговор">☎</button>
+        <button id="voiceMute" class="call-btn" title="Микрофон">🎙</button>
+        <button id="voiceCamera" class="call-btn" title="Камера">📷</button>
+        <button id="voiceScreen" class="call-btn" title="Экран">▣</button>
+        <button id="voiceStopSpeech" class="call-btn" title="Перебить Gideon">◼</button>
+        <button id="voiceEnd" class="call-btn end" title="Завершить" disabled>✕</button>
+      </div>
+      <div class="voice-settings">
+        <select id="voiceProject"></select>
+        <select id="voiceConversationMode">
+          <option value="conversation">Обычный разговор</option>
+          <option value="work">Рабочий</option>
+          <option value="meeting">Meeting</option>
+          <option value="research">Research</option>
+          <option value="coach">Coach</option>
+        </select>
+        <select id="voiceLanguage">
+          <option value="ru-RU">Русский</option>
+          <option value="en-US">English</option>
+          <option value="az-AZ">Azərbaycan dili</option>
+          <option value="he-IL">עברית</option>
+          <option value="hi-IN">हिन्दी</option>
+        </select>
+        <select id="voiceSystemVoice"><option value="">Системный голос</option></select>
+      </div>
+      <div class="row" style="justify-content:center;margin-top:8px">
+        <label class="row"><input id="voicePrivate" type="checkbox" style="width:auto"> Private — не сохранять</label>
+        <label class="row"><input id="voiceAutoSummary" type="checkbox" style="width:auto" checked> Итог звонка</label>
+        <label class="row"><input id="voiceWake" type="checkbox" style="width:auto"> Реагировать только после «Гидеон»</label>
+        <label class="row">Скорость <input id="voiceRate" type="range" min=".75" max="1.35" step=".05" value="1" style="width:110px"></label>
+      </div>
+      <div id="voiceFallback" class="voice-fallback hidden">
+        Непрерывное распознавание речи недоступно. Используйте Push-to-talk.
+        <button id="voicePushTalk" class="secondary" style="margin-left:8px">🎙 Начать запись</button>
+      </div>
+      <div id="voiceTranscript" class="voice-transcript"><div class="tiny">Расшифровка разговора появится здесь.</div></div>
+      <div id="voiceInterim" class="voice-interim"></div>
+      <div id="voicePreview" class="voice-preview hidden">
+        <video id="voiceCameraVideo" autoplay playsinline muted></video>
+        <video id="voiceScreenVideo" autoplay playsinline muted></video>
+      </div>
+      <div class="row" style="justify-content:center;margin-top:10px">
+        <button id="voiceSaveArtifact" class="ghost">Сохранить разговор в Artifact</button>
+        <button id="voiceUpdateMemory" class="ghost">Обновить Project Memory</button>
+      </div>
     </div>
   </div>
 </section>
@@ -225,7 +284,7 @@
   <div class="grid two" style="margin-top:12px"><div class="panel stack"><h3>Capabilities</h3><div id="capabilities" class="output">—</div><div class="progress"><i id="usageBar"></i></div></div><div class="panel stack"><h3>Events</h3><div id="eventLog" class="output">—</div><button id="clearEvents" class="ghost">Очистить</button></div></div>
 </section>
 
-<nav class="mobile-nav"><button data-route="mission">◉<span>Mission</span></button><button data-route="ask">✦<span>Ask</span></button><button data-route="knowledge">◫<span>Knowledge</span></button><button data-route="network">◎<span>Network</span></button><button data-route="artifacts">▤<span>Artifacts</span></button></nav>
+<nav class="mobile-nav"><button data-route="mission">◉<span>Mission</span></button><button data-route="voice">☎<span>Voice</span></button><button data-route="ask">✦<span>Ask</span></button><button data-route="functions">✺<span>Studio</span></button><button data-route="artifacts">▤<span>Artifacts</span></button></nav>
 </main>
 
 <div id="commandOverlay" class="palette-overlay hidden"><div class="palette"><input id="commandInput" placeholder="Команда…"><div id="commandList" class="palette-list"></div></div></div>
@@ -253,8 +312,8 @@ const DEFAULT_SKILLS=[
  {id:'review',name:'Reviewer',description:'Критическая проверка качества и полноты результата.',enabled:true,builtin:true},
  {id:'data',name:'Data Analyst',description:'Числа, таблицы, метрики, аномалии и сводки.',enabled:false,builtin:true}
 ];
-function defaultState(){const p=uid(),c=uid();return{version:7,currentProject:p,currentChat:c,projects:[{id:p,name:'Личное',description:'',instructions:'',createdAt:now()}],chats:[{id:c,projectId:p,title:'Новый диалог',createdAt:now(),updatedAt:now(),messages:[{role:'assistant',content:'Gideon 7.0 готов. Выберите Chat, Agent или Team и задайте конечную цель.'}]}],notes:[],artifacts:[],automations:[],skills:DEFAULT_SKILLS.map(x=>({...x})),peers:[],inbox:[],outbox:[],graphs:{},permissions:{reason:'auto',files:'auto',research:'auto',knowledge:'auto',artifact:'auto',network:'ask',automations:'ask',browser:'deny',email:'deny',calendar:'deny'},approvals:[],missions:[],projectMemory:{},receipts:[],universalInbox:[],watches:[],reminders:[],snapshots:[],capsules:[],vault:null,emergencyLocked:false,workflows:[],skillChains:[],activeSkillChain:'',settings:{name:'',language:'Русский',memory:'Отвечай точно. Не выдумывай факты и не заявляй о внешних действиях, которые реально не выполнялись.'},events:[]}}
-function migrate(o){const s=Object.assign(defaultState(),o||{});if(!s.projects&&s.workspaces)s.projects=s.workspaces.map(w=>({id:w.id,name:w.name,description:'',instructions:'',createdAt:w.createdAt||now()}));s.currentProject=s.currentProject||s.currentWorkspace||s.projects?.[0]?.id;s.chats=(s.chats||[]).map(c=>({...c,projectId:c.projectId||c.workspaceId||s.currentProject}));s.notes=s.notes||[];s.artifacts=s.artifacts||[];s.automations=s.automations||[];s.skills=Array.isArray(s.skills)&&s.skills.length?s.skills:DEFAULT_SKILLS.map(x=>({...x}));s.peers=s.peers||[];s.inbox=s.inbox||[];s.outbox=s.outbox||[];s.graphs=s.graphs||{};s.events=s.events||[];s.permissions=s.permissions||{reason:'auto',files:'auto',research:'auto',knowledge:'auto',artifact:'auto',network:'ask',automations:'ask',browser:'deny',email:'deny',calendar:'deny'};s.approvals=s.approvals||[];s.missions=s.missions||[];s.projectMemory=s.projectMemory||{};s.receipts=s.receipts||[];s.universalInbox=s.universalInbox||[];s.watches=s.watches||[];s.reminders=s.reminders||[];s.snapshots=s.snapshots||[];s.capsules=s.capsules||[];s.emergencyLocked=!!s.emergencyLocked;s.workflows=s.workflows||[];s.skillChains=s.skillChains||[];s.activeSkillChain=s.activeSkillChain||'';s.version=7;return s}
+function defaultState(){const p=uid(),c=uid();return{version:7,currentProject:p,currentChat:c,projects:[{id:p,name:'Личное',description:'',instructions:'',createdAt:now()}],chats:[{id:c,projectId:p,title:'Новый диалог',createdAt:now(),updatedAt:now(),messages:[{role:'assistant',content:'Gideon 7.0 готов. Выберите Chat, Agent или Team и задайте конечную цель.'}]}],notes:[],artifacts:[],automations:[],skills:DEFAULT_SKILLS.map(x=>({...x})),peers:[],inbox:[],outbox:[],graphs:{},permissions:{reason:'auto',files:'auto',research:'auto',knowledge:'auto',artifact:'auto',network:'ask',automations:'ask',browser:'deny',email:'deny',calendar:'deny'},approvals:[],missions:[],projectMemory:{},receipts:[],universalInbox:[],watches:[],reminders:[],snapshots:[],capsules:[],vault:null,emergencyLocked:false,workflows:[],skillChains:[],activeSkillChain:'',voiceCalls:[],voiceSettings:{mode:'conversation',language:'ru-RU',rate:1,autoSummary:true},settings:{name:'',language:'Русский',memory:'Отвечай точно. Не выдумывай факты и не заявляй о внешних действиях, которые реально не выполнялись.'},events:[]}}
+function migrate(o){const s=Object.assign(defaultState(),o||{});if(!s.projects&&s.workspaces)s.projects=s.workspaces.map(w=>({id:w.id,name:w.name,description:'',instructions:'',createdAt:w.createdAt||now()}));s.currentProject=s.currentProject||s.currentWorkspace||s.projects?.[0]?.id;s.chats=(s.chats||[]).map(c=>({...c,projectId:c.projectId||c.workspaceId||s.currentProject}));s.notes=s.notes||[];s.artifacts=s.artifacts||[];s.automations=s.automations||[];s.skills=Array.isArray(s.skills)&&s.skills.length?s.skills:DEFAULT_SKILLS.map(x=>({...x}));s.peers=s.peers||[];s.inbox=s.inbox||[];s.outbox=s.outbox||[];s.graphs=s.graphs||{};s.events=s.events||[];s.permissions=s.permissions||{reason:'auto',files:'auto',research:'auto',knowledge:'auto',artifact:'auto',network:'ask',automations:'ask',browser:'deny',email:'deny',calendar:'deny'};s.approvals=s.approvals||[];s.missions=s.missions||[];s.projectMemory=s.projectMemory||{};s.receipts=s.receipts||[];s.universalInbox=s.universalInbox||[];s.watches=s.watches||[];s.reminders=s.reminders||[];s.snapshots=s.snapshots||[];s.capsules=s.capsules||[];s.emergencyLocked=!!s.emergencyLocked;s.workflows=s.workflows||[];s.skillChains=s.skillChains||[];s.activeSkillChain=s.activeSkillChain||'';s.voiceCalls=s.voiceCalls||[];s.voiceSettings=s.voiceSettings||{mode:'conversation',language:'ru-RU',rate:1,autoSummary:true};s.version=7;return s}
 let state=defaultState();try{let raw=localStorage.getItem(STATE_KEY);if(!raw){for(const k of LEGACY_KEYS){raw=localStorage.getItem(k);if(raw)break}}if(raw)state=migrate(JSON.parse(raw))}catch{}
 function persist(){
  const privateIds=new Set(state.projects.filter(p=>p.private).map(p=>p.id));
@@ -277,7 +336,7 @@ function logEvent(t){state.events=(state.events||[]).slice(-99);state.events.pus
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2300)}
 function busy(b,on,label='Gideon…'){if(!b)return;if(on){b.dataset.old=b.textContent;b.disabled=true;b.textContent=label}else{b.disabled=false;b.textContent=b.dataset.old||b.textContent}}
-function route(n){if(workflowRecording)workflowBuffer.push({type:'route',value:n,at:now()});$('.view').forEach(v=>v.classList.toggle('active',v.id===n));$$('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===n));$('#topTitle').textContent=n==='mission'?'Mission Control':n==='ask'?'Gideon 7.0':({functions:'Function Studio',projects:'Projects',knowledge:'Knowledge',graph:'Knowledge Graph',network:'Gideon Network',skills:'Skills',automations:'Automations',artifacts:'Artifacts',settings:'Identity / Settings',admin:'Admin'}[n]||'Gideon 7.0');history.replaceState(null,'','#'+n);window.scrollTo(0,0);if(n==='admin')refreshAdmin();if(n==='graph')renderGraph();if(n==='mission')renderMissionControl();if(n==='functions')renderFunctionStudio()}
+function route(n){if(workflowRecording)workflowBuffer.push({type:'route',value:n,at:now()});$('.view').forEach(v=>v.classList.toggle('active',v.id===n));$$('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===n));$('#topTitle').textContent=n==='mission'?'Mission Control':n==='ask'?'Gideon 7.0':({voice:'Live Voice',functions:'Function Studio',projects:'Projects',knowledge:'Knowledge',graph:'Knowledge Graph',network:'Gideon Network',skills:'Skills',automations:'Automations',artifacts:'Artifacts',settings:'Identity / Settings',admin:'Admin'}[n]||'Gideon 7.0');history.replaceState(null,'','#'+n);window.scrollTo(0,0);if(n==='admin')refreshAdmin();if(n==='graph')renderGraph();if(n==='mission')renderMissionControl();if(n==='functions')renderFunctionStudio();if(n==='voice')renderVoice()}
 $$('[data-route]').forEach(b=>b.onclick=()=>route(b.dataset.route));if(location.hash&&document.getElementById(location.hash.slice(1)))route(location.hash.slice(1));
 
 async function api(path,body){const o={method:body?'POST':'GET',headers:{}};if(body){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body)}const r=await fetch(API+path,o);let d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||('HTTP '+r.status));return d}
@@ -294,6 +353,196 @@ function ensureState(){if(!state.projects.length){const p={id:uid(),name:'Лич
 async function filePayload(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res({name:file.name,mimeType:file.type||'application/octet-stream',base64:String(fr.result).split(',')[1]||''});fr.onerror=()=>rej(fr.error);fr.readAsDataURL(file)})}
 async function analyzeFiles(files,prompt){const payload=[];for(const f of files.slice(0,10))payload.push(await filePayload(f));return api('/api/gideon/analyze',{files:payload,prompt:memoryText()+'\n\n'+projectContext()+'\n\n'+prompt})}
 
+
+
+let voiceActive=false,voiceRecognition=null,voiceMuted=false,voiceSpeaking=false,voiceSession=[],voiceStartedAt=0,voiceTimer=null,voiceCameraStream=null,voiceScreenStream=null,voiceLastAnswer='',voiceTurnBusy=false,voicePendingText='',voiceRequestSeq=0,voicePushRecorder=null,voicePushChunks=[],voicePushRecording=false,voiceSpokenText='';
+
+function voiceStatus(stateName,sub){
+  const orb=$('#voiceOrb'),label=$('#voiceState'),subEl=$('#voiceSub');
+  if(!orb||!label)return;
+  orb.classList.remove('offline','listening','thinking','speaking');
+  if(stateName==='listening'){orb.classList.add('listening');label.textContent='Слушаю'}
+  else if(stateName==='thinking'){orb.classList.add('thinking');label.textContent='Думаю'}
+  else if(stateName==='speaking'){orb.classList.add('speaking');label.textContent='Говорю'}
+  else if(stateName==='muted'){orb.classList.add('offline');label.textContent='Микрофон выключен'}
+  else{orb.classList.add('offline');label.textContent='Готов к разговору'}
+  subEl.textContent=sub||''
+}
+function voiceModePrompt(){
+  const m=$('#voiceConversationMode')?.value||'conversation';
+  const base='Ты Gideon в голосовом разговоре. Отвечай естественно для речи: без markdown, без длинных списков, обычно 1-4 коротких абзаца. Не произноси технические метаданные. Если действие реально недоступно, скажи об этом прямо.';
+  if(m==='work')return base+' Рабочий режим: кратко, предметно, сначала результат и следующее действие.';
+  if(m==='meeting')return base+' Meeting режим: в основном слушай, кратко подтверждай, отмечай решения, задачи, ответственных и сроки.';
+  if(m==='research')return base+' Research режим: отделяй факты от выводов и явно говори о неопределенности.';
+  if(m==='coach')return base+' Coach режим: веди пользователя по одному практическому шагу за раз.';
+  return base+' Обычный режим: веди нормальный живой диалог и учитывай контекст предыдущих реплик.'
+}
+function renderVoice(){
+  fillProjectSelects();
+  const vs=state.voiceSettings||{};
+  if($('#voiceConversationMode'))$('#voiceConversationMode').value=vs.mode||'conversation';
+  if($('#voiceLanguage'))$('#voiceLanguage').value=vs.language||'ru-RU';
+  if($('#voiceRate'))$('#voiceRate').value=String(vs.rate||1);
+  if($('#voiceAutoSummary'))$('#voiceAutoSummary').checked=vs.autoSummary!==false;
+  populateSystemVoices();renderVoiceTranscript();
+  $('#voiceFallback')?.classList.toggle('hidden',!!(window.SpeechRecognition||window.webkitSpeechRecognition))
+}
+function saveVoiceSettings(){
+  state.voiceSettings={mode:$('#voiceConversationMode').value,language:$('#voiceLanguage').value,rate:Number($('#voiceRate').value||1),autoSummary:$('#voiceAutoSummary').checked};
+  persist()
+}
+['#voiceConversationMode','#voiceLanguage','#voiceRate','#voiceAutoSummary'].forEach(idv=>$(idv)?.addEventListener('change',saveVoiceSettings));
+function populateSystemVoices(){
+  if(!('speechSynthesis'in window)||!$('#voiceSystemVoice'))return;
+  const selected=$('#voiceSystemVoice').value,voices=speechSynthesis.getVoices();
+  $('#voiceSystemVoice').innerHTML='<option value="">Системный голос</option>'+voices.map(v=>'<option value="'+esc(v.name)+'">'+esc(v.name)+' · '+esc(v.lang)+'</option>').join('');
+  if(selected&&voices.some(v=>v.name===selected))$('#voiceSystemVoice').value=selected
+}
+if('speechSynthesis'in window)speechSynthesis.onvoiceschanged=populateSystemVoices;
+
+function renderVoiceTranscript(){
+  const box=$('#voiceTranscript');if(!box)return;
+  box.innerHTML=voiceSession.length?voiceSession.map(m=>'<div class="voice-line '+m.role+'"><b>'+(m.role==='user'?'Вы':'Gideon')+'</b><div>'+esc(m.content)+'</div></div>').join(''):'<div class="tiny">Расшифровка разговора появится здесь.</div>';
+  box.scrollTop=box.scrollHeight
+}
+function normalizeWords(t){return String(t||'').toLowerCase().replace(/[^a-zа-яё0-9\s]/gi,' ').split(/\s+/).filter(x=>x.length>2)}
+function looksLikeAssistantEcho(t){
+  const a=new Set(normalizeWords(voiceSpokenText)),w=normalizeWords(t);if(!w.length||!a.size)return false;
+  let hit=0;for(const x of w)if(a.has(x))hit++;return hit/Math.max(1,w.length)>.62
+}
+function stopVoiceSpeech(){
+  if('speechSynthesis'in window)speechSynthesis.cancel();
+  voiceSpeaking=false;voiceSpokenText='';
+  if(voiceActive&&!voiceMuted)voiceStatus('listening','Можно продолжать говорить')
+}
+function voiceSpeak(text){
+  if(!voiceActive||!('speechSynthesis'in window))return;
+  speechSynthesis.cancel();voiceSpeaking=true;voiceSpokenText=String(text||'');
+  const clean=String(text||'').replace(/[#*_>|]/g,' ').replace(/\s+/g,' ').trim();
+  const pieces=(clean.match(/.{1,260}(?:[.!?](?:\s|$)|$)/g)||[clean]).filter(Boolean);
+  let i=0;
+  const next=()=>{
+    if(!voiceActive||i>=pieces.length){voiceSpeaking=false;voiceSpokenText='';if(voiceActive&&!voiceMuted)voiceStatus('listening','Говорите');return}
+    const u=new SpeechSynthesisUtterance(pieces[i++]);u.lang=$('#voiceLanguage').value||'ru-RU';u.rate=Number($('#voiceRate').value||1);
+    const selected=$('#voiceSystemVoice').value;if(selected){const v=speechSynthesis.getVoices().find(x=>x.name===selected);if(v)u.voice=v}
+    u.onend=next;u.onerror=next;speechSynthesis.speak(u)
+  };
+  voiceStatus('speaking','Можно перебить Gideon своей репликой');next()
+}
+function voiceCallElapsed(){
+  if(!voiceStartedAt||!$('#voiceCallTime'))return;const sec=Math.floor((Date.now()-voiceStartedAt)/1000),m=Math.floor(sec/60),s=sec%60;$('#voiceCallTime').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')
+}
+function startRecognition(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){$('#voiceFallback').classList.remove('hidden');voiceStatus('listening','Push-to-talk режим');return}
+  if(voiceRecognition){try{voiceRecognition.abort()}catch{}}
+  const r=new SR();voiceRecognition=r;r.continuous=true;r.interimResults=true;r.lang=$('#voiceLanguage').value||'ru-RU';
+  r.onstart=()=>{if(voiceActive&&!voiceMuted&&!voiceSpeaking)voiceStatus('listening','Говорите')};
+  r.onspeechstart=()=>{if(voiceSpeaking)stopVoiceSpeech()};
+  r.onresult=e=>{
+    let interim='',final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){const t=(e.results[i][0]?.transcript||'').trim();if(e.results[i].isFinal)final+=(final?' ':'')+t;else interim+=(interim?' ':'')+t}
+    if(interim){$('#voiceInterim').textContent=interim;if(voiceSpeaking&&!looksLikeAssistantEcho(interim)&&interim.length>3)stopVoiceSpeech()}
+    if(final){$('#voiceInterim').textContent='';if(voiceSpeaking&&looksLikeAssistantEcho(final))return;handleVoiceFinal(final)}
+  };
+  r.onerror=e=>{if(!['no-speech','aborted'].includes(e.error||''))$('#voiceSub').textContent='Распознавание: '+(e.error||'ошибка')};
+  r.onend=()=>{if(voiceActive&&!voiceMuted)setTimeout(()=>{try{r.start()}catch{}},350)};
+  try{r.start()}catch{}
+}
+function voiceWakeFilter(text){
+  if(!$('#voiceWake').checked)return text;
+  const m=String(text).match(/(?:гидеон|gideon)[,\s:;-]*(.*)/i);return m?m[1].trim():''
+}
+async function handleVoiceCommand(text){
+  const t=String(text).trim().toLowerCase();
+  if(/^(стоп|замолчи|хватит|stop|quiet)$/.test(t)){stopVoiceSpeech();return true}
+  if(/(заверши|закончить|закончи).*(разговор|звонок)|^(end call|hang up)$/.test(t)){endVoiceCall();return true}
+  const routeMap=[['мисси','mission'],['mission','mission'],['студи','functions'],['function','functions'],['проект','projects'],['knowledge','knowledge'],['знан','knowledge'],['network','network'],['сеть','network'],['skill','skills'],['навык','skills'],['artifact','artifacts'],['артефакт','artifacts']];
+  if(/^(открой|покажи|перейди|open|show)/i.test(t)){for(const [word,r] of routeMap)if(t.includes(word)){route(r);voiceSpeak('Открываю '+($('#topTitle')?.textContent||r)+'.');return true}}
+  const pending=(state.approvals||[]).filter(a=>a.status==='pending');
+  if(pending.length&&/^(да|разрешить|подтверждаю|yes|approve)$/.test(t)){const a=pending[pending.length-1];a.status='approved';a.updatedAt=now();persist();renderApprovals();voiceSpeak('Разрешение сохранено.');return true}
+  if(pending.length&&/^(нет|запретить|отклонить|no|deny|reject)$/.test(t)){const a=pending[pending.length-1];a.status='rejected';a.updatedAt=now();persist();renderApprovals();voiceSpeak('Действие запрещено.');return true}
+  if(/обнови.*памят|update.*memory/.test(t)){await updateVoiceProjectMemory(true);return true}
+  if(/сохрани.*(результат|разговор)|save.*(result|conversation)/.test(t)){saveVoiceArtifact();return true}
+  if(/(покажи|проанализируй).*экран|screen/.test(t)){captureVoiceScreen();return true}
+  if(/камера|camera/.test(t)){toggleVoiceCamera();return true}
+  return false
+}
+async function handleVoiceFinal(raw){
+  if(!voiceActive||voiceMuted)return;
+  const text=voiceWakeFilter(raw);if(!text)return;
+  if(await handleVoiceCommand(text))return;
+  voiceSession.push({role:'user',content:text,at:now()});renderVoiceTranscript();voiceSendTurn(text)
+}
+async function voiceSendTurn(text){
+  if(voiceTurnBusy){voicePendingText=text;voiceRequestSeq++;voiceStatus('thinking','Обновляю вопрос…');return}
+  voiceTurnBusy=true;const seq=++voiceRequestSeq;voiceStatus('thinking','Gideon формирует ответ');
+  try{
+    const p=state.projects.find(x=>x.id===$('#voiceProject').value)||currentProject(),old=state.currentProject;state.currentProject=p.id;
+    const messages=[{role:'system',content:voiceModePrompt()+'\n\n'+memoryText()+'\n\n'+projectContext()},...voiceSession.slice(-18).map(x=>({role:x.role,content:x.content}))];
+    state.currentProject=old;
+    const d=await api('/api/gideon/chat',{messages});
+    if(seq!==voiceRequestSeq&&voicePendingText)return;
+    voiceLastAnswer=d.answer||'';voiceSession.push({role:'assistant',content:voiceLastAnswer,at:now()});renderVoiceTranscript();voiceSpeak(voiceLastAnswer)
+  }catch(e){voiceSession.push({role:'assistant',content:'Ошибка соединения: '+e.message,at:now()});renderVoiceTranscript();voiceStatus('listening','Попробуйте ещё раз')}
+  finally{voiceTurnBusy=false;if(voicePendingText){const p=voicePendingText;voicePendingText='';setTimeout(()=>voiceSendTurn(p),0)}else if(voiceActive&&!voiceSpeaking&&!voiceMuted)voiceStatus('listening','Говорите')}
+}
+async function startVoiceCall(){
+  if(voiceActive)return;
+  saveVoiceSettings();voiceActive=true;voiceMuted=false;voiceSession=[];voiceLastAnswer='';voiceStartedAt=Date.now();voiceRequestSeq=0;voicePendingText='';
+  $('#voiceEnd').disabled=false;$('#voiceCallToggle').classList.add('active');$('#voiceCallToggle').textContent='●';$('#voiceMute').classList.remove('active');
+  voiceTimer=setInterval(voiceCallElapsed,1000);voiceCallElapsed();startRecognition();voiceStatus('listening','Говорите. Gideon запоминает контекст текущего разговора.');voiceSpeak('Я на связи.')
+}
+async function endVoiceCall(){
+  if(!voiceActive)return;
+  voiceActive=false;clearInterval(voiceTimer);voiceTimer=null;try{voiceRecognition?.abort()}catch{}voiceRecognition=null;
+  if('speechSynthesis'in window)speechSynthesis.cancel();voiceSpeaking=false;voiceSpokenText='';
+  [voiceCameraStream,voiceScreenStream].forEach(s=>s?.getTracks().forEach(t=>t.stop()));voiceCameraStream=voiceScreenStream=null;
+  $('#voicePreview').classList.add('hidden');$('#voiceEnd').disabled=true;$('#voiceCallToggle').classList.remove('active');$('#voiceCallToggle').textContent='☎';$('#voiceCallTime').textContent='00:00';voiceStatus('idle','Разговор завершён');
+  if(!$('#voicePrivate').checked&&voiceSession.length){
+    const p=state.projects.find(x=>x.id===$('#voiceProject').value)||currentProject();
+    state.voiceCalls.push({id:uid(),projectId:p.id,mode:$('#voiceConversationMode').value,startedAt:new Date(voiceStartedAt).toISOString(),endedAt:now(),messages:structuredClone(voiceSession)});
+    persist();
+    if($('#voiceAutoSummary').checked){
+      try{
+        const transcript=voiceSession.map(m=>(m.role==='user'?'Пользователь: ':'Gideon: ')+m.content).join('\n');
+        const d=await api('/api/gideon/cognition',{mode:'meeting',input:transcript,context:'Сделай итог именно этого голосового разговора: решения, задачи, важные факты и открытые вопросы.'});
+        createArtifactFromText('Voice Call · '+new Date().toLocaleString('ru-RU'),d.answer,p.id);await updateVoiceProjectMemory(false,transcript);toast('Итог разговора сохранён в Artifacts')
+      }catch{}
+    }
+  }
+}
+function toggleVoiceMute(){
+  voiceMuted=!voiceMuted;$('#voiceMute').classList.toggle('active',voiceMuted);
+  if(voiceMuted){try{voiceRecognition?.stop()}catch{}voiceStatus('muted','Микрофон выключен')}else{startRecognition();voiceStatus('listening','Говорите')}
+}
+async function toggleVoiceCamera(){
+  if(voiceCameraStream){voiceCameraStream.getTracks().forEach(t=>t.stop());voiceCameraStream=null;$('#voiceCameraVideo').srcObject=null;$('#voiceCamera').classList.remove('active');if(!voiceScreenStream)$('#voicePreview').classList.add('hidden');return}
+  try{voiceCameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});$('#voiceCameraVideo').srcObject=voiceCameraStream;$('#voiceCamera').classList.add('active');$('#voicePreview').classList.remove('hidden');setTimeout(captureVoiceCamera,900)}catch{toast('Камера недоступна')}
+}
+async function analyzeVoiceFrame(video,promptText){
+  if(!video?.videoWidth)return;
+  const canvas=document.createElement('canvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext('2d').drawImage(video,0,0);
+  const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',.88)),file=new File([blob],'voice-frame.jpg',{type:'image/jpeg'});
+  voiceStatus('thinking','Анализирую изображение');const d=await analyzeFiles([file],promptText);voiceSession.push({role:'assistant',content:d.answer,at:now()});renderVoiceTranscript();voiceSpeak(d.answer)
+}
+async function captureVoiceCamera(){try{await analyzeVoiceFrame($('#voiceCameraVideo'),'Опиши, что видно через камеру. Отметь важные детали и ответь как в живом голосовом разговоре, кратко.')}catch(e){toast(e.message)}}
+async function captureVoiceScreen(){
+  if(!navigator.mediaDevices?.getDisplayMedia)return toast('Демонстрация экрана не поддерживается');
+  try{if(voiceScreenStream)voiceScreenStream.getTracks().forEach(t=>t.stop());voiceScreenStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});$('#voiceScreenVideo').srcObject=voiceScreenStream;$('#voiceScreen').classList.add('active');$('#voicePreview').classList.remove('hidden');await new Promise(r=>setTimeout(r,800));await analyzeVoiceFrame($('#voiceScreenVideo'),'Проанализируй текущий снимок экрана. Кратко объясни, что видно, возможные ошибки и следующий полезный шаг.');voiceScreenStream.getTracks().forEach(t=>t.stop());voiceScreenStream=null;$('#voiceScreenVideo').srcObject=null;$('#voiceScreen').classList.remove('active');if(!voiceCameraStream)$('#voicePreview').classList.add('hidden')}catch{toast('Демонстрация экрана отменена или недоступна')}
+}
+async function updateVoiceProjectMemory(speak=true,extra=''){
+  try{const p=state.projects.find(x=>x.id===$('#voiceProject').value)||currentProject(),old=state.currentProject;state.currentProject=p.id;const transcript=extra||voiceSession.map(m=>(m.role==='user'?'Пользователь: ':'Gideon: ')+m.content).join('\n');const d=await api('/api/gideon/project-memory',{text:(projectContext()+'\n\nГолосовой разговор:\n'+transcript).slice(0,28000)});state.currentProject=old;state.projectMemory[p.id]={memory:d.memory,updatedAt:now()};persist();renderProjectMemory();if(speak)voiceSpeak('Память проекта обновлена.')}catch(e){if(speak)voiceSpeak('Не удалось обновить память проекта.')}
+}
+function saveVoiceArtifact(){
+  if(!voiceSession.length)return toast('Разговор пока пуст');
+  const p=state.projects.find(x=>x.id===$('#voiceProject').value)||currentProject(),text=voiceSession.map(m=>(m.role==='user'?'Вы: ':'Gideon: ')+m.content).join('\n\n');createArtifactFromText('Voice Conversation · '+new Date().toLocaleString('ru-RU'),text,p.id);renderArtifacts();toast('Разговор сохранён в Artifacts')
+}
+async function togglePushTalk(){
+  if(voicePushRecording){voicePushRecorder.stop();return}
+  try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});voicePushChunks=[];voicePushRecorder=new MediaRecorder(stream);voicePushRecorder.ondataavailable=e=>e.data.size&&voicePushChunks.push(e.data);voicePushRecorder.onstop=async()=>{voicePushRecording=false;$('#voicePushTalk').textContent='🎙 Начать запись';stream.getTracks().forEach(t=>t.stop());const blob=new Blob(voicePushChunks,{type:voicePushRecorder.mimeType||'audio/webm'}),file=new File([blob],'voice-turn.webm',{type:blob.type});voiceStatus('thinking','Распознаю речь');try{const d=await analyzeFiles([file],'Транскрибируй аудио максимально точно. Верни только слова пользователя, без пояснений.');handleVoiceFinal(d.answer)}catch(e){toast(e.message)}};voicePushRecorder.start();voicePushRecording=true;$('#voicePushTalk').textContent='■ Завершить запись';voiceStatus('listening','Запись Push-to-talk…')}catch{toast('Микрофон недоступен')}
+}
+$('#voiceStartCallTop')?.addEventListener('click',startVoiceCall);$('#voiceCallToggle')?.addEventListener('click',()=>voiceActive?stopVoiceSpeech():startVoiceCall());$('#voiceEnd')?.addEventListener('click',endVoiceCall);$('#voiceMute')?.addEventListener('click',toggleVoiceMute);$('#voiceCamera')?.addEventListener('click',toggleVoiceCamera);$('#voiceScreen')?.addEventListener('click',captureVoiceScreen);$('#voiceStopSpeech')?.addEventListener('click',stopVoiceSpeech);$('#voicePushTalk')?.addEventListener('click',togglePushTalk);$('#voiceSaveArtifact')?.addEventListener('click',saveVoiceArtifact);$('#voiceUpdateMemory')?.addEventListener('click',()=>updateVoiceProjectMemory(true));$('#voiceQuickBtn')?.addEventListener('click',()=>{route('voice');if(!voiceActive)setTimeout(startVoiceCall,80)});
 
 const TOOL_LABELS={reason:'Reasoning',files:'Files',research:'Research',knowledge:'Knowledge Graph',artifact:'Artifacts',network:'Gideon Network',automations:'Automations',browser:'Browser Operator',email:'Email',calendar:'Calendar'};
 let activeMissionId=null;
@@ -733,7 +982,7 @@ async function refreshStatus(){try{const d=await api('/api/gideon/status');$('#s
 async function refreshAdmin(){const [s,c]=await Promise.all([refreshStatus(),api('/api/gideon/capabilities').catch(()=>null)]);$('#adminRequests').textContent=s?.usage?.requests??'—';$('#adminRemaining').textContent=s?.usage?.remaining??'—';$('#adminNetwork').textContent=state.peers.length+' / '+state.inbox.length;$('#usageBar').style.width=(s?.usage?.percent||0)+'%';$('#capabilities').textContent=JSON.stringify(c||{error:'unavailable'},null,2);$('#eventLog').textContent=state.events.slice().reverse().map(e=>new Date(e.at).toLocaleString('ru-RU')+' — '+e.text).join('\n')||'—'}
 $('#refreshAdmin').onclick=refreshAdmin;$('#clearEvents').onclick=()=>{state.events=[];persist();refreshAdmin()};
 
-const commands=[['Teach Gideon',()=>route('skills')],['Workflow Recorder',()=>route('skills')],['Function Studio',()=>route('functions')],['Mission Control',()=>route('mission')],['Team Mode',()=>{route('ask');setMode('team');$('#askInput').focus()}],['Новый Project',createProject],['Knowledge Graph',()=>route('graph')],['Gideon Network',()=>route('network')],['Skills',()=>route('skills')],['Новый Artifact',()=>{route('artifacts');$('#newArtifact').click()}],['Новая Automation',()=>{route('automations');$('#newAutomation').click()}],['Identity',()=>route('settings')]];
+const commands=[['Live Voice',()=>route('voice')],['Teach Gideon',()=>route('skills')],['Workflow Recorder',()=>route('skills')],['Function Studio',()=>route('functions')],['Mission Control',()=>route('mission')],['Team Mode',()=>{route('ask');setMode('team');$('#askInput').focus()}],['Новый Project',createProject],['Knowledge Graph',()=>route('graph')],['Gideon Network',()=>route('network')],['Skills',()=>route('skills')],['Новый Artifact',()=>{route('artifacts');$('#newArtifact').click()}],['Новая Automation',()=>{route('automations');$('#newAutomation').click()}],['Identity',()=>route('settings')]];
 function openPalette(type){const o=$(type==='cmd'?'#commandOverlay':'#searchOverlay');o.classList.remove('hidden');const inp=$(type==='cmd'?'#commandInput':'#searchInput');inp.value='';if(type==='cmd')renderCommands();else $('#searchList').innerHTML='<div class="palette-item tiny">Введите запрос…</div>';setTimeout(()=>inp.focus(),0)}
 function renderCommands(){const q=$('#commandInput').value.toLowerCase();$('#commandList').innerHTML=commands.filter(x=>!q||x[0].toLowerCase().includes(q)).map(x=>'<div class="palette-item" data-cmd="'+commands.indexOf(x)+'">'+esc(x[0])+'</div>').join('');$$('[data-cmd]').forEach(e=>e.onclick=()=>{$('#commandOverlay').classList.add('hidden');commands[+e.dataset.cmd][1]()})}
 $('#commandBtn').onclick=()=>openPalette('cmd');$('#searchBtn').onclick=()=>openPalette('search');$('#commandInput').oninput=renderCommands;function searchResults(q){q=q.toLowerCase();const out=[];state.projects.forEach(p=>{if(p.name.toLowerCase().includes(q)||(p.description||'').toLowerCase().includes(q))out.push({type:'Project',title:p.name,text:p.description||'',go:()=>{state.currentProject=p.id;ensureState();renderAll();route('projects')}})});state.notes.forEach(n=>{if(n.title.toLowerCase().includes(q)||n.content.toLowerCase().includes(q))out.push({type:'Knowledge',title:n.title,text:n.content.slice(0,100),go:()=>{state.currentProject=n.projectId;selectedKnowledge=['n:'+n.id];renderAll();route('knowledge')}})});state.artifacts.forEach(a=>{if(a.title.toLowerCase().includes(q)||a.content.toLowerCase().includes(q))out.push({type:'Artifact',title:a.title,text:a.content.slice(0,100),go:()=>{selectedArtifact=a.id;renderAll();route('artifacts')}})});state.peers.forEach(p=>{if((p.name||'').toLowerCase().includes(q)||p.identityId.toLowerCase().includes(q))out.push({type:'Peer',title:p.name||'Peer',text:p.identityId,go:()=>route('network')})});return out.slice(0,40)}
@@ -741,8 +990,8 @@ $('#searchInput').oninput=()=>{const q=$('#searchInput').value.trim(),arr=q?sear
 
 window.addEventListener('dragenter',e=>{if(e.dataTransfer?.types?.includes('Files')){dragDepth++;$('#globalDrop').classList.remove('hidden')}});window.addEventListener('dragleave',e=>{if(e.dataTransfer?.types?.includes('Files')){dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)$('#globalDrop').classList.add('hidden')}});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault()});window.addEventListener('drop',async e=>{if(e.dataTransfer?.files?.length){e.preventDefault();dragDepth=0;$('#globalDrop').classList.add('hidden');const fs=Array.from(e.dataTransfer.files).slice(0,10);for(const f of fs)await archiveFile(f,state.currentProject,'drag-drop');pendingFiles.push(...fs);route('ask');renderAttachments();toast(fs.length+' файл(ов) добавлено')}});
 
-function fillProjectSelects(){['#knowledgeProject','#graphProject','#autoProject','#artifactProject'].forEach(idv=>{const e=$(idv);if(!e)return;const v=e.value||state.currentProject;e.innerHTML=state.projects.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');e.value=state.projects.some(p=>p.id===v)?v:state.currentProject})}
-async function renderAll(){ensureState();fillProjectSelects();renderMissionControl();renderFunctionStudio();renderAsk();renderProjects();await renderKnowledge();renderGraph();await renderNetwork();renderSkills();renderAutomations();renderArtifacts();renderSettings();refreshStatus()}
+function fillProjectSelects(){['#knowledgeProject','#graphProject','#autoProject','#artifactProject','#studioProject','#snapshotProject','#capsuleProject','#voiceProject'].forEach(idv=>{const e=$(idv);if(!e)return;const v=e.value||state.currentProject;e.innerHTML=state.projects.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');e.value=state.projects.some(p=>p.id===v)?v:state.currentProject})}
+async function renderAll(){ensureState();fillProjectSelects();renderMissionControl();renderFunctionStudio();renderVoice();renderAsk();renderProjects();await renderKnowledge();renderGraph();await renderNetwork();renderSkills();renderAutomations();renderArtifacts();renderSettings();refreshStatus()}
 ensureIdentity().then(renderAll);
 </script>
 </body>
