@@ -74,7 +74,7 @@
       <textarea id="studioInput" style="min-height:240px" placeholder="Материал, вопрос или описание задачи…"></textarea>
       <div class="row"><button id="runStudio" class="primary">Запустить</button><button id="studioUseProject" class="ghost">+ контекст Project</button><button id="studioClear" class="ghost">Очистить</button></div>
     </div>
-    <div class="panel stack"><div class="row"><b id="studioModeTitle">Function Studio</b><span id="studioModeHint" class="tiny"></span></div><div id="studioOutput" class="output" style="min-height:420px">Выберите функцию.</div><div class="row"><button id="studioCopy" class="ghost">Копировать</button><button id="studioSpeak" class="ghost">Озвучить</button></div></div>
+    <div class="panel stack"><div class="row"><b id="studioModeTitle">Function Studio</b><span id="studioModeHint" class="tiny"></span></div><div id="studioOutput" class="output" style="min-height:420px">Выберите функцию.</div><div class="row"><button id="studioExport" class="secondary">Экспорт результата</button><button id="studioCopy" class="ghost">Копировать</button><button id="studioSpeak" class="ghost">Озвучить</button></div></div>
   </div>
 
   <div class="grid two" style="margin-top:12px">
@@ -113,7 +113,7 @@
   <div class="grid two" style="margin-top:12px">
     <div class="panel stack">
       <h3>Project Capsule / Share</h3>
-      <select id="capsuleProject"></select><label class="row"><input id="capsuleKnowledge" type="checkbox" style="width:auto" checked> Knowledge</label><label class="row"><input id="capsuleArtifacts" type="checkbox" style="width:auto" checked> Artifacts</label><label class="row"><input id="capsuleGraph" type="checkbox" style="width:auto"> Graph</label><div class="row"><button id="exportCapsule" class="secondary">Экспорт Capsule</button><label class="ghost">Импорт Capsule<input id="importCapsule" type="file" accept=".json,application/json" hidden></label><button id="shareCapsule" class="ghost">Поделиться</button></div><canvas id="capsuleQr" width="220" height="220" style="display:none;max-width:220px;border-radius:10px"></canvas>
+      <select id="capsuleProject"></select><label class="row"><input id="capsuleKnowledge" type="checkbox" style="width:auto" checked> Knowledge</label><label class="row"><input id="capsuleArtifacts" type="checkbox" style="width:auto" checked> Artifacts</label><label class="row"><input id="capsuleGraph" type="checkbox" style="width:auto"> Graph</label><div class="row"><button id="exportCapsule" class="secondary">Экспорт Capsule</button><button id="guestPackage" class="ghost">Guest Package</button><label class="ghost">Импорт Capsule<input id="importCapsule" type="file" accept=".json,application/json" hidden></label><button id="shareCapsule" class="ghost">Поделиться</button></div><canvas id="capsuleQr" width="220" height="220" style="display:none;max-width:220px;border-radius:10px"></canvas>
     </div>
     <div class="panel stack">
       <h3>Privacy & Safety</h3>
@@ -321,6 +321,7 @@ const STUDIO_MODES={
  focus:['Focus Mode','Главная цель, блокеры и что отложить'],
  goal_review:['Goal Tracker','Прогресс к цели и следующий checkpoint'],
  daily_brief:['Daily Brief','Что изменилось и что важно сегодня'],
+ evening_brief:['Evening Brief','Что завершено, что перенести и риски на завтра'],
  weekly_review:['Weekly Review','Итоги недели и следующий фокус'],
  research_notebook:['Research Notebook','Факты, противоречия, выводы и дальнейшее исследование'],
  source_map:['Source Map','Карта выводов к основаниям'],
@@ -328,6 +329,7 @@ const STUDIO_MODES={
  timeline:['Smart Timeline','Хронология событий'],
  people:['People Hub','Люди, организации, роли и связи'],
  translation:['Translation Workspace','Перевод с сохранением структуры'],
+ document:['Document Builder','Полноценный структурированный документ'],
  report:['Report Generator','Профессиональный отчёт'],
  presentation:['Presentation Generator','Структура презентации 8–12 слайдов'],
  spreadsheet:['Spreadsheet Builder','Структура таблицы, листы и формулы'],
