@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#8e2f3f">
+<title>Juhuri AI / Ҹуһури AI</title>
+<meta name="description" content="Бесплатный источник-ориентированный словарь и помощник по языку джуури.">
+<style>
+:root{--bg:#f5f0e8;--paper:#fffaf3;--ink:#211e1a;--muted:#71675d;--line:#d8ccbd;--accent:#8e2f3f;--accent2:#a94456;--ok:#397357;--warn:#9d6b2f;--r:15px;--shadow:0 10px 32px rgba(50,36,25,.07)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}button,input,select{font:inherit}.wrap{max-width:1160px;margin:auto;padding:0 16px}
+header{position:sticky;top:0;z-index:30;background:rgba(245,240,232,.94);backdrop-filter:blur(15px);border-bottom:1px solid var(--line)}.top{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px}.brand{display:flex;align-items:center;gap:11px}.mark{width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--accent);border-radius:50%;font:500 25px Georgia,serif;color:var(--accent)}.brand b{font:500 22px Georgia,serif}.brand small{display:block;color:var(--muted);font-size:11px}.status{font-size:12px;padding:7px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+.hero{display:grid;grid-template-columns:1.55fr .55fr;gap:45px;align-items:end;padding:70px 0 40px;border-bottom:1px solid var(--line)}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:800;color:var(--accent)}h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:500}h1{font-size:clamp(50px,8.4vw,98px);line-height:.92;letter-spacing:-.05em;margin:14px 0 18px}h1 span{color:var(--accent)}.lead{max-width:720px;color:var(--muted);font-size:18px;line-height:1.65;margin:0}.stat{border-left:1px solid var(--line);padding-left:20px}.stat strong{display:block;color:var(--accent);font:500 56px/1 Georgia,serif}.stat small,.stat span{display:block}.stat small{color:var(--muted);line-height:1.5;margin-top:8px}
+nav{display:flex;gap:7px;flex-wrap:wrap;padding:23px 0 15px}.tab{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:9px 13px;cursor:pointer;color:var(--ink)}.tab.active{background:var(--accent);border-color:var(--accent);color:white}.panel{display:none;padding:8px 0 48px}.panel.active{display:block}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}.searchbar{display:grid;grid-template-columns:1fr auto;gap:9px;padding:11px}.searchbar input,.chatcomposer input{width:100%;border:1px solid var(--line);background:white;border-radius:11px;padding:14px 15px;outline:none}.searchbar input:focus,.chatcomposer input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(142,47,63,.12)}.primary{border:0;border-radius:11px;background:var(--accent);color:#fff;padding:0 17px;min-height:44px;font-weight:700;cursor:pointer}.primary:hover{background:var(--accent2)}.secondary{border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);padding:9px 12px;cursor:pointer}.secondary:hover{border-color:var(--accent)}
+.filters{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:11px 0 17px}.filters select{border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:9px;color:var(--ink)}.meta{color:var(--muted);font-size:12px}.results{display:grid;gap:9px}.entry{background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:14px 15px}.entrytop{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.head{font-weight:800}.translation{font:500 27px/1.2 Georgia,serif;margin-top:5px}.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.chip{font-size:10px;padding:4px 7px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}.chip.ok{color:var(--ok);border-color:rgba(57,115,87,.35);background:rgba(57,115,87,.06)}.chip.warn{color:var(--warn);border-color:rgba(157,107,47,.35);background:rgba(157,107,47,.06)}.source{border-top:1px solid var(--line);margin-top:10px;padding-top:9px;color:var(--muted);font-size:11px;line-height:1.5}.source b{color:var(--ink)}.empty{min-height:210px;border:1px dashed var(--line);border-radius:var(--r);display:grid;place-items:center;text-align:center;padding:25px;color:var(--muted)}.empty strong{display:block;color:var(--ink);font:500 25px Georgia,serif;margin-bottom:7px}
+.chat{min-height:420px;max-height:600px;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:10px}.msg{max-width:830px;padding:12px 14px;border-radius:13px;line-height:1.55}.msg.assistant{align-self:flex-start;background:var(--paper);border:1px solid var(--line)}.msg.user{align-self:flex-end;background:var(--accent);color:#fff}.msg small{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.65;margin-bottom:4px}.chatcomposer{display:grid;grid-template-columns:1fr auto;gap:9px;padding:11px;border-top:1px solid var(--line);background:var(--paper)}
+.sources{display:grid;gap:0}.sourceitem{display:grid;grid-template-columns:46px 1fr;gap:10px;padding:17px 0;border-bottom:1px solid var(--line)}.num{font:12px ui-monospace,monospace;color:var(--accent)}.sourceitem h3{font-size:21px;margin:2px 0}.sourceitem p{color:var(--muted);line-height:1.55;margin:6px 0 0}
+.aboutgrid{display:grid;grid-template-columns:1.1fr .75fr;gap:15px}.aboutgrid>div{padding:22px}.aboutgrid p{color:var(--muted);line-height:1.7}.glyphs{font:500 42px Georgia,serif;letter-spacing:.05em;margin:15px 0}
+.loader{display:grid;place-items:center;min-height:320px;color:var(--muted);text-align:center}.spinner{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:auto auto 12px}@keyframes spin{to{transform:rotate(360deg)}}
+.learn{display:grid;grid-template-columns:1fr .8fr;gap:14px}.flash,.quiz{padding:22px;min-height:300px}.flashword{font:500 clamp(46px,7vw,78px)/1 Georgia,serif;margin:25px 0 12px}.answer{color:var(--muted);font-size:19px;min-height:28px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:36px}.opts{display:grid;gap:7px}.feedback{color:var(--muted);margin-top:12px}
+footer{border-top:1px solid var(--line);padding:18px 0 28px;color:var(--muted);font-size:11px}footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media(max-width:800px){.hero,.aboutgrid,.learn{grid-template-columns:1fr}.stat{border-left:0;border-top:1px solid var(--line);padding:17px 0 0}.status{display:none}.searchbar,.chatcomposer{grid-template-columns:1fr}.entrytop{flex-direction:column}h1{font-size:56px}.hero{padding-top:45px}.wrap{padding:0 11px}}
+</style>
+</head>
+<body>
+<header><div class="wrap top"><div class="brand"><div class="mark">Ҹ</div><div><b>Juhuri AI</b><small>Ҹуһури · бесплатный публичный словарь</small></div></div><div id="topstatus" class="status">Загрузка корпуса…</div></div></header>
+<main class="wrap">
+<section class="hero"><div><div class="eyebrow">Источник-ориентированный корпус</div><h1>Джуури — <span>без догадок.</span></h1><p class="lead">Бесплатный поиск русский ↔ джуури по нескольким словарям. Результаты показывают книгу и PDF-страницу; машинно извлечённые данные не выдаются за вручную проверенные.</p></div><div class="stat"><strong id="totalCount">—</strong><span>извлечённых статей</span><small>Три словарных источника. Работает без платного AI API.</small></div></section>
+<nav><button class="tab active" data-panel="dictionary">Словарь</button><button class="tab" data-panel="chat">Чат</button><button class="tab" data-panel="learn">Учить</button><button class="tab" data-panel="sources">Книги</button><button class="tab" data-panel="about">О корпусе</button></nav>
+<div id="loading" class="loader"><div><div class="spinner"></div><b>Загружаю словарный корпус</b><div class="meta">Данные сжаты, чтобы сайт оставался быстрым и бесплатным.</div></div></div>
+
+<section id="dictionary" class="panel active">
+<div class="card searchbar"><input id="q" placeholder="Например: брат, астара, гуьл, свобода…"><button id="searchbtn" class="primary">Найти</button></div>
+<div class="filters"><select id="sourceFilter"><option value="all">Все книги</option><option value="N">Нафталиев 2023</option><option value="A">Амир 2022</option><option value="S">Семендуевы 2021</option></select><span id="meta" class="meta"></span></div>
+<div id="results" class="results"></div>
+</section>
+
+<section id="chat" class="panel"><div class="card"><div id="chatlog" class="chat"><div class="msg assistant"><small>Juhuri AI</small>Шолум! Я отвечаю только по загруженным словарям. Спросите: «как будет брат?», «что значит гуьл?» или введите отдельное слово.</div></div><div class="chatcomposer"><input id="chatinput" placeholder="Спросить на русском или джуури…"><button id="chatsend" class="primary">Спросить</button></div></div></section>
+
+<section id="learn" class="panel"><div class="learn"><div class="card flash"><div class="eyebrow">Карточка из корпуса</div><div id="flashword" class="flashword">—</div><div id="flashanswer" class="answer">••••••</div><div class="actions"><button id="reveal" class="secondary">Показать</button><button id="next" class="primary">Дальше</button></div></div><div class="card quiz"><div class="eyebrow">Мини-тест</div><h3 id="quizquestion">—</h3><div id="opts" class="opts"></div><div id="feedback" class="feedback"></div></div></div></section>
+
+<section id="sources" class="panel"><div id="sourceList" class="sources"></div></section>
+
+<section id="about" class="panel"><div class="aboutgrid"><div class="card"><div class="eyebrow">Что внутри</div><h2>Три словаря, один поиск</h2><p>Нафталиев 2023 даёт основной русский → джуури индекс. Словари Амира и Семендуевых расширяют обратное направление джуури → русский и добавляют варианты, диалектные пометы и лексику, отсутствующую в первом источнике.</p><p>Автоматическое извлечение может содержать ошибки переноса строк. Поэтому у каждого результата указан источник и страница, а приложение не дописывает отсутствующие формы самостоятельно.</p></div><div class="card"><div class="eyebrow">Письменность</div><div class="glyphs">ә · ү · ӱ · һ · ħ · ҹ</div><p>Поиск сохраняет специальные знаки джуури. Для машинно извлечённых статей диалект показывается только тогда, когда он прямо присутствует в тексте статьи.</p></div></div></section>
+</main>
+<footer><div class="wrap"><span>Juhuri AI · открытый бесплатный доступ</span><span id="foot">Корпус загружается…</span></div></footer>
+
+<script src="data0.js"></script><script src="data1.js"></script><script src="data2.js"></script><script src="data3.js"></script>
+<script>
+let DATA=null,ENTRIES=[],LEARN=[],learnIndex=0,revealed=false;
+const SRC_LABEL={N:"Нафталиев 2023",A:"Амир 2022",S:"Семендуевы 2021"};
+function norm(s){return String(s||"").toLowerCase().replace(/ё/g,"е").replace(/[«»"'!?.,:;()]/g," ").replace(/s+/g," ").trim()}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function boot(){
+ try{
+  const bin=Uint8Array.from(atob(window.__JH_B64),c=>c.charCodeAt(0));
+  const stream=new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"));
+  DATA=JSON.parse(await new Response(stream).text());
+  ENTRIES=DATA.entries.map((e,i)=>({src:e[0],h:e[1],t:e[2],p:e[3],pos:e[4],id:i}));
+  LEARN=ENTRIES.filter(e=>e.src==="N"&&e.h.length<22&&e.t.length<35).slice(0,250);
+  document.getElementById("totalCount").textContent=DATA.counts.total.toLocaleString("ru-RU");
+  document.getElementById("foot").textContent=`${DATA.counts.total.toLocaleString("ru-RU")} извлечённых статей · ${Object.keys(DATA.sources).length} книги`;
+  document.getElementById("topstatus").textContent="Корпус загружен";
+  document.getElementById("loading").style.display="none";
+  document.querySelectorAll(".panel").forEach(p=>{if(p.id==="dictionary")p.style.display="block"});
+  buildSources();renderLearn();runSearch();
+ }catch(err){
+  document.getElementById("loading").innerHTML="<div><b>Не удалось распаковать корпус</b><div class=meta>Откройте сайт в современном Chrome, Edge, Firefox или Safari.</div></div>";
+  console.error(err)
+ }
+}
+function score(e,q){
+ let s=0,h=norm(e.h),t=norm(e.t);
+ if(h===q)s=120;if(t===q)s=Math.max(s,118);
+ if(h.startsWith(q))s=Math.max(s,100);if(t.startsWith(q))s=Math.max(s,98);
+ if(h.includes(q))s=Math.max(s,80);if(t.includes(q))s=Math.max(s,78);
+ if(q.includes(h)&&h.length>2)s=Math.max(s,72);if(q.includes(t)&&t.length>2)s=Math.max(s,70);
+ return s
+}
+function search(q,src="all",limit=70){
+ q=norm(q);if(!q)return[];
+ return ENTRIES.map(e=>({e,s:score(e,q)})).filter(x=>x.s&&(src==="all"||x.e.src===src)).sort((a,b)=>b.s-a.s).slice(0,limit).map(x=>x.e)
+}
+function card(e){
+ const src=DATA.sources[e.src], dia=[];
+ const low=(e.h+" "+e.t).toLowerCase();
+ if(low.includes("гъуб")||low.includes("губ")||low.includes("кубин"))dia.push("губ./куб.");
+ if(low.includes("дерб"))dia.push("дерб.");
+ if(low.includes("кайт")||low.includes("хайт"))dia.push("кайт.");
+ return `<article class=entry><div class=entrytop><div><div class=head>${esc(e.h)}</div><div class=translation>${esc(e.t)}</div></div><span class="chip warn">машинное извлечение</span></div><div class=chips>${e.pos?`<span class=chip>${esc(e.pos)}</span>`:""}${dia.map(x=>`<span class=chip>${x}</span>`).join("")}</div><div class=source><b>${esc(src[0])}</b> · ${esc(src[1])}, ${esc(src[2])} · PDF-страница ${e.p}</div></article>`
+}
+function runSearch(){
+ if(!DATA)return;
+ const q=document.getElementById("q").value,src=document.getElementById("sourceFilter").value,hits=search(q,src);
+ document.getElementById("meta").textContent=q?`Показано: ${hits.length}`:"";
+ document.getElementById("results").innerHTML=!q.trim()?'<div class=empty><div><strong>Введите слово</strong>Поиск работает в обоих направлениях.</div></div>':hits.length?hits.map(card).join(""):'<div class=empty><div><strong>Не найдено в корпусе</strong>Форма не будет придумана. Попробуйте другое написание.</div></div>'
+}
+document.getElementById("searchbtn").onclick=runSearch;document.getElementById("sourceFilter").onchange=runSearch;let timer;document.getElementById("q").oninput=()=>{clearTimeout(timer);timer=setTimeout(runSearch,80)};document.getElementById("q").onkeydown=e=>{if(e.key==="Enter")runSearch()};
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".panel").forEach(x=>{x.classList.remove("active");x.style.display=""});b.classList.add("active");const p=document.getElementById(b.dataset.panel);p.classList.add("active");p.style.display="block"});
+function extract(s){let q=norm(s);for(const p of [/^как будет (.+?)( на джуури)?$/,/^как сказать (.+?)( на джуури)?$/,/^переведи (.+?)( на джуури)?$/,/^что значит (.+)$/,/^что означает (.+)$/]){const m=q.match(p);if(m)return m[1].trim()}return q}
+function addMsg(role,text,e){const d=document.createElement("div");d.className="msg "+role;d.innerHTML=`<small>${role==="user"?"Вы":"Juhuri AI"}</small>${esc(text)}${e?`<div style="margin-top:10px">${card(e)}</div>`:""}`;const log=document.getElementById("chatlog");log.appendChild(d);log.scrollTop=log.scrollHeight}
+function chatSend(){if(!DATA)return;const i=document.getElementById("chatinput"),raw=i.value.trim();if(!raw)return;addMsg("user",raw);i.value="";const hits=search(extract(raw),"all",8),e=hits[0];e?addMsg("assistant",`В словаре найдено: «${e.h}» → «${e.t}». Источник: ${SRC_LABEL[e.src]}, PDF-страница ${e.p}.`,e):addMsg("assistant","Не найдено в загруженных словарях. Я не буду придумывать перевод; попробуйте другую форму написания.")}
+document.getElementById("chatsend").onclick=chatSend;document.getElementById("chatinput").onkeydown=e=>{if(e.key==="Enter")chatSend()};
+function buildSources(){const box=document.getElementById("sourceList");box.innerHTML=Object.entries(DATA.sources).map(([k,s],i)=>`<div class=sourceitem><div class=num>${String(i+1).padStart(2,"0")}</div><div><b>${esc(s[0])}</b><h3>${esc(s[1])}</h3><span class=meta>${esc(s[2])} · ${esc(s[3])} · извлечено ${DATA.counts[k].toLocaleString("ru-RU")} статей</span><p>${esc(s[4])}</p></div></div>`).join("")}
+function renderLearn(){if(!LEARN.length)return;const e=LEARN[learnIndex%LEARN.length];document.getElementById("flashword").textContent=e.t;document.getElementById("flashanswer").textContent=revealed?e.h.toLowerCase():"••••••";document.getElementById("quizquestion").textContent=`Что соответствует «${e.t}»?`;const opts=[e,...LEARN.filter(x=>x.id!==e.id).slice((learnIndex*7)%Math.max(1,LEARN.length-3),(learnIndex*7)%Math.max(1,LEARN.length-3)+2)].sort((a,b)=>a.h.localeCompare(b.h,"ru"));const box=document.getElementById("opts");box.innerHTML="";document.getElementById("feedback").textContent="";opts.forEach(o=>{const b=document.createElement("button");b.className="secondary";b.textContent=o.h.toLowerCase();b.onclick=()=>document.getElementById("feedback").textContent=o.id===e.id?"Верно.":`Правильный ответ: ${e.h.toLowerCase()}.`;box.appendChild(b)})}
+document.getElementById("reveal").onclick=()=>{revealed=true;renderLearn()};document.getElementById("next").onclick=()=>{learnIndex++;revealed=false;renderLearn()};
+boot();
+</script>
+</body></html>
