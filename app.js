@@ -110,4 +110,18 @@ document.addEventListener("DOMContentLoaded",()=>{
   const submitForm=q("#contribute-form");
   submitForm?.addEventListener("submit",e=>{e.preventDefault();const fd=new FormData(e.currentTarget);const key="niti-pamyati-contributions-v1";let arr=[];try{arr=JSON.parse(localStorage.getItem(key)||"[]")}catch{}arr.unshift({type:fd.get("type"),title:fd.get("title"),description:fd.get("description"),source:fd.get("source"),date:new Date().toISOString()});localStorage.setItem(key,JSON.stringify(arr));e.currentTarget.reset();alert("Материал сохранён локально как черновик. Публикация возможна только после проверки.")});
 
+  qa("[data-history-mode]").forEach(btn=>btn.addEventListener("click",()=>{
+    const mode=btn.dataset.historyMode;
+    qa("[data-history-mode]").forEach(b=>b.classList.toggle("active",b===btn));
+    qa("[data-detail='full']").forEach(el=>el.hidden=mode!=="full");
+  }));
+  const correctionForm=q("#correction-form");
+  correctionForm?.addEventListener("submit",e=>{
+    e.preventDefault(); const fd=new FormData(e.currentTarget),key="niti-pamyati-corrections-v1";
+    let arr=[]; try{arr=JSON.parse(localStorage.getItem(key)||"[]")}catch{}
+    arr.unshift({problem:fd.get("problem"),proposal:fd.get("proposal"),source:fd.get("source"),page:fd.get("page")||location.pathname,date:new Date().toISOString(),status:"draft"});
+    localStorage.setItem(key,JSON.stringify(arr)); e.currentTarget.reset(); alert("Исправление сохранено как черновик для проверки.");
+  });
+  const pageField=q("#correction-form [name='page']"); if(pageField&&!pageField.value) pageField.value=document.referrer||location.pathname;
+
 });
