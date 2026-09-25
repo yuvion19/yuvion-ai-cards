@@ -1,7 +1,7 @@
 {
   "name": "Gideon 7.0",
   "short_name": "Gideon",
-  "description": "Gideon 7.0 — Mission Control, Function Studio, live tools, Watch Mode, Time Machine, Skills, Knowledge Graph and encrypted Network.",
+  "description": "Gideon 7.0 — Mission Control, Live Voice, Function Studio, Knowledge Graph, Skills and encrypted Gideon Network.",
   "start_url": "./#mission",
   "scope": "./",
   "display": "standalone",
@@ -17,6 +17,18 @@
   ],
   "shortcuts": [
     {
+      "name": "Live Voice",
+      "short_name": "Voice",
+      "url": "./#voice",
+      "icons": [
+        {
+          "src": "icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
       "name": "Mission Control",
       "short_name": "Mission",
       "url": "./#mission",
@@ -30,7 +42,7 @@
     },
     {
       "name": "Function Studio",
-      "short_name": "Functions",
+      "short_name": "Studio",
       "url": "./#functions",
       "icons": [
         {
@@ -44,18 +56,6 @@
       "name": "Gideon Network",
       "short_name": "Network",
       "url": "./#network",
-      "icons": [
-        {
-          "src": "icon.svg",
-          "sizes": "any",
-          "type": "image/svg+xml"
-        }
-      ]
-    },
-    {
-      "name": "Knowledge Graph",
-      "short_name": "Graph",
-      "url": "./#graph",
       "icons": [
         {
           "src": "icon.svg",
