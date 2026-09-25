@@ -6111,6 +6111,30 @@ if (gigaChatConfigured()) {
 app.listen(port, "0.0.0.0", () => {
   console.log(`Yuvion AI Cards v11.2.9 listening on port ${port}`);
 
+  if (GIDEON_UPSTREAM && !String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim()) {
+    void (async () => {
+      try {
+        const response = await fetch(GIDEON_UPSTREAM + "/api/gideon/status", {
+          headers: { Accept: "application/json" }
+        });
+        const raw = await response.text();
+        let data = {};
+        try { data = JSON.parse(raw); } catch {}
+        console.log("Gideon gateway self-test OK:", {
+          status: response.status,
+          upstreamAvailable: Boolean(data?.available),
+          freeGuard: Boolean(data?.freeGuard)
+        });
+      } catch (error) {
+        console.error("Gideon gateway self-test failed:", {
+          code: error?.code || "gateway_test_failed",
+          message: error?.message || "error"
+        });
+      }
+    })();
+  }
+
+
   if (String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim()) {
     void (async () => {
       try {
