@@ -1,4 +1,4 @@
-import { mkdir, writeFile, copyFile } from "node:fs/promises";
+import { mkdir, writeFile, copyFile } from "node:fs/promises";\nimport { execFileSync } from "node:child_process";
 
 const OUT = "qirmizi-master";
 const BBOX = "48.493,41.36,48.529,41.3875";
@@ -168,4 +168,13 @@ try {
 } catch (error) {
   console.warn("PMTiles vendor copy skipped:", error?.message || error);
 }
+const browserScripts = [
+  "app.js","archive-core.js","field.js","research.js","admin.js","streetview.js","ar.js",
+  "vr.js","translate.js","juhuri.js","learn.js","image-tools.js","status.js","restoration.js",
+  "pmtiles-viewer.js","offline.js"
+];
+for (const file of browserScripts) {
+  execFileSync(process.execPath, ["--check", `${OUT}/${file}`], { stdio: "inherit" });
+}
+console.log("Browser JavaScript syntax checks passed");
 console.log(`Qirmizi snapshot: ${buildings.length} buildings, ${roads.length} roads, ${places.length} places`);
