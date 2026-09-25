@@ -2278,7 +2278,7 @@ const GIDEON_PROTOCOL_VERSION = "6.0";
 app.get("/api/gideon/capabilities", (req, res) => {
   return res.json({
     name: "Gideon",
-    version: "6.0",
+    gideonVersion: "6.0",
     protocol: GIDEON_PROTOCOL_VERSION,
     modes: ["chat","agent","swarm","knowledge-graph","signed-handoff"],
     freeGuard: true,
