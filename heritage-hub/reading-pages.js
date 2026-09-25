@@ -20,7 +20,7 @@
 
   H.readingSection=route=>{
     if(route==='reading') return '';
-    const ids=H.readingRouteMap?.[route]||[];
+    const ids=H.readingRouteMap?.[route]||['poem-memory','story-photo','art-family','art-juhuri'];
     const items=ids.map(id=>H.reading.find(r=>r.id===id)).filter(Boolean);
     if(!items.length) return '';
     return '<section class="reading-shelf section-block">'+
@@ -32,6 +32,7 @@
   };
 
   H.nav.splice(Math.max(1,H.nav.findIndex(x=>x[0]==='literature'))+1,0,['reading','Читальня','☷']);
+  H.knowledgeRouteMap.reading=['Литературные деятели','Произведения','Фольклор','Библиография','Писатели и поэты','Рассказы и сказки'];
 
   H.pages.reading=()=>{
     const types=[...new Set(H.reading.map(r=>r.type))];
