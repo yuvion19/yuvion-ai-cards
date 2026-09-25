@@ -3,436 +3,432 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0a0c11">
-<meta name="description" content="Gideon — единый AI-ассистент для чата, документов, исследований, медиа и маркетплейсов.">
+<meta name="theme-color" content="#090b10">
+<meta name="description" content="Gideon OS — персональная AI-система для проектов, знаний, автоматизаций и готовых результатов.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<title>Gideon — AI Workspace</title>
+<title>Gideon OS</title>
 <style>
-:root{--bg:#0a0c11;--panel:#12161f;--panel2:#171c27;--line:#293242;--text:#f5f7fb;--muted:#8f99aa;--accent:#7c5cff;--accent2:#32d6a4;--warn:#f6c567;--danger:#ff7e8b;--shadow:0 20px 55px rgba(0,0,0,.28)}
-*{box-sizing:border-box}html{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}body{margin:0;min-height:100vh;background:radial-gradient(circle at 75% -10%,rgba(124,92,255,.14),transparent 32%),radial-gradient(circle at 0 100%,rgba(50,214,164,.07),transparent 30%),var(--bg)}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0}a{color:inherit}.app{min-height:100vh}.sidebar{position:fixed;left:0;top:0;bottom:0;width:250px;background:#090b10f2;border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;z-index:40}.brand{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 14px;font-size:20px;font-weight:850}.brandmark{width:31px;height:31px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,#7c5cff,#32d6a4);box-shadow:0 0 30px rgba(124,92,255,.35)}.brand span{display:flex;gap:8px;align-items:center}.mini-badge{font-size:10px;padding:4px 7px;border:1px solid #394355;border-radius:999px;color:#9ee9c7}.nav{display:flex;flex-direction:column;gap:4px;overflow:auto}.nav button{padding:11px 12px;border-radius:10px;background:transparent;color:#909aad;text-align:left}.nav button:hover,.nav button.active{background:#181d27;color:#fff}.sidefoot{margin-top:auto;border-top:1px solid var(--line);padding:12px 8px 2px}.sidefoot small{color:#697487}.main{margin-left:250px}.topbar{height:66px;position:sticky;top:0;z-index:30;background:#0a0c11df;backdrop-filter:blur(16px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 24px}.top-left,.top-right,.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.status-pill{border:1px solid #325746;border-radius:999px;padding:6px 10px;font-size:11px;background:#102019;color:#82e3b7}.status-pill.warn{border-color:#5b4930;background:#20190e;color:#f2ca7c}.view{display:none;max-width:1540px;margin:auto;padding:34px max(24px,4vw) 90px}.view.active{display:block}.eyebrow{font-size:11px;letter-spacing:.16em;color:#9b86ff;font-weight:800}.head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:22px}.head h1,.head h2{margin:5px 0;letter-spacing:-1.2px}.head h1{font-size:42px}.head h2{font-size:34px}.head p,.muted{color:var(--muted);line-height:1.55}.hero{display:grid;grid-template-columns:1.08fr .92fr;gap:30px;min-height:500px;align-items:center}.hero h1{font-size:68px;line-height:.98;letter-spacing:-3.5px;margin:14px 0 16px}.hero p{max-width:700px;color:var(--muted);font-size:17px;line-height:1.65}.hero-visual{height:420px;border-radius:24px;border:1px solid var(--line);background:linear-gradient(180deg,#171b25,#0d1017);position:relative;overflow:hidden;display:grid;place-items:center;box-shadow:var(--shadow)}.orb{width:225px;height:225px;border-radius:50%;background:radial-gradient(circle at 35% 28%,#e5fff6 0 4%,transparent 14%),radial-gradient(circle at 65% 66%,#8f68ff 0 8%,transparent 44%),radial-gradient(circle at 40% 75%,#32d6a4 0 5%,transparent 35%),#11141b;box-shadow:0 0 70px rgba(124,92,255,.38),0 0 90px rgba(50,214,164,.14)}.hero-stats{position:absolute;left:18px;right:18px;bottom:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.hero-stats div{padding:12px;border:1px solid #30394a;border-radius:13px;background:#0a0d13c7}.hero-stats b{display:block;font-size:18px}.hero-stats small{color:#788397}.grid{display:grid;gap:13px}.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:repeat(3,1fr)}.grid.four{grid-template-columns:repeat(4,1fr)}.panel,.card{background:linear-gradient(180deg,#151923,#10141b);border:1px solid var(--line);border-radius:17px;box-shadow:0 10px 28px rgba(0,0,0,.12)}.panel{padding:18px}.card{padding:17px}.card h3,.panel h3{margin:0 0 8px}.card p,.panel p{color:var(--muted);line-height:1.5}.primary,.secondary,.ghost,.danger,.chip-btn{border-radius:10px;padding:10px 13px}.primary{background:linear-gradient(135deg,#7c5cff,#6350d2);color:#fff;font-weight:750}.secondary{background:#1b212c;color:#eef1f7;border:1px solid #333d4d}.ghost{background:transparent;color:#aab4c4;border:1px solid #2d3542}.danger{background:#2a1519;color:#ff9ca4;border:1px solid #583039}.icon-btn{width:36px;height:36px;border-radius:10px;background:#171c25;border:1px solid #2d3542;color:#aeb7c6}.full{width:100%}.stack{display:flex;flex-direction:column;gap:10px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:#8f99aa}input,textarea,select{width:100%;background:#0c1016;color:#fff;border:1px solid #2d3645;border-radius:11px;padding:11px 12px;outline:none}input:focus,textarea:focus,select:focus{border-color:#6f5ee0;box-shadow:0 0 0 3px rgba(124,92,255,.08)}textarea{resize:vertical;min-height:110px}.drop{border:1px dashed #3c475a;border-radius:14px;padding:20px;background:#0c0f15;text-align:center;color:#9aa5b7}.drop input{margin-top:9px}.output{min-height:280px;white-space:pre-wrap;line-height:1.58;background:#0b0e14;border:1px solid #252e3a;border-radius:12px;padding:14px;color:#d0d6e1;overflow:auto}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.toolbar select,.toolbar input{width:auto;min-width:150px}.tiny{font-size:11px;color:#778196}.workspace-strip{display:flex;gap:7px;overflow:auto;padding-bottom:8px}.workspace-chip{white-space:nowrap;padding:7px 10px;border-radius:999px;background:#141923;border:1px solid #2c3544;color:#99a3b5}.workspace-chip.active{background:#2a2357;border-color:#6b59cf;color:white}.chat-layout{display:grid;grid-template-columns:260px 1fr 360px;gap:12px;min-height:690px}.session-pane,.chat-pane,.artifact-pane{min-height:690px}.session-list{display:flex;flex-direction:column;gap:7px;max-height:570px;overflow:auto}.session{padding:10px;border-radius:11px;background:#0e1219;border:1px solid #252d39}.session.active{border-color:#6555c4;background:#18152a}.session b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.session small{color:#697487}.messages{height:500px;overflow:auto;padding:3px}.msg{max-width:86%;padding:11px 13px;border-radius:14px;margin:7px 0;line-height:1.56;white-space:pre-wrap}.msg.user{margin-left:auto;background:#6c56d6}.msg.assistant{background:#1a202a;border:1px solid #293241}.composer{border-top:1px solid var(--line);padding-top:10px}.composer textarea{min-height:70px}.attachments{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.attachment-chip{font-size:11px;padding:5px 8px;border-radius:999px;background:#162019;border:1px solid #2c503f;color:#a4e5c4}.template-grid{display:flex;gap:7px;flex-wrap:wrap}.template{font-size:12px;padding:7px 9px;border-radius:999px;background:#181d27;border:1px solid #30394a;color:#b6bfcd}.artifact-editor{min-height:440px}.artifact-actions{display:flex;gap:7px;flex-wrap:wrap}.research-sources{display:flex;flex-direction:column;gap:6px}.research-sources input{font-size:13px}.preview{height:330px;border-radius:14px;background:#0b0e14;border:1px solid #28313e;display:grid;place-items:center;overflow:hidden;color:#6f7a8b}.preview img,.preview video{width:100%;height:100%;object-fit:contain}.media-result{display:flex;gap:12px;flex-wrap:wrap}.media-result img{max-width:min(620px,100%);border:1px solid #30394a;border-radius:14px}.market-grid{display:grid;grid-template-columns:370px 1fr;gap:13px}.product-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.product-cards img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;border:1px solid var(--line)}.batch-list{display:flex;flex-direction:column;gap:8px;max-height:550px;overflow:auto}.batch-item{padding:10px;border:1px solid #2b3443;border-radius:11px;background:#0d1118}.batch-item b{display:block}.archive-grid{display:grid;grid-template-columns:330px 1fr;gap:12px}.file-list{display:flex;flex-direction:column;gap:7px;max-height:600px;overflow:auto}.file-row{padding:10px;border:1px solid #293241;border-radius:11px;background:#0d1118;cursor:pointer}.file-row:hover,.file-row.active{border-color:#6757ca}.file-row b{display:block}.file-row small{color:#718094}.stat{padding:16px}.stat b{font-size:26px;display:block}.stat small{color:#748094}.progress{height:8px;background:#151a23;border-radius:999px;overflow:hidden}.progress i{display:block;height:100%;background:linear-gradient(90deg,#7c5cff,#32d6a4);width:0}.admin-log{max-height:260px;overflow:auto;font-size:12px}.mobile-nav{display:none}.toast{position:fixed;right:18px;bottom:18px;background:#19202a;border:1px solid #374253;color:#fff;border-radius:11px;padding:11px 14px;opacity:0;transform:translateY(8px);transition:.2s;z-index:100}.toast.show{opacity:1;transform:none}.hidden{display:none!important}.ok{color:#78e1b2}.warn-txt{color:#f1c573}.bad{color:#ff929c}
-@media(max-width:1200px){.chat-layout{grid-template-columns:220px 1fr}.artifact-pane{grid-column:1/-1;min-height:auto}.artifact-editor{min-height:260px}.grid.four{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:900px){.sidebar{display:none}.main{margin-left:0}.topbar{height:58px;padding:0 13px}.view{padding:24px 13px 86px}.hero{grid-template-columns:1fr;min-height:unset}.hero h1{font-size:48px;letter-spacing:-2.2px}.hero-visual{height:300px}.grid.two,.grid.three,.grid.four,.market-grid,.archive-grid{grid-template-columns:1fr}.chat-layout{grid-template-columns:1fr}.session-pane{min-height:auto}.session-list{max-height:180px}.chat-pane{min-height:auto}.messages{height:460px}.product-cards{grid-template-columns:repeat(2,1fr)}.mobile-nav{display:grid;position:fixed;left:0;right:0;bottom:0;height:68px;grid-template-columns:repeat(5,1fr);background:#090b10f5;border-top:1px solid var(--line);z-index:45}.mobile-nav button{background:transparent;color:#8792a5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.mobile-nav button.active{color:#fff}.mobile-nav span{font-size:10px}}
+:root{--bg:#090b10;--panel:#11161f;--panel2:#171d27;--line:#293242;--text:#f5f7fb;--muted:#8d98aa;--accent:#7c5cff;--accent2:#32d6a4;--warn:#f4c76f;--danger:#ff7e8a}
+*{box-sizing:border-box}html{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}body{margin:0;min-height:100vh;background:radial-gradient(circle at 75% -10%,rgba(124,92,255,.15),transparent 32%),radial-gradient(circle at 5% 105%,rgba(50,214,164,.08),transparent 31%),var(--bg)}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0}a{color:inherit}.hidden{display:none!important}.app{min-height:100vh}.sidebar{position:fixed;left:0;top:0;bottom:0;width:248px;background:#080a0ef2;border-right:1px solid var(--line);z-index:40;padding:15px 12px;display:flex;flex-direction:column}.brand{display:flex;align-items:center;gap:9px;font-weight:850;font-size:20px;padding:7px 8px 16px}.brandmark{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 30px rgba(124,92,255,.32)}.brand small{font-size:9px;letter-spacing:.12em;border:1px solid #394354;border-radius:999px;padding:4px 6px;color:#9de7c8}.nav{display:flex;flex-direction:column;gap:5px}.nav button{background:transparent;color:#8f99aa;text-align:left;padding:12px;border-radius:11px}.nav button:hover,.nav button.active{background:#181d27;color:white}.nav .divider{height:1px;background:#202735;margin:7px 5px}.sidefoot{margin-top:auto;border-top:1px solid #202735;padding:12px 8px;color:#687487;font-size:11px}.main{margin-left:248px}.topbar{position:sticky;top:0;height:64px;z-index:30;background:#090b10dc;backdrop-filter:blur(16px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 24px}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.status{font-size:11px;padding:6px 10px;border:1px solid #2d5946;background:#102219;color:#8de8bc;border-radius:999px}.status.warn{border-color:#58482e;background:#20190e;color:#efc879}.view{display:none;max-width:1540px;margin:auto;padding:32px max(22px,4vw) 90px}.view.active{display:block}.eyebrow{font-size:11px;letter-spacing:.16em;color:#9e8aff;font-weight:800}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:20px}.head h1,.head h2{margin:5px 0;letter-spacing:-1.2px}.head h1{font-size:40px}.head h2{font-size:34px}.head p,.muted{color:var(--muted);line-height:1.55}.panel,.card{background:linear-gradient(180deg,#151a23,#0f131a);border:1px solid var(--line);border-radius:17px}.panel{padding:18px}.card{padding:17px}.card h3,.panel h3{margin:0 0 8px}.card p,.panel p{color:var(--muted);line-height:1.5}.grid{display:grid;gap:12px}.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:repeat(3,1fr)}.grid.four{grid-template-columns:repeat(4,1fr)}.primary,.secondary,.ghost,.danger{padding:10px 13px;border-radius:10px}.primary{background:linear-gradient(135deg,var(--accent),#6352d3);color:white;font-weight:750}.secondary{background:#1a202b;color:#edf1f8;border:1px solid #323b4c}.ghost{background:transparent;color:#aab4c4;border:1px solid #2d3543}.danger{background:#2a1519;color:#ff9aa3;border:1px solid #593039}.icon{width:36px;height:36px;border-radius:10px;background:#171c25;border:1px solid #2e3745;color:#b2bac7}.stack{display:flex;flex-direction:column;gap:10px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:#8f99aa}input,textarea,select{width:100%;background:#0b0f15;color:white;border:1px solid #2c3543;border-radius:11px;padding:11px 12px;outline:none}textarea{resize:vertical;min-height:100px}input:focus,textarea:focus,select:focus{border-color:#6556cf;box-shadow:0 0 0 3px rgba(124,92,255,.08)}.tiny{font-size:11px;color:#748094}.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;min-height:500px;align-items:center}.hero h1{font-size:70px;line-height:.97;letter-spacing:-3.8px;margin:14px 0}.hero p{max-width:710px;color:var(--muted);font-size:17px;line-height:1.65}.hero-card{height:420px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,#171c26,#0d1016);display:grid;place-items:center;position:relative;overflow:hidden}.orb{width:220px;height:220px;border-radius:50%;background:radial-gradient(circle at 34% 30%,#effff9 0 4%,transparent 14%),radial-gradient(circle at 66% 64%,#8c67ff 0 8%,transparent 46%),radial-gradient(circle at 45% 78%,#32d6a4 0 5%,transparent 32%),#11141b;box-shadow:0 0 75px rgba(124,92,255,.4),0 0 90px rgba(50,214,164,.13)}.hero-label{position:absolute;bottom:18px;left:18px;right:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.hero-label div{background:#090c12c9;border:1px solid #2e3848;border-radius:12px;padding:11px}.hero-label b{display:block;font-size:17px}.hero-label small{color:#748094}.ask-layout{display:grid;grid-template-columns:270px 1fr 370px;gap:12px}.project-rail,.ask-main,.agent-panel{min-height:690px}.project-list{display:flex;flex-direction:column;gap:7px;max-height:550px;overflow:auto}.project-item{padding:10px;border:1px solid #293241;background:#0d1118;border-radius:11px}.project-item.active{border-color:#6758ca;background:#18152a}.project-item b{display:block}.project-item small{color:#6d7889}.messages{height:460px;overflow:auto;padding:4px}.msg{max-width:86%;padding:11px 13px;border-radius:14px;margin:7px 0;line-height:1.57;white-space:pre-wrap}.msg.user{margin-left:auto;background:#6c56d6}.msg.assistant{background:#1a202a;border:1px solid #2a3341}.composer{border-top:1px solid var(--line);padding-top:10px}.attach-row{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:11px;padding:5px 8px;border:1px solid #315142;border-radius:999px;background:#122019;color:#9fe3c2}.mode-switch{display:flex;padding:4px;background:#0c1016;border:1px solid #293241;border-radius:12px}.mode-switch button{flex:1;background:transparent;color:#8490a3;border-radius:8px;padding:7px}.mode-switch button.active{background:#26204e;color:white}.plan-list{display:flex;flex-direction:column;gap:8px}.plan-step{padding:10px;border-left:3px solid #6556cf;background:#0c1016;border-radius:8px}.artifact-editor{min-height:350px}.search-overlay,.command-overlay{position:fixed;inset:0;background:rgba(3,4,7,.74);backdrop-filter:blur(8px);z-index:100;display:grid;place-items:start center;padding-top:10vh}.palette{width:min(720px,92vw);background:#10151e;border:1px solid #303a49;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.5);overflow:hidden}.palette input{border:0;border-bottom:1px solid #28313f;border-radius:0;padding:16px}.palette-list{max-height:55vh;overflow:auto;padding:8px}.palette-item{padding:11px;border-radius:10px}.palette-item:hover,.palette-item.active{background:#1a202b}.projects-grid{display:grid;grid-template-columns:320px 1fr;gap:12px}.project-cards{display:flex;flex-direction:column;gap:8px}.project-card{padding:13px;border:1px solid #293241;border-radius:12px;background:#0d1118}.project-card.active{border-color:#6c5bd1}.counts{display:flex;gap:8px;flex-wrap:wrap}.count{font-size:11px;border:1px solid #2d3746;border-radius:999px;padding:5px 8px;color:#93a0b3}.knowledge-layout{display:grid;grid-template-columns:330px 1fr;gap:12px}.file-list,.note-list,.artifact-list,.automation-list{display:flex;flex-direction:column;gap:8px;max-height:560px;overflow:auto}.file-row,.note-row,.artifact-row,.auto-row{padding:11px;border:1px solid #2a3443;border-radius:11px;background:#0d1118}.file-row.active,.note-row.active,.artifact-row.active{border-color:#6757ca}.file-row b,.note-row b,.artifact-row b,.auto-row b{display:block}.auto-row.disabled{opacity:.55}.output{min-height:250px;white-space:pre-wrap;line-height:1.58;background:#0a0e14;border:1px solid #252d39;border-radius:12px;padding:14px;overflow:auto;color:#d0d7e1}.artifact-preview{min-height:360px}.version-list{display:flex;gap:6px;flex-wrap:wrap}.version-btn{font-size:11px;padding:6px 8px;border-radius:999px;background:#171d27;border:1px solid #303949;color:#aab5c5}.progress{height:8px;border-radius:999px;background:#151a23;overflow:hidden}.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0}.dropzone{border:1px dashed #3b4658;border-radius:14px;padding:20px;text-align:center;background:#0b0f15;color:#9aa5b7}.global-drop{position:fixed;inset:14px;border:2px dashed #7c5cff;border-radius:24px;background:rgba(9,11,16,.88);z-index:120;display:grid;place-items:center;font-size:26px;font-weight:800}.toast{position:fixed;right:18px;bottom:18px;background:#19202a;border:1px solid #374253;color:white;border-radius:11px;padding:11px 14px;opacity:0;transform:translateY(8px);transition:.2s;z-index:130}.toast.show{opacity:1;transform:none}.mobile-nav{display:none}
+@media(max-width:1200px){.ask-layout{grid-template-columns:230px 1fr}.agent-panel{grid-column:1/-1;min-height:auto}.grid.four{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.sidebar{display:none}.main{margin-left:0}.topbar{height:58px;padding:0 13px}.view{padding:23px 13px 84px}.hero{grid-template-columns:1fr;min-height:unset}.hero h1{font-size:49px;letter-spacing:-2.2px}.hero-card{height:290px}.grid.two,.grid.three,.grid.four,.projects-grid,.knowledge-layout,.ask-layout{grid-template-columns:1fr}.project-rail{min-height:auto}.project-list{max-height:180px}.messages{height:430px}.mobile-nav{display:grid;position:fixed;left:0;right:0;bottom:0;height:68px;background:#080a0ef4;border-top:1px solid var(--line);grid-template-columns:repeat(5,1fr);z-index:45}.mobile-nav button{background:transparent;color:#8792a5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.mobile-nav button.active{color:white}.mobile-nav span{font-size:10px}}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="sidebar">
-  <div class="brand"><span><i class="brandmark">G</i> Gideon</span><small class="mini-badge">AI WORKSPACE</small></div>
+  <div class="brand"><span class="brandmark">G</span> Gideon <small>OS 2.0</small></div>
   <nav class="nav">
-    <button data-route="home" class="active">⌂ Главная</button>
-    <button data-route="chat">✦ Чат</button>
-    <button data-route="research">⌕ Research</button>
-    <button data-route="documents">▤ Документы / Excel</button>
-    <button data-route="media">▧ Камера / Медиа</button>
-    <button data-route="workflows">⌘ Workflow</button>
-    <button data-route="archive">◫ Архив файлов</button>
-    <button data-route="settings">⚙ Память / настройки</button>
+    <button data-route="ask" class="active">✦ Ask</button>
+    <button data-route="projects">◈ Projects</button>
+    <button data-route="knowledge">◫ Knowledge</button>
+    <button data-route="automations">⌁ Automations</button>
+    <button data-route="artifacts">▤ Artifacts</button>
+    <div class="divider"></div>
+    <button data-route="settings">⚙ Настройки</button>
     <button data-route="admin">▣ Админка</button>
   </nav>
-  <div class="sidefoot"><small>Gideon · Free Guard<br>Данные интерфейса — local-first</small></div>
+  <div class="sidefoot">Ctrl/⌘ + K — команды<br>Ctrl/⌘ + / — глобальный поиск<br><br>Local-first · Free Guard</div>
 </aside>
 
 <main class="main">
 <header class="topbar">
-  <div class="top-left"><b id="topTitle">Gideon</b><span class="status-pill" id="gideonStatus">проверка…</span></div>
-  <div class="top-right"><span class="tiny" id="usageText">—</span><button id="installBtn" class="ghost hidden">Установить</button></div>
+  <div class="row"><b id="topTitle">Gideon</b><span id="gideonStatus" class="status">проверка…</span></div>
+  <div class="row"><span id="usageText" class="tiny">—</span><button id="globalSearchBtn" class="ghost">⌕ Поиск</button><button id="commandBtn" class="ghost">⌘K</button></div>
 </header>
 
-<section id="home" class="view active">
-  <div class="hero">
-    <div>
-      <span class="eyebrow">GIDEON · AI WORKSPACE</span>
-      <h1>Один интерфейс.<br>Вся работа с AI.</h1>
-      <p>Диалоги, файлы, рабочие пространства, память, исследования, документы, Excel, изображения, аудио и маркетплейсы объединены в одном приложении.</p>
-      <div class="toolbar"><button class="primary" data-route="chat">Открыть Gideon</button><button class="ghost" data-route="research">Research</button></div>
+<section id="ask" class="view active">
+  <div class="head"><div><span class="eyebrow">GIDEON ASK</span><h1>Скажи, что нужно получить.</h1><p>Gideon сам выбирает между обычным ответом и агентным выполнением задачи.</p></div><button id="newProjectQuick" class="secondary">+ Проект</button></div>
+  <div class="ask-layout">
+    <div class="panel project-rail stack">
+      <div class="row"><b>Проекты</b><span id="projectCount" class="tiny"></span></div>
+      <input id="projectSearch" placeholder="Поиск проектов…">
+      <div id="askProjectList" class="project-list"></div>
+      <button id="newChat" class="primary">+ Новый диалог</button>
+      <div class="tiny">Контекст выбранного проекта автоматически учитывается в Ask.</div>
     </div>
-    <div class="hero-visual">
-      <div class="orb"></div>
-      <div class="hero-stats">
-        <div><b id="homeChats">0</b><small>диалогов</small></div>
-        <div><b id="homeFiles">0</b><small>файлов в архиве</small></div>
-        <div><b id="homeWorkspaces">0</b><small>пространств</small></div>
-      </div>
-    </div>
-  </div>
-  <div class="grid four">
-    <article class="card"><h3>Единый чат</h3><p>Файлы, память, шаблоны и результат справа как редактируемый артефакт.</p></article>
-    <article class="card"><h3>Документы и Excel</h3><p>Резюме, сравнение, поиск фактов, анализ таблиц и экспорт результатов.</p></article>
-    <article class="card"><h3>Research</h3><p>Gideon читает переданные публичные источники и собирает отчёт с URL.</p></article>
-  </div>
-</section>
-
-<section id="chat" class="view">
-  <div class="head"><div><span class="eyebrow">UNIFIED CHAT</span><h2>Чат Gideon</h2><p>Рабочие пространства, история, файлы и постоянная память.</p></div><button id="newWorkspace" class="secondary">+ Пространство</button></div>
-  <div id="workspaceStrip" class="workspace-strip"></div>
-  <div class="chat-layout">
-    <div class="panel session-pane stack">
-      <div class="row"><button id="newChat" class="primary">+ Новый чат</button><button id="renameChat" class="icon-btn" title="Переименовать">✎</button><button id="favChat" class="icon-btn" title="Избранное">☆</button></div>
-      <input id="chatSearch" placeholder="Поиск диалогов…">
-      <div id="sessionList" class="session-list"></div>
-    </div>
-    <div class="panel chat-pane">
-      <div class="template-grid" id="chatTemplates"></div>
-      <div id="chatAttachments" class="attachments"></div>
+    <div class="panel ask-main">
+      <div class="mode-switch"><button id="modeChat" class="active">Ответ</button><button id="modeAgent">Agent</button></div>
+      <div id="askAttachments" class="attach-row" style="margin:9px 0"></div>
       <div id="messages" class="messages"></div>
       <div class="composer stack">
-        <textarea id="chatInput" placeholder="Сообщение Gideon…"></textarea>
+        <textarea id="askInput" placeholder="Например: проанализируй эти материалы, найди расхождения и подготовь итоговый документ…"></textarea>
         <div class="row">
-          <label class="secondary">＋ Файлы<input id="chatFiles" type="file" multiple hidden></label>
-          <label class="secondary">📷 Камера<input id="chatCamera" type="file" accept="image/*" capture="environment" hidden></label>
-          <button id="sendChat" class="primary">Отправить</button>
+          <label class="secondary">＋ Файлы<input id="askFiles" type="file" multiple hidden></label>
+          <label class="secondary">📷 Камера<input id="askCamera" type="file" accept="image/*" capture="environment" hidden></label>
+          <button id="addUrlBtn" class="secondary">🔗 URL</button>
+          <button id="sendAsk" class="primary">Выполнить</button>
         </div>
       </div>
     </div>
-    <div class="panel artifact-pane stack">
-      <div class="row"><b>Артефакт</b><span class="tiny">последний результат</span></div>
-      <textarea id="artifactEditor" class="artifact-editor" placeholder="Ответ Gideon можно редактировать здесь…"></textarea>
-      <div class="artifact-actions">
-        <button data-export="txt" class="ghost">TXT</button><button data-export="pdf" class="ghost">PDF</button><button data-export="docx" class="ghost">DOCX</button><button id="copyArtifact" class="ghost">Копировать</button><button id="shareArtifact" class="ghost">Поделиться</button>
+    <div class="panel agent-panel stack">
+      <div class="row"><b>Agent / Artifact</b><span id="agentModeLabel" class="tiny">обычный ответ</span></div>
+      <div id="agentPlan" class="plan-list"><span class="tiny">В Agent-режиме здесь появится план выполнения.</span></div>
+      <textarea id="artifactEditor" class="artifact-editor" placeholder="Последний результат Gideon…"></textarea>
+      <div class="row"><button id="saveArtifact" class="secondary">Сохранить Artifact</button><button id="copyArtifact" class="ghost">Копировать</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="projects" class="view">
+  <div class="head"><div><span class="eyebrow">PROJECTS</span><h2>Долгосрочная работа</h2><p>Каждый проект объединяет инструкции, диалоги, знания, автоматизации и артефакты.</p></div><button id="createProject" class="primary">+ Новый проект</button></div>
+  <div class="projects-grid">
+    <div class="panel stack"><input id="projectsSearch" placeholder="Поиск…"><div id="projectsList" class="project-cards"></div></div>
+    <div class="panel stack">
+      <div class="row"><h3 id="projectTitle">Проект</h3><button id="renameProject" class="ghost">Переименовать</button><button id="deleteProject" class="danger">Удалить</button></div>
+      <div class="field"><label>Описание / цель проекта</label><textarea id="projectDescription"></textarea></div>
+      <div class="field"><label>Инструкции Gideon для этого проекта</label><textarea id="projectInstructions"></textarea></div>
+      <button id="saveProject" class="primary">Сохранить проект</button>
+      <div class="counts" id="projectCounts"></div>
+      <div class="grid two">
+        <div class="card"><h3>Последние диалоги</h3><div id="projectChats" class="tiny"></div></div>
+        <div class="card"><h3>Последние Artifacts</h3><div id="projectArtifacts" class="tiny"></div></div>
       </div>
     </div>
   </div>
 </section>
 
-<section id="research" class="view">
-  <div class="head"><div><span class="eyebrow">GIDEON RESEARCH</span><h2>Исследование по источникам</h2><p>Добавьте публичные ссылки. Gideon загрузит страницы, сопоставит данные и вернёт отчёт с источниками.</p></div></div>
-  <div class="grid two">
+<section id="knowledge" class="view">
+  <div class="head"><div><span class="eyebrow">KNOWLEDGE</span><h2>База знаний</h2><p>Файлы и заметки, привязанные к проектам. Можно задавать вопросы по выбранному набору.</p></div></div>
+  <div class="knowledge-layout">
     <div class="panel stack">
-      <div class="research-sources" id="researchSources"></div>
-      <button id="addResearchUrl" class="ghost">+ Добавить ссылку</button>
-      <textarea id="researchQuestion" placeholder="Что нужно выяснить?">Сделай подробную сводку: ключевые факты, совпадения и расхождения между источниками, важные цифры, неопределённости и итоговые выводы.</textarea>
-      <button id="runResearch" class="primary">Запустить Research</button>
+      <select id="knowledgeProject"></select>
+      <input id="knowledgeSearch" placeholder="Поиск по названиям…">
+      <label class="secondary">+ Файлы<input id="knowledgeFiles" type="file" multiple hidden></label>
+      <button id="newKnowledgeNote" class="ghost">+ Заметка</button>
+      <div id="knowledgeItems" class="file-list"></div>
     </div>
-    <div class="panel stack"><div class="toolbar"><button id="researchToArtifact" class="ghost">В артефакт</button><button id="researchCopy" class="ghost">Копировать</button></div><div id="researchOutput" class="output">Добавьте ссылки.</div></div>
+    <div class="panel stack">
+      <div class="row"><b id="knowledgeSelectionTitle">Выберите материалы</b><button id="deleteKnowledge" class="danger" disabled>Удалить</button></div>
+      <textarea id="knowledgeNoteEditor" class="hidden" placeholder="Текст заметки…"></textarea>
+      <textarea id="knowledgeQuestion" placeholder="Вопрос к базе знаний…">Сделай краткую сводку выбранных материалов и выдели ключевые факты, решения и открытые вопросы.</textarea>
+      <button id="askKnowledge" class="primary">Спросить Gideon</button>
+      <div id="knowledgeOutput" class="output">—</div>
+    </div>
   </div>
 </section>
 
-<section id="documents" class="view">
-  <div class="head"><div><span class="eyebrow">DOCUMENT + EXCEL STUDIO</span><h2>Документы и таблицы</h2><p>PDF, DOCX, XLSX, CSV, TXT, изображения и другие поддерживаемые файлы.</p></div></div>
+<section id="automations" class="view">
+  <div class="head"><div><span class="eyebrow">AUTOMATIONS</span><h2>Повторяющиеся задачи</h2><p>Локальные автоматизации выполняются, пока Gideon открыт или активно работает как установленное PWA.</p></div><button id="createAutomation" class="primary">+ Автоматизация</button></div>
   <div class="grid two">
+    <div class="panel"><div id="automationList" class="automation-list"></div></div>
     <div class="panel stack">
-      <label class="drop">Загрузите один или несколько файлов<input id="docFiles" type="file" multiple></label>
-      <div class="toolbar">
-        <button data-doc-action="summary" class="secondary">Резюме</button>
-        <button data-doc-action="compare" class="secondary">Сравнить</button>
-        <button data-doc-action="facts" class="secondary">Факты и цифры</button>
-        <button data-doc-action="table" class="secondary">Анализ Excel</button>
+      <div class="field"><label>Название</label><input id="autoTitle"></div>
+      <div class="field"><label>Проект</label><select id="autoProject"></select></div>
+      <div class="field"><label>Что должен делать Gideon</label><textarea id="autoPrompt"></textarea></div>
+      <div class="grid two">
+        <div class="field"><label>Периодичность</label><select id="autoFrequency"><option value="hourly">Каждый час</option><option value="daily">Каждый день</option><option value="weekly">Каждую неделю</option></select></div>
+        <div class="field"><label>Время запуска</label><input id="autoTime" type="time" value="09:00"></div>
       </div>
-      <textarea id="docPrompt" placeholder="Своя задача по документам…"></textarea>
-      <button id="runDocTask" class="primary">Выполнить через Gideon</button>
-      <button id="archiveDocs" class="ghost">Сохранить файлы в архив</button>
-    </div>
-    <div class="panel stack">
-      <div class="toolbar"><button id="docToArtifact" class="ghost">В артефакт</button><button data-doc-export="txt" class="ghost">TXT</button><button data-doc-export="pdf" class="ghost">PDF</button><button data-doc-export="docx" class="ghost">DOCX</button><button data-doc-export="xlsx" class="ghost">XLSX</button></div>
-      <div id="docOutput" class="output">Выберите файлы и действие.</div>
+      <label class="row"><input id="autoEnabled" type="checkbox" style="width:auto" checked> Включена</label>
+      <div class="row"><button id="saveAutomation" class="primary">Сохранить</button><button id="runAutomationNow" class="secondary" disabled>Запустить сейчас</button><button id="deleteAutomation" class="danger" disabled>Удалить</button></div>
+      <div id="automationResult" class="output">—</div>
     </div>
   </div>
 </section>
 
-<section id="media" class="view">
-  <div class="head"><div><span class="eyebrow">CAMERA + MEDIA</span><h2>Изображения и аудио</h2><p>Анализ фото, генерация изображений, запись голоса и отправка аудио в Gideon.</p></div></div>
-  <div class="grid three">
+<section id="artifacts" class="view">
+  <div class="head"><div><span class="eyebrow">ARTIFACTS</span><h2>Готовые результаты</h2><p>Отчёты, тексты и результаты агента с историей версий.</p></div><button id="newArtifact" class="primary">+ Artifact</button></div>
+  <div class="knowledge-layout">
+    <div class="panel stack"><input id="artifactSearch" placeholder="Поиск Artifacts…"><div id="artifactList" class="artifact-list"></div></div>
     <div class="panel stack">
-      <h3>Gideon Image</h3>
-      <textarea id="imagePrompt" placeholder="Опишите изображение…"></textarea>
-      <button id="generateImage" class="primary">Создать изображение</button>
-      <div id="generatedImage" class="media-result"><span class="tiny">Результат появится здесь.</span></div>
+      <div class="row"><input id="artifactTitle" placeholder="Название"><select id="artifactProject" style="max-width:220px"></select></div>
+      <textarea id="artifactBody" class="artifact-preview"></textarea>
+      <div class="row"><button id="commitArtifact" class="primary">Сохранить версию</button><button id="deleteArtifact" class="danger">Удалить</button><button id="exportArtifact" class="ghost">TXT</button></div>
+      <div><b>Версии</b><div id="artifactVersions" class="version-list" style="margin-top:8px"></div></div>
     </div>
-    <div class="panel stack">
-      <h3>Vision / Камера</h3>
-      <input id="visionFile" type="file" accept="image/*">
-      <label class="secondary">📷 Открыть камеру<input id="visionCamera" type="file" accept="image/*" capture="environment" hidden></label>
-      <textarea id="visionPrompt">Опиши изображение, прочитай видимый текст и перечисли подтверждённые факты.</textarea>
-      <button id="analyzeVision" class="primary">Анализировать</button>
-      <div id="visionOutput" class="output" style="min-height:170px">—</div>
-    </div>
-    <div class="panel stack">
-      <h3>Голос / Аудио</h3>
-      <input id="audioFile" type="file" accept="audio/*,video/*">
-      <div class="row"><button id="startRecord" class="secondary">● Запись</button><button id="stopRecord" class="ghost" disabled>■ Стоп</button></div>
-      <textarea id="audioPrompt">Расшифруй речь максимально точно. Затем сделай краткий конспект и список ключевых тезисов.</textarea>
-      <button id="analyzeAudio" class="primary">Обработать аудио</button>
-      <div id="audioOutput" class="output" style="min-height:170px">—</div>
-    </div>
-  </div>
-</section>
-
-<section id="workflows" class="view">
-  <div class="head"><div><span class="eyebrow">AUTOMATION</span><h2>Workflow</h2><p>Готовые сценарии и пользовательские инструкции для повторяющихся задач.</p></div></div>
-  <div id="workflowGrid" class="grid four"></div>
-  <div class="panel stack" style="margin-top:13px">
-    <div class="row"><b id="workflowName">Выберите сценарий</b><span class="tiny" id="workflowHint"></span></div>
-    <input id="workflowFile" type="file" multiple>
-    <textarea id="workflowPrompt" placeholder="Инструкция workflow…"></textarea>
-    <button id="runWorkflow" class="primary" disabled>Запустить Workflow</button>
-    <div id="workflowOutput" class="output">—</div>
-  </div>
-</section>
-
-<section id="archive" class="view">
-  <div class="head"><div><span class="eyebrow">LOCAL FILE LIBRARY</span><h2>Архив файлов</h2><p>Файлы сохраняются в IndexedDB этого устройства. Можно искать, открыть, удалить или снова отправить в Gideon.</p></div><button id="clearArchive" class="danger">Очистить архив</button></div>
-  <div class="archive-grid">
-    <div class="panel stack"><input id="archiveSearch" placeholder="Поиск по имени…"><label class="secondary">+ Добавить файлы<input id="archiveAdd" type="file" multiple hidden></label><div id="fileList" class="file-list"></div></div>
-    <div class="panel stack"><div id="archiveInfo" class="output" style="min-height:180px">Выберите файл.</div><textarea id="archivePrompt">Проанализируй этот файл и выдели самое важное.</textarea><div class="row"><button id="archiveAnalyze" class="primary" disabled>Отправить Gideon</button><button id="archiveDownload" class="secondary" disabled>Скачать</button><button id="archiveDelete" class="danger" disabled>Удалить</button></div><div id="archiveResult" class="output" style="min-height:220px">—</div></div>
   </div>
 </section>
 
 <section id="settings" class="view">
-  <div class="head"><div><span class="eyebrow">PERSONALIZATION</span><h2>Память и настройки</h2><p>Эти данные автоматически добавляются к вашим запросам Gideon и хранятся только на этом устройстве.</p></div></div>
+  <div class="head"><div><span class="eyebrow">PERSONALIZATION</span><h2>Память и интерфейс</h2><p>Постоянные инструкции, профиль и резервное копирование.</p></div></div>
   <div class="grid two">
     <div class="panel stack">
-      <div class="field"><label>Имя профиля</label><input id="profileName" placeholder="Например, Дон"></div>
-      <div class="field"><label>Язык ответов</label><select id="profileLanguage"><option>Русский</option><option>English</option><option>Azərbaycan dili</option><option>עברית</option></select></div>
-      <div class="field"><label>Постоянные инструкции Gideon</label><textarea id="memoryText" style="min-height:260px" placeholder="Например: отвечай кратко; для карточек товара делай 4 изображения 900×1200…"></textarea></div>
-      <button id="saveSettings" class="primary">Сохранить настройки</button>
+      <div class="field"><label>Имя</label><input id="profileName"></div>
+      <div class="field"><label>Язык</label><select id="profileLanguage"><option>Русский</option><option>English</option><option>Azərbaycan dili</option><option>עברית</option></select></div>
+      <div class="field"><label>Постоянные инструкции</label><textarea id="memoryText" style="min-height:260px"></textarea></div>
+      <button id="saveSettings" class="primary">Сохранить</button>
     </div>
     <div class="panel stack">
-      <h3>Резервная копия</h3><p>Экспортирует рабочие пространства, историю, память и настройки. Сами файлы IndexedDB в JSON не входят.</p>
-      <button id="exportState" class="secondary">Экспорт JSON</button>
-      <label class="secondary">Импорт JSON<input id="importState" type="file" accept=".json,application/json" hidden></label>
-      <button id="resetState" class="danger">Сбросить локальные данные Gideon</button>
-      <hr style="border:0;border-top:1px solid #28313f;width:100%">
-      <h3>PWA</h3><p>Gideon можно установить на телефон или компьютер как приложение.</p>
-      <button id="installBtn2" class="secondary">Установить Gideon</button>
+      <h3>Резервная копия</h3><button id="exportState" class="secondary">Экспорт JSON</button><label class="secondary">Импорт JSON<input id="importState" type="file" accept=".json,application/json" hidden></label>
+      <button id="installApp" class="secondary">Установить Gideon</button><button id="resetState" class="danger">Сбросить локальные данные</button>
     </div>
   </div>
 </section>
 
 <section id="admin" class="view">
-  <div class="head"><div><span class="eyebrow">ADMIN</span><h2>Состояние Gideon</h2><p>Без секретов и API‑ключей: только безопасные показатели доступности и локальная статистика.</p></div><button id="refreshAdmin" class="secondary">Обновить</button></div>
+  <div class="head"><div><span class="eyebrow">ADMIN</span><h2>Состояние Gideon</h2><p>Без API-ключей и секретов — только безопасные показатели.</p></div><button id="refreshAdmin" class="secondary">Обновить</button></div>
   <div class="grid four">
-    <div class="panel stat"><small>Запросов сегодня</small><b id="adminRequests">—</b></div>
-    <div class="panel stat"><small>Осталось Free Guard</small><b id="adminRemaining">—</b></div>
-    <div class="panel stat"><small>Диалогов локально</small><b id="adminChats">—</b></div>
-    <div class="panel stat"><small>Файлов локально</small><b id="adminFiles">—</b></div>
+    <div class="panel"><span class="tiny">Запросов сегодня</span><h2 id="adminRequests">—</h2></div>
+    <div class="panel"><span class="tiny">Осталось Free Guard</span><h2 id="adminRemaining">—</h2></div>
+    <div class="panel"><span class="tiny">Проектов</span><h2 id="adminProjects">—</h2></div>
+    <div class="panel"><span class="tiny">Artifacts</span><h2 id="adminArtifacts">—</h2></div>
   </div>
-  <div class="grid two" style="margin-top:13px">
-    <div class="panel stack"><h3>Free Guard</h3><div class="progress"><i id="usageBar"></i></div><div id="adminStatus" class="output" style="min-height:180px">—</div></div>
-    <div class="panel stack"><h3>Локальные события</h3><div id="adminLog" class="output admin-log">—</div><button id="clearLog" class="ghost">Очистить журнал</button></div>
+  <div class="grid two" style="margin-top:12px">
+    <div class="panel stack"><h3>Free Guard</h3><div class="progress"><i id="usageBar"></i></div><div id="adminStatus" class="output">—</div></div>
+    <div class="panel stack"><h3>События</h3><div id="eventLog" class="output">—</div><button id="clearEvents" class="ghost">Очистить журнал</button></div>
   </div>
 </section>
 
 <nav class="mobile-nav">
-  <button data-route="home">⌂<span>Главная</span></button>
-  <button data-route="chat">✦<span>Чат</span></button>
-  <button data-route="documents">▤<span>Файлы</span></button>
-  <button data-route="research">⌕<span>Research</span></button>
-  <button data-route="media">▧<span>Медиа</span></button>
+  <button data-route="ask">✦<span>Ask</span></button>
+  <button data-route="projects">◈<span>Projects</span></button>
+  <button data-route="knowledge">◫<span>Knowledge</span></button>
+  <button data-route="automations">⌁<span>Auto</span></button>
+  <button data-route="artifacts">▤<span>Artifacts</span></button>
 </nav>
 </main>
 </div>
+
+<div id="commandOverlay" class="command-overlay hidden"><div class="palette"><input id="commandInput" placeholder="Команда…"><div id="commandList" class="palette-list"></div></div></div>
+<div id="searchOverlay" class="search-overlay hidden"><div class="palette"><input id="globalSearchInput" placeholder="Искать по проектам, диалогам, заметкам и Artifacts…"><div id="globalSearchList" class="palette-list"></div></div></div>
+<div id="globalDrop" class="global-drop hidden">Перетащите файлы — Gideon добавит их в текущий проект</div>
 <div id="toast" class="toast"></div>
 
 <script>
 const API='https://yuvion-ai-cards-marketplace-production.up.railway.app';
-const STATE_KEY='gideon_workspace_v3';
+const STATE_KEY='gideon_os_v4';
+const OLD_KEYS=['gideon_workspace_v3','gideon_v1'];
 const DB_NAME='gideon_files_v1';
 const DB_STORE='files';
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-let deferredInstall=null, chatPendingFiles=[], archiveSelected=null, mediaRecorder=null, audioChunks=[], recordedAudioFile=null, selectedWorkflow=null;
+let pendingFiles=[],pendingUrls=[],askMode='chat',selectedKnowledge=[],selectedAutomation=null,selectedArtifact=null,deferredInstall=null,dragDepth=0;
 
-function id(){return (crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2))}
-function now(){return new Date().toISOString()}
+function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)}
+function iso(){return new Date().toISOString()}
 function defaultState(){
- const ws=id(), ch=id();
- return {version:3,currentWorkspace:ws,currentChat:ch,workspaces:[{id:ws,name:'Личное',createdAt:now()}],chats:[{id:ch,workspaceId:ws,title:'Новый диалог',favorite:false,createdAt:now(),updatedAt:now(),messages:[{role:'assistant',content:'Я Gideon. Загрузите файл, фотографию или просто напишите задачу.'}]}],settings:{name:'',language:'Русский',memory:'Отвечай точно и не выдумывай отсутствующие факты.'},artifact:'',events:[]};
+ const p=uid(),c=uid();
+ return {version:4,currentProject:p,currentChat:c,projects:[{id:p,name:'Личное',description:'',instructions:'',createdAt:iso()}],chats:[{id:c,projectId:p,title:'Новый диалог',createdAt:iso(),updatedAt:iso(),messages:[{role:'assistant',content:'Я Gideon. Скажите, какой результат нужно получить.'}]}],notes:[],artifacts:[],automations:[],settings:{name:'',language:'Русский',memory:'Отвечай точно. Не выдумывай факты и не заявляй о внешних действиях, которые не были реально выполнены.'},events:[]};
+}
+function migrate(obj){
+ const s=Object.assign(defaultState(),obj||{});
+ if(!s.projects&&Array.isArray(s.workspaces))s.projects=s.workspaces.map(w=>({id:w.id,name:w.name,description:'',instructions:'',createdAt:w.createdAt||iso()}));
+ if(Array.isArray(s.chats))s.chats=s.chats.map(c=>Object.assign({},c,{projectId:c.projectId||c.workspaceId||s.currentProject||s.currentWorkspace}));
+ s.currentProject=s.currentProject||s.currentWorkspace||s.projects?.[0]?.id;
+ if(!Array.isArray(s.notes))s.notes=[];
+ if(!Array.isArray(s.artifacts))s.artifacts=[];
+ if(s.artifact&&!s.artifacts.length)s.artifacts.push({id:uid(),projectId:s.currentProject,title:'Импортированный Artifact',content:s.artifact,createdAt:iso(),updatedAt:iso(),versions:[{at:iso(),content:s.artifact}]});
+ if(!Array.isArray(s.automations))s.automations=[];
+ if(!Array.isArray(s.events))s.events=[];
+ s.version=4;return s;
 }
 let state=defaultState();
-try{const raw=localStorage.getItem(STATE_KEY);if(raw)state=Object.assign(defaultState(),JSON.parse(raw))}catch{}
-function persist(){localStorage.setItem(STATE_KEY,JSON.stringify(state));updateHomeStats()}
-function logEvent(text){state.events=(state.events||[]).slice(-99);state.events.push({at:now(),text:String(text)});persist()}
+try{
+ let raw=localStorage.getItem(STATE_KEY);
+ if(!raw){for(const k of OLD_KEYS){raw=localStorage.getItem(k);if(raw)break}}
+ if(raw)state=migrate(JSON.parse(raw));
+}catch{}
+function persist(){localStorage.setItem(STATE_KEY,JSON.stringify(state))}
+function logEvent(text){state.events=(state.events||[]).slice(-99);state.events.push({at:iso(),text:String(text)});persist()}
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2400)}
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2300)}
 function busy(btn,on,label='Gideon…'){if(!btn)return;if(on){btn.dataset.old=btn.textContent;btn.disabled=true;btn.textContent=label}else{btn.disabled=false;btn.textContent=btn.dataset.old||btn.textContent}}
-function route(name){$$('.view').forEach(v=>v.classList.toggle('active',v.id===name));$$('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===name));history.replaceState(null,'','#'+name);$('#topTitle').textContent=name==='home'?'Gideon':({chat:'Чат',research:'Research',documents:'Документы / Excel',media:'Камера / Медиа',workflows:'Workflow',archive:'Архив',settings:'Настройки',admin:'Админка'}[name]||'Gideon');window.scrollTo(0,0)}
-$$('[data-route]').forEach(b=>b.addEventListener('click',()=>route(b.dataset.route)));
+function route(name){$$('.view').forEach(v=>v.classList.toggle('active',v.id===name));$$('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===name));$('#topTitle').textContent=name==='ask'?'Gideon':({projects:'Projects',knowledge:'Knowledge',automations:'Automations',artifacts:'Artifacts',settings:'Настройки',admin:'Админка'}[name]||'Gideon');history.replaceState(null,'','#'+name);window.scrollTo(0,0);if(name==='admin')refreshAdmin()}
+$$('[data-route]').forEach(b=>b.onclick=()=>route(b.dataset.route));
 if(location.hash&&document.getElementById(location.hash.slice(1)))route(location.hash.slice(1));
 
 async function api(path,body){
  const opt={method:body?'POST':'GET',headers:{}};
  if(body){opt.headers['Content-Type']='application/json';opt.body=JSON.stringify(body)}
  const r=await fetch(API+path,opt);let d={};try{d=await r.json()}catch{}
- if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
- return d;
+ if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d;
 }
-function systemMemory(){
- const name=state.settings?.name?('Пользователя зовут '+state.settings.name+'. '):'';
- return 'Ты Gideon. Отвечай на '+(state.settings?.language||'Русский')+'. '+name+(state.settings?.memory||'');
+function currentProject(){return state.projects.find(p=>p.id===state.currentProject)||state.projects[0]}
+function projectContext(){
+ const p=currentProject();if(!p)return'';
+ const notes=state.notes.filter(n=>n.projectId===p.id).slice(-12).map(n=>n.title+': '+n.content).join('\n');
+ const arts=state.artifacts.filter(a=>a.projectId===p.id).slice(-6).map(a=>a.title+': '+String(a.content||'').slice(0,1200)).join('\n');
+ return ['Проект: '+p.name,p.description?'Описание: '+p.description:'',p.instructions?'Инструкции проекта: '+p.instructions:'',notes?'Заметки:\n'+notes:'',arts?'Последние результаты:\n'+arts:''].filter(Boolean).join('\n\n').slice(0,18000)
 }
-async function filePayload(file){
- return await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve({name:file.name,mimeType:file.type||'application/octet-stream',base64:String(fr.result).split(',')[1]||''});fr.onerror=()=>reject(fr.error);fr.readAsDataURL(file)});
+function memoryText(){const s=state.settings||{};return ['Язык: '+(s.language||'Русский'),s.name?'Имя пользователя: '+s.name:'',s.memory||''].filter(Boolean).join('\n')}
+function ensureState(){
+ if(!state.projects.length){const p={id:uid(),name:'Личное',description:'',instructions:'',createdAt:iso()};state.projects=[p];state.currentProject=p.id}
+ if(!state.projects.some(p=>p.id===state.currentProject))state.currentProject=state.projects[0].id;
+ const pc=state.chats.filter(c=>c.projectId===state.currentProject);
+ if(!pc.length){const c={id:uid(),projectId:state.currentProject,title:'Новый диалог',createdAt:iso(),updatedAt:iso(),messages:[{role:'assistant',content:'Новый диалог Gideon.'}]};state.chats.push(c);state.currentChat=c.id}
+ if(!state.chats.some(c=>c.id===state.currentChat&&c.projectId===state.currentProject))state.currentChat=state.chats.find(c=>c.projectId===state.currentProject)?.id;
+ persist()
 }
-async function analyzeFiles(files,prompt){
- const payload=[];for(const f of files.slice(0,10))payload.push(await filePayload(f));
- return api('/api/gideon/analyze',{files:payload,prompt:systemMemory()+'\n\n'+prompt});
-}
-function currentChat(){return state.chats.find(c=>c.id===state.currentChat)||state.chats[0]}
-function currentWorkspace(){return state.workspaces.find(w=>w.id===state.currentWorkspace)||state.workspaces[0]}
+function currentChat(){return state.chats.find(c=>c.id===state.currentChat)}
+async function filePayload(file){return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res({name:file.name,mimeType:file.type||'application/octet-stream',base64:String(fr.result).split(',')[1]||''});fr.onerror=()=>rej(fr.error);fr.readAsDataURL(file)})}
+async function analyzeFiles(files,prompt){const payload=[];for(const f of files.slice(0,10))payload.push(await filePayload(f));return api('/api/gideon/analyze',{files:payload,prompt:memoryText()+'\n\n'+projectContext()+'\n\n'+prompt})}
 
-function ensureCurrent(){
- if(!state.workspaces.length){const w={id:id(),name:'Личное',createdAt:now()};state.workspaces=[w];state.currentWorkspace=w.id}
- let chats=state.chats.filter(c=>c.workspaceId===state.currentWorkspace);
- if(!chats.length){const c={id:id(),workspaceId:state.currentWorkspace,title:'Новый диалог',favorite:false,createdAt:now(),updatedAt:now(),messages:[{role:'assistant',content:'Новый диалог Gideon.'}]};state.chats.push(c);state.currentChat=c.id}
- if(!state.chats.some(c=>c.id===state.currentChat&&c.workspaceId===state.currentWorkspace))state.currentChat=state.chats.find(c=>c.workspaceId===state.currentWorkspace)?.id;
- persist();
-}
-function renderWorkspaces(){
- ensureCurrent();
- $('#workspaceStrip').innerHTML=state.workspaces.map(w=>'<button class="workspace-chip '+(w.id===state.currentWorkspace?'active':'')+'" data-ws="'+w.id+'">'+esc(w.name)+'</button>').join('');
- $$('[data-ws]').forEach(b=>b.onclick=()=>{state.currentWorkspace=b.dataset.ws;const c=state.chats.find(x=>x.workspaceId===state.currentWorkspace);state.currentChat=c?.id||'';ensureCurrent();renderAllChat();persist()});
-}
-function renderSessions(){
- const q=$('#chatSearch').value.trim().toLowerCase();
- const arr=state.chats.filter(c=>c.workspaceId===state.currentWorkspace&&(!q||c.title.toLowerCase().includes(q)||(c.messages||[]).some(m=>m.content.toLowerCase().includes(q)))).sort((a,b)=>(b.favorite-a.favorite)||String(b.updatedAt).localeCompare(String(a.updatedAt)));
- $('#sessionList').innerHTML=arr.map(c=>'<div class="session '+(c.id===state.currentChat?'active':'')+'" data-chat="'+c.id+'"><b>'+(c.favorite?'★ ':'')+esc(c.title)+'</b><small>'+new Date(c.updatedAt).toLocaleString('ru-RU')+'</small></div>').join('')||'<span class="tiny">Нет диалогов.</span>';
- $$('[data-chat]').forEach(e=>e.onclick=()=>{state.currentChat=e.dataset.chat;persist();renderAllChat()});
+function renderProjectsForAsk(){
+ const q=$('#projectSearch').value.trim().toLowerCase();
+ const arr=state.projects.filter(p=>!q||p.name.toLowerCase().includes(q));
+ $('#projectCount').textContent=state.projects.length+' шт.';
+ $('#askProjectList').innerHTML=arr.map(p=>'<div class="project-item '+(p.id===state.currentProject?'active':'')+'" data-askproject="'+p.id+'"><b>'+esc(p.name)+'</b><small>'+esc((p.description||'Без описания').slice(0,80))+'</small></div>').join('');
+ $$('[data-askproject]').forEach(e=>e.onclick=()=>{state.currentProject=e.dataset.askproject;ensureState();renderAll();persist()})
 }
 function renderMessages(){
- const c=currentChat();if(!c)return;
- $('#messages').innerHTML=(c.messages||[]).map(m=>'<div class="msg '+m.role+'">'+esc(m.content)+'</div>').join('');
- $('#messages').scrollTop=$('#messages').scrollHeight;
+ const c=currentChat();$('#messages').innerHTML=(c?.messages||[]).map(m=>'<div class="msg '+m.role+'">'+esc(m.content)+'</div>').join('');$('#messages').scrollTop=$('#messages').scrollHeight
 }
 function renderAttachments(){
- $('#chatAttachments').innerHTML=chatPendingFiles.map((f,i)=>'<span class="attachment-chip">'+esc(f.name)+' <button data-rmfile="'+i+'" style="background:none;color:inherit">×</button></span>').join('');
- $$('[data-rmfile]').forEach(b=>b.onclick=()=>{chatPendingFiles.splice(Number(b.dataset.rmfile),1);renderAttachments()});
+ const fileChips=pendingFiles.map((f,i)=>'<span class="chip">'+esc(f.name)+' <button data-rmf="'+i+'" style="background:none;color:inherit">×</button></span>');
+ const urlChips=pendingUrls.map((u,i)=>'<span class="chip">🔗 '+esc(u)+' <button data-rmu="'+i+'" style="background:none;color:inherit">×</button></span>');
+ $('#askAttachments').innerHTML=fileChips.concat(urlChips).join('');
+ $$('[data-rmf]').forEach(b=>b.onclick=()=>{pendingFiles.splice(Number(b.dataset.rmf),1);renderAttachments()});
+ $$('[data-rmu]').forEach(b=>b.onclick=()=>{pendingUrls.splice(Number(b.dataset.rmu),1);renderAttachments()})
 }
-function renderAllChat(){renderWorkspaces();renderSessions();renderMessages();renderAttachments();$('#artifactEditor').value=state.artifact||''}
-function setArtifact(text){state.artifact=String(text||'');$('#artifactEditor').value=state.artifact;persist()}
-$('#artifactEditor').addEventListener('input',()=>{state.artifact=$('#artifactEditor').value;persist()});
+function setAskMode(mode){askMode=mode;$('#modeChat').classList.toggle('active',mode==='chat');$('#modeAgent').classList.toggle('active',mode==='agent');$('#agentModeLabel').textContent=mode==='agent'?'агентный режим':'обычный ответ'}
+$('#modeChat').onclick=()=>setAskMode('chat');$('#modeAgent').onclick=()=>setAskMode('agent');
+$('#projectSearch').oninput=renderProjectsForAsk;
+$('#askFiles').onchange=e=>{pendingFiles.push(...Array.from(e.target.files).slice(0,10-pendingFiles.length));e.target.value='';renderAttachments()};
+$('#askCamera').onchange=e=>{pendingFiles.push(...Array.from(e.target.files).slice(0,10-pendingFiles.length));e.target.value='';renderAttachments()};
+$('#addUrlBtn').onclick=()=>{const u=prompt('Публичная ссылка для Gideon:','https://');if(u&&/^https?:\/\//i.test(u.trim())){pendingUrls.push(u.trim());renderAttachments()}};
+$('#newChat').onclick=()=>{const c={id:uid(),projectId:state.currentProject,title:'Новый диалог',createdAt:iso(),updatedAt:iso(),messages:[{role:'assistant',content:'Новый диалог Gideon.'}]};state.chats.push(c);state.currentChat=c.id;persist();renderMessages();toast('Новый диалог создан')};
 
-$('#newWorkspace').onclick=()=>{const name=prompt('Название рабочего пространства:','Новый проект');if(!name)return;const w={id:id(),name:name.trim().slice(0,60),createdAt:now()};state.workspaces.push(w);state.currentWorkspace=w.id;state.currentChat='';ensureCurrent();renderAllChat();logEvent('Создано пространство: '+w.name)};
-$('#newChat').onclick=()=>{const c={id:id(),workspaceId:state.currentWorkspace,title:'Новый диалог',favorite:false,createdAt:now(),updatedAt:now(),messages:[{role:'assistant',content:'Новый диалог Gideon.'}]};state.chats.push(c);state.currentChat=c.id;persist();renderAllChat()};
-$('#renameChat').onclick=()=>{const c=currentChat();if(!c)return;const n=prompt('Новое название диалога:',c.title);if(n){c.title=n.trim().slice(0,80);c.updatedAt=now();persist();renderSessions()}};
-$('#favChat').onclick=()=>{const c=currentChat();if(!c)return;c.favorite=!c.favorite;persist();renderSessions();toast(c.favorite?'Добавлено в избранное':'Убрано из избранного')};
-$('#chatSearch').oninput=renderSessions;
-
-const templates=[
- ['Кратко','Ответь кратко, только главное.'],
- ['План','Составь практический пошаговый план.'],
- ['Проверить','Проверь текст/данные, найди ошибки и предложи исправления.'],
- ['Таблица','Представь результат структурированной таблицей в Markdown.'],
- ['Перевод','Переведи материал на русский язык, сохраняя смысл и структуру.'],
- ['Маркетплейс','Создай продающий заголовок, описание и преимущества товара без выдуманных характеристик.']
-];
-$('#chatTemplates').innerHTML=templates.map((x,i)=>'<button class="template" data-template="'+i+'">'+esc(x[0])+'</button>').join('');
-$$('[data-template]').forEach(b=>b.onclick=()=>{$('#chatInput').value=(templates[Number(b.dataset.template)]?.[1]||'')+'\n'+$('#chatInput').value;$('#chatInput').focus()});
-
-function addChatFiles(files){chatPendingFiles.push(...Array.from(files).slice(0,10-chatPendingFiles.length));renderAttachments()}
-$('#chatFiles').onchange=e=>{addChatFiles(e.target.files);e.target.value=''};
-$('#chatCamera').onchange=e=>{addChatFiles(e.target.files);e.target.value=''};
-
-$('#sendChat').onclick=async()=>{
- const c=currentChat(),input=$('#chatInput'),text=input.value.trim();if(!c||(!text&&!chatPendingFiles.length))return;
- const userText=text||'Проанализируй приложенные файлы.';
- c.messages.push({role:'user',content:userText+(chatPendingFiles.length?'\n[Файлы: '+chatPendingFiles.map(f=>f.name).join(', ')+']':'')});
- if(c.title==='Новый диалог')c.title=userText.slice(0,55);
- c.updatedAt=now();input.value='';persist();renderMessages();renderSessions();
- const btn=$('#sendChat');busy(btn,true);let files=[...chatPendingFiles];chatPendingFiles=[];renderAttachments();
+async function runAsk(){
+ const input=$('#askInput'),goal=input.value.trim();if(!goal&&!pendingFiles.length)return;
+ const c=currentChat();if(!c)return;
+ const shown=goal||'Проанализируй приложенные файлы.';
+ c.messages.push({role:'user',content:shown+(pendingFiles.length?'\n[Файлы: '+pendingFiles.map(f=>f.name).join(', ')+']':'')+(pendingUrls.length?'\n[URL: '+pendingUrls.join(', ')+']':'')});
+ if(c.title==='Новый диалог')c.title=shown.slice(0,60);c.updatedAt=iso();input.value='';renderMessages();persist();
+ const btn=$('#sendAsk');busy(btn,true,askMode==='agent'?'Agent работает…':'Gideon думает…');
+ const files=[...pendingFiles],urls=[...pendingUrls];pendingFiles=[];pendingUrls=[];renderAttachments();
  try{
-   let answer;
-   if(files.length){const d=await analyzeFiles(files,'Ответь на запрос пользователя: '+userText);answer=d.answer;for(const f of files)await archiveFile(f,'chat')}
-   else{const d=await api('/api/gideon/chat',{messages:[{role:'system',content:systemMemory()},...c.messages.slice(-16)]});answer=d.answer}
-   c.messages.push({role:'assistant',content:answer});c.updatedAt=now();setArtifact(answer);logEvent('Gideon ответил в чате');renderMessages();renderSessions()
- }catch(e){c.messages.push({role:'assistant',content:'Ошибка: '+e.message});c.updatedAt=now();persist();renderMessages()}
+   let answer='',plan=null,fileContext='';
+   if(files.length){
+     const fd=await analyzeFiles(files,'Подготовь точный контекст для выполнения следующей цели. Не решай задачу полностью, а извлеки факты и важные данные из файлов. Цель: '+shown);
+     fileContext=fd.answer;
+     for(const f of files)await archiveFile(f,state.currentProject,'ask')
+   }
+   if(askMode==='agent'){
+     const d=await api('/api/gideon/agent',{goal:shown,projectContext:(projectContext()+'\n\nКонтекст файлов:\n'+fileContext).slice(0,18000),memory:memoryText(),urls});
+     answer=d.answer;plan=d.plan;renderPlan(plan)
+   }else if(files.length||urls.length){
+     if(urls.length){
+       const d=await api('/api/gideon/agent',{goal:shown,projectContext:(projectContext()+'\n\nКонтекст файлов:\n'+fileContext).slice(0,18000),memory:memoryText(),urls});
+       answer=d.answer;plan=d.plan;renderPlan(plan)
+     }else{
+       const d=await api('/api/gideon/chat',{messages:[{role:'system',content:memoryText()+'\n\n'+projectContext()+'\n\nФакты из приложенных файлов:\n'+fileContext},{role:'user',content:shown}]});answer=d.answer
+     }
+   }else{
+     const d=await api('/api/gideon/chat',{messages:[{role:'system',content:memoryText()+'\n\n'+projectContext()},...c.messages.slice(-16)]});answer=d.answer
+   }
+   c.messages.push({role:'assistant',content:answer});c.updatedAt=iso();$('#artifactEditor').value=answer;persist();renderMessages();logEvent('Ask: '+shown.slice(0,80))
+ }catch(e){c.messages.push({role:'assistant',content:'Ошибка: '+e.message});c.updatedAt=iso();persist();renderMessages()}
  finally{busy(btn,false)}
-};
-$('#chatInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#sendChat').click()}};
-$('#copyArtifact').onclick=()=>navigator.clipboard.writeText($('#artifactEditor').value).then(()=>toast('Скопировано'));
-$('#shareArtifact').onclick=async()=>{const text=$('#artifactEditor').value;if(navigator.share)await navigator.share({title:'Gideon',text});else{await navigator.clipboard.writeText(text);toast('Скопировано')}};
-
-function downloadBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
-async function loadScript(src,test){if(test&&test())return;await new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
-async function exportText(text,format,name='gideon'){
- text=String(text||'');
- if(format==='txt')return downloadBlob(new Blob([text],{type:'text/plain;charset=utf-8'}),name+'.txt');
- if(format==='pdf'){await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',()=>window.jspdf);const d=new jspdf.jsPDF({unit:'pt',format:'a4'});const lines=d.splitTextToSize(text,500);let y=50;for(const line of lines){if(y>790){d.addPage();y=50}d.text(line,48,y);y+=16}d.save(name+'.pdf');return}
- if(format==='docx'){await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',()=>window.JSZip);const z=new JSZip(),xmlEsc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));const paras=text.split(/\n/).map(x=>'<w:p><w:r><w:t xml:space="preserve">'+xmlEsc(x)+'</w:t></w:r></w:p>').join('');z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');z.folder('_rels').file('.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');z.folder('word').file('document.xml','<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+paras+'<w:sectPr/></w:body></w:document>');return downloadBlob(await z.generateAsync({type:'blob'}),name+'.docx')}
- if(format==='xlsx'){await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',()=>window.XLSX);const rows=text.split('\n').map(x=>[x]);const ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Gideon');XLSX.writeFile(wb,name+'.xlsx')}
 }
-$$('[data-export]').forEach(b=>b.onclick=()=>exportText($('#artifactEditor').value,b.dataset.export,'gideon-artifact'));
+$('#sendAsk').onclick=runAsk;$('#askInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();runAsk()}};
+function renderPlan(plan){if(!plan){$('#agentPlan').innerHTML='<span class="tiny">План отсутствует.</span>';return}const steps=Array.isArray(plan.steps)?plan.steps:[];$('#agentPlan').innerHTML='<div class="tiny">'+esc(plan.summary||'')+'</div>'+steps.map((s,i)=>'<div class="plan-step"><b>'+(i+1)+'. '+esc(s.title||'Шаг')+'</b><small>'+esc(s.kind||'')+'</small></div>').join('')+(plan.deliverable?'<div class="tiny">Результат: '+esc(plan.deliverable)+'</div>':'')}
 
-// Research
-function addResearchInput(value=''){const wrap=$('#researchSources'),i=document.createElement('input');i.placeholder='https://...';i.value=value;wrap.appendChild(i)}
-addResearchInput();addResearchInput();
-$('#addResearchUrl').onclick=()=>addResearchInput();
-$('#runResearch').onclick=async()=>{const urls=$$('#researchSources input').map(x=>x.value.trim()).filter(Boolean),q=$('#researchQuestion').value.trim();if(!urls.length)return toast('Добавьте ссылку');const b=$('#runResearch'),o=$('#researchOutput');busy(b,true,'Исследую…');o.textContent='Gideon читает источники…';try{const d=await api('/api/gideon/research',{urls,question:q});o.textContent=d.answer;setArtifact(d.answer);logEvent('Завершено Research по '+urls.length+' источникам')}catch(e){o.textContent='Ошибка: '+e.message}finally{busy(b,false)}};
-$('#researchToArtifact').onclick=()=>setArtifact($('#researchOutput').textContent);
-$('#researchCopy').onclick=()=>navigator.clipboard.writeText($('#researchOutput').textContent).then(()=>toast('Скопировано'));
+function createProject(){
+ const name=prompt('Название проекта:','Новый проект');if(!name)return;
+ const p={id:uid(),name:name.trim().slice(0,70),description:'',instructions:'',createdAt:iso()};state.projects.push(p);state.currentProject=p.id;state.currentChat='';ensureState();persist();renderAll();logEvent('Создан проект: '+p.name);route('projects')
+}
+$('#newProjectQuick').onclick=createProject;$('#createProject').onclick=createProject;
+function renderProjectsPage(){
+ const q=$('#projectsSearch').value.trim().toLowerCase(),arr=state.projects.filter(p=>!q||p.name.toLowerCase().includes(q));
+ $('#projectsList').innerHTML=arr.map(p=>'<div class="project-card '+(p.id===state.currentProject?'active':'')+'" data-project="'+p.id+'"><b>'+esc(p.name)+'</b><small>'+esc((p.description||'Без описания').slice(0,120))+'</small></div>').join('');
+ $$('[data-project]').forEach(e=>e.onclick=()=>{state.currentProject=e.dataset.project;ensureState();persist();renderAll()});
+ const p=currentProject();if(!p)return;$('#projectTitle').textContent=p.name;$('#projectDescription').value=p.description||'';$('#projectInstructions').value=p.instructions||'';
+ const chats=state.chats.filter(c=>c.projectId===p.id),arts=state.artifacts.filter(a=>a.projectId===p.id),notes=state.notes.filter(n=>n.projectId===p.id),autos=state.automations.filter(a=>a.projectId===p.id);
+ $('#projectCounts').innerHTML=['Диалоги '+chats.length,'Knowledge '+notes.length,'Automations '+autos.length,'Artifacts '+arts.length].map(x=>'<span class="count">'+x+'</span>').join('');
+ $('#projectChats').innerHTML=chats.slice(-6).reverse().map(c=>'• '+esc(c.title)+'<br>').join('')||'Нет диалогов.';
+ $('#projectArtifacts').innerHTML=arts.slice(-6).reverse().map(a=>'• '+esc(a.title)+'<br>').join('')||'Нет Artifacts.'
+}
+$('#projectsSearch').oninput=renderProjectsPage;$('#saveProject').onclick=()=>{const p=currentProject();p.description=$('#projectDescription').value.trim();p.instructions=$('#projectInstructions').value.trim();persist();renderAll();toast('Проект сохранён')};
+$('#renameProject').onclick=()=>{const p=currentProject(),n=prompt('Новое название:',p.name);if(n){p.name=n.trim().slice(0,70);persist();renderAll()}};
+$('#deleteProject').onclick=()=>{if(state.projects.length<=1)return toast('Нужен хотя бы один проект');const p=currentProject();if(!confirm('Удалить проект "'+p.name+'" и локальные записи, привязанные к нему?'))return;state.projects=state.projects.filter(x=>x.id!==p.id);state.chats=state.chats.filter(x=>x.projectId!==p.id);state.notes=state.notes.filter(x=>x.projectId!==p.id);state.artifacts=state.artifacts.filter(x=>x.projectId!==p.id);state.automations=state.automations.filter(x=>x.projectId!==p.id);state.currentProject=state.projects[0].id;ensureState();persist();renderAll()};
 
-// Documents
-const docPrompts={
- summary:'Сделай структурированное резюме всех файлов: цель, ключевые факты, цифры, даты, выводы и риски. Не выдумывай.',
- compare:'Сравни приложенные файлы. Покажи совпадения, отличия, добавленные/удалённые условия и практические последствия.',
- facts:'Извлеки только подтверждённые факты, цифры, даты, имена, суммы и обязательства. Для каждого пункта укажи, из какого файла он следует.',
- table:'Проанализируй таблицу или данные: структура, ключевые показатели, аномалии, дубликаты, пропуски, возможные ошибки и полезные выводы.'
-};
-$$('[data-doc-action]').forEach(b=>b.onclick=()=>{$('#docPrompt').value=docPrompts[b.dataset.docAction]||''});
-$('#runDocTask').onclick=async()=>{const files=Array.from($('#docFiles').files);if(!files.length)return toast('Выберите файлы');const prompt=$('#docPrompt').value.trim()||docPrompts.summary,b=$('#runDocTask'),o=$('#docOutput');busy(b,true,'Gideon анализирует…');o.textContent='Обрабатываю '+files.length+' файл(ов)…';try{const d=await analyzeFiles(files,prompt);o.textContent=d.answer;setArtifact(d.answer);logEvent('Документ Studio: '+files.length+' файл(ов)')}catch(e){o.textContent='Ошибка: '+e.message}finally{busy(b,false)}};
-$('#archiveDocs').onclick=async()=>{const files=Array.from($('#docFiles').files);if(!files.length)return toast('Выберите файлы');for(const f of files)await archiveFile(f,'documents');toast('Сохранено в архив');renderArchive()};
-$('#docToArtifact').onclick=()=>setArtifact($('#docOutput').textContent);
-$$('[data-doc-export]').forEach(b=>b.onclick=()=>exportText($('#docOutput').textContent,b.dataset.docExport,'gideon-document'));
-
-// Media
-$('#generateImage').onclick=async()=>{const p=$('#imagePrompt').value.trim();if(!p)return toast('Введите описание');const b=$('#generateImage'),o=$('#generatedImage');busy(b,true,'Создаю…');o.textContent='Gideon создаёт изображение…';try{const d=await api('/api/gideon/image',{prompt:p});const src='data:'+d.mimeType+';base64,'+d.imageBase64;o.innerHTML='<div><img src="'+src+'" alt=""><br><a class="secondary" download="gideon-image.jpg" href="'+src+'">Скачать</a></div>';logEvent('Создано изображение')}catch(e){o.textContent='Ошибка: '+e.message}finally{busy(b,false)}};
-function setVisionFile(f){if(!f)return;const u=URL.createObjectURL(f);$('#visionOutput').innerHTML='<div class="preview"><img src="'+u+'" alt=""></div>'}
-$('#visionFile').onchange=e=>setVisionFile(e.target.files?.[0]);$('#visionCamera').onchange=e=>{if(e.target.files?.[0]){const dt=new DataTransfer();dt.items.add(e.target.files[0]);$('#visionFile').files=dt.files;setVisionFile(e.target.files[0])}};
-$('#analyzeVision').onclick=async()=>{const f=$('#visionFile').files?.[0];if(!f)return toast('Выберите изображение');const b=$('#analyzeVision'),o=$('#visionOutput');busy(b,true,'Анализ…');o.textContent='Gideon анализирует…';try{const d=await analyzeFiles([f],$('#visionPrompt').value.trim());o.textContent=d.answer;setArtifact(d.answer);await archiveFile(f,'vision')}catch(e){o.textContent='Ошибка: '+e.message}finally{busy(b,false)}};
-$('#startRecord').onclick=async()=>{try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});audioChunks=[];mediaRecorder=new MediaRecorder(stream);mediaRecorder.ondataavailable=e=>e.data.size&&audioChunks.push(e.data);mediaRecorder.onstop=()=>{const blob=new Blob(audioChunks,{type:mediaRecorder.mimeType||'audio/webm'});recordedAudioFile=new File([blob],'gideon-recording.webm',{type:blob.type});stream.getTracks().forEach(t=>t.stop());toast('Запись готова')};mediaRecorder.start();$('#startRecord').disabled=true;$('#stopRecord').disabled=false;toast('Идёт запись…')}catch(e){toast('Микрофон недоступен')}};
-$('#stopRecord').onclick=()=>{if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();$('#startRecord').disabled=false;$('#stopRecord').disabled=true};
-$('#analyzeAudio').onclick=async()=>{const f=recordedAudioFile||$('#audioFile').files?.[0];if(!f)return toast('Выберите или запишите аудио');const b=$('#analyzeAudio'),o=$('#audioOutput');busy(b,true,'Аудио…');o.textContent='Gideon обрабатывает аудио…';try{const d=await analyzeFiles([f],$('#audioPrompt').value.trim());o.textContent=d.answer;setArtifact(d.answer);await archiveFile(f,'audio')}catch(e){o.textContent='Ошибка: '+e.message}finally{busy(b,false)}};
-
-// Workflows
-const workflows=[
- {name:'Документ → резюме',hint:'PDF/DOCX/TXT',prompt:'Сделай краткое структурированное резюме файла: факты, цифры, даты, выводы и риски.'},
- {name:'Два файла → сравнение',hint:'2 файла',prompt:'Сравни файлы. Покажи существенные различия, совпадения и последствия изменений.'},
- {name:'Фото → OCR + факты',hint:'изображение',prompt:'Прочитай весь видимый текст, затем перечисли подтверждённые факты об объекте.'},
- {name:'Аудио → протокол',hint:'аудио',prompt:'Расшифруй речь и оформи протокол: темы, решения, задачи и ответственные, если они названы.'},
- {name:'Excel → аудит',hint:'XLSX/CSV',prompt:'Проведи аудит таблицы: структура, пропуски, дубликаты, аномалии, ошибки и основные показатели.'},
- {name:'Товар → описание',hint:'фото товара',prompt:'По фото товара создай продающий заголовок и описание, не выдумывая отсутствующие характеристики.'},
- {name:'Файл → перевод',hint:'любой документ',prompt:'Переведи содержимое файла на русский язык, сохранив структуру, числа и имена.'},
- {name:'Файл → список задач',hint:'документ/аудио',prompt:'Извлеки все действия, поручения, сроки и ответственных. Оформи чек-лист.'}
-];
-$('#workflowGrid').innerHTML=workflows.map((w,i)=>'<article class="card" data-wf="'+i+'"><h3>'+esc(w.name)+'</h3><p>'+esc(w.hint)+'</p></article>').join('');
-$$('[data-wf]').forEach(e=>e.onclick=()=>{selectedWorkflow=workflows[Number(e.dataset.wf)];$('#workflowName').textContent=selectedWorkflow.name;$('#workflowHint').textContent=selectedWorkflow.hint;$('#workflowPrompt').value=selectedWorkflow.prompt;$('#runWorkflow').disabled=false});
-$('#runWorkflow').onclick=async()=>{const files=Array.from($('#workflowFile').files);if(!selectedWorkflow||!files.length)return toast('Выберите сценарий и файл');const b=$('#runWorkflow'),o=$('#workflowOutput');busy(b,true,'Workflow…');o.textContent='Выполняю…';try{const d=await analyzeFiles(files,$('#workflowPrompt').value.trim());o.textContent=d.answer;setArtifact(d.answer);for(const f of files)await archiveFile(f,'workflow');logEvent('Workflow: '+selectedWorkflow.name)}catch(e){o.textContent='Ошибка: '+e.message}finally{busy(b,false)}};
-
-// IndexedDB archive
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(DB_STORE))r.result.createObjectStore(DB_STORE,{keyPath:'id'})};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
-async function archiveFile(file,source='manual'){if(!file||file.size>20*1024*1024)return;const db=await openDB(),rec={id:id(),name:file.name,type:file.type||'application/octet-stream',size:file.size,source,createdAt:now(),blob:file};await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(rec);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close();updateHomeStats()}
-async function listArchive(){const db=await openDB(),arr=await new Promise((res,rej)=>{const r=db.transaction(DB_STORE).objectStore(DB_STORE).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)});db.close();return arr.sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))}
-async function getArchive(idv){const db=await openDB(),r=await new Promise((res,rej)=>{const q=db.transaction(DB_STORE).objectStore(DB_STORE).get(idv);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});db.close();return r}
-async function deleteArchive(idv){const db=await openDB();await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(idv);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close()}
-async function clearArchiveDB(){const db=await openDB();await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close()}
-async function renderArchive(){const q=$('#archiveSearch').value.trim().toLowerCase(),arr=(await listArchive()).filter(x=>!q||x.name.toLowerCase().includes(q));$('#fileList').innerHTML=arr.map(x=>'<div class="file-row '+(archiveSelected===x.id?'active':'')+'" data-fileid="'+x.id+'"><b>'+esc(x.name)+'</b><small>'+Math.round(x.size/1024)+' KB · '+esc(x.source||'')+' · '+new Date(x.createdAt).toLocaleString('ru-RU')+'</small></div>').join('')||'<span class="tiny">Архив пуст.</span>';$$('[data-fileid]').forEach(e=>e.onclick=async()=>{archiveSelected=e.dataset.fileid;const r=await getArchive(archiveSelected);$('#archiveInfo').textContent='Имя: '+r.name+'\nТип: '+r.type+'\nРазмер: '+Math.round(r.size/1024)+' KB\nИсточник: '+r.source+'\nДата: '+new Date(r.createdAt).toLocaleString('ru-RU');$('#archiveAnalyze').disabled=$('#archiveDownload').disabled=$('#archiveDelete').disabled=false;renderArchive()});updateHomeStats()}
-$('#archiveSearch').oninput=renderArchive;
-$('#archiveAdd').onchange=async e=>{for(const f of Array.from(e.target.files))await archiveFile(f,'manual');e.target.value='';renderArchive();toast('Файлы добавлены')};
-$('#archiveAnalyze').onclick=async()=>{const r=await getArchive(archiveSelected);if(!r)return;const f=new File([r.blob],r.name,{type:r.type}),b=$('#archiveAnalyze'),o=$('#archiveResult');busy(b,true,'Gideon…');try{const d=await analyzeFiles([f],$('#archivePrompt').value.trim());o.textContent=d.answer;setArtifact(d.answer)}catch(e){o.textContent='Ошибка: '+e.message}finally{busy(b,false)}};
-$('#archiveDownload').onclick=async()=>{const r=await getArchive(archiveSelected);if(r)downloadBlob(r.blob,r.name)};
-$('#archiveDelete').onclick=async()=>{if(!archiveSelected)return;await deleteArchive(archiveSelected);archiveSelected=null;$('#archiveInfo').textContent='Выберите файл.';$('#archiveResult').textContent='—';$('#archiveAnalyze').disabled=$('#archiveDownload').disabled=$('#archiveDelete').disabled=true;renderArchive()};
-$('#clearArchive').onclick=async()=>{if(confirm('Очистить весь локальный архив файлов?')){await clearArchiveDB();archiveSelected=null;renderArchive();logEvent('Архив файлов очищен')}};
+async function archiveFile(file,projectId,source='manual'){if(!file||file.size>20*1024*1024)return null;const db=await openDB(),rec={id:uid(),projectId:projectId||state.currentProject,name:file.name,type:file.type||'application/octet-stream',size:file.size,source,createdAt:iso(),blob:file};await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(rec);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close();return rec.id}
+async function listFiles(){const db=await openDB(),arr=await new Promise((res,rej)=>{const r=db.transaction(DB_STORE).objectStore(DB_STORE).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)});db.close();return arr}
+async function getFile(idv){const db=await openDB(),v=await new Promise((res,rej)=>{const r=db.transaction(DB_STORE).objectStore(DB_STORE).get(idv);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});db.close();return v}
+async function deleteFile(idv){const db=await openDB();await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(idv);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close()}
 
-// Settings
+function fillProjectSelects(){for(const idv of ['#knowledgeProject','#autoProject','#artifactProject']){const el=$(idv);if(!el)continue;const current=el.value||state.currentProject;el.innerHTML=state.projects.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');el.value=state.projects.some(p=>p.id===current)?current:state.currentProject}}
+async function renderKnowledge(){
+ fillProjectSelects();const pid=$('#knowledgeProject').value||state.currentProject,q=$('#knowledgeSearch').value.trim().toLowerCase(),files=(await listFiles()).filter(f=>(f.projectId||state.projects[0]?.id)===pid&&(!q||f.name.toLowerCase().includes(q))),notes=state.notes.filter(n=>n.projectId===pid&&(!q||n.title.toLowerCase().includes(q)||n.content.toLowerCase().includes(q)));
+ const rows=notes.map(n=>'<div class="note-row '+(selectedKnowledge.includes('n:'+n.id)?'active':'')+'" data-kitem="n:'+n.id+'"><b>📝 '+esc(n.title)+'</b><small>'+esc(n.content.slice(0,100))+'</small></div>').concat(files.map(f=>'<div class="file-row '+(selectedKnowledge.includes('f:'+f.id)?'active':'')+'" data-kitem="f:'+f.id+'"><b>📎 '+esc(f.name)+'</b><small>'+Math.round(f.size/1024)+' KB</small></div>'));
+ $('#knowledgeItems').innerHTML=rows.join('')||'<span class="tiny">Материалов пока нет.</span>';
+ $$('[data-kitem]').forEach(e=>e.onclick=()=>{const k=e.dataset.kitem,i=selectedKnowledge.indexOf(k);if(i>=0)selectedKnowledge.splice(i,1);else selectedKnowledge.push(k);$('#deleteKnowledge').disabled=selectedKnowledge.length!==1;renderKnowledge();renderKnowledgeEditor()})
+}
+function renderKnowledgeEditor(){
+ if(selectedKnowledge.length===1&&selectedKnowledge[0].startsWith('n:')){const n=state.notes.find(x=>x.id===selectedKnowledge[0].slice(2));$('#knowledgeNoteEditor').classList.remove('hidden');$('#knowledgeNoteEditor').value=n?.content||'';$('#knowledgeSelectionTitle').textContent=n?.title||'Заметка'}else{$('#knowledgeNoteEditor').classList.add('hidden');$('#knowledgeSelectionTitle').textContent=selectedKnowledge.length?('Выбрано: '+selectedKnowledge.length):'Выберите материалы'}
+}
+$('#knowledgeProject').onchange=()=>{selectedKnowledge=[];renderKnowledge()};$('#knowledgeSearch').oninput=renderKnowledge;
+$('#knowledgeFiles').onchange=async e=>{const pid=$('#knowledgeProject').value;for(const f of Array.from(e.target.files))await archiveFile(f,pid,'knowledge');e.target.value='';renderKnowledge();toast('Файлы добавлены')};
+$('#newKnowledgeNote').onclick=()=>{const title=prompt('Название заметки:','Новая заметка');if(!title)return;const n={id:uid(),projectId:$('#knowledgeProject').value,title:title.trim().slice(0,80),content:'',createdAt:iso(),updatedAt:iso()};state.notes.push(n);selectedKnowledge=['n:'+n.id];persist();renderKnowledge();renderKnowledgeEditor();$('#knowledgeNoteEditor').focus()};
+$('#knowledgeNoteEditor').oninput=()=>{if(selectedKnowledge.length===1&&selectedKnowledge[0].startsWith('n:')){const n=state.notes.find(x=>x.id===selectedKnowledge[0].slice(2));if(n){n.content=$('#knowledgeNoteEditor').value;n.updatedAt=iso();persist()}}};
+$('#deleteKnowledge').onclick=async()=>{if(selectedKnowledge.length!==1)return;const k=selectedKnowledge[0];if(k.startsWith('n:'))state.notes=state.notes.filter(n=>n.id!==k.slice(2));else await deleteFile(k.slice(2));selectedKnowledge=[];persist();renderKnowledge();renderKnowledgeEditor()};
+$('#askKnowledge').onclick=async()=>{const q=$('#knowledgeQuestion').value.trim();if(!selectedKnowledge.length)return toast('Выберите материалы');const b=$('#askKnowledge'),o=$('#knowledgeOutput');busy(b,true,'Анализ…');try{const notes=selectedKnowledge.filter(k=>k.startsWith('n:')).map(k=>state.notes.find(n=>n.id===k.slice(2))).filter(Boolean);const fileRecs=[];for(const k of selectedKnowledge.filter(k=>k.startsWith('f:'))){const r=await getFile(k.slice(2));if(r)fileRecs.push(r)}const noteContext=notes.map(n=>n.title+': '+n.content).join('\n\n');let answer;if(fileRecs.length){const fs=fileRecs.map(r=>new File([r.blob],r.name,{type:r.type}));const d=await analyzeFiles(fs,q+'\n\nЗаметки:\n'+noteContext);answer=d.answer}else{const d=await api('/api/gideon/chat',{messages:[{role:'system',content:memoryText()+'\n\n'+projectContext()+'\n\nМатериалы Knowledge:\n'+noteContext},{role:'user',content:q}]});answer=d.answer}o.textContent=answer;$('#artifactEditor').value=answer;logEvent('Knowledge query')}catch(e){o.textContent='Ошибка: '+e.message}finally{busy(b,false)}};
+
+function nextRunFor(freq,time,fromDate){
+ const d=new Date(fromDate||Date.now()),parts=String(time||'09:00').split(':'),h=Number(parts[0]||9),m=Number(parts[1]||0);
+ if(freq==='hourly'){d.setMinutes(d.getMinutes()+60);return d.toISOString()}
+ const n=new Date(d);n.setHours(h,m,0,0);if(n<=d)n.setDate(n.getDate()+(freq==='weekly'?7:1));return n.toISOString()
+}
+function renderAutomations(){
+ fillProjectSelects();$('#automationList').innerHTML=state.automations.map(a=>'<div class="auto-row '+(!a.enabled?'disabled':'')+'" data-auto="'+a.id+'"><b>'+esc(a.title)+'</b><small>'+esc(a.frequency)+' · next '+new Date(a.nextRun).toLocaleString('ru-RU')+'</small></div>').join('')||'<span class="tiny">Автоматизаций пока нет.</span>';
+ $$('[data-auto]').forEach(e=>e.onclick=()=>{selectedAutomation=e.dataset.auto;const a=state.automations.find(x=>x.id===selectedAutomation);$('#autoTitle').value=a.title;$('#autoProject').value=a.projectId;$('#autoPrompt').value=a.prompt;$('#autoFrequency').value=a.frequency;$('#autoTime').value=a.time||'09:00';$('#autoEnabled').checked=a.enabled;$('#runAutomationNow').disabled=$('#deleteAutomation').disabled=false;$('#automationResult').textContent=a.lastResult||'—'})
+}
+$('#createAutomation').onclick=()=>{selectedAutomation=null;$('#autoTitle').value='';$('#autoPrompt').value='';$('#autoProject').value=state.currentProject;$('#autoFrequency').value='daily';$('#autoTime').value='09:00';$('#autoEnabled').checked=true;$('#runAutomationNow').disabled=$('#deleteAutomation').disabled=true;$('#automationResult').textContent='—'};
+$('#saveAutomation').onclick=()=>{const title=$('#autoTitle').value.trim(),promptText=$('#autoPrompt').value.trim();if(!title||!promptText)return toast('Заполните название и задачу');let a=state.automations.find(x=>x.id===selectedAutomation);if(!a){a={id:uid(),createdAt:iso(),lastResult:''};state.automations.push(a);selectedAutomation=a.id}Object.assign(a,{title,projectId:$('#autoProject').value,prompt:promptText,frequency:$('#autoFrequency').value,time:$('#autoTime').value,enabled:$('#autoEnabled').checked,nextRun:nextRunFor($('#autoFrequency').value,$('#autoTime').value)});persist();renderAutomations();toast('Автоматизация сохранена')};
+async function executeAutomation(a,manual=false){if(!a)return;$('#automationResult').textContent='Gideon выполняет задачу…';try{const p=state.projects.find(x=>x.id===a.projectId);const ctx=['Проект: '+(p?.name||''),p?.description||'',p?.instructions||''].join('\n');const d=await api('/api/gideon/agent',{goal:a.prompt,projectContext:ctx,memory:memoryText(),urls:[]});a.lastResult=d.answer;a.lastRun=iso();a.nextRun=nextRunFor(a.frequency,a.time);persist();if(selectedAutomation===a.id)$('#automationResult').textContent=d.answer;createArtifactFromText(a.title+' — результат',d.answer,a.projectId);logEvent('Automation: '+a.title);if(!manual&&Notification.permission==='granted')new Notification('Gideon: '+a.title,{body:'Автоматизация выполнена.'})}catch(e){a.lastResult='Ошибка: '+e.message;a.lastRun=iso();a.nextRun=nextRunFor(a.frequency,a.time);persist();if(selectedAutomation===a.id)$('#automationResult').textContent=a.lastResult}}
+$('#runAutomationNow').onclick=()=>executeAutomation(state.automations.find(x=>x.id===selectedAutomation),true);
+$('#deleteAutomation').onclick=()=>{if(!selectedAutomation)return;state.automations=state.automations.filter(a=>a.id!==selectedAutomation);selectedAutomation=null;persist();renderAutomations();$('#runAutomationNow').disabled=$('#deleteAutomation').disabled=true};
+setInterval(()=>{const n=Date.now();state.automations.filter(a=>a.enabled&&new Date(a.nextRun).getTime()<=n).forEach(a=>executeAutomation(a,false))},30000);
+if('Notification'in window&&Notification.permission==='default')setTimeout(()=>Notification.requestPermission().catch(()=>{}),5000);
+
+function createArtifactFromText(title,content,projectId){
+ const a={id:uid(),projectId:projectId||state.currentProject,title:title||'Artifact',content:String(content||''),createdAt:iso(),updatedAt:iso(),versions:[{at:iso(),content:String(content||'')}]};state.artifacts.push(a);selectedArtifact=a.id;persist();return a
+}
+$('#saveArtifact').onclick=()=>{const t=$('#artifactEditor').value.trim();if(!t)return toast('Нет результата');const a=createArtifactFromText((currentChat()?.title||'Gideon result'),t,state.currentProject);toast('Artifact сохранён');renderArtifacts()};
+$('#copyArtifact').onclick=()=>navigator.clipboard.writeText($('#artifactEditor').value).then(()=>toast('Скопировано'));
+function renderArtifacts(){
+ fillProjectSelects();const q=$('#artifactSearch').value.trim().toLowerCase(),arr=state.artifacts.filter(a=>!q||a.title.toLowerCase().includes(q)||a.content.toLowerCase().includes(q));
+ $('#artifactList').innerHTML=arr.slice().reverse().map(a=>'<div class="artifact-row '+(a.id===selectedArtifact?'active':'')+'" data-artifact="'+a.id+'"><b>'+esc(a.title)+'</b><small>'+new Date(a.updatedAt).toLocaleString('ru-RU')+' · '+(a.versions?.length||1)+' вер.</small></div>').join('')||'<span class="tiny">Artifacts пока нет.</span>';
+ $$('[data-artifact]').forEach(e=>e.onclick=()=>{selectedArtifact=e.dataset.artifact;renderArtifactEditor()});renderArtifactEditor()
+}
+function renderArtifactEditor(){const a=state.artifacts.find(x=>x.id===selectedArtifact);if(!a){$('#artifactTitle').value='';$('#artifactBody').value='';$('#artifactVersions').innerHTML='';return}$('#artifactTitle').value=a.title;$('#artifactProject').value=a.projectId;$('#artifactBody').value=a.content;$('#artifactVersions').innerHTML=(a.versions||[]).map((v,i)=>'<button class="version-btn" data-version="'+i+'">v'+(i+1)+' · '+new Date(v.at).toLocaleString('ru-RU')+'</button>').join('');$$('[data-version]').forEach(b=>b.onclick=()=>{$('#artifactBody').value=a.versions[Number(b.dataset.version)]?.content||''})}
+$('#artifactSearch').oninput=renderArtifacts;$('#newArtifact').onclick=()=>{const a=createArtifactFromText('Новый Artifact','',state.currentProject);renderArtifacts();$('#artifactTitle').focus()};
+$('#commitArtifact').onclick=()=>{const a=state.artifacts.find(x=>x.id===selectedArtifact);if(!a)return;const content=$('#artifactBody').value,title=$('#artifactTitle').value.trim()||'Artifact';a.title=title;a.content=content;a.projectId=$('#artifactProject').value;a.updatedAt=iso();a.versions=a.versions||[];a.versions.push({at:iso(),content});if(a.versions.length>30)a.versions=a.versions.slice(-30);persist();renderArtifacts();toast('Версия сохранена')};
+$('#deleteArtifact').onclick=()=>{if(!selectedArtifact)return;state.artifacts=state.artifacts.filter(a=>a.id!==selectedArtifact);selectedArtifact=null;persist();renderArtifacts()};
+$('#exportArtifact').onclick=()=>{const a=state.artifacts.find(x=>x.id===selectedArtifact);if(a)downloadText(a.content,(a.title||'gideon-artifact')+'.txt')};
+function downloadText(text,name){const u=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+
 function renderSettings(){const s=state.settings||{};$('#profileName').value=s.name||'';$('#profileLanguage').value=s.language||'Русский';$('#memoryText').value=s.memory||''}
-$('#saveSettings').onclick=()=>{state.settings={name:$('#profileName').value.trim(),language:$('#profileLanguage').value,memory:$('#memoryText').value.trim()};persist();toast('Настройки сохранены');logEvent('Обновлена память Gideon')};
-$('#exportState').onclick=()=>downloadBlob(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),'gideon-backup.json');
-$('#importState').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const j=JSON.parse(await f.text());state=Object.assign(defaultState(),j);persist();renderAll();toast('Резервная копия импортирована')}catch{toast('Некорректный JSON')}e.target.value=''};
-$('#resetState').onclick=()=>{if(confirm('Сбросить историю, рабочие пространства, память и настройки?')){state=defaultState();persist();renderAll();logEvent('Локальные данные сброшены')}};
+$('#saveSettings').onclick=()=>{state.settings={name:$('#profileName').value.trim(),language:$('#profileLanguage').value,memory:$('#memoryText').value.trim()};persist();toast('Настройки сохранены')};
+$('#exportState').onclick=()=>downloadText(JSON.stringify(state,null,2),'gideon-backup.json');
+$('#importState').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{state=migrate(JSON.parse(await f.text()));persist();renderAll();toast('Импорт выполнен')}catch{toast('Некорректный файл')}e.target.value=''};
+$('#resetState').onclick=()=>{if(confirm('Сбросить локальные данные Gideon OS?')){state=defaultState();persist();renderAll()}};
 
-// Admin/status
-async function refreshStatus(){try{const d=await api('/api/gideon/status');$('#gideonStatus').textContent=d.available?'Gideon · ONLINE':'Gideon · недоступен';$('#gideonStatus').classList.toggle('warn',!d.available);if(d.usage)$('#usageText').textContent='Free Guard: '+d.usage.remaining+' осталось';return d}catch(e){$('#gideonStatus').textContent='Gideon · ошибка связи';$('#gideonStatus').classList.add('warn');return null}}
-async function refreshAdmin(){const d=await refreshStatus(),m=await api('/api/gideon/metrics').catch(()=>null),files=await listArchive().catch(()=>[]),chats=state.chats.length;$('#adminRequests').textContent=d?.usage?.requests??'—';$('#adminRemaining').textContent=d?.usage?.remaining??'—';$('#adminChats').textContent=chats;$('#adminFiles').textContent=files.length;$('#usageBar').style.width=(d?.usage?.percent||0)+'%';$('#adminStatus').textContent=JSON.stringify({name:'Gideon',available:d?.available??false,freeGuard:true,usage:d?.usage||null,uptimeSeconds:m?.uptimeSeconds||null},null,2);$('#adminLog').textContent=(state.events||[]).slice().reverse().map(x=>new Date(x.at).toLocaleString('ru-RU')+' — '+x.text).join('\n')||'Событий пока нет.'}
-$('#refreshAdmin').onclick=refreshAdmin;$('#clearLog').onclick=()=>{state.events=[];persist();refreshAdmin()};
+let installPrompt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});$('#installApp').onclick=async()=>{if(!installPrompt)return toast('Используйте пункт установки в меню браузера');installPrompt.prompt();await installPrompt.userChoice;installPrompt=null};if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
-// PWA
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('#installBtn').classList.remove('hidden')});
-async function installApp(){if(!deferredInstall)return toast('Установка доступна через меню браузера');deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$('#installBtn').classList.add('hidden')}
-$('#installBtn').onclick=installApp;$('#installBtn2').onclick=installApp;
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+async function refreshStatus(){try{const d=await api('/api/gideon/status');$('#gideonStatus').textContent=d.available?'Gideon · ONLINE':'Gideon · недоступен';$('#gideonStatus').classList.toggle('warn',!d.available);$('#usageText').textContent=d.usage?('Free Guard: '+d.usage.remaining+' осталось'):'—';return d}catch{$('#gideonStatus').textContent='Gideon · ошибка';$('#gideonStatus').classList.add('warn');return null}}
+async function refreshAdmin(){const d=await refreshStatus();$('#adminRequests').textContent=d?.usage?.requests??'—';$('#adminRemaining').textContent=d?.usage?.remaining??'—';$('#adminProjects').textContent=state.projects.length;$('#adminArtifacts').textContent=state.artifacts.length;$('#usageBar').style.width=(d?.usage?.percent||0)+'%';$('#adminStatus').textContent=JSON.stringify({name:'Gideon',available:d?.available??false,freeGuard:true,usage:d?.usage||null},null,2);$('#eventLog').textContent=(state.events||[]).slice().reverse().map(e=>new Date(e.at).toLocaleString('ru-RU')+' — '+e.text).join('\n')||'Событий пока нет.'}
+$('#refreshAdmin').onclick=refreshAdmin;$('#clearEvents').onclick=()=>{state.events=[];persist();refreshAdmin()};
 
-// Home
-async function updateHomeStats(){const files=await listArchive().catch(()=>[]);$('#homeChats').textContent=state.chats.length;$('#homeFiles').textContent=files.length;$('#homeWorkspaces').textContent=state.workspaces.length}
-function renderAll(){ensureCurrent();renderAllChat();renderSettings();renderArchive();refreshStatus();updateHomeStats();refreshAdmin()}
+const commands=[
+ {name:'Новый проект',action:createProject},{name:'Новый диалог',action:()=>{$('#newChat').click();route('ask')}},{name:'Agent mode',action:()=>{setAskMode('agent');route('ask');$('#askInput').focus()}},{name:'Knowledge',action:()=>route('knowledge')},{name:'Новая автоматизация',action:()=>{route('automations');$('#createAutomation').click()}},{name:'Новый Artifact',action:()=>{route('artifacts');$('#newArtifact').click()}},{name:'Настройки памяти',action:()=>route('settings')},{name:'Админка',action:()=>route('admin')}
+];
+function openCommand(){const o=$('#commandOverlay');o.classList.remove('hidden');$('#commandInput').value='';renderCommands();setTimeout(()=>$('#commandInput').focus(),0)}
+function renderCommands(){const q=$('#commandInput').value.trim().toLowerCase();$('#commandList').innerHTML=commands.filter(c=>!q||c.name.toLowerCase().includes(q)).map((c,i)=>'<div class="palette-item" data-cmd="'+commands.indexOf(c)+'">'+esc(c.name)+'</div>').join('');$$('[data-cmd]').forEach(e=>e.onclick=()=>{const c=commands[Number(e.dataset.cmd)];$('#commandOverlay').classList.add('hidden');c.action()})}
+$('#commandBtn').onclick=openCommand;$('#commandInput').oninput=renderCommands;$('#commandOverlay').onclick=e=>{if(e.target===$('#commandOverlay'))$('#commandOverlay').classList.add('hidden')};
+
+function globalSearchResults(q){
+ const out=[];q=q.toLowerCase();
+ state.projects.forEach(p=>{if(p.name.toLowerCase().includes(q)||(p.description||'').toLowerCase().includes(q))out.push({type:'Project',title:p.name,text:p.description||'',action:()=>{state.currentProject=p.id;ensureState();renderAll();route('projects')}})});
+ state.chats.forEach(c=>{if(c.title.toLowerCase().includes(q)||(c.messages||[]).some(m=>m.content.toLowerCase().includes(q)))out.push({type:'Chat',title:c.title,text:(c.messages?.slice(-1)[0]?.content||'').slice(0,120),action:()=>{state.currentProject=c.projectId;state.currentChat=c.id;ensureState();renderAll();route('ask')}})});
+ state.notes.forEach(n=>{if(n.title.toLowerCase().includes(q)||n.content.toLowerCase().includes(q))out.push({type:'Knowledge',title:n.title,text:n.content.slice(0,120),action:()=>{state.currentProject=n.projectId;selectedKnowledge=['n:'+n.id];renderAll();route('knowledge')}})});
+ state.artifacts.forEach(a=>{if(a.title.toLowerCase().includes(q)||a.content.toLowerCase().includes(q))out.push({type:'Artifact',title:a.title,text:a.content.slice(0,120),action:()=>{selectedArtifact=a.id;renderAll();route('artifacts')}})});
+ return out.slice(0,40)
+}
+function openSearch(){const o=$('#searchOverlay');o.classList.remove('hidden');$('#globalSearchInput').value='';$('#globalSearchList').innerHTML='<div class="palette-item tiny">Начните ввод…</div>';setTimeout(()=>$('#globalSearchInput').focus(),0)}
+$('#globalSearchBtn').onclick=openSearch;$('#globalSearchInput').oninput=()=>{const q=$('#globalSearchInput').value.trim();const arr=q?globalSearchResults(q):[];$('#globalSearchList').innerHTML=arr.map((r,i)=>'<div class="palette-item" data-search="'+i+'"><b>'+esc(r.type)+' · '+esc(r.title)+'</b><div class="tiny">'+esc(r.text)+'</div></div>').join('')||'<div class="palette-item tiny">Ничего не найдено.</div>';$$('[data-search]').forEach(e=>e.onclick=()=>{arr[Number(e.dataset.search)].action();$('#searchOverlay').classList.add('hidden')})};$('#searchOverlay').onclick=e=>{if(e.target===$('#searchOverlay'))$('#searchOverlay').classList.add('hidden')};
+window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openCommand()}if((e.ctrlKey||e.metaKey)&&e.key==='/'){e.preventDefault();openSearch()}if(e.key==='Escape'){$('#commandOverlay').classList.add('hidden');$('#searchOverlay').classList.add('hidden')}});
+
+window.addEventListener('dragenter',e=>{if(e.dataTransfer?.types?.includes('Files')){dragDepth++;$('#globalDrop').classList.remove('hidden')}});
+window.addEventListener('dragleave',e=>{if(e.dataTransfer?.types?.includes('Files')){dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)$('#globalDrop').classList.add('hidden')}});
+window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault()});
+window.addEventListener('drop',async e=>{if(e.dataTransfer?.files?.length){e.preventDefault();dragDepth=0;$('#globalDrop').classList.add('hidden');const files=Array.from(e.dataTransfer.files).slice(0,10);for(const f of files)await archiveFile(f,state.currentProject,'drag-drop');pendingFiles.push(...files);route('ask');renderAttachments();toast(files.length+' файл(ов) добавлено в Ask и Knowledge');renderKnowledge()}});
+
+function renderAll(){
+ ensureState();renderProjectsForAsk();renderMessages();renderAttachments();renderProjectsPage();fillProjectSelects();renderKnowledge();renderAutomations();renderArtifacts();renderSettings();refreshStatus();refreshAdmin()
+}
 renderAll();
 </script>
 </body>
