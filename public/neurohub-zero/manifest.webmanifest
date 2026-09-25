@@ -1,18 +1,56 @@
 {
-  "name": "Gideon",
+  "name": "Gideon OS",
   "short_name": "Gideon",
-  "description": "Gideon AI Workspace",
-  "start_url": "./",
+  "description": "Gideon OS — Projects, Knowledge, Automations и Artifacts в одном AI Workspace.",
+  "start_url": "./#ask",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0a0c11",
-  "theme_color": "#0a0c11",
+  "background_color": "#090b10",
+  "theme_color": "#090b10",
   "icons": [
     {
       "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ask Gideon",
+      "short_name": "Ask",
+      "url": "./#ask",
+      "icons": [
+        {
+          "src": "icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "short_name": "Projects",
+      "url": "./#projects",
+      "icons": [
+        {
+          "src": "icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Knowledge",
+      "short_name": "Knowledge",
+      "url": "./#knowledge",
+      "icons": [
+        {
+          "src": "icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ]
 }
