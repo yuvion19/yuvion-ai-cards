@@ -2552,6 +2552,33 @@ const GIDEON_COGNITION_MODES = {
   autofile: "Предложи, в какой проект/категорию отнести материал, какие теги дать и почему. Используй только переданный список проектов и контекст."
 };
 
+
+app.post("/api/gideon/watch", async (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, "gideon-watch:" + ip, 40)) {
+    return res.status(429).json({ error: "Слишком много Watch-проверок.", code: "watch_rate_limit" });
+  }
+  const rawUrl = String(req.body?.url || "").trim();
+  if (!rawUrl) return res.status(400).json({ error: "URL не передан.", code: "url_missing" });
+  try {
+    const fetched = await fetchPublicResource(rawUrl, { maxBytes: 1400000, accept: "text/html,text/plain;q=0.9,*/*;q=0.1", redirects: 3 });
+    const type = String(fetched.response.headers.get("content-type") || "").toLowerCase();
+    let text = fetched.buffer.toString("utf8");
+    if (type.includes("html")) {
+      text = text
+        .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+        .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
+        .replace(/<[^>]+>/g, " ");
+    }
+    text = decodeHtmlText(text).replace(/\s+/g, " ").trim().slice(0, 24000);
+    const hash = crypto.createHash("sha256").update(text).digest("hex");
+    return res.json({ url: fetched.finalUrl, hash, text, checkedAt: new Date().toISOString() });
+  } catch (error) {
+    return res.status(502).json({ error: "Не удалось проверить источник.", code: error?.code || "watch_fetch_failed" });
+  }
+});
+
 app.post("/api/gideon/cognition", async (req, res) => {
   const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
   if (limitMap(neuroHubGigaIpLimits, "gideon-cognition:" + ip, 30)) {
