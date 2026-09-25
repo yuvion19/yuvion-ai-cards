@@ -360,6 +360,73 @@ $('#studioClear')?.addEventListener('click',()=>{$('#studioInput').value='';$('#
 $('#runStudio')?.addEventListener('click',async()=>{if(workflowRecording)workflowBuffer.push({type:'studio',value:$('#studioMode').value,at:now()});const mode=$('#studioMode').value,input=$('#studioInput').value.trim(),p=state.projects.find(x=>x.id===$('#studioProject').value)||currentProject();if(!input&&!p)return;const b=$('#runStudio');busy(b,true,'Gideon…');$('#studioOutput').textContent='Обработка…';try{const old=state.currentProject;state.currentProject=p.id;const d=await api('/api/gideon/cognition',{mode,input,context:projectContext(),targetLanguage:$('#studioLanguage').value});state.currentProject=old;studioResult=d.answer;$('#studioOutput').textContent=d.answer;logEvent('Function Studio: '+mode)}catch(e){$('#studioOutput').textContent='Ошибка: '+e.message}finally{busy(b,false)}});
 $('#studioToArtifact')?.addEventListener('click',()=>{if(!studioResult)return toast('Сначала запустите функцию');createArtifactFromText((STUDIO_MODES[$('#studioMode').value]?.[0]||'Studio')+' · '+new Date().toLocaleDateString('ru-RU'),studioResult,$('#studioProject').value||state.currentProject);renderArtifacts();toast('Artifact создан')});
 $('#studioCopy')?.addEventListener('click',()=>navigator.clipboard.writeText($('#studioOutput').textContent).then(()=>toast('Скопировано')));
+
+async function loadLib(src,test){
+  if(test())return;
+  await new Promise(function(resolve,reject){
+    const s=document.createElement("script");
+    s.src=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s)
+  })
+}
+function slugName(s){
+  return String(s||"gideon").toLowerCase().replace(/[^a-z0-9а-яё]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,60)||"gideon"
+}
+async function exportDocx(text,name){
+  await loadLib("https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",function(){return !!window.JSZip});
+  const z=new JSZip();
+  const xmlEsc=function(x){return String(x).replace(/[&<>]/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]})};
+  const paras=String(text).split(/\n/).map(function(line){return "<w:p><w:r><w:t xml:space=\"preserve\">"+xmlEsc(line)+"</w:t></w:r></w:p>"}).join("");
+  z.file("[Content_Types].xml","<?xml version=\"1.0\" encoding=\"UTF-8\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/></Types>");
+  z.folder("_rels").file(".rels","<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/></Relationships>");
+  z.folder("word").file("document.xml","<?xml version=\"1.0\" encoding=\"UTF-8\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>"+paras+"<w:sectPr/></w:body></w:document>");
+  const blob=await z.generateAsync({type:"blob"});
+  const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name+".docx";a.click();setTimeout(function(){URL.revokeObjectURL(u)},1200)
+}
+async function exportXlsx(text,name){
+  await loadLib("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",function(){return !!window.XLSX});
+  const rows=String(text).split(/\n/).filter(Boolean).map(function(line){
+    if(line.indexOf("|")>=0)return line.split("|").map(function(x){return x.trim()}).filter(Boolean);
+    if(line.indexOf("\t")>=0)return line.split("\t");
+    if(line.indexOf(";")>=0)return line.split(";").map(function(x){return x.trim()});
+    return [line]
+  });
+  const ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Gideon");XLSX.writeFile(wb,name+".xlsx")
+}
+async function exportPptx(text,name){
+  await loadLib("https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js",function(){return !!window.PptxGenJS});
+  const pptx=new PptxGenJS();pptx.layout="LAYOUT_WIDE";pptx.author="Gideon";
+  let blocks=String(text).split(/\n\s*\n/).map(function(x){return x.trim()}).filter(Boolean).slice(0,14);
+  if(!blocks.length)blocks=[String(text)];
+  blocks.forEach(function(part,i){
+    const lines=part.split(/\n/).filter(Boolean);
+    const title=(lines.shift()||("Slide "+(i+1))).replace(/^#+\s*/,"").slice(0,100);
+    const body=lines.join("\n").replace(/^[-*]\s*/gm,"• ").slice(0,1800);
+    const slide=pptx.addSlide();slide.background={color:"F8F9FC"};
+    slide.addText(title,{x:.6,y:.45,w:12,h:.7,fontFace:"Arial",fontSize:26,bold:true,color:"161B22"});
+    slide.addText(body||" ",{x:.75,y:1.45,w:11.7,h:5.2,fontFace:"Arial",fontSize:18,color:"333A45",margin:.08,valign:"top"})
+  });
+  await pptx.writeFile({fileName:name+".pptx"})
+}
+function exportHtml(text,name,title){
+  const body="<!doctype html><html lang=\"ru\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>"+esc(title)+"</title><style>body{font-family:Inter,Arial,sans-serif;max-width:1100px;margin:40px auto;padding:0 24px;line-height:1.55;color:#17202a}pre{white-space:pre-wrap}</style><body><h1>"+esc(title)+"</h1><pre>"+esc(String(text||""))+"</pre></body></html>";
+  const u=URL.createObjectURL(new Blob([body],{type:"text/html;charset=utf-8"})),a=document.createElement("a");a.href=u;a.download=name+".html";a.click();setTimeout(function(){URL.revokeObjectURL(u)},1200)
+}
+async function exportStudioResult(){
+  if(!studioResult)return toast("Сначала получите результат");
+  const m=$("#studioMode").value;
+  const meta=STUDIO_MODES[m]||["Gideon",""];
+  const title=meta[0],name=slugName(title);
+  try{
+    if(m==="presentation")return await exportPptx(studioResult,name);
+    if(m==="spreadsheet")return await exportXlsx(studioResult,name);
+    if(["dashboard","form","miniapp"].indexOf(m)>=0)return exportHtml(studioResult,name,title);
+    if(["document","report","translation","research_notebook","daily_brief","evening_brief","weekly_review","meeting"].indexOf(m)>=0)return await exportDocx(studioResult,name);
+    const u=URL.createObjectURL(new Blob([studioResult],{type:"text/plain;charset=utf-8"})),a=document.createElement("a");a.href=u;a.download=name+".txt";a.click();setTimeout(function(){URL.revokeObjectURL(u)},1200)
+  }catch(e){toast("Экспорт недоступен: "+e.message)}
+}
+$("#studioExport") && $("#studioExport").addEventListener("click",exportStudioResult);
+
 function speakText(t){if(!('speechSynthesis'in window))return toast('Озвучивание не поддерживается');speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang=(state.settings.language==='English'?'en-US':'ru-RU');speechSynthesis.speak(u)}
 $('#studioSpeak')?.addEventListener('click',()=>speakText($('#studioOutput').textContent));
 
