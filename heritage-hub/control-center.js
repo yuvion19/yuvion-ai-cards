@@ -112,9 +112,18 @@
       '<section class="admin-panel" data-admin-panel="data"><div class="admin-grid two"><article class="admin-card"><div class="kicker">РЕЗЕРВНАЯ КОПИЯ</div><h2>Экспортировать систему</h2><p>Снимок реестра, графа, источников и локальных черновиков.</p><button class="btn primary" id="exportSystem">Скачать JSON-снимок</button><button class="btn secondary" id="exportRegistryCsv">Реестр CSV</button></article><article class="admin-card"><div class="kicker">ЛОКАЛЬНЫЙ ИМПОРТ</div><h2>Добавить черновые записи</h2><p>JSON импортируется только в локальный слой устройства и не публикуется автоматически.</p><input type="file" id="importSystem" class="field" accept=".json,application/json"><div id="importResult" class="small muted"></div></article></div><form class="admin-add-form" id="adminAddForm"><div><div class="kicker">БЫСТРАЯ ЗАПИСЬ</div><h2>Новый черновик</h2></div><select class="field" name="kind" required><option value="person">Человек</option><option value="family">Семья</option><option value="place">Место</option><option value="archive">Архив</option><option value="book">Книга</option><option value="story">История</option></select><input class="field" name="title" placeholder="Название / имя" required><textarea class="field" name="summary" rows="4" placeholder="Краткое описание"></textarea><button class="btn primary" type="submit">Сохранить черновик</button></form></section>';
   };
 
+  const renderCompactSidebar=route=>{
+    const nav=$('.side-nav'); if(!nav)return;
+    nav.innerHTML='<div class="compact-nav-label">Основное</div>'+H.primaryNavIds.map(id=>{
+      const n=H.nav.find(x=>x[0]===id); if(!n)return '';
+      return '<a class="'+(route===id?'active':'')+'" href="#/'+id+'"><span>'+n[2]+'</span><b>'+E(n[1])+'</b></a>';
+    }).join('')+'<div class="compact-nav-more"><a href="#/explore"><span>＋</span><b>Все разделы</b><small>'+Math.max(0,H.nav.length-H.primaryNavIds.length)+' внутри</small></a></div>';
+  };
+
   const prior=H.bindFeatures;
   H.bindFeatures=route=>{
     if(prior) prior(route);
+    renderCompactSidebar(route);
 
     const actions=$('.top-actions');
     if(actions) actions.innerHTML='<a class="quiet-link" href="#/explore">Разделы</a><a class="quiet-link" href="#/control">⚙ Управление</a><a class="primary-small" href="#/contribute">＋ Добавить</a>';
