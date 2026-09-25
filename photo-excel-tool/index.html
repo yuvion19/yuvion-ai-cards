@@ -131,7 +131,7 @@
   var runStatus = document.getElementById('runStatus');
   var bar = document.getElementById('bar');
 
-  var sourceBuffer = null;
+  var PROXY = 'https://photo-excel-yandex-proxy.onrender.com';\n  var sourceBuffer = null;
   var sourceFileName = '';
   var sourceSheetName = '';
   var headers = [];
@@ -220,8 +220,8 @@
 
   diskInput.addEventListener('input',updateRunEnabled);
 
-  async function fetchJson(url, attempts){
-    attempts = attempts || 3;
+  async function fetchJson(url, attempts, fallbackUrl){
+    attempts = attempts || 2;
     var last;
     for(var i=0;i<attempts;i++){
       try{
@@ -233,8 +233,16 @@
         return await r.json();
       }catch(e){
         last = e;
-        if(i < attempts-1) await sleep(700*(i+1));
+        if(i < attempts-1) await sleep(500*(i+1));
       }
+    }
+    if(fallbackUrl && fallbackUrl !== url){
+      var fr = await fetch(fallbackUrl,{cache:'no-store'});
+      if(!fr.ok){
+        var ftxt = await fr.text().catch(function(){return '';});
+        throw new Error('Прокси HTTP ' + fr.status + (ftxt ? ': ' + ftxt.slice(0,160) : ''));
+      }
+      return await fr.json();
     }
     throw last;
   }
@@ -267,7 +275,7 @@
         p.set('preview_size','360x360');
         p.set('preview_crop','false');
         if(folderPath) p.set('path',folderPath);
-        var data = await fetchJson(api + '?' + p.toString());
+        var directApiUrl = api + '?' + p.toString();\n        var proxyApiUrl = PROXY + '/api/yandex?' + p.toString();\n        var data = await fetchJson(directApiUrl,2,proxyApiUrl);
         var emb = data._embedded;
         if(!emb || !Array.isArray(emb.items)) break;
 
@@ -337,7 +345,13 @@
   }
 
   async function loadAndCompress(url,maxPx){
-    var r = await fetch(url,{cache:'force-cache'});
+    var r = null;
+    try{
+      r = await fetch(url,{cache:'force-cache'});
+    }catch(e){}
+    if(!r || !r.ok){
+      r = await fetch(PROXY + '/api/image?url=' + encodeURIComponent(url),{cache:'force-cache'});
+    }
     if(!r.ok) throw new Error('Фото HTTP ' + r.status);
     var blob = await r.blob();
     var objectUrl = URL.createObjectURL(blob);
