@@ -25,4 +25,22 @@ document.addEventListener("DOMContentLoaded",()=>{
 
   const search=q("#global-search"), results=q("#search-results");
   if(search&&results){const rows=[...(D.books||[]).map(x=>({t:x[0],d:x[1]+" · "+x[2],u:"/library/"})),...(D.dishes||[]).map(x=>({t:x[0],d:x[1]+" · "+x[2],u:"/kitchen/"})),...(D.dictionary||[]).map(x=>({t:x.lemma,d:x.ru,u:"/juuri/"})),...(D.places||[]).map(x=>({t:x.name,d:x.note,u:"/red-sloboda/"}))];const run=()=>{const term=search.value.trim().toLowerCase();const hits=term?rows.filter(x=>(x.t+" "+x.d).toLowerCase().includes(term)).slice(0,50):[];results.innerHTML=hits.map(x=>`<a class="search-hit" href="${x.u}"><strong>${safe(x.t)}</strong><span>${safe(x.d)}</span></a>`).join("")|| (term?'<p class="muted">Ничего не найдено.</p>':'')};search.addEventListener("input",run);run()}
+
+  const familyForm=q("#family-form");
+  const refreshFamily=()=>{const x=load(),el=q("#family-list");if(el)el.innerHTML=x.family.length?x.family.map((p,i)=>`<article><h3>${safe(p.name)}</h3><p>${safe(p.years)}</p><p>${safe(p.relation)}</p><button class="link-button" data-del-family="${i}">Удалить</button></article>`).join(""):'<p class="muted">Записей пока нет.</p>'};
+  familyForm?.addEventListener("submit",e=>{e.preventDefault();const fd=new FormData(e.currentTarget),x=load();x.family.unshift({name:fd.get("name"),years:fd.get("years"),relation:fd.get("relation")});save(x);e.currentTarget.reset();refreshFamily();refreshStore()});
+  document.addEventListener("click",e=>{const b=e.target.closest("[data-del-family]");if(b){const x=load();x.family.splice(Number(b.dataset.delFamily),1);save(x);refreshFamily();refreshStore()}});
+  refreshFamily();
+
+  q("#candle-form")?.addEventListener("submit",e=>{e.preventDefault();const fd=new FormData(e.currentTarget),x=load();x.memories.unshift({title:"Свеча памяти: "+fd.get("name"),text:fd.get("text")||"Светлая память",date:new Date().toLocaleDateString("ru-RU"),kind:"candle"});save(x);e.currentTarget.reset();refreshStore();alert("Памятная запись сохранена")});
+
+  const wishForm=q("#wish-form");
+  const refreshWishes=()=>{const x=load(),el=q("#wish-list");if(el)el.innerHTML=x.notes.length?x.notes.map((n,i)=>`<article><h3>${safe(n.name||"Без подписи")}</h3><p>${safe(n.text)}</p><button class="link-button" data-del-wish="${i}">Удалить</button></article>`).join(""):'<p class="muted">Пожеланий пока нет.</p>'};
+  wishForm?.addEventListener("submit",e=>{e.preventDefault();const fd=new FormData(e.currentTarget),x=load();x.notes.unshift({name:fd.get("name"),text:fd.get("text")});save(x);e.currentTarget.reset();refreshWishes();refreshStore()});
+  document.addEventListener("click",e=>{const b=e.target.closest("[data-del-wish]");if(b){const x=load();x.notes.splice(Number(b.dataset.delWish),1);save(x);refreshWishes();refreshStore()}});
+  refreshWishes();
+
+  const hd=q("#hebrew-date");
+  if(hd){try{hd.textContent=new Intl.DateTimeFormat("ru-RU-u-ca-hebrew",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}catch{hd.textContent="Еврейский календарь не поддерживается этим браузером"}}
+  q("#shabbat-btn")?.addEventListener("click",()=>{const out=q("#shabbat-output");if(!navigator.geolocation){out.textContent="Геолокация не поддерживается";return}out.textContent="Определяю местоположение…";navigator.geolocation.getCurrentPosition(async pos=>{try{const {latitude,longitude}=pos.coords;const u="https://www.hebcal.com/shabbat?cfg=json&geo=pos&latitude="+encodeURIComponent(latitude)+"&longitude="+encodeURIComponent(longitude)+"&M=on";const res=await fetch(u);const data=await res.json();const items=(data.items||[]).filter(i=>/candles|havdalah/i.test(i.category||""));out.innerHTML=items.length?items.map(i=>`<p><strong>${safe(i.title)}</strong><br>${safe(i.date)}</p>`).join(""):"На ближайший период данные не получены"}catch{out.textContent="Не удалось получить время Шаббата. Попробуйте позже."}},()=>{out.textContent="Доступ к местоположению не предоставлен"})});
 });
