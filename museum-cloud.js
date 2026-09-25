@@ -9,9 +9,13 @@ document.addEventListener("DOMContentLoaded",async()=>{
  const C=window.MUSEUM_CLOUD;if(!C)return;
  const q=(s,r=document)=>r.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
  let all=[];
- try{all=await C.select("museum_content","select=slug,content_type,title,subtitle,summary,category,tags,year_start,year_end,city,source_title,source_url,media_url,thumbnail_url,verification_status,confidence&published=eq.true&order=title.asc&limit=500")}catch{}
- const typeName={place:"Место",photo:"Фото",person:"Личность",book:"Книга",source:"Источник",article:"Статья",recipe:"Кухня",juhuri_word:"Джуури",juhuri_phrase:"Джуури",object:"Предмет",audio:"Аудио",video:"Видео"};
+ try{all=await C.select("museum_content","select=slug,content_type,title,subtitle,summary,category,tags,year_start,year_end,city,source_title,source_url,media_url,thumbnail_url,verification_status,confidence&published=eq.true&order=title.asc&limit=1000")}catch{}
+ const typeName={place:"Место",photo:"Фото",person:"Личность",book:"Книга",source:"Источник",article:"Статья",recipe:"Кухня",juhuri_word:"Джуури",juhuri_phrase:"Джуури",proverb:"Мудрость",object:"Предмет",audio:"Аудио",video:"Видео"};
  const card=x=>`<article class="collection-card cloud-card" data-type="${esc(x.content_type)}" data-category="${esc(x.category||"")}">${x.thumbnail_url?`<img class="cloud-thumb" src="${esc(x.thumbnail_url)}" alt="" loading="lazy">`:""}<span class="pill">${esc(typeName[x.content_type]||x.content_type)} · ${esc(x.verification_status)}</span><h2>${esc(x.title)}</h2>${x.subtitle?`<p><strong>${esc(x.subtitle)}</strong></p>`:""}<p>${esc(x.summary||"")}</p><small>${esc([x.city,x.category,x.source_title].filter(Boolean).join(" · "))}</small>${x.source_url?`<a class="text-link block-link" target="_blank" rel="noopener" href="${esc(x.source_url)}">Источник ↗</a>`:""}</article>`;
+ document.querySelectorAll('[data-cloud-stat="all"]').forEach(e=>e.textContent=all.length);
+ document.querySelectorAll('[data-cloud-stat="books"]').forEach(e=>e.textContent=all.filter(x=>x.content_type==="book").length);
+ document.querySelectorAll('[data-cloud-stat="people"]').forEach(e=>e.textContent=all.filter(x=>x.content_type==="person").length);
+ document.querySelectorAll('[data-cloud-stat="sources"]').forEach(e=>e.textContent=all.filter(x=>x.content_type==="source").length);
  const renderCatalog=()=>{
    const grid=q("#cloud-catalog");if(!grid)return;
    const term=(q("#catalog-search")?.value||"").trim().toLowerCase(), type=q("#catalog-type")?.value||"";
