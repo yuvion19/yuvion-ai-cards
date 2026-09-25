@@ -1,12 +1,12 @@
 {
-  "name": "Gideon OS",
+  "name": "Gideon 6.0",
   "short_name": "Gideon",
-  "description": "Gideon OS — Projects, Knowledge, Automations и Artifacts в одном AI Workspace.",
+  "description": "Gideon 6.0 — multi-agent AI OS with Projects, Knowledge Graph, Skills and signed Gideon Network handoffs.",
   "start_url": "./#ask",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#090b10",
-  "theme_color": "#090b10",
+  "background_color": "#080a0f",
+  "theme_color": "#080a0f",
   "icons": [
     {
       "src": "icon.svg",
@@ -17,8 +17,8 @@
   ],
   "shortcuts": [
     {
-      "name": "Ask Gideon",
-      "short_name": "Ask",
+      "name": "Team Mode",
+      "short_name": "Team",
       "url": "./#ask",
       "icons": [
         {
@@ -29,9 +29,9 @@
       ]
     },
     {
-      "name": "Projects",
-      "short_name": "Projects",
-      "url": "./#projects",
+      "name": "Gideon Network",
+      "short_name": "Network",
+      "url": "./#network",
       "icons": [
         {
           "src": "icon.svg",
@@ -41,9 +41,9 @@
       ]
     },
     {
-      "name": "Knowledge",
-      "short_name": "Knowledge",
-      "url": "./#knowledge",
+      "name": "Knowledge Graph",
+      "short_name": "Graph",
+      "url": "./#graph",
       "icons": [
         {
           "src": "icon.svg",
