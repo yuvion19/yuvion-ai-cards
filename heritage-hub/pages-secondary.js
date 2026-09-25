@@ -1,0 +1,56 @@
+(() => {
+  const H=window.H,D=H.D,E=H.esc,B=H.badge,S=H.sourcesHtml;
+  H.pages=H.pages||{};
+
+  H.pages.culture=()=>H.head('CULTURAL MEMORY','Культура','Музыка, фольклор, традиции, одежда, ремёсла, праздники и бытовая культура — с обязательной последующей привязкой к источникам.')+
+    '<section class="records-grid">'+D.legacySections.map(s=>'<article class="record-card"><div class="record-top"><span class="type">'+E(s.icon)+'</span>'+B(s.status)+'</div><h3>'+E(s.title)+'</h3><p>'+E(s.body)+'</p></article>').join('')+'</section>'+
+    '<div class="notice"><strong>Важно:</strong> этот раздел перенесён из старой структуры проекта. Пока конкретная традиция, песня или предмет не имеет источника, он не публикуется как установленный исторический факт.</div>';
+
+  H.bookCard=b=>'<article class="book-row" data-cat="'+E(b.category)+'"><div><span class="type">'+E(b.category)+'</span><h3>'+E(b.title)+'</h3><p>'+E(b.author)+' · '+E(b.note)+'</p></div>'+(b.url.startsWith('#/')?'<a class="mini-link" href="'+E(b.url)+'">открыть раздел →</a>':'<a class="mini-link" href="'+E(b.url)+'" target="_blank" rel="noopener">открытый источник ↗</a>')+'</article>';
+  H.pages.library=()=>{
+    const cats=[...new Set(D.books.map(b=>b.category))];
+    return H.head('DIGITAL LIBRARY','Библиотека','Библиографический каталог книг и открытых цифровых коллекций. Тексты внешних библиотек не копируются на наш сервер без прав.')+
+      '<div class="chips filter-chips"><button class="active" data-book-cat="">Все</button>'+cats.map(c=>'<button data-book-cat="'+E(c)+'">'+E(c)+'</button>').join('')+'</div><section class="library-list" id="bookList">'+D.books.map(H.bookCard).join('')+'</section>';
+  };
+
+  H.pages.cuisine=()=>{
+    const kinds=[...new Set(D.dishes.map(d=>d.kind))];
+    return H.head('FAMILY FOOD ARCHIVE','Кухня','Карточки из старого проекта перенесены как рабочий материал. Они требуют семейного или печатного источника прежде, чем станут подтверждёнными.')+
+      '<div class="toolbar"><input id="dishSearch" class="field" placeholder="Найти блюдо"><select id="dishKind" class="field"><option value="">Все категории</option>'+kinds.map(k=>'<option>'+E(k)+'</option>').join('')+'</select></div><section class="dish-grid" id="dishGrid">'+D.dishes.map(d=>'<article data-kind="'+E(d.kind)+'" data-search="'+E(H.norm(d.title+' '+d.juhuri))+'"><div class="dish-kind">'+E(d.kind)+'</div><h3>'+E(d.title)+'</h3><div class="juhuri-name">'+E(d.juhuri)+'</div><p>'+E(d.note)+'</p>'+B('unverified')+'</article>').join('')+'</section>';
+  };
+
+  H.pages.voices=()=>{
+    const saved=H.getLocal().filter(x=>x.type==='oral');
+    return H.head('ORAL HISTORY NETWORK','Голоса народа','Записывайте историю старшего поколения. На бесплатной статической версии черновик хранится только в вашем браузере, пока вы не экспортируете его.')+
+      '<section class="two-col"><form class="panel form-stack" id="oralForm"><div class="kicker">НОВОЕ СВИДЕТЕЛЬСТВО</div><label>Имя рассказчика или условное обозначение<input class="field" name="speaker" required></label><label>Тема<select class="field" name="topic"><option>Детство</option><option>Дом и улица</option><option>Школа</option><option>Свадьбы и праздники</option><option>Кухня</option><option>Язык джуури</option><option>Переезд</option><option>Семейная история</option></select></label><label>Рассказ<textarea class="field" name="story" rows="8" required></textarea></label><label class="check"><input type="checkbox" name="consent"> Есть согласие на дальнейшую обработку/публикацию</label><button class="btn primary" type="submit">Сохранить черновик на устройстве</button></form><div class="panel"><div class="kicker">ПРОТОКОЛ</div><h2>Что фиксировать</h2><ol class="protocol"><li>кто говорит и когда записано;</li><li>какие люди и места упомянуты;</li><li>что человек видел сам, а что знает со слов других;</li><li>можно ли публиковать запись;</li><li>есть ли фото, документы или другие подтверждения.</li></ol><div class="notice compact">Сайт не отправляет эти черновики на сервер автоматически.</div></div></section>'+
+      '<section class="section-block"><div class="section-title"><div><div class="kicker">ЛОКАЛЬНЫЕ ЧЕРНОВИКИ</div><h2>На этом устройстве: '+saved.length+'</h2></div><button class="btn secondary" id="exportOral">Экспорт JSON</button></div><div id="oralSaved">'+(saved.map(x=>'<div class="saved-row"><strong>'+E(x.speaker)+'</strong><span>'+E(x.topic)+'</span><small>'+E(new Date(x.createdAt).toLocaleString('ru-RU'))+'</small></div>').join('')||'<p class="muted">Черновиков пока нет.</p>')+'</div></section>';
+  };
+
+  H.pages.ask=()=>H.head('EVIDENCE-ONLY SEARCH','Спроси архив','Не генеративный чат. Ответ строится только из найденных записей локальной базы и показывает их статус достоверности.')+
+    '<section class="ask-box"><label for="askInput">Что вы хотите найти?</label><div class="ask-line"><input id="askInput" class="field big" placeholder="Например: что есть о Красной Слободе?"><button id="askBtn" class="btn primary">Искать</button></div><div class="examples">Примеры: «синагога», «джуури брат», «кладбище», «музей»</div></section><section id="askResult"></section>';
+
+  H.pages.research=()=>H.head('RESEARCH MODE','Исследования и данные','Открытые записи можно экспортировать и анализировать без платного API. Приватные записи не включаются.','<button class="btn secondary" id="exportAllJson">JSON</button><button class="btn secondary" id="exportAllCsv">CSV</button>')+
+    '<section class="stats-row">'+H.stat('мест',D.places.length)+H.stat('семей',D.families.length,'сейчас только демо')+H.stat('архивных карточек',D.archive.length,'сейчас только демо')+H.stat('слов джуури',D.juhuri.length)+'</section>'+
+    '<section class="section-block"><div class="section-title"><div><div class="kicker">ИСТОЧНИКИ</div><h2>Библиография проекта</h2></div></div>'+S(D.sources.map(s=>s.id))+'</section>'+
+    '<section class="panel"><div class="kicker">ОТКРЫТАЯ СТРУКТУРА</div><h2>Данные не должны зависеть от конструктора сайта</h2><p>Основная модель проекта — переносимые JSON/CSV-данные, статические файлы, резервные копии и явные связи между сущностями. Это позволяет в будущем перенести портал на другой сервер без потери архива.</p></section>';
+
+  H.pages.methodology=()=>{
+    const rows=[['documented','Есть проверяемый документ, публикация учреждения или библиографический источник.'],['witnesses','Есть несколько независимых свидетельств, но не найден первичный документ.'],['family','Материал передан семьёй как устная/семейная традиция.'],['hypothesis','Интерпретация исследователя; она не представляется установленным фактом.'],['unverified','Карточка существует, но данные ещё требуют проверки.'],['demo','Техническая демонстрация интерфейса. Никогда не считается исторической записью.']];
+    return H.head('DATA INTEGRITY','Методология и источники','Правила, по которым запись попадает в архив и получает уровень доверия.')+
+      '<section class="method-list">'+rows.map(([s,t])=>'<article>'+B(s)+'<p>'+E(t)+'</p></article>').join('')+'</section>'+
+      '<section class="two-col section-block"><div class="panel"><div class="kicker">ПРИВАТНОСТЬ</div><h2>Живые люди</h2><p>Личные данные живущих людей не должны становиться публичными только потому, что они присутствуют в семейном архиве. Публикация требует согласия и минимизации данных.</p></div><div class="panel"><div class="kicker">ДЕМО</div><h2>Никаких фиктивных фактов</h2><p>Технические примеры фамилий, домов, людей и захоронений маркируются «ДЕМО» и не индексируются как исторические утверждения.</p></div></section>'+
+      '<section class="panel"><div class="kicker">РАБОЧАЯ ЦЕПОЧКА</div><div class="graph-chain wide"><span>получить материал</span><b>→</b><span>описать</span><b>→</b><span>проверить права</span><b>→</b><span>найти источник</span><b>→</b><span>связать</span><b>→</b><span>опубликовать</span></div></section>';
+  };
+
+  H.pages.contribute=()=>{
+    const saved=H.getLocal().filter(x=>x.type==='material');
+    return H.head('CONTRIBUTE','Передать материал','На текущем бесплатном статическом хостинге форма сохраняет черновик локально. Вы можете экспортировать его вместе с метаданными.')+
+      '<section class="two-col"><form id="materialForm" class="panel form-stack"><label>Тип материала<select class="field" name="category"><option>Фотография</option><option>Документ</option><option>История семьи</option><option>История дома</option><option>Слово/выражение джуури</option><option>Песня</option><option>Рецепт</option><option>Кладбище/надгробие</option></select></label><label>Название<input class="field" name="title" required></label><label>Описание<textarea class="field" name="description" rows="6" required></textarea></label><label>Источник/откуда известно<input class="field" name="source"></label><label>Права/владелец оригинала<input class="field" name="rights"></label><label class="check"><input type="checkbox" name="consent"> Разрешаю рассматривать материал для публикации</label><button class="btn primary" type="submit">Сохранить черновик</button></form><div class="panel"><div class="kicker">ЧТО ОСОБЕННО ЦЕННО</div><h2>Спасти до исчезновения</h2><ul class="large-list"><li>старые фотографии с подписанными людьми;</li><li>письма и документы;</li><li>VHS, кассеты и домашние аудиозаписи;</li><li>рассказы старших родственников;</li><li>слова и выражения на джуури;</li><li>истории конкретных домов и улиц;</li><li>фото надгробий с читаемыми эпитафиями.</li></ul></div></section>'+
+      '<section class="section-block"><div class="section-title"><div><div class="kicker">ЧЕРНОВИКИ</div><h2>На этом устройстве: '+saved.length+'</h2></div><button class="btn secondary" id="exportMaterials">Экспорт JSON</button></div><div>'+(saved.map(x=>'<div class="saved-row"><strong>'+E(x.title)+'</strong><span>'+E(x.category)+'</span><small>'+E(new Date(x.createdAt).toLocaleString('ru-RU'))+'</small></div>').join('')||'<p class="muted">Черновиков пока нет.</p>')+'</div></section>';
+  };
+
+  H.pages.about=()=>H.head('О ПРОЕКТЕ','Нити Памяти','Единая цифровая инфраструктура сохранения наследия горских евреев.')+
+    '<section class="about-hero"><div><div class="kicker">МИССИЯ</div><h2>Создать цифровую копию культурной памяти, которая переживёт отдельные сайты и платформы.</h2><p>'+E(D.project.mission)+'</p></div><aside><span>Создатель проекта</span><strong>'+E(D.project.creator)+'</strong><p>Проект строится как общественная цифровая память: с разделением фактов, свидетельств, семейных преданий и исследовательских гипотез.</p></aside></section>'+
+    '<section class="section-block"><div class="section-title"><div><div class="kicker">ДОЛГОСРОЧНО</div><h2>От сайта — к инфраструктуре</h2></div></div><div class="module-grid">'+D.modules.map((m,i)=>'<article class="module-card"><span>0'+(i+1)+'</span><h3>'+E(m.title)+'</h3><p>'+E(m.desc)+'</p></article>').join('')+'</div></section>'+
+    '<section class="panel"><div class="kicker">ТЕХНИЧЕСКИЙ ПРИНЦИП</div><h2>Один сайт, переносимые данные</h2><p>Пользователь видит один портал. Внешние старые Lovable-проекты больше не являются частью пользовательской навигации.</p></section>';
+})();
