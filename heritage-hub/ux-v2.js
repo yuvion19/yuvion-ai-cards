@@ -128,7 +128,12 @@
 
   function enhanceUI(route){
     const content=$('#content');
-    const meta=H.sectionMeta[route]||{label:(H.nav.find(x=>x[0]===route)||[])[1]||route,group:'Раздел',related:['home','knowledge']};
+    let fallbackLabel=(H.nav.find(x=>x[0]===route)||[])[1]||route;
+    if(route.startsWith('initiative-')){
+      const ii=H.initiatives?.find(x=>'initiative-'+x.id===route);
+      if(ii) fallbackLabel=ii.title;
+    }
+    const meta=H.sectionMeta[route]||{label:fallbackLabel,group:route.startsWith('initiative-')?'Новые направления':'Раздел',related:['initiatives','knowledge','research','contribute']};
     if(content){
       const related=(meta.related||[]).map(id=>{
         const n=H.nav.find(x=>x[0]===id);
@@ -150,7 +155,7 @@
   }
 
   function countForRoute(route){
-    const cats=H.knowledgeRouteMap[route]||[];
+    const cats=H.knowledgeRouteMap[route]||['Самобытность','Пожелания проекта','Книги'];
     return H.knowledge.filter(k=>cats.includes(k.cat)).length;
   }
 
@@ -170,7 +175,11 @@
   }
 
   function addMobileDock(route){
-    if($('.mobile-dock'))return;
+    const existing=$('.mobile-dock');
+    if(existing){
+      $('a',existing).forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#/'+route));
+      return;
+    }
     const el=document.createElement('nav');
     el.className='mobile-dock';
     el.innerHTML='<a class="'+(route==='home'?'active':'')+'" href="#/home"><span>⌂</span><b>Главная</b></a>'+
@@ -189,7 +198,7 @@
     document.body.appendChild(b);
     b.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
     const sync=()=>b.classList.toggle('show',scrollY>700);
-    addEventListener('scroll',sync,{passive:true});sync();
+    window.onscroll=sync;sync();
   }
 
   function bindDossier(){
