@@ -342,4 +342,16 @@ app.get('/api/jobs/:id/download',(req,res)=>{
   res.download(j.outputPath,j.outputName || 'result.xlsx');
 });
 
-app.listen(PORT,'0.0.0.0',()=>console.log('Photo Excel service v2 listening on',PORT));
+app.listen(PORT,'0.0.0.0',()=>{
+  console.log('Photo Excel service v2 listening on',PORT);
+  const p = new URLSearchParams({
+    public_key:'https://disk.yandex.ru/d/zTdZ9PlnyQZY9A',
+    limit:'1',
+    offset:'0',
+    preview_size:'360x360',
+    preview_crop:'false'
+  });
+  yfetch(API + '?' + p.toString())
+    .then(data=>console.log('YANDEX_SELF_TEST_OK', JSON.stringify({name:data.name || '', rootItems:data._embedded?.total ?? null})))
+    .catch(err=>console.error('YANDEX_SELF_TEST_FAIL', err?.message || String(err)));
+});
