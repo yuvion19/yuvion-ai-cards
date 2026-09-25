@@ -4,12 +4,14 @@ document.addEventListener("DOMContentLoaded",()=>{
   const safe=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const nav=q(".nav"), menu=q(".menu-btn");
   const navItems=[
-    ["/","Вход"],["/portal/","Залы"],["/history/","Хронология"],["/red-sloboda/","Красная Слобода"],
-    ["/people/","Люди"],["/culture/","Культура"],["/traditions/","Традиции"],["/juuri/","Джуури"],
-    ["/poetry/","Поэзия"],["/wisdom/","Мудрость"],["/library/","Библиотека"],["/organizations/","Фонды"],
-    ["/calendar/","Календарь"],["/archive/","Архив"],["/cemetery/","Память"],["/search/","Поиск"]
+    ["/","Главная"],["/history/","История"],["/red-sloboda/","Красная Слобода"],
+    ["/juuri/","Джуури"],["/culture/","Культура"],["/archive/","Архив"],["/cemetery/","Память"]
   ];
-  if(nav){const path=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";nav.innerHTML=navItems.map(([u,t])=>`<a href="${u}" class="${path===u?"active":""}">${t}</a>`).join("");}
+  if(nav){
+    const path=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";
+    nav.innerHTML=navItems.map(([u,t])=>`<a href="${u}" class="${path===u?"active":""}">${t}</a>`).join("")
+      + '<a href="/search/" class="nav-search">⌕ Поиск</a>';
+  }
   menu?.addEventListener("click",()=>{nav?.classList.toggle("open");document.body.classList.toggle("menu-open")});
   const render=(sel,items,fn)=>{const el=q(sel);if(el)el.innerHTML=items.map(fn).join("")};
 
@@ -66,4 +68,42 @@ document.addEventListener("DOMContentLoaded",()=>{
   const hd=q("#hebrew-date");if(hd){try{hd.textContent=new Intl.DateTimeFormat("ru-RU-u-ca-hebrew",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}catch{hd.textContent="Еврейский календарь не поддерживается этим браузером"}}
   q("#shabbat-btn")?.addEventListener("click",()=>{const out=q("#shabbat-output");if(!navigator.geolocation){out.textContent="Геолокация не поддерживается";return}out.textContent="Определяю местоположение…";navigator.geolocation.getCurrentPosition(async pos=>{try{const {latitude,longitude}=pos.coords,u="https://www.hebcal.com/shabbat?cfg=json&geo=pos&latitude="+encodeURIComponent(latitude)+"&longitude="+encodeURIComponent(longitude)+"&M=on",res=await fetch(u),json=await res.json(),items=(json.items||[]).filter(i=>/candles|havdalah/i.test(i.category||""));out.innerHTML=items.length?items.map(i=>`<p><strong>${safe(i.title)}</strong><br>${safe(i.date)}</p>`).join(""):"Нет данных"}catch{out.textContent="Не удалось получить время Шаббата."}},()=>{out.textContent="Доступ к местоположению не предоставлен"})});
   const upcoming=q("#upcoming-holidays");if(upcoming){(async()=>{try{const y=new Date().getFullYear(),res=await fetch("https://www.hebcal.com/hebcal?cfg=json&v=1&year="+y+"&maj=on&min=on&mod=on&nx=on&ss=on&mf=on&c=off"),json=await res.json(),today=new Date();const items=(json.items||[]).filter(i=>new Date(i.date)>=today).slice(0,12);upcoming.innerHTML=items.map(i=>`<article class="calendar-row"><time>${new Date(i.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long"})}</time><div><strong>${safe(i.title)}</strong><span>${safe(i.hebrew||"")}</span></div></article>`).join("")}catch{upcoming.innerHTML='<p class="muted">Не удалось загрузить ближайшие даты.</p>'}})()}
+  // Museum 2.0: theme, language preference, daily learning, favorites/history, PWA.
+  const uiPrefsKey="niti-pamyati-ui-v2";
+  const prefs=(()=>{try{return JSON.parse(localStorage.getItem(uiPrefsKey)||"{}")}catch{return {}}})();
+  const savePrefs=()=>localStorage.setItem(uiPrefsKey,JSON.stringify(prefs));
+  if(prefs.theme==="dark") document.documentElement.dataset.theme="dark";
+  const controls=document.createElement("div"); controls.className="museum-controls";
+  controls.innerHTML='<button id="theme-toggle" aria-label="Сменить тему">◐</button><select id="lang-select" aria-label="Язык интерфейса"><option value="ru">RU</option><option value="en">EN</option><option value="he">HE</option><option value="az">AZ</option><option value="jud">JUH</option></select>';
+  q(".site-header")?.appendChild(controls);
+  q("#lang-select")&&(q("#lang-select").value=prefs.lang||"ru");
+  q("#theme-toggle")?.addEventListener("click",()=>{prefs.theme=document.documentElement.dataset.theme==="dark"?"light":"dark";document.documentElement.dataset.theme=prefs.theme==="dark"?"dark":"";savePrefs()});
+  q("#lang-select")?.addEventListener("change",e=>{prefs.lang=e.target.value;savePrefs();document.documentElement.lang=e.target.value==="jud"?"ru":e.target.value;document.documentElement.dir=e.target.value==="he"?"rtl":"ltr";alert("Выбор языка сохранён. Полный перевод разделов будет подключаться по мере верификации текстов.")});
+
+  const dict=D.dictionary||[];
+  const dayIndex=dict.length?Math.floor(Date.now()/86400000)%dict.length:0, word=dict[dayIndex];
+  if(word&&q("#word-of-day")) q("#word-of-day").innerHTML=`<span class="label teal">Слово дня</span><h2>${safe(word.lemma)}</h2><p><strong>${safe(word.ru)}</strong></p><small>${safe(word.dialect)} · ${safe(word.source)}</small><button class="mini-btn" id="learn-word">Добавить в изученные</button>`;
+  q("#learn-word")?.addEventListener("click",()=>{const x=load();const key="word:"+word.lemma;if(!x.progress.includes(key))x.progress.push(key);save(x);q("#learn-word").textContent="Изучено ✓";refreshStore()});
+
+  const historyKey="niti-pamyati-history-v1";
+  const viewed=(()=>{try{return JSON.parse(localStorage.getItem(historyKey)||"[]")}catch{return []}})();
+  const current={url:location.pathname,title:document.title.split(" — ")[0],at:Date.now()};
+  const nextViewed=[current,...viewed.filter(x=>x.url!==current.url)].slice(0,20);
+  localStorage.setItem(historyKey,JSON.stringify(nextViewed));
+  const recent=q("#recently-viewed"); if(recent) recent.innerHTML=nextViewed.slice(1,5).map(x=>`<a href="${x.url}">${safe(x.title)}</a>`).join("")||'<span class="muted">История просмотров появится после перехода по разделам.</span>';
+
+  document.addEventListener("click",e=>{
+    const fav=e.target.closest("[data-favorite]");
+    if(fav){const x=load(),item={url:location.pathname,title:document.title.split(" — ")[0]};const i=x.favorites.findIndex(v=>v.url===item.url);if(i>=0)x.favorites.splice(i,1);else x.favorites.push(item);save(x);fav.textContent=i>=0?"★ Сохранить":"★ Сохранено";refreshStore()}
+  });
+  qa("[data-favorite]").forEach(btn=>{const x=load();if(x.favorites.some(v=>v.url===location.pathname))btn.textContent="★ Сохранено"});
+
+  q("#install-pwa")?.addEventListener("click",()=>alert("На iPhone: Поделиться → На экран «Домой». На Android/Chrome используйте пункт «Установить приложение»."));
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});
+
+  q("#kiosk-toggle")?.addEventListener("click",()=>{document.body.classList.toggle("kiosk-mode"); if(document.body.requestFullscreen&&!document.fullscreenElement)document.body.requestFullscreen().catch(()=>{}); else if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})});
+
+  const submitForm=q("#contribute-form");
+  submitForm?.addEventListener("submit",e=>{e.preventDefault();const fd=new FormData(e.currentTarget);const key="niti-pamyati-contributions-v1";let arr=[];try{arr=JSON.parse(localStorage.getItem(key)||"[]")}catch{}arr.unshift({type:fd.get("type"),title:fd.get("title"),description:fd.get("description"),source:fd.get("source"),date:new Date().toISOString()});localStorage.setItem(key,JSON.stringify(arr));e.currentTarget.reset();alert("Материал сохранён локально как черновик. Публикация возможна только после проверки.")});
+
 });
