@@ -2272,6 +2272,158 @@ app.post("/api/gideon/agent", async (req, res) => {
   }
 });
 
+
+const GIDEON_PROTOCOL_VERSION = "6.0";
+
+app.get("/api/gideon/capabilities", (req, res) => {
+  return res.json({
+    name: "Gideon",
+    version: "6.0",
+    protocol: GIDEON_PROTOCOL_VERSION,
+    modes: ["chat","agent","swarm","knowledge-graph","signed-handoff"],
+    freeGuard: true,
+    providerMode: "single-provider",
+    maxSwarmAgents: 4,
+    handoffTransport: "portable-signed-package"
+  });
+});
+
+app.post("/api/gideon/graph", async (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, "gideon-graph:" + ip, 24)) {
+    return res.status(429).json({ error: "Слишком много запросов графа. Повторите позже.", code: "free_rate_limit" });
+  }
+  const text = String(req.body?.text || "").trim().slice(0, 26000);
+  if (!text) return res.status(400).json({ error: "Контекст для графа не передан.", code: "graph_context_missing" });
+  try {
+    const result = await neuroHubUltraCompletion([
+      { role: "system", content: [
+        "Ты Gideon Knowledge Graph Extractor.",
+        "Извлеки только явно подтвержденные сущности и связи из текста.",
+        "Не придумывай связи. Верни только JSON.",
+        'Формат: {"nodes":[{"id":"n1","label":"...","type":"person|organization|project|document|place|date|concept|other"}],"edges":[{"source":"n1","target":"n2","relation":"...","evidence":"краткое подтверждение"}],"summary":"..."}'
+      ].join("\n") },
+      { role: "user", content: text }
+    ], { maxTokens: 1300, temperature: 0.1 });
+    const graph = gideonParseJsonObject(result.content) || { nodes: [], edges: [], summary: result.content };
+    neuroHubGigaDaily.count += 1;
+    return res.json({ graph, model: "Gideon", protocol: GIDEON_PROTOCOL_VERSION, usage: gideonUsageSnapshot() });
+  } catch (error) {
+    return res.status(502).json({ error: "Gideon не смог построить Knowledge Graph.", code: error?.code || "graph_failed" });
+  }
+});
+
+app.post("/api/gideon/swarm", async (req, res) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "unknown");
+  if (limitMap(neuroHubGigaIpLimits, "gideon-swarm:" + ip, 8)) {
+    return res.status(429).json({ error: "Слишком много командных задач. Повторите позже.", code: "free_rate_limit" });
+  }
+
+  const goal = String(req.body?.goal || "").trim().slice(0, 12000);
+  const projectContext = String(req.body?.projectContext || "").trim().slice(0, 18000);
+  const memory = String(req.body?.memory || "").trim().slice(0, 7000);
+  const requestedSkills = (Array.isArray(req.body?.skills) ? req.body.skills : []).map(x => String(x || "").slice(0, 80)).filter(Boolean).slice(0, 8);
+  const maxAgents = Math.max(2, Math.min(4, Number(req.body?.maxAgents || 4)));
+  if (!goal) return res.status(400).json({ error: "Цель не передана.", code: "goal_missing" });
+
+  const usage = gideonUsageSnapshot();
+  const worstCaseCalls = maxAgents + 2;
+  if (usage.remaining < worstCaseCalls) {
+    return res.status(429).json({ error: "Недостаточно бесплатного лимита для Team Mode.", code: "free_daily_guard", usage });
+  }
+
+  try {
+    const teamResult = await neuroHubUltraCompletion([
+      { role: "system", content: [
+        "Ты Gideon Orchestrator 6.0.",
+        "Собери минимальную команду из 2-4 специализированных агентов под задачу.",
+        "Каждый агент должен иметь уникальную функцию и не дублировать остальных.",
+        "Верни только JSON.",
+        '{"mission":"...","team":[{"id":"a1","role":"...","mandate":"...","deliverable":"..."}],"successCriteria":["..."],"finalDeliverable":"..."}'
+      ].join("\n") },
+      { role: "user", content: [
+        "Цель: " + goal,
+        requestedSkills.length ? "Предпочтительные навыки: " + requestedSkills.join(", ") : "",
+        memory ? "Инструкции пользователя: " + memory : "",
+        projectContext ? "Контекст проекта: " + projectContext : ""
+      ].filter(Boolean).join("\n\n") }
+    ], { maxTokens: 900, temperature: 0.15 });
+
+    let orchestration = gideonParseJsonObject(teamResult.content);
+    if (!orchestration || !Array.isArray(orchestration.team) || orchestration.team.length < 2) {
+      orchestration = {
+        mission: goal,
+        team: [
+          { id: "a1", role: "Исследователь", mandate: "Собрать и структурировать факты из доступного контекста.", deliverable: "Фактическая база" },
+          { id: "a2", role: "Аналитик", mandate: "Проверить логику, противоречия, риски и варианты.", deliverable: "Анализ" },
+          { id: "a3", role: "Редактор", mandate: "Сформировать практический готовый результат.", deliverable: "Черновик результата" }
+        ].slice(0, maxAgents),
+        successCriteria: ["Точность", "Практическая завершенность", "Отсутствие выдуманных фактов"],
+        finalDeliverable: "Готовый результат по цели пользователя"
+      };
+    }
+    orchestration.team = orchestration.team.slice(0, maxAgents);
+
+    const shared = [
+      "Цель: " + goal,
+      memory ? "Память/инструкции: " + memory : "",
+      projectContext ? "Контекст проекта: " + projectContext : "",
+      requestedSkills.length ? "Доступные навыки: " + requestedSkills.join(", ") : ""
+    ].filter(Boolean).join("\n\n");
+
+    const reports = await Promise.all(orchestration.team.map(async (agent, index) => {
+      const result = await neuroHubUltraCompletion([
+        { role: "system", content: [
+          "Ты агент команды Gideon 6.0.",
+          "Твоя роль: " + String(agent.role || "Специалист"),
+          "Твой мандат: " + String(agent.mandate || ""),
+          "Нужный результат: " + String(agent.deliverable || ""),
+          "Работай независимо, используй только доступный контекст, не выдумывай внешние действия.",
+          "Дай компактный профессиональный отчет для главного оркестратора."
+        ].join("\n") },
+        { role: "user", content: shared }
+      ], { maxTokens: 950, temperature: 0.3 });
+      return {
+        id: String(agent.id || "a" + (index + 1)),
+        role: String(agent.role || "Специалист"),
+        mandate: String(agent.mandate || ""),
+        report: result.content
+      };
+    }));
+
+    const synthesis = await neuroHubUltraCompletion([
+      { role: "system", content: [
+        "Ты Gideon Chief Orchestrator 6.0.",
+        "Синтезируй отчеты команды в один законченный результат.",
+        "Устрани дублирование и противоречия. Не раскрывай скрытые рассуждения.",
+        "Если есть неопределенность — обозначь ее. Если требуется внешнее действие, которое команда не могла реально выполнить — явно вынеси его в 'Требуется действие'.",
+        "В конце добавь очень короткий блок 'Команда' с ролями, которые участвовали."
+      ].join("\n") },
+      { role: "user", content: [
+        shared,
+        "Критерии успеха: " + JSON.stringify(orchestration.successCriteria || []),
+        "Отчеты агентов:\n" + reports.map(r => "## " + r.role + "\n" + r.report).join("\n\n")
+      ].join("\n\n") }
+    ], { maxTokens: 2400, temperature: 0.28 });
+
+    neuroHubGigaDaily.count += orchestration.team.length + 2;
+    return res.json({
+      protocol: GIDEON_PROTOCOL_VERSION,
+      orchestration,
+      agents: reports,
+      answer: synthesis.content,
+      model: "Gideon",
+      usage: gideonUsageSnapshot()
+    });
+  } catch (error) {
+    return res.status(error?.status && error.status >= 400 && error.status < 600 ? error.status : 502).json({
+      error: "Команда Gideon не смогла завершить задачу.",
+      code: error?.code || "swarm_failed",
+      usage: gideonUsageSnapshot()
+    });
+  }
+});
+
 async function generateProductCopyWithGpt(cardRaw = {}) {
   return generateProductCopyWithProviders(cardRaw);
 }
