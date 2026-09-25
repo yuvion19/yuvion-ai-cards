@@ -3,7 +3,8 @@
 const CURRENT_YEAR=2026;
 const BOUNDS=[[48.493,41.36],[48.529,41.3875]];
 const CENTER=[48.5106,41.3736];
-const STORE_KEY="qirmizi-master-store-v2";\nconst LEGACY_STORE_KEY="qirmizi-master-store-v1";
+const STORE_KEY="qirmizi-master-store-v2";
+const LEGACY_STORE_KEY="qirmizi-master-store-v1";
 const $=id=>document.getElementById(id);
 const state={data:null,selected:null,filter:"all",year:CURRENT_YEAR,is3d:true,walk:false,pressed:new Set(),drag:false,lastX:0,lastY:0,lastFrame:performance.now(),raf:0,route:[],tourTimer:null,lang:"ru",screenMode:false};
 
