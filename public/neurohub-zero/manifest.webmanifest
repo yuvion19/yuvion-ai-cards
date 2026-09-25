@@ -1,7 +1,7 @@
 {
   "name": "Gideon 7.0",
   "short_name": "Gideon",
-  "description": "Gideon 7.0 — autonomous personal AI infrastructure with Mission Control, approvals, Project Memory, Knowledge Graph and encrypted Gideon Network.",
+  "description": "Gideon 7.0 — Mission Control, Function Studio, live tools, Watch Mode, Time Machine, Skills, Knowledge Graph and encrypted Network.",
   "start_url": "./#mission",
   "scope": "./",
   "display": "standalone",
@@ -29,9 +29,9 @@
       ]
     },
     {
-      "name": "Team Mode",
-      "short_name": "Team",
-      "url": "./#ask",
+      "name": "Function Studio",
+      "short_name": "Functions",
+      "url": "./#functions",
       "icons": [
         {
           "src": "icon.svg",
