@@ -1,5 +1,5 @@
-const CACHE='heritage-unified-v4';
-const ASSETS=['./','./index.html','./styles-unified.css','./data.js','./core.js','./pages-primary.js','./pages-secondary.js','./features.css','./features-pages.js','./features-runtime.js','./initiatives.css','./initiatives-pages.js','./initiatives-runtime.js','./main.js','./manifest.webmanifest'];
+const CACHE='heritage-unified-v5';
+const ASSETS=['./','./index.html','./styles-unified.css','./data.js','./core.js','./pages-primary.js','./pages-secondary.js','./features.css','./features-pages.js','./features-runtime.js','./initiatives.css','./initiatives-pages.js','./initiatives-runtime.js','./knowledge.css','./knowledge-data.js','./knowledge-extra.js','./knowledge-pages.js','./knowledge-special.js','./knowledge-runtime.js','./main.js','./manifest.webmanifest'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r}).catch(()=>caches.match(e.request).then(r=>r||caches.match('./index.html'))))});
