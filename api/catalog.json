@@ -1,0 +1,13 @@
+{
+  "project": "Нити Памяти",
+  "version": "3.0",
+  "privacy": "metadata only",
+  "sections": [
+    "history",
+    "red-sloboda",
+    "juhuri",
+    "culture",
+    "archive",
+    "memory"
+  ]
+}

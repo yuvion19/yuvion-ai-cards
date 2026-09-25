@@ -1,32 +1,23 @@
 {
   "name": "Нити Памяти — цифровой музей",
   "short_name": "Нити Памяти",
-  "description": "Цифровой музей истории и культуры горских евреев",
   "start_url": "/",
-  "scope": "/",
   "display": "standalone",
   "background_color": "#0d1013",
   "theme_color": "#0d1013",
-  "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ],
+  "lang": "ru",
   "shortcuts": [
     {
-      "name": "Красная Слобода",
-      "url": "/red-sloboda/"
+      "name": "История",
+      "url": "/history/"
     },
     {
       "name": "Джуури",
       "url": "/juuri/"
     },
     {
-      "name": "Поиск",
-      "url": "/search/"
+      "name": "Архив",
+      "url": "/archive/"
     }
   ]
 }
