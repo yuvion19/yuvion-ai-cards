@@ -41,18 +41,20 @@ document.addEventListener("DOMContentLoaded",()=>{
   q("#clear-data")?.addEventListener("click",()=>{if(confirm("Удалить локальные пользовательские данные этого браузера?")){localStorage.removeItem(STORE);refreshStore()}});
   refreshStore();
 
-  const search=q("#global-search"),results=q("#search-results");
+  const search=q("#global-search"),results=q("#search-results"),typeFilter=q("#search-type");
   if(search&&results){const rows=[
-    ...(D.books||[]).map(x=>({t:x[0],d:x[1]+" · "+x[2],u:"/library/"})),
-    ...(D.dishes||[]).map(x=>({t:x[0],d:x[1]+" · "+x[2],u:"/kitchen/"})),
-    ...(D.dictionary||[]).map(x=>({t:x.lemma,d:x.ru,u:"/juuri/"})),
-    ...(D.places||[]).map(x=>({t:x.name,d:x.note,u:"/red-sloboda/"})),
-    ...(D.people||[]).map(x=>({t:x.name,d:x.role+" · "+x.note,u:"/people/"})),
-    ...(D.organizations||[]).map(x=>({t:x.name,d:x.note,u:"/organizations/"})),
-    ...(D.traditions||[]).map(x=>({t:x.name,d:x.note,u:"/traditions/"})),
-    ...(D.poetry||[]).map(x=>({t:x.author,d:x.work+" · "+x.themes,u:"/poetry/"})),
-    ...(D.milestones||[]).map(x=>({t:x.title,d:x.date+" · "+x.note,u:"/history/"}))
-  ];const run=()=>{const term=search.value.trim().toLowerCase();const hits=term?rows.filter(x=>(x.t+" "+x.d).toLowerCase().includes(term)).slice(0,80):[];results.innerHTML=hits.map(x=>`<a class="search-hit" href="${x.u}"><strong>${safe(x.t)}</strong><span>${safe(x.d)}</span></a>`).join("")||(term?'<p class="muted">Ничего не найдено.</p>':'')};search.addEventListener("input",run);run()}
+    ...(D.books||[]).map(x=>({t:x[0],d:x[1]+" · "+x[2],u:"/library/",type:"book"})),
+    ...(D.dishes||[]).map(x=>({t:x[0],d:x[1]+" · "+x[2],u:"/kitchen/",type:"dish"})),
+    ...(D.dictionary||[]).map(x=>({t:x.lemma,d:x.ru,u:"/juuri/",type:"word"})),
+    ...(D.places||[]).map(x=>({t:x.name,d:x.note,u:"/red-sloboda/",type:"place"})),
+    ...(D.people||[]).map(x=>({t:x.name,d:x.role+" · "+x.note,u:"/people/",type:"person"})),
+    ...(D.organizations||[]).map(x=>({t:x.name,d:x.note,u:"/organizations/",type:"organization"})),
+    ...(D.traditions||[]).map(x=>({t:x.name,d:x.note,u:"/traditions/",type:"tradition"})),
+    ...(D.poetry||[]).map(x=>({t:x.author,d:x.work+" · "+x.themes,u:"/poetry/",type:"poetry"})),
+    ...(D.milestones||[]).map(x=>({t:x.title,d:x.date+" · "+x.note,u:"/history/",type:"history"}))
+  ];
+  const run=()=>{const term=search.value.trim().toLowerCase(),type=typeFilter?.value||"";const hits=rows.filter(x=>(!type||x.type===type)&&(!term||(x.t+" "+x.d).toLowerCase().includes(term))).slice(0,100);results.innerHTML=hits.map(x=>`<a class="search-hit" href="${x.u}"><strong>${safe(x.t)}</strong><span>${safe(x.d)}</span><small>${safe(x.type)}</small></a>`).join("")||(term||type?'<p class="muted">Ничего не найдено.</p>':'')};
+  search.addEventListener("input",run);typeFilter?.addEventListener("change",run);run()}
 
   const familyForm=q("#family-form");
   const refreshFamily=()=>{const x=load(),el=q("#family-list");if(el)el.innerHTML=x.family.length?x.family.map((p,i)=>`<article><h3>${safe(p.name)}</h3><p>${safe(p.years)}</p><p>${safe(p.relation)}</p><button class="link-button" data-del-family="${i}">Удалить</button></article>`).join(""):'<p class="muted">Записей пока нет.</p>'};
@@ -68,6 +70,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   const hd=q("#hebrew-date");if(hd){try{hd.textContent=new Intl.DateTimeFormat("ru-RU-u-ca-hebrew",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}catch{hd.textContent="Еврейский календарь не поддерживается этим браузером"}}
   q("#shabbat-btn")?.addEventListener("click",()=>{const out=q("#shabbat-output");if(!navigator.geolocation){out.textContent="Геолокация не поддерживается";return}out.textContent="Определяю местоположение…";navigator.geolocation.getCurrentPosition(async pos=>{try{const {latitude,longitude}=pos.coords,u="https://www.hebcal.com/shabbat?cfg=json&geo=pos&latitude="+encodeURIComponent(latitude)+"&longitude="+encodeURIComponent(longitude)+"&M=on",res=await fetch(u),json=await res.json(),items=(json.items||[]).filter(i=>/candles|havdalah/i.test(i.category||""));out.innerHTML=items.length?items.map(i=>`<p><strong>${safe(i.title)}</strong><br>${safe(i.date)}</p>`).join(""):"Нет данных"}catch{out.textContent="Не удалось получить время Шаббата."}},()=>{out.textContent="Доступ к местоположению не предоставлен"})});
   const upcoming=q("#upcoming-holidays");if(upcoming){(async()=>{try{const y=new Date().getFullYear(),res=await fetch("https://www.hebcal.com/hebcal?cfg=json&v=1&year="+y+"&maj=on&min=on&mod=on&nx=on&ss=on&mf=on&c=off"),json=await res.json(),today=new Date();const items=(json.items||[]).filter(i=>new Date(i.date)>=today).slice(0,12);upcoming.innerHTML=items.map(i=>`<article class="calendar-row"><time>${new Date(i.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long"})}</time><div><strong>${safe(i.title)}</strong><span>${safe(i.hebrew||"")}</span></div></article>`).join("")}catch{upcoming.innerHTML='<p class="muted">Не удалось загрузить ближайшие даты.</p>'}})()}
+  const autoFavorite=q(".content-hero"); if(autoFavorite&&!q("[data-favorite]",autoFavorite)){const b=document.createElement("button");b.className="mini-btn";b.dataset.favorite="1";b.textContent="★ Сохранить";const wrap=document.createElement("div");wrap.className="section-tools";wrap.appendChild(b);autoFavorite.appendChild(wrap)}
+  const autoFavoriteReady=true;
   // Museum 2.0: theme, language preference, daily learning, favorites/history, PWA.
   const uiPrefsKey="niti-pamyati-ui-v2";
   const prefs=(()=>{try{return JSON.parse(localStorage.getItem(uiPrefsKey)||"{}")}catch{return {}}})();
