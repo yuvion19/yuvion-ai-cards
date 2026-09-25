@@ -7,6 +7,7 @@
     $('#app').innerHTML=H.shell(fn());
     bindCommon();
     bindPage(r);
+    if(H.bindFeatures) H.bindFeatures(r);
     document.title=(H.nav.find(x=>x[0]===r)?.[1]||'Нити Памяти')+' — Нити Памяти';
   }
 
