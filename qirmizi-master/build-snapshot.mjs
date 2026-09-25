@@ -172,7 +172,7 @@ try {
 const browserScripts = [
   "app.js","archive-core.js","field.js","research.js","admin.js","streetview.js","ar.js",
   "vr.js","translate.js","juhuri.js","learn.js","image-tools.js","status.js","restoration.js",
-  "pmtiles-viewer.js","offline.js"
+  "pmtiles-viewer.js","offline.js","changes.js"
 ];
 for (const file of browserScripts) {
   execFileSync(process.execPath, ["--check", `${OUT}/${file}`], { stdio: "inherit" });
