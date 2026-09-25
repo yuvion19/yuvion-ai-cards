@@ -89,7 +89,7 @@
     </div>
     <div class="panel stack">
       <div class="protocol-box"><b>Gideon Protocol 6.0</b><p class="tiny">ECDSA P-256 · signed handoff · sender public key embedded · local verification</p></div>
-      <div class="grid two"><div class="stack"><h3>Создать Handoff</h3><select id="handoffPeer"><option value="">Открытый пакет</option></select><input id="handoffTitle" placeholder="Название задачи"><textarea id="handoffTask" placeholder="Что должен сделать другой Gideon?"></textarea><textarea id="handoffContext" placeholder="Контекст…"></textarea><label class="row"><input id="handoffIncludeArtifact" type="checkbox" style="width:auto" checked> Приложить текущий Artifact</label><button id="exportHandoff" class="primary">Подписать и экспортировать</button></div><div class="stack"><h3>Входящие</h3><label class="secondary">Импорт Handoff<input id="importHandoff" type="file" accept=".json,application/json" hidden></label><div id="inboxList" class="item-list"></div></div></div>
+      <div class="grid two"><div class="stack"><h3>Создать Handoff</h3><select id="handoffPeer"><option value="">Открытый пакет</option></select><input id="handoffTitle" placeholder="Название задачи"><textarea id="handoffTask" placeholder="Что должен сделать другой Gideon?"></textarea><textarea id="handoffContext" placeholder="Контекст…"></textarea><label class="row"><input id="handoffIncludeArtifact" type="checkbox" style="width:auto" checked> Приложить текущий Artifact</label><div class="row"><button id="sendHandoffNetwork" class="primary">Отправить в Network</button><button id="exportHandoff" class="secondary">Экспорт файла</button></div><div id="relayStatus" class="tiny">Relay: проверка…</div></div><div class="stack"><h3>Входящие</h3><div class="row"><label class="secondary">Импорт Handoff<input id="importHandoff" type="file" accept=".json,application/json" hidden></label><button id="pollNetwork" class="ghost">Проверить Network</button></div><div id="inboxList" class="item-list"></div></div></div>
     </div>
   </div>
 </section>
@@ -206,17 +206,157 @@ function bytesToB64(buf){let s='';new Uint8Array(buf).forEach(b=>s+=String.fromC
 function b64ToBytes(s){const bin=atob(s),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return a}
 function stableStringify(obj){if(obj===null||typeof obj!=='object')return JSON.stringify(obj);if(Array.isArray(obj))return '['+obj.map(stableStringify).join(',')+']';return'{'+Object.keys(obj).sort().map(k=>JSON.stringify(k)+':'+stableStringify(obj[k])).join(',')+'}'}
 async function sha256Text(t){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('')}
-async function ensureIdentity(force=false){if(!force){try{const x=JSON.parse(localStorage.getItem(IDENTITY_KEY)||'null');if(x?.privateKey&&x?.publicKey)return x}catch{}}const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']),pub=await crypto.subtle.exportKey('jwk',pair.publicKey),priv=await crypto.subtle.exportKey('jwk',pair.privateKey),fingerprint=await sha256Text(stableStringify(pub)),identity={version:'Gideon/6.0',id:'gid_'+fingerprint.slice(0,32),createdAt:now(),publicKey:pub,privateKey:priv};localStorage.setItem(IDENTITY_KEY,JSON.stringify(identity));return identity}
-async function identityCard(){const i=await ensureIdentity();return{protocol:'Gideon/6.0',type:'identity',identityId:i.id,name:state.settings.name||'Gideon User',createdAt:i.createdAt,publicKey:i.publicKey}}
-async function signPayload(payload){const i=await ensureIdentity(),key=await crypto.subtle.importKey('jwk',i.privateKey,{name:'ECDSA',namedCurve:'P-256'},false,['sign']),data=new TextEncoder().encode(stableStringify(payload)),sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,data);return bytesToB64(sig)}
-async function verifyPackage(pkg){try{const key=await crypto.subtle.importKey('jwk',pkg.sender.publicKey,{name:'ECDSA',namedCurve:'P-256'},false,['verify']),data=new TextEncoder().encode(stableStringify(pkg.payload));return await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,b64ToBytes(pkg.signature),data)}catch{return false}}
+async function ensureIdentity(force=false){
+  if(!force){
+    try{
+      const x=JSON.parse(localStorage.getItem(IDENTITY_KEY)||'null');
+      if(x?.privateKey&&x?.publicKey){
+        if(!x.encPrivateKey||!x.encPublicKey){
+          const ep=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+          x.encPublicKey=await crypto.subtle.exportKey('jwk',ep.publicKey);
+          x.encPrivateKey=await crypto.subtle.exportKey('jwk',ep.privateKey);
+          localStorage.setItem(IDENTITY_KEY,JSON.stringify(x));
+        }
+        return x
+      }
+    }catch{}
+  }
+  const signPair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+  const encPair=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+  const pub=await crypto.subtle.exportKey('jwk',signPair.publicKey),priv=await crypto.subtle.exportKey('jwk',signPair.privateKey);
+  const encPub=await crypto.subtle.exportKey('jwk',encPair.publicKey),encPriv=await crypto.subtle.exportKey('jwk',encPair.privateKey);
+  const fingerprint=await sha256Text(stableStringify(pub)+stableStringify(encPub));
+  const identity={version:'Gideon/6.0',id:'gid_'+fingerprint.slice(0,32),createdAt:now(),publicKey:pub,privateKey:priv,encPublicKey:encPub,encPrivateKey:encPriv};
+  localStorage.setItem(IDENTITY_KEY,JSON.stringify(identity));return identity
+}
+async function identityCard(){
+  const i=await ensureIdentity();
+  return{protocol:'Gideon/6.0',type:'identity',identityId:i.id,name:state.settings.name||'Gideon User',createdAt:i.createdAt,publicKey:i.publicKey,encryptionPublicKey:i.encPublicKey}
+}
+async function signPayload(payload){
+  const i=await ensureIdentity(),key=await crypto.subtle.importKey('jwk',i.privateKey,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
+  const data=new TextEncoder().encode(stableStringify(payload));
+  const sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,data);
+  return bytesToB64(sig)
+}
+async function verifyPackage(pkg){
+  try{
+    const target=pkg.type==='gideon-handoff-sealed'?pkg.envelope:pkg.payload;
+    const key=await crypto.subtle.importKey('jwk',pkg.sender.publicKey,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);
+    return await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,b64ToBytes(pkg.signature),new TextEncoder().encode(stableStringify(target)))
+  }catch{return false}
+}
+async function deriveHandoffKey(privateJwk,publicJwk,salt){
+  const priv=await crypto.subtle.importKey('jwk',privateJwk,{name:'ECDH',namedCurve:'P-256'},false,['deriveBits']);
+  const pub=await crypto.subtle.importKey('jwk',publicJwk,{name:'ECDH',namedCurve:'P-256'},false,[]);
+  const bits=await crypto.subtle.deriveBits({name:'ECDH',public:pub},priv,256);
+  const base=await crypto.subtle.importKey('raw',bits,'HKDF',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt,info:new TextEncoder().encode('Gideon/6.0 Handoff')},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])
+}
+async function sealPayload(payload,peer){
+  if(!peer?.encryptionPublicKey)throw Error('У Peer нет encryption key. Импортируйте свежую Gideon 6.0 Identity.');
+  const me=await ensureIdentity(),salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveHandoffKey(me.encPrivateKey,peer.encryptionPublicKey,salt);
+  const plaintext=new TextEncoder().encode(JSON.stringify(payload));
+  const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plaintext);
+  const envelope={protocol:'Gideon/6.0',handoffId:payload.handoffId,from:me.id,to:peer.identityId,createdAt:payload.createdAt,salt:bytesToB64(salt),iv:bytesToB64(iv),ciphertext:bytesToB64(encrypted)};
+  const signature=await signPayload(envelope);
+  return{type:'gideon-handoff-sealed',sender:await identityCard(),envelope,signature}
+}
+async function unsealPackage(pkg){
+  if(!(await verifyPackage(pkg)))throw Error('Подпись Handoff не прошла проверку.');
+  const me=await ensureIdentity();
+  if(pkg.envelope.to!==me.id)throw Error('Handoff адресован другой Gideon Identity.');
+  if(!pkg.sender?.encryptionPublicKey)throw Error('В пакете нет encryption key отправителя.');
+  const salt=b64ToBytes(pkg.envelope.salt),iv=b64ToBytes(pkg.envelope.iv);
+  const key=await deriveHandoffKey(me.encPrivateKey,pkg.sender.encryptionPublicKey,salt);
+  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,b64ToBytes(pkg.envelope.ciphertext));
+  return JSON.parse(new TextDecoder().decode(plain))
+}
 function downloadJSON(obj,name){const u=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
-async function renderNetwork(){const i=await ensureIdentity();$('#identityName').textContent=state.settings.name||'Gideon Identity';$('#identityId').textContent=i.id;$('#settingsIdentityId').textContent=i.id;$('#peerList').innerHTML=state.peers.map(p=>'<div class="peer"><b>'+esc(p.name||'Peer')+'</b><div class="identity-id">'+esc(p.identityId)+'</div><small class="verified">✓ Identity imported</small></div>').join('')||'<span class="tiny">Peers пока нет.</span>';$('#handoffPeer').innerHTML='<option value="">Открытый пакет</option>'+state.peers.map(p=>'<option value="'+p.identityId+'">'+esc(p.name||p.identityId)+'</option>').join('');$('#inboxList').innerHTML=state.inbox.slice().reverse().map(x=>'<div class="inbox-row"><b>'+esc(x.pkg.payload.title||'Handoff')+'</b><small>'+(x.verified?'<span class="verified">✓ подпись проверена</span>':'<span class="unverified">⚠ подпись не проверена</span>')+' · '+esc(x.pkg.sender.name||'Peer')+'</small><div class="row" style="margin-top:7px"><button class="secondary" data-accept="'+x.id+'">Принять задачу</button></div></div>').join('')||'<span class="tiny">Входящих Handoff нет.</span>';$$('[data-accept]').forEach(b=>b.onclick=()=>acceptHandoff(b.dataset.accept))}
-$('#exportIdentity').onclick=async()=>downloadJSON(await identityCard(),'gideon-identity.json');$('#importPeer').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const card=JSON.parse(await f.text());if(card.type!=='identity'||!card.identityId||!card.publicKey)throw Error();if(!state.peers.some(p=>p.identityId===card.identityId))state.peers.push(card);persist();renderNetwork();toast('Peer добавлен')}catch{toast('Некорректная Identity')}e.target.value=''};
-async function exportHandoff(){const ident=await identityCard(),peerId=$('#handoffPeer').value,title=$('#handoffTitle').value.trim()||'Gideon Handoff',task=$('#handoffTask').value.trim();if(!task)return toast('Опишите задачу');const payload={protocol:'Gideon/6.0',handoffId:uid(),to:peerId||null,title,task,context:$('#handoffContext').value.trim(),project:{name:currentProject().name,description:currentProject().description||''},artifact:$('#handoffIncludeArtifact').checked?$('#artifactEditor').value:'',createdAt:now()},signature=await signPayload(payload),pkg={type:'gideon-handoff',sender:ident,payload,signature};state.outbox.push({id:payload.handoffId,pkg,createdAt:now()});persist();downloadJSON(pkg,'gideon-handoff-'+payload.handoffId.slice(0,8)+'.json');logEvent('Handoff подписан: '+title)}
-$('#exportHandoff').onclick=exportHandoff;$('#createHandoffFromResult').onclick=()=>{route('network');$('#handoffTitle').value=currentChat()?.title||'Gideon result';$('#handoffTask').value='Продолжи работу над переданным результатом и подготовь следующую улучшенную версию.';$('#handoffContext').value=projectContext()};
-$('#importHandoff').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const pkg=JSON.parse(await f.text());if(pkg.type!=='gideon-handoff'||!pkg.payload||!pkg.sender||!pkg.signature)throw Error();const ok=await verifyPackage(pkg);state.inbox.push({id:pkg.payload.handoffId||uid(),pkg,verified:ok,receivedAt:now()});if(ok&&!state.peers.some(p=>p.identityId===pkg.sender.identityId))state.peers.push(pkg.sender);persist();renderNetwork();toast(ok?'Handoff проверен и импортирован':'Handoff импортирован, подпись не подтверждена')}catch{toast('Некорректный Handoff')}e.target.value=''};
-function acceptHandoff(idv){const item=state.inbox.find(x=>x.id===idv);if(!item)return;const p={id:uid(),name:'Handoff · '+(item.pkg.sender.name||'Peer'),description:item.pkg.payload.context||item.pkg.payload.project?.description||'',instructions:'Продолжить задачу, переданную через Gideon Protocol 6.0.',createdAt:now()};state.projects.push(p);state.currentProject=p.id;state.currentChat='';ensureState();if(item.pkg.payload.artifact)createArtifactFromText(item.pkg.payload.title+' · входящий результат',item.pkg.payload.artifact,p.id);persist();renderAll();route('ask');setMode('team');$('#askInput').value=item.pkg.payload.task||'';toast('Handoff принят в новый Project')}
+function currentInboxPayload(item){return item?.payload||item?.pkg?.payload||null}
+async function renderNetwork(){
+  const i=await ensureIdentity();
+  $('#identityName').textContent=state.settings.name||'Gideon Identity';
+  $('#identityId').textContent=i.id;$('#settingsIdentityId').textContent=i.id;
+  $('#peerList').innerHTML=state.peers.map(p=>'<div class="peer"><b>'+esc(p.name||'Peer')+'</b><div class="identity-id">'+esc(p.identityId)+'</div><small class="'+(p.encryptionPublicKey?'verified':'unverified')+'">'+(p.encryptionPublicKey?'✓ Network ready':'⚠ только файловый Handoff')+'</small></div>').join('')||'<span class="tiny">Peers пока нет.</span>';
+  $('#handoffPeer').innerHTML='<option value="">Открытый пакет</option>'+state.peers.map(p=>'<option value="'+p.identityId+'">'+esc(p.name||p.identityId)+'</option>').join('');
+  $('#inboxList').innerHTML=state.inbox.slice().reverse().map(x=>{const p=currentInboxPayload(x)||{};return'<div class="inbox-row"><b>'+esc(p.title||'Handoff')+'</b><small>'+(x.verified?'<span class="verified">✓ подпись и шифрование проверены</span>':'<span class="unverified">⚠ подпись не подтверждена</span>')+' · '+esc(x.pkg?.sender?.name||'Peer')+(x.network?' · Network':'')+'</small><div class="row" style="margin-top:7px"><button class="secondary" data-accept="'+x.id+'">Принять задачу</button></div></div>'}).join('')||'<span class="tiny">Входящих Handoff нет.</span>';
+  $$('[data-accept]').forEach(b=>b.onclick=()=>acceptHandoff(b.dataset.accept));
+  try{const s=await api('/api/gideon/network/status');$('#relayStatus').textContent='Relay: ONLINE · '+s.encryption+' · TTL '+s.ttlHours+'ч'}catch{$('#relayStatus').textContent='Relay: недоступен · файловый режим работает'}
+}
+$('#exportIdentity').onclick=async()=>downloadJSON(await identityCard(),'gideon-identity.json');
+$('#importPeer').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const card=JSON.parse(await f.text());if(card.type!=='identity'||!card.identityId||!card.publicKey)throw Error();const old=state.peers.find(p=>p.identityId===card.identityId);if(old)Object.assign(old,card);else state.peers.push(card);persist();renderNetwork();toast(card.encryptionPublicKey?'Peer готов к Network':'Peer добавлен в файловом режиме')}catch{toast('Некорректная Identity')}e.target.value=''};
+function handoffPayload(){
+  const peerId=$('#handoffPeer').value,title=$('#handoffTitle').value.trim()||'Gideon Handoff',task=$('#handoffTask').value.trim();
+  if(!task)throw Error('Опишите задачу');
+  return{protocol:'Gideon/6.0',handoffId:uid(),to:peerId||null,title,task,context:$('#handoffContext').value.trim(),project:{name:currentProject().name,description:currentProject().description||''},artifact:$('#handoffIncludeArtifact').checked?$('#artifactEditor').value:'',createdAt:now()}
+}
+async function exportHandoff(){
+  try{
+    const payload=handoffPayload(),peer=state.peers.find(p=>p.identityId===payload.to);
+    let pkg;
+    if(peer?.encryptionPublicKey)pkg=await sealPayload(payload,peer);
+    else{const signature=await signPayload(payload);pkg={type:'gideon-handoff',sender:await identityCard(),payload,signature}}
+    state.outbox.push({id:payload.handoffId,pkg,createdAt:now()});persist();
+    downloadJSON(pkg,'gideon-handoff-'+payload.handoffId.slice(0,8)+'.json');logEvent('Handoff экспортирован: '+payload.title)
+  }catch(e){toast(e.message)}
+}
+async function sendHandoffNetwork(){
+  try{
+    const payload=handoffPayload(),peer=state.peers.find(p=>p.identityId===payload.to);
+    if(!peer)throw Error('Выберите Peer для Network.');
+    if(!peer.encryptionPublicKey)throw Error('Импортируйте свежую Gideon 6.0 Identity этого Peer.');
+    const pkg=await sealPayload(payload,peer),r=await api('/api/gideon/network/send',{package:pkg});
+    state.outbox.push({id:payload.handoffId,pkg,createdAt:now(),network:true,relayId:r.relayId});persist();
+    toast('Зашифрованный Handoff отправлен');logEvent('Network Handoff: '+payload.title)
+  }catch(e){toast(e.message)}
+}
+async function pollNetwork(showToast=true){
+  try{
+    const me=await ensureIdentity(),d=await api('/api/gideon/network/inbox/'+encodeURIComponent(me.id));
+    let added=0;
+    for(const pkg of (d.packages||[])){
+      const idv=pkg?.envelope?.handoffId||uid();
+      if(state.inbox.some(x=>x.id===idv))continue;
+      try{
+        const payload=await unsealPackage(pkg);
+        state.inbox.push({id:idv,pkg,payload,verified:true,network:true,receivedAt:now()});
+        if(!state.peers.some(p=>p.identityId===pkg.sender.identityId))state.peers.push(pkg.sender);
+        added++
+      }catch{}
+    }
+    if(added){persist();await renderNetwork();if(showToast)toast('Новых Handoff: '+added)}
+    else if(showToast)toast('Новых Handoff нет')
+  }catch(e){if(showToast)toast('Network недоступен: '+e.message)}
+}
+$('#exportHandoff').onclick=exportHandoff;
+$('#sendHandoffNetwork').onclick=sendHandoffNetwork;
+$('#pollNetwork').onclick=()=>pollNetwork(true);
+$('#createHandoffFromResult').onclick=()=>{route('network');$('#handoffTitle').value=currentChat()?.title||'Gideon result';$('#handoffTask').value='Продолжи работу над переданным результатом и подготовь следующую улучшенную версию.';$('#handoffContext').value=projectContext()};
+$('#importHandoff').onchange=async e=>{
+  const f=e.target.files?.[0];if(!f)return;
+  try{
+    const pkg=JSON.parse(await f.text());let payload,ok=false;
+    if(pkg.type==='gideon-handoff-sealed'){payload=await unsealPackage(pkg);ok=true}
+    else if(pkg.type==='gideon-handoff'&&pkg.payload){ok=await verifyPackage(pkg);payload=pkg.payload}
+    else throw Error();
+    const idv=payload.handoffId||uid();
+    if(!state.inbox.some(x=>x.id===idv))state.inbox.push({id:idv,pkg,payload,verified:ok,receivedAt:now()});
+    if(ok&&!state.peers.some(p=>p.identityId===pkg.sender.identityId))state.peers.push(pkg.sender);
+    persist();renderNetwork();toast(ok?'Handoff проверен и импортирован':'Handoff импортирован, подпись не подтверждена')
+  }catch{toast('Некорректный или нерасшифровываемый Handoff')}
+  e.target.value=''
+};
+function acceptHandoff(idv){
+  const item=state.inbox.find(x=>x.id===idv);if(!item)return;
+  const payload=currentInboxPayload(item)||{};
+  const p={id:uid(),name:'Handoff · '+(item.pkg?.sender?.name||'Peer'),description:payload.context||payload.project?.description||'',instructions:'Продолжить задачу, переданную через Gideon Protocol 6.0.',createdAt:now()};
+  state.projects.push(p);state.currentProject=p.id;state.currentChat='';ensureState();
+  if(payload.artifact)createArtifactFromText((payload.title||'Handoff')+' · входящий результат',payload.artifact,p.id);
+  persist();renderAll();route('ask');setMode('team');$('#askInput').value=payload.task||'';toast('Handoff принят в новый Project')
+}
+setInterval(()=>pollNetwork(false),60000);
 
 function renderSkills(){const q=$('#skillSearch').value.trim().toLowerCase(),arr=state.skills.filter(s=>!q||s.name.toLowerCase().includes(q)||s.description.toLowerCase().includes(q));$('#skillsList').innerHTML=arr.map(s=>'<div class="skill-card '+(!s.enabled?'disabled':'')+'" data-skill="'+s.id+'"><div class="row" style="justify-content:space-between"><div><b>'+esc(s.name)+'</b><small>'+esc(s.description)+'</small></div><button class="switch '+(s.enabled?'on':'')+'" data-toggle-skill="'+s.id+'"></button></div></div>').join('');$$('[data-skill]').forEach(e=>e.onclick=ev=>{if(ev.target.closest('[data-toggle-skill]'))return;selectedSkill=e.dataset.skill;const s=state.skills.find(x=>x.id===selectedSkill);$('#skillName').value=s.name;$('#skillDescription').value=s.description;$('#deleteSkill').disabled=!!s.builtin});$$('[data-toggle-skill]').forEach(b=>b.onclick=e=>{e.stopPropagation();const s=state.skills.find(x=>x.id===b.dataset.toggleSkill);s.enabled=!s.enabled;persist();renderSkills();renderAsk()})}
 $('#skillSearch').oninput=renderSkills;$('#addSkill').onclick=()=>{selectedSkill=null;$('#skillName').value='';$('#skillDescription').value='';$('#deleteSkill').disabled=true;$('#skillName').focus()};$('#saveSkill').onclick=()=>{const n=$('#skillName').value.trim(),d=$('#skillDescription').value.trim();if(!n)return toast('Введите название');let s=state.skills.find(x=>x.id===selectedSkill);if(!s){s={id:uid(),name:n,description:d,enabled:true,builtin:false};state.skills.push(s);selectedSkill=s.id}else{s.name=n;s.description=d}persist();renderSkills();renderAsk();toast('Skill сохранён')};$('#deleteSkill').onclick=()=>{const s=state.skills.find(x=>x.id===selectedSkill);if(!s||s.builtin)return;state.skills=state.skills.filter(x=>x.id!==s.id);selectedSkill=null;persist();renderSkills();renderAsk()};
