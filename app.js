@@ -15,6 +15,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   menu?.addEventListener("click",()=>{nav?.classList.toggle("open");document.body.classList.toggle("menu-open")});
   const render=(sel,items,fn)=>{const el=q(sel);if(el)el.innerHTML=items.map(fn).join("")};
 
+  render("#juhuri-facts",D.juhuriFacts||[],x=>`<article class="collection-card"><span class="pill">${safe(x.source)}</span><h2>${safe(x.title)}</h2><p>${safe(x.text)}</p><a class="text-link" target="_blank" rel="noopener" href="${x.url}">Источник ↗</a></article>`);
+  render("#literature-facts",D.literatureFacts||[],x=>`<article class="collection-card"><span class="pill">${safe(x.source)}</span><h2>${safe(x.title)}</h2><p>${safe(x.text)}</p><a class="text-link" target="_blank" rel="noopener" href="${x.url}">Источник ↗</a></article>`);
   render("#red-village-facts",D.redVillageFacts||[],x=>`<article class="collection-card"><span class="pill">${safe(x.source)}</span><h2>${safe(x.title)}</h2><p>${safe(x.text)}</p><a class="text-link" target="_blank" rel="noopener" href="${x.url}">Источник ↗</a></article>`);
   render("#archive-collections",D.archiveCollections||[],(x,i)=>`<article class="collection-card"><span class="index">${String(i+1).padStart(2,"0")}</span><h2>${safe(x.title)}</h2><p>${safe(x.note)}</p></article>`);
   render("#culture-exhibits",D.cultureExhibits||[],(x,i)=>`<article class="collection-card"><span class="index">${String(i+1).padStart(2,"0")}</span><h2>${safe(x.title)}</h2><p>${safe(x.note)}</p></article>`);
