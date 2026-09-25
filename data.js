@@ -160,6 +160,11 @@ window.NITI_DATA = {
     {name:"Шавуот",he:"שבועות",note:"Праздник дарования Торы; 6 сивана."},
     {name:"26 ияра",he:"כ״ו באייר",note:"День Спасения и Освобождения — современная памятная дата."}
   ],
+  redVillageMedia: [
+    {title:"Красная Слобода — общий вид",image:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Red%20Town.jpg",credit:"Investigation11111",license:"CC BY-SA 4.0",source:"https://commons.wikimedia.org/wiki/File:Red_Town.jpg"},
+    {title:"Музей горских евреев",image:"https://commons.wikimedia.org/wiki/Special:Redirect/file/The%20first%20museum%20of%20mountain%20jews%20in%20Azerbaijan.jpg",credit:"Asif Masimov",license:"CC BY-SA 3.0",source:"https://commons.wikimedia.org/wiki/File:The_first_museum_of_mountain_jews_in_Azerbaijan.jpg"},
+    {title:"Синагога в Красной Слободе",image:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Synagogue_at_Q%C4%B1rm%C4%B1z%C4%B1_Q%C9%99s%C9%99b%C9%99.jpg",credit:"Azerbaijan Government",license:"Public domain / PD-AZ-exempt",source:"https://commons.wikimedia.org/wiki/File:Synagogue_at_Q%C4%B1rm%C4%B1z%C4%B1_Q%C9%99s%C9%99b%C9%99.jpg"}
+  ],
   juhuriFacts: [
     {title:"Языковая семья",text:"Джуури (Judeo-Tat) относится к иранским языкам и восходит к новоперсидской языковой основе; на него заметно повлиял азербайджанский язык.",source:"Jewish Virtual Library",url:"https://jewishvirtuallibrary.org/jsource/judaica/ejud_0002_0011_0_10466.html"},
     {title:"Историческая география",text:"Язык традиционно использовался в еврейских общинах восточного и северного Кавказа, прежде всего среди горских евреев.",source:"Jewish Virtual Library",url:"https://jewishvirtuallibrary.org/jsource/judaica/ejud_0002_0011_0_10466.html"},
