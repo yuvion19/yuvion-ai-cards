@@ -1,0 +1,30 @@
+[
+  {
+    "slug": "krasnaya-sloboda",
+    "name": "Красная Слобода",
+    "lat": 41.3717,
+    "lon": 48.5106,
+    "status": "review"
+  },
+  {
+    "slug": "quba",
+    "name": "Куба",
+    "lat": 41.3597,
+    "lon": 48.5125,
+    "status": "context"
+  },
+  {
+    "slug": "derbent",
+    "name": "Дербент",
+    "lat": 42.0577,
+    "lon": 48.2888,
+    "status": "context"
+  },
+  {
+    "slug": "baku",
+    "name": "Баку",
+    "lat": 40.4093,
+    "lon": 49.8671,
+    "status": "context"
+  }
+]

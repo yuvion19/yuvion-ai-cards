@@ -1,0 +1,9 @@
+{
+  "project": "Нити Памяти",
+  "version": "1.0",
+  "private_data_included": false,
+  "collections": {
+    "people": "/api/v1/people.json",
+    "places": "/api/v1/places.json"
+  }
+}
