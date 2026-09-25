@@ -1963,6 +1963,42 @@ app.post("/api/neurohub/gigachat/image", async (req, res) => {
 });
 
 
+
+const GIDEON_UPSTREAM = String(process.env.GIDEON_UPSTREAM || "").replace(/\/+$/, "");
+
+app.use("/api/gideon", async (req, res, next) => {
+  const hasLocalSecret = Boolean(String(process.env.NEUROHUB_GIGACHAT_AUTH_KEY || "").trim());
+  if (hasLocalSecret || !GIDEON_UPSTREAM) return next();
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 45000);
+    const headers = { Accept: "application/json" };
+    let body;
+    if (!["GET","HEAD"].includes(req.method)) {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(req.body ?? {});
+    }
+    const upstream = await fetch(GIDEON_UPSTREAM + req.originalUrl, {
+      method: req.method,
+      headers,
+      body,
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    const raw = await upstream.text();
+    res.status(upstream.status);
+    const type = upstream.headers.get("content-type");
+    if (type) res.setHeader("Content-Type", type);
+    return res.send(raw);
+  } catch (error) {
+    return res.status(502).json({
+      error: "Gideon Core временно недоступен.",
+      code: error?.name === "AbortError" ? "gateway_timeout" : "gateway_unavailable"
+    });
+  }
+});
+
 function gideonUsageSnapshot() {
   const day = neuroHubDayKey();
   if (neuroHubGigaDaily.day !== day) neuroHubGigaDaily = { day, count: 0 };
