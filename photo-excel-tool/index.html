@@ -1,541 +1,154 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Фото → Excel</title>
-  <meta name="theme-color" content="#111827">
-  <style>
-    :root{--bg:#f4f6f8;--card:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;--ok:#059669;--warn:#d97706;--bad:#dc2626}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-    .wrap{max-width:900px;margin:0 auto;padding:20px 14px 60px}
-    header{padding:12px 2px 18px}
-    h1{font-size:30px;margin:0 0 7px;letter-spacing:-.7px}
-    .sub{color:var(--muted);line-height:1.45}
-    .badge{display:inline-block;margin-top:10px;padding:7px 10px;border-radius:999px;background:#ecfdf5;color:#047857;font-size:13px;font-weight:700}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
-    .step{font-size:13px;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}
-    label{display:block;font-weight:700;font-size:14px;margin:12px 0 7px}
-    input,select,button{font:inherit}
-    input[type=text],select{width:100%;border:1px solid #d1d5db;border-radius:12px;padding:12px 13px;background:#fff;color:#111827}
-    input[type=file]{width:100%;border:1px dashed #9ca3af;border-radius:14px;padding:18px;background:#f9fafb}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    button{border:0;border-radius:12px;padding:13px 16px;font-weight:800;cursor:pointer}
-    .primary{background:var(--accent);color:#fff;width:100%;font-size:16px}
-    .secondary{background:#eef2ff;color:#3730a3;width:100%}
-    button:disabled{opacity:.45;cursor:not-allowed}
-    .hint{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
-    .status{margin-top:12px;padding:12px;border-radius:12px;background:#f9fafb;border:1px solid var(--line);font-size:14px;white-space:pre-wrap}
-    .progress{height:11px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:12px}
-    .bar{height:100%;width:0;background:var(--accent);transition:width .2s}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
-    .stat{padding:12px;border-radius:12px;background:#f9fafb;border:1px solid var(--line)}
-    .stat b{display:block;font-size:20px}.stat span{font-size:12px;color:var(--muted)}
-    .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
-    .hidden{display:none!important}
-    .privacy{font-size:12px;color:var(--muted);line-height:1.5}
-    .footer{font-size:12px;color:#9ca3af;text-align:center;margin-top:22px}
-    @media(max-width:640px){.row{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}h1{font-size:27px}.card{padding:15px;border-radius:16px}.wrap{padding-top:12px}}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Фото → Excel</title>
+<meta name="theme-color" content="#111827">
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;--ok:#059669;--bad:#dc2626;--warn:#d97706}
+*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:760px;margin:auto;padding:18px 14px 60px} h1{font-size:30px;margin:8px 0}.sub{color:var(--muted);line-height:1.45}
+.badge{display:inline-block;margin:8px 0 4px;padding:7px 10px;border-radius:999px;background:#ecfdf5;color:#047857;font-size:13px;font-weight:800}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.step{font-size:12px;color:var(--accent);font-weight:900;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+label{display:block;font-weight:800;font-size:14px;margin:10px 0 7px} input,select,button{font:inherit}
+input[type=file]{width:100%;border:1px dashed #9ca3af;border-radius:13px;padding:16px;background:#f9fafb}
+input[type=text],select{width:100%;border:1px solid #d1d5db;border-radius:12px;padding:12px;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{border:0;border-radius:12px;padding:13px 15px;font-weight:900;cursor:pointer}
+.primary{width:100%;background:var(--accent);color:#fff;font-size:16px}.secondary{width:100%;background:#eef2ff;color:#3730a3}
+button:disabled{opacity:.5}.hint{font-size:13px;color:var(--muted);line-height:1.45;margin-top:7px}
+.status{white-space:pre-wrap;margin-top:12px;border:1px solid var(--line);background:#f9fafb;border-radius:12px;padding:12px;font-size:14px}
+.progress{height:11px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:12px}.bar{height:100%;width:0;background:var(--accent);transition:width .25s}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.stat{border:1px solid var(--line);background:#f9fafb;border-radius:12px;padding:10px}
+.stat b{display:block;font-size:19px}.stat span{font-size:11px;color:var(--muted)} .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+.download{display:none;margin-top:12px;background:#059669;color:white;width:100%}.privacy{font-size:12px;color:var(--muted);line-height:1.5}
+@media(max-width:600px){.row{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}h1{font-size:27px}}
+</style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>Фото → Excel</h1>
-    <div class="sub">Автоматически сопоставляет фотографии из публичной папки Яндекс Диска с товарами в Excel по имени файла.</div>
-    <div class="badge">Бесплатно • без регистрации • обработка в браузере</div>
-  </header>
+<h1>Фото → Excel</h1>
+<div class="sub">Сопоставляет фотографии из публичной папки Яндекс Диска с товарами в Excel по имени файла.</div>
+<div class="badge">Бесплатно • работает с телефона • Excel обрабатывается на сервере</div>
 
-  <div class="card">
-    <div class="step">Шаг 1</div>
-    <label>Excel-файл (.xlsx)</label>
-    <input id="excelFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-    <div id="fileInfo" class="hint">Ожидается таблица с колонками «Файл изображения» и «Название товара».</div>
-  </div>
-
-  <div class="card">
-    <div class="step">Шаг 2</div>
-    <label>Публичная ссылка Яндекс Диска</label>
-    <input id="diskUrl" type="text" value="https://disk.yandex.ru/d/zTdZ9PlnyQZY9A" spellcheck="false">
-    <button id="scanBtn" class="secondary" style="margin-top:12px" disabled>Проверить папку и собрать список фото</button>
-    <div id="scanStatus" class="status hidden"></div>
-  </div>
-
-  <div class="card">
-    <div class="step">Шаг 3</div>
-    <div class="row">
-      <div>
-        <label>Колонка с именем файла</label>
-        <select id="fileColumn" disabled></select>
-      </div>
-      <div>
-        <label>Колонка с названием товара</label>
-        <select id="nameColumn" disabled></select>
-      </div>
-    </div>
-    <div class="row">
-      <div>
-        <label>Режим результата</label>
-        <select id="mode">
-          <option value="embedded">Фото внутри Excel</option>
-          <option value="match">Лёгкий файл: только сопоставление</option>
-        </select>
-      </div>
-      <div>
-        <label>Размер превью</label>
-        <select id="thumbSize">
-          <option value="120">120 px — самый лёгкий</option>
-          <option value="160" selected>160 px — оптимально для iPhone</option>
-          <option value="220">220 px — крупнее</option>
-        </select>
-      </div>
-    </div>
-    <div class="hint">Для режима «Фото внутри Excel» используются уменьшенные превью, а не оригиналы. Это сильно уменьшает итоговый файл.</div>
-  </div>
-
-  <div class="card">
-    <div class="step">Шаг 4</div>
-    <button id="runBtn" class="primary" disabled>Сопоставить и скачать готовый Excel</button>
-    <div class="progress"><div id="bar" class="bar"></div></div>
-    <div id="runStatus" class="status">Сначала выберите Excel и проверьте папку Яндекс Диска.</div>
-    <div class="stats">
-      <div class="stat"><b id="sRows">0</b><span>товаров</span></div>
-      <div class="stat"><b id="sFound" class="ok">0</b><span>найдено</span></div>
-      <div class="stat"><b id="sMissing" class="bad">0</b><span>нет фото</span></div>
-      <div class="stat"><b id="sDup" class="warn">0</b><span>дубликатов</span></div>
-    </div>
-  </div>
-
-  <div class="card privacy">
-    <b>Конфиденциальность.</b> Excel обрабатывается на вашем устройстве. Сайт обращается только к публичной ссылке Яндекс Диска, которую вы указали. Отдельный сервер с вашей таблицей не используется.
-  </div>
-  <div class="footer">Фото → Excel • бесплатный инструмент</div>
+<div class="card">
+  <div class="step">1. Excel</div>
+  <input id="excel" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+  <div class="hint">Ваш файл: «Фото_Товар.xlsx» или другой .xlsx с колонками «Файл изображения» и «Название товара».</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<div class="card">
+  <div class="step">2. Яндекс Диск</div>
+  <label>Публичная ссылка</label>
+  <input id="disk" type="text" value="https://disk.yandex.ru/d/zTdZ9PlnyQZY9A">
+  <button id="scan" class="secondary" style="margin-top:10px">Проверить ссылку и посчитать фото</button>
+  <div id="scanStatus" class="status">Ссылка готова к проверке.</div>
+</div>
+
+<div class="card">
+  <div class="step">3. Параметры</div>
+  <div class="row">
+    <div><label>Колонка с файлом</label><input id="fileColumn" type="text" value="Файл изображения"></div>
+    <div><label>Колонка с товаром</label><input id="nameColumn" type="text" value="Название товара"></div>
+  </div>
+  <label>Результат</label>
+  <select id="mode">
+    <option value="embedded">Фото внутри Excel</option>
+    <option value="match">Лёгкий Excel без встроенных фото</option>
+  </select>
+</div>
+
+<div class="card">
+  <div class="step">4. Запуск</div>
+  <button id="run" class="primary">Сопоставить товары и фотографии</button>
+  <div class="progress"><div id="bar" class="bar"></div></div>
+  <div id="status" class="status">Выберите Excel и нажмите кнопку запуска.</div>
+  <div class="stats">
+    <div class="stat"><b id="total">0</b><span>товаров</span></div>
+    <div class="stat"><b id="found" class="ok">0</b><span>найдено</span></div>
+    <div class="stat"><b id="missing" class="bad">0</b><span>нет фото</span></div>
+    <div class="stat"><b id="dups" class="warn">0</b><span>дубликатов</span></div>
+  </div>
+  <button id="download" class="download">Скачать готовый Excel</button>
+</div>
+
+<div class="card privacy"><b>Важно:</b> бесплатный сервер Render может «спать» после простоя. Первый запуск иногда начинается не сразу. После пробуждения обработка продолжается автоматически. Для тысяч фотографий лучше не закрывать эту страницу до появления кнопки скачивания.</div>
+</div>
+
 <script>
-(function(){
-  'use strict';
+const API='https://photo-excel-yandex-proxy.onrender.com';
+const el=id=>document.getElementById(id);
+const fmt=n=>(Number(n)||0).toLocaleString('ru-RU');
+let currentJob=null, pollTimer=null;
 
-  var excelInput = document.getElementById('excelFile');
-  var diskInput = document.getElementById('diskUrl');
-  var scanBtn = document.getElementById('scanBtn');
-  var runBtn = document.getElementById('runBtn');
-  var fileColumn = document.getElementById('fileColumn');
-  var nameColumn = document.getElementById('nameColumn');
-  var mode = document.getElementById('mode');
-  var thumbSize = document.getElementById('thumbSize');
-  var fileInfo = document.getElementById('fileInfo');
-  var scanStatus = document.getElementById('scanStatus');
-  var runStatus = document.getElementById('runStatus');
-  var bar = document.getElementById('bar');
+function setProgress(n){el('bar').style.width=Math.max(0,Math.min(100,Number(n)||0))+'%'}
+function setStats(s={}){el('total').textContent=fmt(s.total);el('found').textContent=fmt(s.found);el('missing').textContent=fmt(s.missing);el('dups').textContent=fmt(s.duplicates)}
 
-  var PROXY = 'https://photo-excel-yandex-proxy.onrender.com';\n  var sourceBuffer = null;
-  var sourceFileName = '';
-  var sourceSheetName = '';
-  var headers = [];
-  var diskFiles = [];
-  var exactMap = new Map();
-  var stemMap = new Map();
+el('scan').onclick=async()=>{
+  const diskUrl=el('disk').value.trim();
+  if(!diskUrl){el('scanStatus').textContent='Введите ссылку.';return}
+  el('scan').disabled=true; el('scanStatus').textContent='Проверяю Яндекс Диск…';
+  try{
+    const r=await fetch(API+'/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({diskUrl})});
+    const data=await r.json();
+    if(!r.ok||!data.ok) throw new Error(data.error||'Ошибка проверки');
+    el('scanStatus').textContent='Готово. Найдено изображений: '+fmt(data.count)+'.';
+  }catch(e){
+    el('scanStatus').textContent='Ошибка: '+e.message+'\nЕсли сервер только что проснулся, нажмите «Проверить» ещё раз.';
+  }finally{el('scan').disabled=false}
+};
 
-  function setProgress(p){ bar.style.width = Math.max(0,Math.min(100,p)) + '%'; }
-  function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
-  function esc(s){ return String(s == null ? '' : s); }
-
-  function extInfo(name){
-    var n = esc(name).normalize('NFKC').trim().toLowerCase();
-    n = n.replace(/\s+/g,' ');
-    var dot = n.lastIndexOf('.');
-    var stem = dot > 0 ? n.slice(0,dot) : n;
-    var ext = dot > 0 ? n.slice(dot+1) : '';
-    if(ext === 'jpeg') ext = 'jpg';
-    return {key: stem + (ext ? '.' + ext : ''), stem: stem, ext: ext};
-  }
-
-  function isImage(name){
-    return /\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(esc(name));
-  }
-
-  function joinPath(parent,name){
-    var clean = esc(name).replace(/^\/+|\/+$/g,'');
-    if(!parent) return '/' + clean;
-    return parent.replace(/\/+$/,'') + '/' + clean;
-  }
-
-  function updateRunEnabled(){
-    runBtn.disabled = !(sourceBuffer && diskFiles.length && fileColumn.value);
-    scanBtn.disabled = !(sourceBuffer && diskInput.value.trim());
-  }
-
-  function fillSelect(select, preferred){
-    select.innerHTML = '';
-    headers.forEach(function(h){
-      var o = document.createElement('option');
-      o.value = h.col;
-      o.textContent = h.name || ('Колонка ' + h.col);
-      select.appendChild(o);
-    });
-    var p = headers.find(function(h){ return h.name.trim().toLowerCase() === preferred.toLowerCase(); });
-    if(p) select.value = p.col;
-    select.disabled = false;
-  }
-
-  excelInput.addEventListener('change', async function(){
-    try{
-      sourceBuffer = null; diskFiles = []; exactMap.clear(); stemMap.clear(); setProgress(0);
-      var f = excelInput.files && excelInput.files[0];
-      if(!f) return;
-      sourceFileName = f.name;
-      sourceBuffer = await f.arrayBuffer();
-
-      var wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(sourceBuffer.slice(0));
-      var ws = wb.worksheets[0];
-      if(!ws) throw new Error('В книге нет листов.');
-      sourceSheetName = ws.name;
-      headers = [];
-      ws.getRow(1).eachCell({includeEmpty:true}, function(cell,col){
-        var v = cell.value;
-        if(v && typeof v === 'object' && v.text) v = v.text;
-        headers.push({col:col,name:esc(v)});
-      });
-      if(!headers.length) throw new Error('Не удалось прочитать заголовки первой строки.');
-
-      fillSelect(fileColumn,'Файл изображения');
-      fillSelect(nameColumn,'Название товара');
-      var rows = Math.max(0,ws.rowCount-1);
-      document.getElementById('sRows').textContent = rows.toLocaleString('ru-RU');
-      fileInfo.textContent = 'Лист: «' + ws.name + '». Строк с товарами: ' + rows.toLocaleString('ru-RU') + '.';
-      scanBtn.disabled = !diskInput.value.trim();
-      runStatus.textContent = 'Excel загружен. Теперь нажмите «Проверить папку».';
-      updateRunEnabled();
-    }catch(e){
-      fileInfo.textContent = 'Ошибка Excel: ' + e.message;
-      sourceBuffer = null;
-      scanBtn.disabled = true;
-      runBtn.disabled = true;
+async function poll(){
+  if(!currentJob)return;
+  try{
+    const r=await fetch(API+'/api/jobs/'+currentJob,{cache:'no-store'});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error||'Задача не найдена');
+    setProgress(j.progress); setStats(j.stats||{});
+    el('status').textContent=(j.message||j.status||'')+(j.diskFiles?'\nФото на Диске: '+fmt(j.diskFiles):'');
+    if(j.status==='done'){
+      clearInterval(pollTimer);pollTimer=null;
+      el('run').disabled=false;
+      el('download').style.display='block';
+      el('download').onclick=()=>{location.href=API+'/api/jobs/'+currentJob+'/download'};
+      return;
     }
-  });
-
-  diskInput.addEventListener('input',updateRunEnabled);
-
-  async function fetchJson(url, attempts, fallbackUrl){
-    attempts = attempts || 2;
-    var last;
-    for(var i=0;i<attempts;i++){
-      try{
-        var r = await fetch(url,{cache:'no-store'});
-        if(!r.ok){
-          var txt = await r.text().catch(function(){return '';});
-          throw new Error('HTTP ' + r.status + (txt ? ': ' + txt.slice(0,160) : ''));
-        }
-        return await r.json();
-      }catch(e){
-        last = e;
-        if(i < attempts-1) await sleep(500*(i+1));
-      }
+    if(j.status==='error'){
+      clearInterval(pollTimer);pollTimer=null;el('run').disabled=false;setProgress(0);
+      return;
     }
-    if(fallbackUrl && fallbackUrl !== url){
-      var fr = await fetch(fallbackUrl,{cache:'no-store'});
-      if(!fr.ok){
-        var ftxt = await fr.text().catch(function(){return '';});
-        throw new Error('Прокси HTTP ' + fr.status + (ftxt ? ': ' + ftxt.slice(0,160) : ''));
-      }
-      return await fr.json();
-    }
-    throw last;
+  }catch(e){
+    el('status').textContent='Связь с сервером: '+e.message+'\nПовторяю автоматически…';
   }
+}
 
-  async function scanDisk(){
-    var publicKey = diskInput.value.trim();
-    if(!publicKey) throw new Error('Укажите публичную ссылку.');
-    diskFiles = [];
-    exactMap.clear(); stemMap.clear();
-    scanStatus.classList.remove('hidden');
-    scanStatus.textContent = 'Подключаюсь к Яндекс Диску…';
-    scanBtn.disabled = true; runBtn.disabled = true;
-    setProgress(0);
-
-    var api = 'https://cloud-api.yandex.net/v1/disk/public/resources';
-    var queue = [''];
-    var foldersDone = 0;
-    var seenFolders = new Set();
-
-    while(queue.length){
-      var folderPath = queue.shift();
-      if(seenFolders.has(folderPath)) continue;
-      seenFolders.add(folderPath);
-      var offset = 0;
-      while(true){
-        var p = new URLSearchParams();
-        p.set('public_key',publicKey);
-        p.set('limit','1000');
-        p.set('offset',String(offset));
-        p.set('preview_size','360x360');
-        p.set('preview_crop','false');
-        if(folderPath) p.set('path',folderPath);
-        var directApiUrl = api + '?' + p.toString();\n        var proxyApiUrl = PROXY + '/api/yandex?' + p.toString();\n        var data = await fetchJson(directApiUrl,2,proxyApiUrl);
-        var emb = data._embedded;
-        if(!emb || !Array.isArray(emb.items)) break;
-
-        emb.items.forEach(function(item){
-          if(item.type === 'dir'){
-            queue.push(joinPath(folderPath,item.name));
-          }else if(item.type === 'file' && isImage(item.name)){
-            diskFiles.push({
-              name:item.name,
-              path:joinPath(folderPath,item.name),
-              preview:item.preview || '',
-              file:item.file || '',
-              size:item.size || 0,
-              mime:item.mime_type || ''
-            });
-          }
-        });
-
-        offset += emb.items.length;
-        scanStatus.textContent = 'Сканирование… найдено изображений: ' + diskFiles.length.toLocaleString('ru-RU') + ', папок в очереди: ' + queue.length;
-        if(!emb.items.length || offset >= (emb.total || 0)) break;
-        await sleep(20);
-      }
-      foldersDone++;
-      if(foldersDone % 5 === 0) await sleep(20);
-    }
-
-    diskFiles.forEach(function(item){
-      var n = extInfo(item.name);
-      if(!exactMap.has(n.key)) exactMap.set(n.key,[]);
-      exactMap.get(n.key).push(item);
-      if(!stemMap.has(n.stem)) stemMap.set(n.stem,[]);
-      stemMap.get(n.stem).push(item);
-    });
-
-    scanStatus.textContent = 'Готово. Изображений: ' + diskFiles.length.toLocaleString('ru-RU') + '. Папок просмотрено: ' + foldersDone.toLocaleString('ru-RU') + '.';
-    scanBtn.disabled = false;
-    updateRunEnabled();
+el('run').onclick=async()=>{
+  const file=el('excel').files[0];
+  if(!file){el('status').textContent='Сначала выберите Excel-файл.';return}
+  if(!/\.xlsx$/i.test(file.name)){el('status').textContent='Нужен файл .xlsx';return}
+  const fd=new FormData();
+  fd.append('excel',file);
+  fd.append('diskUrl',el('disk').value.trim());
+  fd.append('mode',el('mode').value);
+  fd.append('fileColumn',el('fileColumn').value.trim());
+  fd.append('nameColumn',el('nameColumn').value.trim());
+  el('run').disabled=true;el('download').style.display='none';setProgress(1);setStats({});
+  el('status').textContent='Отправляю Excel и запускаю обработку…';
+  try{
+    const r=await fetch(API+'/api/jobs',{method:'POST',body:fd});
+    const data=await r.json();
+    if(!r.ok||!data.ok) throw new Error(data.error||'Не удалось создать задачу');
+    currentJob=data.id;
+    if(pollTimer)clearInterval(pollTimer);
+    await poll();
+    pollTimer=setInterval(poll,2500);
+  }catch(e){
+    el('status').textContent='Ошибка запуска: '+e.message;
+    el('run').disabled=false;setProgress(0);
   }
-
-  scanBtn.addEventListener('click',function(){
-    scanDisk().catch(function(e){
-      scanStatus.classList.remove('hidden');
-      scanStatus.textContent = 'Ошибка доступа к Яндекс Диску: ' + e.message + '\nЕсли ссылка открывается в браузере, попробуйте ещё раз. Ссылка должна быть публичной и разрешать скачивание.';
-      scanBtn.disabled = false;
-      updateRunEnabled();
-    });
-  });
-
-  function findMatches(fileName){
-    var n = extInfo(fileName);
-    var a = exactMap.get(n.key) || [];
-    if(a.length) return a;
-    if(n.ext === 'jpg' || n.ext === 'png' || n.ext === 'webp') return stemMap.get(n.stem) || [];
-    return [];
-  }
-
-  function cellText(cell){
-    var v = cell.value;
-    if(v == null) return '';
-    if(typeof v === 'object'){
-      if(v.text != null) return esc(v.text);
-      if(v.result != null) return esc(v.result);
-      if(v.richText) return v.richText.map(function(x){return x.text || '';}).join('');
-    }
-    return esc(v);
-  }
-
-  async function loadAndCompress(url,maxPx){
-    var r = null;
-    try{
-      r = await fetch(url,{cache:'force-cache'});
-    }catch(e){}
-    if(!r || !r.ok){
-      r = await fetch(PROXY + '/api/image?url=' + encodeURIComponent(url),{cache:'force-cache'});
-    }
-    if(!r.ok) throw new Error('Фото HTTP ' + r.status);
-    var blob = await r.blob();
-    var objectUrl = URL.createObjectURL(blob);
-    try{
-      var img = await new Promise(function(resolve,reject){
-        var im = new Image();
-        im.onload = function(){resolve(im);};
-        im.onerror = function(){reject(new Error('Не удалось открыть превью'));};
-        im.src = objectUrl;
-      });
-      var w = img.naturalWidth || img.width;
-      var h = img.naturalHeight || img.height;
-      var scale = Math.min(1,maxPx/Math.max(w,h));
-      var cw = Math.max(1,Math.round(w*scale));
-      var ch = Math.max(1,Math.round(h*scale));
-      var canvas = document.createElement('canvas');
-      canvas.width = cw; canvas.height = ch;
-      var ctx = canvas.getContext('2d',{alpha:false});
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,cw,ch);
-      ctx.drawImage(img,0,0,cw,ch);
-      var out = await new Promise(function(resolve){ canvas.toBlob(resolve,'image/jpeg',0.58); });
-      if(!out) throw new Error('Ошибка сжатия изображения');
-      var buf = await out.arrayBuffer();
-      var bytes = new Uint8Array(buf);
-      var bin = '';
-      var chunk = 0x8000;
-      for(var i=0;i<bytes.length;i+=chunk){
-        bin += String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+chunk,bytes.length)));
-      }
-      canvas.width=1; canvas.height=1;
-      return {base64:btoa(bin), width:cw, height:ch};
-    }finally{
-      URL.revokeObjectURL(objectUrl);
-    }
-  }
-
-  function saveBlob(blob,name){
-    var a = document.createElement('a');
-    var url = URL.createObjectURL(blob);
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function(){URL.revokeObjectURL(url);},30000);
-  }
-
-  function safeName(name){
-    return esc(name).replace(/\.xlsx$/i,'') || 'Фото_Товар';
-  }
-
-  async function run(){
-    if(!sourceBuffer || !diskFiles.length) return;
-    runBtn.disabled = true; scanBtn.disabled = true; excelInput.disabled = true;
-    setProgress(1);
-    document.getElementById('sFound').textContent = '0';
-    document.getElementById('sMissing').textContent = '0';
-    document.getElementById('sDup').textContent = '0';
-
-    try{
-      runStatus.textContent = 'Читаю Excel…';
-      var wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(sourceBuffer.slice(0));
-      var ws = wb.getWorksheet(sourceSheetName) || wb.worksheets[0];
-      var fCol = Number(fileColumn.value);
-      var nCol = Number(nameColumn.value);
-      var maxRow = ws.rowCount;
-      var outputMode = mode.value;
-      var maxPx = Number(thumbSize.value) || 160;
-
-      var photoCol = ws.columnCount + 1;
-      var statusCol = photoCol + 1;
-      var pathCol = photoCol + 2;
-      ws.getCell(1,photoCol).value = outputMode === 'embedded' ? 'Фото' : 'Совпадение';
-      ws.getCell(1,statusCol).value = 'Статус фото';
-      ws.getCell(1,pathCol).value = 'Путь на Яндекс Диске';
-      ws.getRow(1).font = Object.assign({},ws.getRow(1).font || {},{bold:true});
-      ws.getColumn(photoCol).width = outputMode === 'embedded' ? 24 : 18;
-      ws.getColumn(statusCol).width = 24;
-      ws.getColumn(pathCol).width = 38;
-      ws.views = [{state:'frozen',ySplit:1}];
-
-      var old = wb.getWorksheet('Отчёт сопоставления');
-      if(old) wb.removeWorksheet(old.id);
-      var report = wb.addWorksheet('Отчёт сопоставления');
-      report.columns = [
-        {header:'Строка Excel',key:'row',width:14},
-        {header:'Название товара',key:'product',width:48},
-        {header:'Ожидаемый файл',key:'expected',width:30},
-        {header:'Статус',key:'status',width:24},
-        {header:'Найденный файл',key:'matched',width:30},
-        {header:'Путь',key:'path',width:45},
-        {header:'Совпадений',key:'count',width:12}
-      ];
-      report.getRow(1).font = {bold:true};
-      report.views = [{state:'frozen',ySplit:1}];
-
-      var found = 0, missing = 0, dup = 0;
-      var usedPaths = new Set();
-
-      for(var r=2;r<=maxRow;r++){
-        var expected = cellText(ws.getCell(r,fCol)).trim();
-        var product = cellText(ws.getCell(r,nCol)).trim();
-        if(!expected && !product) continue;
-
-        var matches = expected ? findMatches(expected) : [];
-        var item = matches[0] || null;
-        var status = '';
-
-        if(!item){
-          missing++;
-          status = 'Не найдено';
-          ws.getCell(r,statusCol).value = status;
-          ws.getCell(r,statusCol).font = {color:{argb:'FFDC2626'}};
-          report.addRow({row:r,product:product,expected:expected,status:status,matched:'',path:'',count:0});
-        }else{
-          found++;
-          if(matches.length>1){ dup++; status = 'Найдено, есть дубликаты'; }
-          else status = 'Найдено';
-          matches.forEach(function(x){usedPaths.add(x.path);});
-          ws.getCell(r,statusCol).value = status;
-          ws.getCell(r,pathCol).value = item.path;
-          ws.getCell(r,statusCol).font = {color:{argb:matches.length>1?'FFD97706':'FF059669'}};
-
-          if(outputMode === 'match'){
-            ws.getCell(r,photoCol).value = item.name;
-          }else{
-            var url = item.preview || item.file;
-            if(url){
-              try{
-                var pic = await loadAndCompress(url,maxPx);
-                var imageId = wb.addImage({base64:'data:image/jpeg;base64,'+pic.base64,extension:'jpeg'});
-                var box = maxPx;
-                var ratio = Math.min(box/pic.width,box/pic.height,1);
-                var dw = Math.max(16,Math.round(pic.width*ratio));
-                var dh = Math.max(16,Math.round(pic.height*ratio));
-                ws.getRow(r).height = Math.max(90,Math.ceil(dh*0.75)+8);
-                ws.addImage(imageId,{tl:{col:photoCol-1+0.08,row:r-1+0.08},ext:{width:dw,height:dh},editAs:'oneCell'});
-              }catch(imgErr){
-                ws.getCell(r,photoCol).value = 'Фото найдено, превью не загрузилось';
-                ws.getCell(r,statusCol).value = 'Найдено; ошибка превью';
-              }
-            }else{
-              ws.getCell(r,photoCol).value = 'Фото найдено';
-            }
-          }
-
-          report.addRow({row:r,product:product,expected:expected,status:status,matched:item.name,path:item.path,count:matches.length});
-        }
-
-        document.getElementById('sFound').textContent = found.toLocaleString('ru-RU');
-        document.getElementById('sMissing').textContent = missing.toLocaleString('ru-RU');
-        document.getElementById('sDup').textContent = dup.toLocaleString('ru-RU');
-        var done = r-1, total = Math.max(1,maxRow-1);
-        setProgress(5 + 86*(done/total));
-        if(r % 10 === 0){
-          runStatus.textContent = 'Обработка: ' + done.toLocaleString('ru-RU') + ' из ' + total.toLocaleString('ru-RU') + '\nНайдено: ' + found.toLocaleString('ru-RU') + ' • нет фото: ' + missing.toLocaleString('ru-RU');
-          await sleep(0);
-        }
-      }
-
-      report.addRow([]);
-      var extraTitle = report.addRow(['Лишние изображения — есть на Яндекс Диске, но не использованы в Excel']);
-      extraTitle.font = {bold:true};
-      report.addRow(['Файл','Путь','','','','','']);
-      var extras = diskFiles.filter(function(x){return !usedPaths.has(x.path);});
-      extras.forEach(function(x){report.addRow([x.name,x.path]);});
-
-      setProgress(93);
-      runStatus.textContent = 'Формирую итоговый Excel…';
-      await sleep(20);
-      var out = await wb.xlsx.writeBuffer();
-      setProgress(100);
-      var suffix = outputMode === 'embedded' ? '_с_фото.xlsx' : '_сопоставление.xlsx';
-      saveBlob(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),safeName(sourceFileName)+suffix);
-      runStatus.textContent = 'Готово.\nНайдено: ' + found.toLocaleString('ru-RU') + '\nНе найдено: ' + missing.toLocaleString('ru-RU') + '\nДубликаты: ' + dup.toLocaleString('ru-RU') + '\nЛишние фото на Диске: ' + extras.length.toLocaleString('ru-RU') + '\nФайл отправлен в загрузки.';
-    }catch(e){
-      runStatus.textContent = 'Ошибка: ' + e.message;
-      setProgress(0);
-    }finally{
-      runBtn.disabled = false; scanBtn.disabled = false; excelInput.disabled = false;
-      updateRunEnabled();
-    }
-  }
-
-  runBtn.addEventListener('click',run);
-})();
+};
 </script>
 </body>
 </html>
