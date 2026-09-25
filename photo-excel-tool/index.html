@@ -8,53 +8,69 @@
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;--ok:#059669;--bad:#dc2626;--warn:#d97706}
 *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-.wrap{max-width:760px;margin:auto;padding:18px 14px 60px} h1{font-size:30px;margin:8px 0}.sub{color:var(--muted);line-height:1.45}
+.wrap{max-width:860px;margin:auto;padding:18px 14px 70px} h1{font-size:30px;margin:8px 0}.sub{color:var(--muted);line-height:1.45}
 .badge{display:inline-block;margin:8px 0 4px;padding:7px 10px;border-radius:999px;background:#ecfdf5;color:#047857;font-size:13px;font-weight:800}
 .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 .step{font-size:12px;color:var(--accent);font-weight:900;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 label{display:block;font-weight:800;font-size:14px;margin:10px 0 7px} input,select,button{font:inherit}
 input[type=file]{width:100%;border:1px dashed #9ca3af;border-radius:13px;padding:16px;background:#f9fafb}
 input[type=text],select{width:100%;border:1px solid #d1d5db;border-radius:12px;padding:12px;background:#fff}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 button{border:0;border-radius:12px;padding:13px 15px;font-weight:900;cursor:pointer}
-.primary{width:100%;background:var(--accent);color:#fff;font-size:16px}.secondary{width:100%;background:#eef2ff;color:#3730a3}
-button:disabled{opacity:.5}.hint{font-size:13px;color:var(--muted);line-height:1.45;margin-top:7px}
+.primary{width:100%;background:var(--accent);color:#fff;font-size:16px}.secondary{width:100%;background:#eef2ff;color:#3730a3}.success{background:#059669;color:white;width:100%}.danger{background:#fee2e2;color:#991b1b;width:100%}
+button:disabled{opacity:.5;cursor:not-allowed}.hint{font-size:13px;color:var(--muted);line-height:1.45;margin-top:7px}
 .status{white-space:pre-wrap;margin-top:12px;border:1px solid var(--line);background:#f9fafb;border-radius:12px;padding:12px;font-size:14px}
 .progress{height:11px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:12px}.bar{height:100%;width:0;background:var(--accent);transition:width .25s}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.stat{border:1px solid var(--line);background:#f9fafb;border-radius:12px;padding:10px}
 .stat b{display:block;font-size:19px}.stat span{font-size:11px;color:var(--muted)} .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
-.download{display:none;margin-top:12px;background:#059669;color:white;width:100%}
-.result{display:none;margin-top:14px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:16px;padding:16px}
-.resultHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
-.resultPct{font-size:34px;font-weight:900;color:var(--ok);letter-spacing:-1px}
-.resultTitle{font-size:18px;font-weight:900}
-.resultSub{font-size:13px;color:var(--muted);margin-top:2px}
-.resultGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.resultItem{border:1px solid #d1fae5;background:#fff;border-radius:12px;padding:10px}
-.resultItem b{display:block;font-size:18px}.resultItem span{font-size:11px;color:var(--muted)}
-.resultWarn{margin-top:10px;padding:10px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px;line-height:1.4}
+.toggle{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f9fafb;margin-top:10px}.toggle input{width:20px;height:20px;margin-top:1px}.toggle b{display:block;font-size:14px}.toggle span{display:block;color:var(--muted);font-size:12px;margin-top:3px;line-height:1.4}
+.panel{display:none;margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:13px;background:#fafafa}.panel.show{display:block}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}.kpi b{display:block;font-size:18px}.kpi span{font-size:11px;color:var(--muted)}
+.result{display:none;margin-top:14px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:16px;padding:16px}.result.show{display:block}
+.resultHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.resultPct{font-size:34px;font-weight:900;color:var(--ok);letter-spacing:-1px}.resultTitle{font-size:18px;font-weight:900}.resultSub{font-size:13px;color:var(--muted);margin-top:2px}
+.resultGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.resultItem{border:1px solid #d1fae5;background:#fff;border-radius:12px;padding:10px}.resultItem b{display:block;font-size:18px}.resultItem span{font-size:11px;color:var(--muted)}
+.warnbox{margin-top:10px;padding:10px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px;line-height:1.4}
+.analyticsGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.formatTags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.tag{background:#eef2ff;color:#3730a3;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:700}
+.list{display:grid;gap:8px;margin-top:10px}.item{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}.itemTop{display:flex;justify-content:space-between;gap:10px}.itemTitle{font-weight:800;font-size:14px}.itemMeta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4}
+.fixRow{border:1px solid var(--line);border-radius:12px;padding:11px;background:#fff;margin-top:8px}.fixGrid{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}.candidate{margin-top:8px}
+.historyRow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-top:1px solid var(--line);padding:10px 0}.historyRow:first-child{border-top:0}
+.smallBtn{padding:8px 10px;font-size:12px;border-radius:9px;background:#eef2ff;color:#3730a3}
+.download{display:none;margin-top:12px;background:#059669;color:white;width:100%}.download.show{display:block}
 .privacy{font-size:12px;color:var(--muted);line-height:1.5}
-@media(max-width:600px){.row{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.resultGrid{grid-template-columns:1fr}.resultHead{align-items:flex-start}.resultPct{font-size:30px}h1{font-size:27px}}
+@media(max-width:680px){.row,.actions{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:1fr 1fr}.analyticsGrid{grid-template-columns:1fr 1fr}.resultGrid{grid-template-columns:1fr 1fr}.resultHead{align-items:flex-start}.resultPct{font-size:30px}.fixGrid{grid-template-columns:1fr}h1{font-size:27px}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>Фото → Excel</h1>
-<div class="sub">Сопоставляет фотографии из публичной папки Яндекс Диска с товарами в Excel по имени файла.</div>
-<div class="badge">Бесплатно • работает с телефона • Excel обрабатывается на сервере</div>
+<div class="sub">Сверка базы товаров с фотографиями на Яндекс Диске, вставка фото в Excel и контроль ошибок.</div>
+<div class="badge">Бесплатно • iPhone / Android / компьютер • обработка на сервере</div>
 
 <div class="card">
   <div class="step">1. Excel</div>
   <input id="excel" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-  <div class="hint">Ваш файл: «Фото_Товар.xlsx» или другой .xlsx с колонками «Файл изображения» и «Название товара».</div>
+  <div id="excelInfo" class="hint">Выберите исходный Excel-файл.</div>
 </div>
 
 <div class="card">
-  <div class="step">2. Яндекс Диск</div>
+  <div class="step">2. Яндекс Диск и база фото</div>
   <label>Публичная ссылка</label>
   <input id="disk" type="text" value="https://disk.yandex.ru/d/zTdZ9PlnyQZY9A">
-  <button id="scan" class="secondary" style="margin-top:10px">Проверить ссылку и посчитать фото</button>
+  <div class="actions">
+    <button id="scan" class="secondary">Проверить папку</button>
+    <button id="analyticsBtn" class="secondary">Аналитика базы фото</button>
+  </div>
   <div id="scanStatus" class="status">Ссылка готова к проверке.</div>
+  <div id="analytics" class="panel">
+    <div class="analyticsGrid">
+      <div class="kpi"><b id="aTotal">0</b><span>всего фото</span></div>
+      <div class="kpi"><b id="aUnique">0</b><span>уникальных имён</span></div>
+      <div class="kpi"><b id="aDup">0</b><span>лишних дублей</span></div>
+      <div class="kpi"><b id="aSize">0</b><span>общий объём</span></div>
+    </div>
+    <div id="formats" class="formatTags"></div>
+    <div id="analyticsNote" class="hint"></div>
+  </div>
 </div>
 
 <div class="card">
@@ -68,134 +84,211 @@ button:disabled{opacity:.5}.hint{font-size:13px;color:var(--muted);line-height:1
     <option value="embedded">Фото внутри Excel</option>
     <option value="match">Лёгкий Excel без встроенных фото</option>
   </select>
+  <div class="toggle">
+    <input id="multiPhoto" type="checkbox">
+    <div><b>До 4 фото на один товар</b><span>Ищет варианты вида 3930.jpg, 3930_2.jpg, 3930_3.jpg, 3930_4.jpg и вставляет их в отдельные колонки.</span></div>
+  </div>
 </div>
 
 <div class="card">
-  <div class="step">4. Запуск</div>
+  <div class="step">4. Предпроверка</div>
+  <button id="precheckBtn" class="secondary">Проверить совпадения до обработки</button>
+  <div id="precheck" class="panel">
+    <div class="kpis">
+      <div class="kpi"><b id="pTotal">0</b><span>товаров</span></div>
+      <div class="kpi"><b id="pFound" class="ok">0</b><span>будет найдено</span></div>
+      <div class="kpi"><b id="pMissing" class="bad">0</b><span>не найдено</span></div>
+      <div class="kpi"><b id="pDup" class="warn">0</b><span>дубликатов</span></div>
+      <div class="kpi"><b id="pMulti">0</b><span>с несколькими фото</span></div>
+    </div>
+    <div id="precheckNote" class="hint"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="step">5. Обработка</div>
   <button id="run" class="primary">Сопоставить товары и фотографии</button>
   <div class="progress"><div id="bar" class="bar"></div></div>
-  <div id="status" class="status">Выберите Excel и нажмите кнопку запуска.</div>
+  <div id="status" class="status">Выберите Excel и запустите предпроверку или обработку.</div>
   <div class="stats">
     <div class="stat"><b id="total">0</b><span>товаров</span></div>
     <div class="stat"><b id="found" class="ok">0</b><span>найдено</span></div>
     <div class="stat"><b id="missing" class="bad">0</b><span>нет фото</span></div>
     <div class="stat"><b id="dups" class="warn">0</b><span>дубликатов</span></div>
   </div>
+
   <div id="result" class="result">
     <div class="resultHead">
-      <div>
-        <div id="resultTitle" class="resultTitle">Готово к использованию</div>
-        <div id="resultSub" class="resultSub"></div>
-      </div>
+      <div><div id="resultTitle" class="resultTitle">Готово</div><div id="resultSub" class="resultSub"></div></div>
       <div id="resultPct" class="resultPct">100%</div>
     </div>
     <div class="resultGrid">
-      <div class="resultItem"><b id="resultMatched">0 / 0</b><span>товаров сопоставлено</span></div>
+      <div class="resultItem"><b id="resultMatched">0 / 0</b><span>сопоставлено</span></div>
       <div class="resultItem"><b id="resultMissing">0</b><span>без фото</span></div>
       <div class="resultItem"><b id="resultExtras">0</b><span>лишних фото</span></div>
+      <div class="resultItem"><b id="resultMulti">0</b><span>товаров с 2–4 фото</span></div>
     </div>
-    <div id="resultWarn" class="resultWarn" style="display:none"></div>
+    <div id="resultWarn" class="warnbox" style="display:none"></div>
   </div>
   <button id="download" class="download">Скачать готовый Excel</button>
+  <button id="fixBtn" class="secondary" style="display:none;margin-top:10px">Исправить ненайденные вручную</button>
+  <div id="fixPanel" class="panel"></div>
 </div>
 
-<div class="card privacy"><b>Важно:</b> бесплатный сервер Render может «спать» после простоя. Первый запуск иногда начинается не сразу. После пробуждения обработка продолжается автоматически. Для тысяч фотографий лучше не закрывать эту страницу до появления кнопки скачивания.</div>
+<div class="card">
+  <div class="step">История</div>
+  <div id="history" class="hint">История пока пустая.</div>
+</div>
+
+<div class="card privacy"><b>Примечание.</b> История хранится в браузере этого устройства. Готовые файлы на бесплатном сервере временные; скачивайте результат после завершения. Яндекс Диск сканируется повторно только после истечения кэша или изменения ссылки.</div>
 </div>
 
 <script>
 const API='https://photo-excel-yandex-proxy.onrender.com';
 const el=id=>document.getElementById(id);
 const fmt=n=>(Number(n)||0).toLocaleString('ru-RU');
-let currentJob=null, pollTimer=null;
+const mb=n=>(Number(n||0)/1024/1024).toFixed(1)+' МБ';
+let currentJob=null,pollTimer=null,corrections={};
 
 function setProgress(n){el('bar').style.width=Math.max(0,Math.min(100,Number(n)||0))+'%'}
 function setStats(s={}){el('total').textContent=fmt(s.total);el('found').textContent=fmt(s.found);el('missing').textContent=fmt(s.missing);el('dups').textContent=fmt(s.duplicates)}
-function showResult(s={}){
-  const total=Number(s.total)||0, found=Number(s.found)||0, missing=Number(s.missing)||0, extras=Number(s.extras)||0, dups=Number(s.duplicates)||0;
-  const pct=total ? Math.round((found/total)*1000)/10 : 0;
-  el('result').style.display='block';
-  el('resultPct').textContent=(Number.isInteger(pct)?pct.toFixed(0):pct.toFixed(1))+'%';
-  el('resultMatched').textContent=fmt(found)+' / '+fmt(total);
-  el('resultMissing').textContent=fmt(missing);
-  el('resultExtras').textContent=fmt(extras);
-  if(missing===0){
-    el('resultTitle').textContent='Готово к использованию';
-    el('resultSub').textContent='Все товары получили совпадение по фотографии.';
-  }else{
-    el('resultTitle').textContent='Обработка завершена';
-    el('resultSub').textContent='Есть товары без найденной фотографии — проверьте лист «Отчёт сопоставления».';
-  }
-  const notes=[];
-  if(dups>0) notes.push('Дубликаты: '+fmt(dups)+'.');
-  if(extras>0) notes.push('Не использовано фотографий из Яндекс Диска: '+fmt(extras)+'. Они перечислены в отчёте.');
-  el('resultWarn').style.display=notes.length?'block':'none';
-  el('resultWarn').textContent=notes.join(' ');
+function selectedFile(){return el('excel').files&&el('excel').files[0]}
+function commonFormData(){
+  const file=selectedFile(); if(!file) throw new Error('Сначала выберите Excel-файл.');
+  const fd=new FormData();
+  fd.append('excel',file); fd.append('diskUrl',el('disk').value.trim());
+  fd.append('mode',el('mode').value); fd.append('fileColumn',el('fileColumn').value.trim());
+  fd.append('nameColumn',el('nameColumn').value.trim()); fd.append('multiPhoto',String(el('multiPhoto').checked));
+  return fd;
 }
+function showResult(s={}){
+  const total=Number(s.total)||0,found=Number(s.found)||0,missing=Number(s.missing)||0,extras=Number(s.extras)||0,dups=Number(s.duplicates)||0,multi=Number(s.multiProducts)||0;
+  const pct=total?Math.round((found/total)*1000)/10:0;
+  el('result').classList.add('show');
+  el('resultPct').textContent=(Number.isInteger(pct)?pct.toFixed(0):pct.toFixed(1))+'%';
+  el('resultMatched').textContent=fmt(found)+' / '+fmt(total); el('resultMissing').textContent=fmt(missing);
+  el('resultExtras').textContent=fmt(extras); el('resultMulti').textContent=fmt(multi);
+  el('resultTitle').textContent=missing===0?'Готово к использованию':'Обработка завершена';
+  el('resultSub').textContent=missing===0?'Все товары получили совпадение по фотографии.':'Есть строки, которые можно исправить вручную.';
+  const notes=[]; if(dups)notes.push('Точных дубликатов имён: '+fmt(dups)+'.'); if(extras)notes.push('Не использовано фото: '+fmt(extras)+'.');
+  el('resultWarn').style.display=notes.length?'block':'none'; el('resultWarn').textContent=notes.join(' ');
+  el('fixBtn').style.display=missing>0?'block':'none';
+}
+function historyData(){
+  try{return JSON.parse(localStorage.getItem('photoExcelHistory')||'[]')}catch{return[]}
+}
+function saveHistory(j){
+  const h=historyData().filter(x=>x.jobId!==currentJob);
+  h.unshift({jobId:currentJob,date:new Date().toISOString(),file:selectedFile()?.name||'Excel',stats:j.stats||{}});
+  localStorage.setItem('photoExcelHistory',JSON.stringify(h.slice(0,10))); renderHistory();
+}
+function renderHistory(){
+  const h=historyData();
+  if(!h.length){el('history').innerHTML='История пока пустая.';return}
+  el('history').innerHTML=h.map(x=>{
+    const s=x.stats||{},d=new Date(x.date);
+    return '<div class="historyRow"><div><div class="itemTitle">'+escapeHtml(x.file)+'</div><div class="itemMeta">'+d.toLocaleString('ru-RU')+' • '+fmt(s.found)+' / '+fmt(s.total)+' найдено</div></div><button class="smallBtn" onclick="downloadOld(\''+x.jobId+'\')">Скачать</button></div>'
+  }).join('');
+}
+function downloadOld(id){location.href=API+'/api/jobs/'+id+'/download'}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+el('excel').addEventListener('change',()=>{const f=selectedFile();el('excelInfo').textContent=f?'Выбран: '+f.name+' • '+mb(f.size):'Выберите исходный Excel-файл.'});
 
 el('scan').onclick=async()=>{
-  const diskUrl=el('disk').value.trim();
-  if(!diskUrl){el('scanStatus').textContent='Введите ссылку.';return}
-  el('scan').disabled=true; el('scanStatus').textContent='Проверяю Яндекс Диск…';
+  const diskUrl=el('disk').value.trim(); if(!diskUrl){el('scanStatus').textContent='Введите ссылку.';return}
+  el('scan').disabled=true;el('scanStatus').textContent='Проверяю Яндекс Диск…';
   try{
     const r=await fetch(API+'/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({diskUrl})});
-    const data=await r.json();
-    if(!r.ok||!data.ok) throw new Error(data.error||'Ошибка проверки');
+    const data=await r.json(); if(!r.ok||!data.ok)throw new Error(data.error||'Ошибка проверки');
     el('scanStatus').textContent='Готово. Найдено изображений: '+fmt(data.count)+'.';
-  }catch(e){
-    el('scanStatus').textContent='Ошибка: '+e.message+'\nЕсли сервер только что проснулся, нажмите «Проверить» ещё раз.';
-  }finally{el('scan').disabled=false}
+  }catch(e){el('scanStatus').textContent='Ошибка: '+e.message}finally{el('scan').disabled=false}
+};
+
+el('analyticsBtn').onclick=async()=>{
+  const diskUrl=el('disk').value.trim(); if(!diskUrl)return;
+  el('analyticsBtn').disabled=true;el('scanStatus').textContent='Анализирую всю базу фотографий…';
+  try{
+    const r=await fetch(API+'/api/analytics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({diskUrl})});
+    const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||'Ошибка аналитики');
+    const a=data.analytics||{};el('analytics').classList.add('show');
+    el('aTotal').textContent=fmt(a.total);el('aUnique').textContent=fmt(a.uniqueNames);el('aDup').textContent=fmt(a.duplicateFiles);el('aSize').textContent=mb(a.totalBytes);
+    el('formats').innerHTML=Object.entries(a.formats||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<span class="tag">'+escapeHtml(k.toUpperCase())+' '+fmt(v)+'</span>').join('');
+    el('analyticsNote').textContent='Групп одинаковых имён: '+fmt(a.duplicateNameGroups)+'. Потенциальных групп с несколькими фото: '+fmt(a.potentialMultiPhotoGroups)+'.';
+    el('scanStatus').textContent='Аналитика базы готова.';
+  }catch(e){el('scanStatus').textContent='Ошибка аналитики: '+e.message}finally{el('analyticsBtn').disabled=false}
+};
+
+el('precheckBtn').onclick=async()=>{
+  el('precheckBtn').disabled=true;el('status').textContent='Выполняю предпропроверку Excel и Яндекс Диска…';
+  try{
+    const r=await fetch(API+'/api/precheck',{method:'POST',body:commonFormData()});
+    const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||'Ошибка предпроверки');
+    const p=data.precheck||{};el('precheck').classList.add('show');
+    el('pTotal').textContent=fmt(p.total);el('pFound').textContent=fmt(p.found);el('pMissing').textContent=fmt(p.missing);el('pDup').textContent=fmt(p.duplicates);el('pMulti').textContent=fmt(p.multiPhotoProducts);
+    el('precheckNote').textContent='Лист: «'+p.sheet+'». Фото на Диске: '+fmt(p.diskFiles)+'. Пустых имён файла: '+fmt(p.blankFileNames)+'.'+(p.missing?' Ненайденные строки будут перечислены в итоговом отчёте.':' Все строки готовы к обработке.');
+    el('status').textContent='Предпроверка завершена.';
+  }catch(e){el('status').textContent='Ошибка предпроверки: '+e.message}finally{el('precheckBtn').disabled=false}
 };
 
 async function poll(){
   if(!currentJob)return;
   try{
-    const r=await fetch(API+'/api/jobs/'+currentJob,{cache:'no-store'});
-    const j=await r.json();
-    if(!r.ok) throw new Error(j.error||'Задача не найдена');
-    setProgress(j.progress); setStats(j.stats||{});
+    const r=await fetch(API+'/api/jobs/'+currentJob,{cache:'no-store'});const j=await r.json();
+    if(!r.ok)throw new Error(j.error||'Задача не найдена');
+    setProgress(j.progress);setStats(j.stats||{});
     el('status').textContent=(j.message||j.status||'')+(j.diskFiles?'\nФото на Диске: '+fmt(j.diskFiles):'');
     if(j.status==='done'){
-      clearInterval(pollTimer);pollTimer=null;
-      el('run').disabled=false;
-      showResult(j.stats||{});
-      el('download').style.display='block';
-      el('download').onclick=()=>{location.href=API+'/api/jobs/'+currentJob+'/download'};
-      return;
+      clearInterval(pollTimer);pollTimer=null;el('run').disabled=false;showResult(j.stats||{});
+      el('download').classList.add('show');el('download').onclick=()=>{location.href=API+'/api/jobs/'+currentJob+'/download'};
+      saveHistory(j);return;
     }
-    if(j.status==='error'){
-      clearInterval(pollTimer);pollTimer=null;el('run').disabled=false;setProgress(0);
-      return;
-    }
-  }catch(e){
-    el('status').textContent='Связь с сервером: '+e.message+'\nПовторяю автоматически…';
-  }
+    if(j.status==='error'){clearInterval(pollTimer);pollTimer=null;el('run').disabled=false;setProgress(0);return}
+  }catch(e){el('status').textContent='Связь с сервером: '+e.message+'\nПовторяю автоматически…'}
 }
 
 el('run').onclick=async()=>{
-  const file=el('excel').files[0];
-  if(!file){el('status').textContent='Сначала выберите Excel-файл.';return}
-  if(!/\.xlsx$/i.test(file.name)){el('status').textContent='Нужен файл .xlsx';return}
-  const fd=new FormData();
-  fd.append('excel',file);
-  fd.append('diskUrl',el('disk').value.trim());
-  fd.append('mode',el('mode').value);
-  fd.append('fileColumn',el('fileColumn').value.trim());
-  fd.append('nameColumn',el('nameColumn').value.trim());
-  el('run').disabled=true;el('download').style.display='none';el('result').style.display='none';setProgress(1);setStats({});
-  el('status').textContent='Отправляю Excel и запускаю обработку…';
   try{
-    const r=await fetch(API+'/api/jobs',{method:'POST',body:fd});
-    const data=await r.json();
-    if(!r.ok||!data.ok) throw new Error(data.error||'Не удалось создать задачу');
-    currentJob=data.id;
-    if(pollTimer)clearInterval(pollTimer);
-    await poll();
-    pollTimer=setInterval(poll,2500);
-  }catch(e){
-    el('status').textContent='Ошибка запуска: '+e.message;
-    el('run').disabled=false;setProgress(0);
-  }
+    const fd=commonFormData();
+    el('run').disabled=true;el('download').classList.remove('show');el('result').classList.remove('show');el('fixBtn').style.display='none';el('fixPanel').classList.remove('show');
+    setProgress(1);setStats({});el('status').textContent='Отправляю Excel и запускаю обработку…';
+    const r=await fetch(API+'/api/jobs',{method:'POST',body:fd});const data=await r.json();
+    if(!r.ok||!data.ok)throw new Error(data.error||'Не удалось создать задачу');
+    currentJob=data.id;corrections={};if(pollTimer)clearInterval(pollTimer);await poll();pollTimer=setInterval(poll,2500);
+  }catch(e){el('status').textContent='Ошибка запуска: '+e.message;el('run').disabled=false;setProgress(0)}
 };
+
+el('fixBtn').onclick=async()=>{
+  if(!currentJob)return;
+  el('fixPanel').classList.add('show');el('fixPanel').innerHTML='Загружаю ненайденные строки…';
+  try{
+    const r=await fetch(API+'/api/jobs/'+currentJob+'/unmatched');const data=await r.json();
+    if(!r.ok||!data.ok)throw new Error(data.error||'Ошибка');
+    const items=data.items||[];
+    el('fixPanel').innerHTML='<b>Ручное исправление</b><div class="hint">Для каждой строки нажмите «Найти варианты», выберите правильный файл и затем примените исправления.</div><div id="fixList"></div><button id="applyFixes" class="success" style="margin-top:12px">Применить выбранные исправления и пересобрать Excel</button>';
+    el('fixList').innerHTML=items.slice(0,100).map(x=>'<div class="fixRow" data-row="'+x.row+'"><div class="itemTitle">Строка '+x.row+' — '+escapeHtml(x.product||'Без названия')+'</div><div class="itemMeta">Ожидалось: '+escapeHtml(x.expected||'не указано')+'</div><div class="fixGrid"><input class="fixQuery" type="text" value="'+escapeHtml(x.expected||'')+'" placeholder="Имя или артикул"><button class="smallBtn findCandidate">Найти варианты</button></div><div class="candidate"></div></div>').join('');
+    document.querySelectorAll('.findCandidate').forEach(btn=>btn.onclick=async()=>{
+      const box=btn.closest('.fixRow'),row=box.dataset.row,q=box.querySelector('.fixQuery').value;
+      const out=box.querySelector('.candidate');out.textContent='Ищу…';
+      const rr=await fetch(API+'/api/jobs/'+currentJob+'/candidates?row='+encodeURIComponent(row)+'&q='+encodeURIComponent(q));const dd=await rr.json();
+      if(!rr.ok||!dd.ok){out.textContent='Ошибка поиска';return}
+      const opts=(dd.items||[]).map(x=>'<option value="'+escapeHtml(x.path)+'">'+escapeHtml(x.name)+' — '+escapeHtml(x.path)+'</option>').join('');
+      out.innerHTML=opts?'<select class="candidateSelect"><option value="">Выберите фото</option>'+opts+'</select>':'Варианты не найдены.';
+    });
+    el('applyFixes').onclick=async()=>{
+      const list=[];
+      document.querySelectorAll('.fixRow').forEach(box=>{const sel=box.querySelector('.candidateSelect');if(sel&&sel.value)list.push({row:Number(box.dataset.row),path:sel.value})});
+      if(!list.length){el('status').textContent='Не выбрано ни одного исправления.';return}
+      el('applyFixes').disabled=true;el('status').textContent='Применяю ручные исправления…';
+      const rr=await fetch(API+'/api/jobs/'+currentJob+'/corrections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({corrections:list})});
+      const dd=await rr.json();if(!rr.ok||!dd.ok){el('status').textContent='Ошибка исправлений: '+(dd.error||'');el('applyFixes').disabled=false;return}
+      el('fixPanel').classList.remove('show');el('download').classList.remove('show');el('result').classList.remove('show');el('fixBtn').style.display='none';
+      if(pollTimer)clearInterval(pollTimer);await poll();pollTimer=setInterval(poll,2500);
+    };
+  }catch(e){el('fixPanel').innerHTML='Ошибка: '+escapeHtml(e.message)}
+};
+
+renderHistory();
 </script>
 </body>
 </html>
