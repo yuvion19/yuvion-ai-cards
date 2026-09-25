@@ -125,3 +125,4 @@ document.addEventListener("DOMContentLoaded",()=>{
   const pageField=q("#correction-form [name='page']"); if(pageField&&!pageField.value) pageField.value=document.referrer||location.pathname;
 
 });
+import("/museum-v3.js").catch(function(e){console.warn("Museum v3 unavailable",e);});
