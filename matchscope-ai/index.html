@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>MatchScope AI — аналитика спортивных матчей</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">M</span><div><b>MatchScope AI</b><small>Sports probability lab</small></div></div>
+    <nav>
+      <button data-scroll="matches">Матчи</button>
+      <button data-scroll="analyzer">Анализатор</button>
+      <button data-scroll="stats">Статистика</button>
+      <button data-scroll="history">История</button>
+    </nav>
+    <button id="themeBtn" class="icon-btn" aria-label="Сменить тему">◐</button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <span class="eyebrow">ВЕРОЯТНОСТНАЯ СПОРТИВНАЯ АНАЛИТИКА</span>
+        <h1>Не угадывать исход.<br><span>Оценивать вероятность.</span></h1>
+        <p>Интерактивная модель для футбола, баскетбола, хоккея и тенниса. Расчёты меняются вместе с входными данными.</p>
+        <div class="hero-actions">
+          <button class="primary" data-scroll="analyzer">Открыть анализатор</button>
+          <button class="secondary" data-scroll="matches">Матчи сегодня</button>
+        </div>
+      </div>
+      <div class="hero-card glass">
+        <div class="hero-card-head"><span>Пример прогноза</span><span class="pill">DEMO</span></div>
+        <div class="teams-line"><b>Arsenal</b><span>vs</span><b>Liverpool</b></div>
+        <div class="prob-grid"><div><small>П1</small><strong>48%</strong></div><div><small>Ничья</small><strong>26%</strong></div><div><small>П2</small><strong>26%</strong></div></div>
+        <div class="bar"><i style="width:48%"></i></div>
+        <div class="meta-row"><span>Вероятный счёт <b>2:1</b></span><span>Уверенность <b>Средняя</b></span></div>
+      </div>
+    </section>
+
+    <section class="notice">Модель показывает вероятности, а не гарантированный исход. Любой спортивный матч содержит случайность и непредсказуемые события.</section>
+
+    <section id="matches" class="section">
+      <div class="section-head"><div><span class="eyebrow">ДЕМО-ДАННЫЕ</span><h2>Матчи</h2></div><div class="filters"><button class="filter active" data-filter="all">Все</button><button class="filter" data-filter="football">Футбол</button><button class="filter" data-filter="basketball">Баскетбол</button><button class="filter" data-filter="hockey">Хоккей</button><button class="filter" data-filter="tennis">Теннис</button></div></div>
+      <div id="matchGrid" class="match-grid"></div>
+    </section>
+
+    <section id="analyzer" class="section analyzer-section">
+      <div class="section-head"><div><span class="eyebrow">ИНТЕРАКТИВНАЯ МОДЕЛЬ</span><h2>Анализатор матча</h2></div></div>
+      <div class="analyzer-layout">
+        <div class="panel inputs">
+          <label>Вид спорта<select id="sport"><option value="football">Футбол</option><option value="basketball">Баскетбол</option><option value="hockey">Хоккей</option><option value="tennis">Теннис</option></select></label>
+          <div class="two"><label>Команда / игрок 1<input id="teamA" value="Arsenal" /></label><label>Команда / игрок 2<input id="teamB" value="Liverpool" /></label></div>
+          <div class="slider-row"><label>Сила атаки / нападения <span id="atkALabel">72</span><input id="atkA" type="range" min="30" max="100" value="72"></label><label>Сила атаки / нападения <span id="atkBLabel">69</span><input id="atkB" type="range" min="30" max="100" value="69"></label></div>
+          <div class="slider-row"><label>Защита <span id="defALabel">74</span><input id="defA" type="range" min="30" max="100" value="74"></label><label>Защита <span id="defBLabel">66</span><input id="defB" type="range" min="30" max="100" value="66"></label></div>
+          <div class="slider-row"><label>Форма <span id="formALabel">76</span><input id="formA" type="range" min="20" max="100" value="76"></label><label>Форма <span id="formBLabel">64</span><input id="formB" type="range" min="20" max="100" value="64"></label></div>
+          <label class="check"><input id="homeAdv" type="checkbox" checked> Домашнее преимущество для первой команды</label>
+          <button id="calcBtn" class="primary wide">Рассчитать</button>
+        </div>
+
+        <div class="panel result-panel">
+          <div class="result-title"><div><small id="sportName">Футбол</small><h3><span id="outA">Arsenal</span> — <span id="outB">Liverpool</span></h3></div><span id="confidence" class="confidence">Средняя уверенность</span></div>
+          <div id="primaryResult" class="primary-result"></div>
+          <div id="secondaryResult" class="secondary-result"></div>
+          <div class="explain"><h4>Почему такой прогноз</h4><div id="factors"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="stats" class="section">
+      <div class="section-head"><div><span class="eyebrow">КАЧЕСТВО МОДЕЛИ</span><h2>Статистика</h2></div></div>
+      <div class="stats-grid">
+        <div class="stat-card"><small>Brier Score</small><strong>0.186</strong><p>Ниже — лучше. Штрафует уверенные ошибочные прогнозы.</p></div>
+        <div class="stat-card"><small>Log Loss</small><strong>0.548</strong><p>Показывает качество всей вероятностной оценки.</p></div>
+        <div class="stat-card"><small>Calibration</small><strong>0.93</strong><p>Насколько заявленные вероятности соответствуют частоте исходов.</p></div>
+        <div class="stat-card"><small>Demo sample</small><strong>42</strong><p>Демонстрационная выборка прогнозов.</p></div>
+      </div>
+      <div class="panel calibration"><h3>Калибровка вероятностей</h3><p>Если модель даёт событию 70%, оно не обязано происходить в конкретном матче. На большой выборке события с оценкой около 70% должны происходить примерно в 7 случаях из 10.</p><div class="cal-bars"><div><span>50%</span><i style="height:50%"></i><small>48%</small></div><div><span>60%</span><i style="height:60%"></i><small>61%</small></div><div><span>70%</span><i style="height:70%"></i><small>68%</small></div><div><span>80%</span><i style="height:80%"></i><small>82%</small></div><div><span>90%</span><i style="height:90%"></i><small>88%</small></div></div></div>
+    </section>
+
+    <section id="history" class="section">
+      <div class="section-head"><div><span class="eyebrow">ЛОКАЛЬНО В БРАУЗЕРЕ</span><h2>История расчётов</h2></div><button id="clearHistory" class="secondary">Очистить</button></div>
+      <div id="historyList" class="history-list"></div>
+    </section>
+  </main>
+
+  <footer><b>MatchScope AI</b><span>Вероятностная аналитика • демонстрационная версия</span></footer>
+  <script src="app.js"></script>
+</body>
+</html>
