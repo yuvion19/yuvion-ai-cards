@@ -343,6 +343,54 @@ function renderStandings(rows){
   return '<div class="standings-table"><div class="standing-row head"><span>#</span><b>Команда</b><span>И</span><span>В</span><span>Н</span><span>П</span><strong>О</strong></div>'+rows.map(r=>'<div class="standing-row"><span>'+r.rank+'</span><b>'+escapeHTML(r.team)+'</b><span>'+r.played+'</span><span>'+r.wins+'</span><span>'+r.draws+'</span><span>'+r.losses+'</span><strong>'+r.points+'</strong></div>').join('')+'</div>';
 }
 
+function renderCenterAnalysis(m){
+  if(!m)return;
+  const a=seedFromRecord(m.recordA,m.sport),b=seedFromRecord(m.recordB,m.sport);
+  const home=!m.neutral&&m.sport!=='tennis';
+  const uncertainty=uncertaintyScore(m);
+  const conf=Math.max(0,100-uncertainty);
+  $('mcAnalysisConfidence').textContent='Неопределённость '+uncertainty+'/100';
+  let html='';
+  if(m.sport==='football'){
+    const r=footballMath(a,b,home),p=r.main.map(x=>Math.round(x*100));
+    html='<div class="mc-analysis-probs">'+
+      '<div><small>П1</small><strong>'+p[0]+'%</strong></div>'+
+      '<div><small>Ничья</small><strong>'+p[1]+'%</strong></div>'+
+      '<div><small>П2</small><strong>'+p[2]+'%</strong></div>'+
+    '</div>'+
+    '<div class="mc-analysis-metrics">'+
+      '<div><span>xG</span><b>'+r.xga.toFixed(2)+' — '+r.xgb.toFixed(2)+'</b></div>'+
+      '<div><span>ТБ 2.5</span><b>'+Math.round(r.over*100)+'%</b></div>'+
+      '<div><span>Обе забьют</span><b>'+Math.round(r.btts*100)+'%</b></div>'+
+      '<div><span>Вероятные счета</span><b>'+r.scores.map(s=>s[0]+':'+s[1]).join(' · ')+'</b></div>'+
+    '</div>';
+  }else if(m.sport==='hockey'){
+    const r=hockeyMath(a,b,home),p=r.main.map(x=>Math.round(x*100));
+    html='<div class="mc-analysis-probs">'+
+      '<div><small>П1</small><strong>'+p[0]+'%</strong></div>'+
+      '<div><small>X / OT</small><strong>'+p[1]+'%</strong></div>'+
+      '<div><small>П2</small><strong>'+p[2]+'%</strong></div>'+
+    '</div>'+
+    '<div class="mc-analysis-metrics">'+
+      '<div><span>Ожидаемые шайбы</span><b>'+r.ga.toFixed(1)+' — '+r.gb.toFixed(1)+'</b></div>'+
+      '<div><span>Ожидаемый тотал</span><b>'+r.total.toFixed(1)+'</b></div>'+
+    '</div>';
+  }else{
+    const r=twoWayMath(a,b,m.sport,home),p=r.main.map(x=>Math.round(x*100));
+    html='<div class="mc-analysis-probs two-way">'+
+      '<div><small>'+escapeHTML(m.a)+'</small><strong>'+p[0]+'%</strong></div>'+
+      '<div><small>'+escapeHTML(m.b)+'</small><strong>'+p[1]+'%</strong></div>'+
+    '</div>';
+    if(m.sport==='basketball'){
+      html+='<div class="mc-analysis-metrics"><div><span>Ожидаемый счёт</span><b>'+r.score[0]+' : '+r.score[1]+'</b></div><div><span>Ожидаемый тотал</span><b>'+r.total+'</b></div></div>';
+    }else{
+      html+='<div class="mc-analysis-metrics"><div><span>Вероятный счёт по сетам</span><b>'+r.sets+'</b></div></div>';
+    }
+  }
+  html+='<div class="mc-analysis-note">Вероятности — оценка модели, а не гарантия результата. Чем выше неопределённость, тем ближе оценённые исходы друг к другу.</div>';
+  $('mcAnalysis').innerHTML=html;
+}
+
 async function openMatchCenter(id){
   const m=matches.find(x=>String(x.id)===String(id));if(!m)return;
   selectedCenterMatch=m;savePredictionSnapshot(m);
@@ -350,6 +398,7 @@ async function openMatchCenter(id){
   $('mcTitle').textContent=m.a+' — '+m.b;
   $('mcMeta').textContent=(m.league||'')+' · '+formatMatchTime(m)+(m.venue?' · '+m.venue:'');
   $('mcScore').innerHTML='<div><span>'+escapeHTML(m.a)+'</span><strong>'+(m.scoreA??'—')+'</strong></div><i>:</i><div><strong>'+(m.scoreB??'—')+'</strong><span>'+escapeHTML(m.b)+'</span></div>';
+  renderCenterAnalysis(m);
   $('mcChart').innerHTML=predictionChartHTML(m);
   renderCenterFallback(m,'Загружаем данные Match Center…');
   await refreshMatchCenter();
@@ -357,6 +406,7 @@ async function openMatchCenter(id){
 
 async function refreshMatchCenter(){
   const m=selectedCenterMatch;if(!m)return;
+  renderCenterAnalysis(m);
   $('mcChart').innerHTML=predictionChartHTML(m);
   if(!m.espnLeague||!m.sourceId){
     renderCenterFallback(m,'Расширенный Match Center для этого события пока недоступен.');
@@ -407,12 +457,6 @@ async function loadLiveMatches(offset=dayOffset){
   }
 }
 
-['atkA','atkB','defA','defB','formA','formB'].forEach(id=>{
-  const e=$(id),l=$(id+'Label');e.oninput=()=>{l.textContent=e.value;calc(false)};
-});
-$('sport').onchange=()=>calc(false);
-$('homeAdv').onchange=()=>calc(false);
-$('calcBtn').onclick=()=>calc(true);
 $('clearHistory').onclick=()=>{localStorage.removeItem('ms_history');renderHistory()};
 $('themeBtn').onclick=()=>{document.body.classList.toggle('light');localStorage.setItem('ms_theme',document.body.classList.contains('light')?'light':'dark')};
 $('todayBtn').onclick=()=>loadLiveMatches(0);
@@ -422,7 +466,6 @@ $('leagueFilter').onchange=()=>{activeLeague=$('leagueFilter').value;renderMatch
 $('mcClose').onclick=closeMatchCenter;
 $('matchCenterOverlay').onclick=e=>{if(e.target===$('matchCenterOverlay'))closeMatchCenter()};
 $('mcRefresh').onclick=refreshMatchCenter;
-$('mcToAnalyzer').onclick=()=>{const m=selectedCenterMatch;if(!m)return;fillAnalyzerFromMatch(m);closeMatchCenter();$('analyzer').scrollIntoView({behavior:'smooth'})};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('matchCenterOverlay').hidden)closeMatchCenter()});
 
 if(localStorage.getItem('ms_theme')==='light')document.body.classList.add('light');
@@ -432,4 +475,4 @@ document.querySelectorAll('.filter[data-filter]').forEach(b=>b.onclick=()=>{
   activeFilter=b.dataset.filter;if(activeFilter!=='football'&&activeFilter!=='all')activeLeague='all';renderLeagueFilter();renderMatches(activeFilter);
 });
 
-renderLeagueFilter();renderMatches();renderHistory();calc(false);loadLiveMatches(0);verifyHistory();
+renderLeagueFilter();renderMatches();renderHistory();loadLiveMatches(0);verifyHistory();
