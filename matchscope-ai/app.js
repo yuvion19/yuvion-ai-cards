@@ -147,9 +147,11 @@ function setSlider(id,val){
   l.textContent=e.value;
 }
 
-function loadMatch(id){
+async function loadMatch(id){
   const m=matches.find(x=>String(x.id)===String(id));
   if(!m)return;
+  selectedMatchContext=m;
+  intelligenceData=null;
   $('sport').value=m.sport;
   $('teamA').value=m.a;
   $('teamB').value=m.b;
@@ -159,6 +161,8 @@ function loadMatch(id){
   $('homeAdv').checked=!m.neutral&&m.sport!=='tennis';
   calc(false);
   $('analyzer').scrollIntoView({behavior:'smooth'});
+  if(m.sport==='football'&&m.espnLeague) await loadIntelligence(m);
+  else renderIntelligence(null,'Для этого события автоматическая статистика пока недоступна. Можно использовать ручной анализ.');
 }
 
 function readInputs(){
