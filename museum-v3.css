@@ -18,3 +18,66 @@
 .v3-shortcuts{max-width:1340px;margin:0 auto 40px;padding:0 clamp(20px,5vw,76px);display:flex;gap:7px;flex-wrap:wrap}.v3-shortcuts a{border:1px solid var(--line);padding:12px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.07em}.empty-state{padding:40px;border:1px dashed var(--line);text-align:center}.empty-state h2{font-size:34px}
 @media(max-width:900px){.museum-grid,.photo-grid,.news-grid,.weekly-grid{grid-template-columns:repeat(2,1fr)}.kids-story{grid-template-columns:repeat(2,1fr)}.lesson-grid,.source-table,.lab-grid,.ocr-grid,.myth-card,.glossary-grid{grid-template-columns:1fr}.admin-stats{grid-template-columns:repeat(2,1fr)}.roadmap article{grid-template-columns:50px 1fr}.roadmap p{grid-column:2}.event-list article,.podcast-list article{grid-template-columns:1fr}.museum-map{height:520px}}
 @media(max-width:560px){.museum-grid,.photo-grid,.news-grid,.weekly-grid,.kids-story{grid-template-columns:1fr}.museum-global-tools{right:8px;bottom:8px}.v3-hero{padding-top:65px}.exhibition-screen{grid-template-columns:45px 1fr 45px}.admin-stats{grid-template-columns:1fr}.tour-steps article{grid-template-columns:42px 1fr}}
+
+
+/* === NITI PAMYATI · approved heritage visual system 2026-09-27 === */
+:root{
+  --night:#071019;
+  --night2:#0b1721;
+  --paper:#efe3cb;
+  --paper2:#e2cfaa;
+  --gold:#d2aa55;
+  --gold2:#f0cf83;
+  --wine:#8b1825;
+  --ink:#251a12;
+  --muted:#887563;
+  --line:rgba(210,170,85,.28);
+}
+body{background:#071019;color:#efe3cb}
+.site-header{background:rgba(7,16,25,.97)!important;border-bottom:1px solid rgba(210,170,85,.45)!important;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.brand b{font-family:"Cormorant Garamond",Georgia,serif;color:#f0cf83!important}
+.nav{background:rgba(5,11,16,.985)!important}
+.nav a{border-color:rgba(210,170,85,.24)!important;color:#e9ddc8!important}
+.nav a:hover,.nav a.active{background:linear-gradient(135deg,#5f0e17,#8b1825)!important;color:#fff!important;border-color:rgba(240,207,131,.56)!important}
+.v3-hero{position:relative;background:
+  radial-gradient(circle at 85% 20%,rgba(139,24,37,.2),transparent 26%),
+  linear-gradient(135deg,#08111a,#0b1721)!important;
+  color:#efe3cb!important;border-bottom:1px solid rgba(210,170,85,.22)}
+.v3-hero:before{content:"✡";position:absolute;right:5vw;top:4px;font:140px/1 Georgia,serif;color:rgba(210,170,85,.055);pointer-events:none}
+.v3-hero:after{content:"א";position:absolute;right:16vw;bottom:-24px;font:120px/1 "Cormorant Garamond",Georgia,serif;color:rgba(139,24,37,.07);pointer-events:none}
+.v3-hero h1{font-family:"Cormorant Garamond",Georgia,serif;color:#f3e5cd!important}
+.v3-hero p{color:#cdbda4!important}
+.v3-section{color:#efe3cb}
+.v3-card,.lesson,.source-table article,.glossary-grid article,.weekly-grid article,.news-grid article{
+  background:linear-gradient(145deg,rgba(255,255,255,.025),rgba(255,255,255,.008))!important;
+  border-color:rgba(210,170,85,.27)!important;
+  box-shadow:none!important;
+}
+.v3-card:hover,.lesson:hover,.weekly-grid article:hover{border-color:rgba(240,207,131,.55)!important;background:linear-gradient(145deg,rgba(139,24,37,.15),rgba(210,170,85,.035))!important}
+.v3-card h2,.v3-card h3,.lesson h2,.source-table h3,.glossary-grid h2,.weekly-grid h2,.news-grid h2{font-family:"Cormorant Garamond",Georgia,serif;color:#f0e0c6!important}
+.v3-card p,.source-table p,.lesson p,.glossary-grid p,.weekly-grid p,.news-grid p{color:#bfae95!important}
+.pill,.index,.timeline-object time,.tour-steps span,.event-list time,.podcast-list>article>span{color:#d2aa55!important}
+.text-link,.source-table a,.v3-shortcuts a{color:#f0cf83!important}
+.v3-shortcuts a{border-color:rgba(210,170,85,.32)!important;background:rgba(255,255,255,.012)}
+.v3-shortcuts a:hover{background:#8b1825!important;color:#fff!important;border-color:#8b1825!important}
+.reading-toggle button,.chip,.count-chip,.mini-btn,.btn{border-color:rgba(210,170,85,.34)!important}
+.reading-toggle button.active,.chip.active,.btn.dark{background:#8b1825!important;color:#fff!important;border-color:#8b1825!important}
+.museum-global-tools{background:rgba(5,11,16,.94)!important;border-color:rgba(210,170,85,.34)!important;border-radius:10px}
+.museum-global-tools button{border-color:rgba(210,170,85,.22)!important;color:#f0cf83!important;border-radius:7px}
+.museum-global-tools button:hover{background:#8b1825!important;color:#fff!important}
+.museum-form input,.museum-form textarea,.museum-form select{
+  background:rgba(255,255,255,.035)!important;
+  border-color:rgba(210,170,85,.28)!important;
+  color:#efe3cb!important
+}
+.museum-modal-card{background:#0b1721!important;color:#efe3cb!important;border:1px solid rgba(210,170,85,.38)}
+.museum-map{border-color:rgba(210,170,85,.25)!important;filter:saturate(.78) sepia(.08)}
+.notice,.empty-state{border-color:rgba(210,170,85,.3)!important;background:rgba(210,170,85,.035)!important}
+.timeline-object,.tour-steps article,.event-list article,.podcast-list article,.myth-card{border-color:rgba(210,170,85,.25)!important}
+.exhibition-screen{background:#050b10!important}
+.footer{background:#050b10!important;border-top:1px solid rgba(210,170,85,.36)!important;color:#d9c7a8!important}
+.footer:before{content:"✡";color:#d2aa55;margin-right:10px}
+@media(max-width:560px){
+  .v3-hero:before{font-size:86px;right:2vw}
+  .v3-hero:after{font-size:74px;right:8vw}
+}
