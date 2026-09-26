@@ -150,3 +150,19 @@ document.addEventListener("DOMContentLoaded",()=>{
  qa("[data-lesson]").forEach(b=>b.addEventListener("click",()=>{const k="niti-lessons-v1",a=JSON.parse(localStorage.getItem(k)||"[]"),id=b.dataset.lesson;if(!a.includes(id))a.push(id);localStorage.setItem(k,JSON.stringify(a));b.textContent="Пройдено ✓";b.disabled=true}));
  if(q("#museum-assistant-form"))q("#museum-assistant-form").addEventListener("submit",async e=>{e.preventDefault();const term=String(new FormData(e.currentTarget).get("q")||"").trim().toLowerCase(),out=q("#assistant-output");out.textContent="Ищу в базе музея…";try{const rows=await C.select("museum_content","select=title,summary,source_title,source_url,content_type&published=eq.true&limit=100"),hits=rows.filter(x=>(x.title+" "+(x.summary||"")).toLowerCase().includes(term.split(" ")[0])).slice(0,5);out.innerHTML=hits.length?hits.map(x=>`<article class="search-hit"><strong>${esc(x.title)}</strong><span>${esc(x.summary||"")}</span>${x.source_url?`<a class="text-link" href="${x.source_url}" target="_blank" rel="noopener">Источник ↗</a>`:""}</article>`).join(""):'<p class="muted">В архиве проекта пока нет подтверждённых данных для ответа.</p>'}catch{out.textContent="База музея временно недоступна."}});
 });
+;(()=> {
+  if(window.__nitiMuseumLoaderV4) return;
+  window.__nitiMuseumLoaderV4=true;
+  const load=(src,cb)=>{
+    if(document.querySelector('script[data-niti-src="'+src+'"]')){cb&&cb();return;}
+    const s=document.createElement("script");s.src=src;s.defer=true;s.dataset.nitiSrc=src;
+    s.onload=()=>cb&&cb();document.head.appendChild(s);
+  };
+  const boot=()=>{
+    load("/catalog-static.js?v=4",()=>{
+      if(window.initMuseumCloud){window.initMuseumCloud();return;}
+      load("/museum-cloud.js?v=4",()=>window.initMuseumCloud&&window.initMuseumCloud());
+    });
+  };
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
+})();
