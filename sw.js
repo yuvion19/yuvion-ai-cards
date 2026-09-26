@@ -1,1 +1,23 @@
-const CACHE="niti-pamyati-v3";const CORE=["/","/styles.css","/data.js","/museum-cloud.js","/app.js","/history/","/red-sloboda/","/juuri/","/culture/","/archive/","/cemetery/","/search/"];self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())));self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{const cp=r.clone();caches.open(CACHE).then(x=>x.put(e.request,cp));return r}).catch(()=>caches.match("/"))))});
+/* Niti Pamyati cache reset — 2026-09-26 */
+self.addEventListener("install", event => {
+  self.skipWaiting();
+});
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(key => caches.delete(key)));
+    await self.clients.claim();
+    await self.registration.unregister();
+    const clients = await self.clients.matchAll({type:"window", includeUncontrolled:true});
+    for (const client of clients) {
+      client.postMessage({type:"NITI_CACHE_CLEARED"});
+    }
+  })());
+});
+self.addEventListener("fetch", event => {
+  if (event.request.method !== "GET") return;
+  event.respondWith(fetch(event.request, {cache:"no-store"}).catch(() => new Response(
+    "<!doctype html><meta charset=utf-8><title>Нити Памяти</title><p>Подключитесь к интернету и обновите страницу.</p>",
+    {headers:{"Content-Type":"text/html; charset=utf-8"}}
+  )));
+});
