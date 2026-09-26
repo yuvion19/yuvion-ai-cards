@@ -302,6 +302,114 @@ async function matchIntelligence(league,teamAName,teamBName,targetDate){
     h2h:h2hFromSchedules(gamesA,teamBName),prediction:pred,standings:standings.slice(0,24)
   };
 }
+function athleteName(a){return a?.athlete?.displayName||a?.athlete?.fullName||a?.displayName||a?.fullName||a?.name||'Игрок';}
+function athletePosition(a){return a?.athlete?.position?.abbreviation||a?.position?.abbreviation||a?.position?.displayName||a?.position||'';}
+function teamNameObj(t){return t?.displayName||t?.name||t?.shortDisplayName||'Команда';}
+function parseRosterBlock(block){
+  const team=teamNameObj(block?.team||block?.club||{});
+  const src=block?.roster||block?.athletes||block?.entries||block?.players||[];
+  const players=(Array.isArray(src)?src:[]).map(x=>({
+    id:String(x?.athlete?.id||x?.id||''),
+    name:athleteName(x),
+    position:athletePosition(x),
+    jersey:String(x?.athlete?.jersey||x?.jersey||''),
+    starter:Boolean(x?.starter||x?.isStarter||x?.formationPlace),
+    captain:Boolean(x?.captain),
+    status:x?.status?.type?.description||x?.status?.description||x?.status||''
+  }));
+  return {team,players};
+}
+function parseLineups(summary){
+  const blocks=[];
+  for(const r of summary?.rosters||[]) blocks.push(parseRosterBlock(r));
+  for(const r of summary?.lineups||[]) blocks.push(parseRosterBlock(r));
+  const byTeam=new Map();
+  for(const b of blocks){
+    if(!b.players.length)continue;
+    const prev=byTeam.get(b.team)||[];
+    const seen=new Set(prev.map(x=>x.id||x.name));
+    for(const p of b.players){const k=p.id||p.name;if(!seen.has(k)){seen.add(k);prev.push(p)}}
+    byTeam.set(b.team,prev);
+  }
+  return [...byTeam.entries()].map(([team,players])=>({team,players}));
+}
+function parseInjuries(summary){
+  const out=[];
+  function add(team,item){
+    const name=item?.athlete?.displayName||item?.athlete?.fullName||item?.displayName||item?.name;
+    if(!name)return;
+    out.push({
+      team:team||teamNameObj(item?.team||{}),
+      name,
+      position:item?.athlete?.position?.abbreviation||item?.position?.abbreviation||'',
+      status:item?.status||item?.type?.description||item?.details?.type||item?.description||'',
+      detail:item?.details?.detail||item?.details?.fantasyStatus?.description||item?.longComment||''
+    });
+  }
+  for(const block of summary?.injuries||[]){
+    const team=teamNameObj(block?.team||{});
+    const arr=block?.injuries||block?.athletes||block?.entries||[];
+    if(Array.isArray(arr)&&arr.length)arr.forEach(x=>add(team,x)); else add(team,block);
+  }
+  return out.slice(0,40);
+}
+function parsePlayerStats(summary){
+  const out=[];
+  for(const block of summary?.boxscore?.players||[]){
+    const team=teamNameObj(block?.team||{});
+    for(const statGroup of block?.statistics||[]){
+      const labels=statGroup?.labels||statGroup?.names||[];
+      for(const row of statGroup?.athletes||[]){
+        const vals=row?.stats||row?.statistics||[];
+        const stats={};
+        vals.forEach((v,i)=>{const k=labels[i]||('stat'+(i+1));stats[k]=v});
+        out.push({team,name:athleteName(row),position:athletePosition(row),starter:Boolean(row?.starter),stats});
+      }
+    }
+  }
+  return out.slice(0,80);
+}
+function parseTeamStats(summary){
+  const out=[];
+  for(const block of summary?.boxscore?.teams||[]){
+    const team=teamNameObj(block?.team||{});
+    const stats={};
+    for(const st of block?.statistics||[]) stats[st?.label||st?.name||st?.abbreviation||'stat']=st?.displayValue??st?.value??'';
+    out.push({team,stats});
+  }
+  return out;
+}
+async function getMatchCenter(league,eventId,season){
+  if(!league||!eventId)throw new Error('league and event required');
+  const data=await fetchJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/summary?event=${encodeURIComponent(eventId)}`,10000);
+  const header=data?.header||{};
+  const comp=header?.competitions?.[0]||{};
+  const competitors=comp?.competitors||[];
+  const teams=competitors.map(c=>({
+    id:String(c?.team?.id||''),name:displayName(c),logo:logo(c),score:scoreValue(c),homeAway:c?.homeAway||'',winner:Boolean(c?.winner)
+  }));
+  const table=await getStandings(league,season||new Date().getFullYear());
+  return {
+    eventId:String(eventId),league,season:season||new Date().getFullYear(),
+    date:comp?.date||header?.competitions?.[0]?.date||null,
+    status:comp?.status?.type?.shortDetail||comp?.status?.type?.detail||comp?.status?.type?.description||'',
+    venue:data?.gameInfo?.venue?.fullName||comp?.venue?.fullName||null,
+    attendance:data?.gameInfo?.attendance||null,
+    teams,
+    lineups:parseLineups(data),
+    injuries:parseInjuries(data),
+    playerStats:parsePlayerStats(data),
+    teamStats:parseTeamStats(data),
+    standings:table.slice(0,30),
+    available:{
+      lineups:parseLineups(data).some(x=>x.players.length),
+      injuries:parseInjuries(data).length>0,
+      playerStats:parsePlayerStats(data).length>0,
+      standings:table.length>0
+    },
+    updatedAt:new Date().toISOString()
+  };
+}
 async function eventResult(source,id,sport='football',league=''){
   if(source==='TheSportsDB'){
     const data=await fetchJson(`https://www.thesportsdb.com/api/v1/json/123/lookupevent.php?id=${encodeURIComponent(id)}`);
@@ -341,6 +449,11 @@ const server=http.createServer(async(req,res)=>{
     if(!/^\d{8}$/.test(date))return send(res,400,{error:'date must be YYYYMMDD'});
     try{return send(res,200,await getMatches(date,sport,false));}catch(e){return send(res,502,{error:'sports source unavailable',detail:String(e?.message||e)});}
   }
+  if(u.pathname==='/api/match-center'){
+    const league=u.searchParams.get('league')||'',event=u.searchParams.get('event')||'',season=Number(u.searchParams.get('season')||new Date().getFullYear());
+    if(!league||!event)return send(res,400,{error:'league and event required'});
+    try{return send(res,200,await getMatchCenter(league,event,season));}catch(e){return send(res,502,{error:'match center unavailable',detail:String(e?.message||e)});}
+  }
   if(u.pathname==='/api/intelligence'){
     const league=u.searchParams.get('league')||'',teamA=u.searchParams.get('teamA')||'',teamB=u.searchParams.get('teamB')||'',date=(u.searchParams.get('date')||ymdInMoscow(0)).replace(/\D/g,'');
     if(!league||!teamA||!teamB)return send(res,400,{error:'league, teamA and teamB required'});
@@ -359,6 +472,6 @@ const server=http.createServer(async(req,res)=>{
     const date=(u.searchParams.get('date')||ymdInMoscow(0)).replace(/\D/g,'');
     try{return send(res,200,await getMatches(date,'all',true));}catch(e){return send(res,502,{error:'sports source unavailable',detail:String(e?.message||e)});}
   }
-  return send(res,200,{name:'MatchScope Live API 2.0',ok:true,footballLeagues:FOOTBALL_LEAGUES,providers:['TheSportsDB free','ESPN fallback'],endpoints:['/api/matches','/api/intelligence','/api/standings','/api/result']});
+  return send(res,200,{name:'MatchScope Live API 2.0',ok:true,footballLeagues:FOOTBALL_LEAGUES,providers:['TheSportsDB free','ESPN fallback'],endpoints:['/api/matches','/api/match-center','/api/standings','/api/result']});
 });
 server.listen(PORT,()=>{console.log('MatchScope Live API 2.0 listening on',PORT);startupDiagnostics();});
