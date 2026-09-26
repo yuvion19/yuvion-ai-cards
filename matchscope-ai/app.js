@@ -14,6 +14,9 @@ let activeLeague='all';
 let footballLeagues=[];
 let dayOffset=0;
 let liveMode=false;
+let selectedMatchContext=null;
+let intelligenceData=null;
+let intelligenceLoading=false;
 
 const labels={football:'Футбол',basketball:'Баскетбол',hockey:'Хоккей',tennis:'Теннис'};
 const $=id=>document.getElementById(id);
@@ -69,7 +72,7 @@ function twoWayMath(a,b,sport,home){
 
 function hockeyMath(a,b,home){
   const base=2.55;
-  const ga=clamp(base+(a.atk-b.def)*.028+(a.form-b.form)*.01+(home?.18:0),.8,5.5);
+  const ga=clamp(base+(a.atk-b.def)*.028+(a.form-b.form)*.01+(home ? .18 : 0),.8,5.5);
   const gb=clamp(base+(b.atk-a.def)*.028+(b.form-a.form)*.01,.8,5.5);
   let h=0,d=0,aw=0;
   for(let i=0;i<=9;i++)for(let j=0;j<=9;j++){
