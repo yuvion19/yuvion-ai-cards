@@ -44,6 +44,7 @@ function ymdDash(d){return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;}
 function displayName(c){return c?.team?.displayName||c?.athlete?.displayName||c?.displayName||c?.team?.shortDisplayName||'Участник';}
 function logo(c){return c?.team?.logo||c?.athlete?.headshot?.href||null;}
 function record(c){return c?.records?.[0]?.summary||null;}
+function scoreValue(c){const v=c?.score?.value??c?.score?.displayValue??c?.score;const n=Number(v);return Number.isFinite(n)?n:null;}
 function normalizeName(s){return String(s||'').toLowerCase().replace(/fc|cf|afc|sc/g,'').replace(/[^a-zа-я0-9]+/gi,' ').trim();}
 
 async function fetchJson(url,timeoutMs=12000){
@@ -94,7 +95,7 @@ function parseEspnEvent(ev,source,sport='football'){
     leagueSlug:String(source.id||source.espn||''),espnLeague:source.espn||source.id||null,
     teamIdA:a?.team?.id?String(a.team.id):null,teamIdB:b?.team?.id?String(b.team.id):null,
     date:ev.date||comp.date||null,state:st.state||'pre',status:st.shortDetail||st.detail||st.description||'',
-    a:displayName(a),b:displayName(b),logoA:logo(a),logoB:logo(b),scoreA:a?.score??null,scoreB:b?.score??null,
+    a:displayName(a),b:displayName(b),logoA:logo(a),logoB:logo(b),scoreA:scoreValue(a),scoreB:scoreValue(b),
     recordA:record(a),recordB:record(b),venue:comp?.venue?.fullName||null,neutral:Boolean(comp?.neutralSite),source:'ESPN'
   };
 }
@@ -173,7 +174,7 @@ function completedTeamGames(schedule,teamId,beforeDate){
     const me=cs.find(x=>String(x?.team?.id)===String(teamId));
     const opp=cs.find(x=>String(x?.team?.id)!==String(teamId));
     if(!me||!opp||me.score==null||opp.score==null)continue;
-    const gf=Number(me.score),ga=Number(opp.score);if(!Number.isFinite(gf)||!Number.isFinite(ga))continue;
+    const gf=scoreValue(me),ga=scoreValue(opp);if(gf==null||ga==null)continue;
     out.push({id:String(ev.id),date:ev.date,opponent:displayName(opp),gf,ga,result:gf>ga?'W':gf<ga?'L':'D',home:me.homeAway==='home'});
   }
   return out.sort((a,b)=>new Date(b.date)-new Date(a.date));
