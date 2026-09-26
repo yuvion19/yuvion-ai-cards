@@ -10,6 +10,8 @@ const DEMO_MATCHES=[
 
 let matches=[...DEMO_MATCHES];
 let activeFilter='all';
+let activeLeague='all';
+let footballLeagues=[];
 let dayOffset=0;
 let liveMode=false;
 
@@ -104,7 +106,7 @@ function scoreText(m){
 function renderMatches(filter=activeFilter){
   activeFilter=filter;
   const el=$('matchGrid');
-  const list=matches.filter(m=>filter==='all'||m.sport===filter);
+  const list=matches.filter(m=>(filter==='all'||m.sport===filter)&&(activeLeague==='all'||m.sport!=='football'||String(m.leagueSlug)===String(activeLeague)));
   if(!list.length){
     el.innerHTML='<div class="empty matches-empty">На выбранную дату матчей в подключённых турнирах не найдено.</div>';
     return;
@@ -225,6 +227,15 @@ function setLiveStatus(type,text){
   $('liveDot').className='live-dot '+type;
   $('liveStatus').textContent=text;
 }
+function renderLeagueFilter(){
+  const wrap=$('leagueFilterWrap'),select=$('leagueFilter');
+  if(!wrap||!select)return;
+  wrap.style.display=activeFilter==='football'||activeFilter==='all'?'flex':'none';
+  const previous=activeLeague;
+  select.innerHTML='<option value="all">Все футбольные лиги</option>'+footballLeagues.map(l=>'<option value="'+escapeHTML(l.id)+'">'+escapeHTML(l.name)+'</option>').join('');
+  if(footballLeagues.some(l=>String(l.id)===String(previous)))select.value=previous;
+  else{activeLeague='all';select.value='all';}
+}
 
 async function loadLiveMatches(offset=dayOffset){
   dayOffset=offset;
@@ -240,6 +251,8 @@ async function loadLiveMatches(offset=dayOffset){
     const data=await resp.json();
     liveMode=true;
     matches=(data.matches||[]).map((m,i)=>({...m,id:`live-${m.sport}-${m.leagueSlug||'league'}-${m.id||i}`,demo:false}));
+    footballLeagues=data.footballLeagues||[];
+    renderLeagueFilter();
     renderMatches(activeFilter);
     const failed=data.failedSources||0;
     setLiveStatus('ok',`Реальные данные · ${matches.length} матчей${failed?' · '+failed+' источн. временно недоступно':''}`);
@@ -263,6 +276,7 @@ $('themeBtn').onclick=()=>{document.body.classList.toggle('light');localStorage.
 $('todayBtn').onclick=()=>loadLiveMatches(0);
 $('tomorrowBtn').onclick=()=>loadLiveMatches(1);
 $('refreshLive').onclick=()=>loadLiveMatches(dayOffset);
+$('leagueFilter').onchange=()=>{activeLeague=$('leagueFilter').value;renderMatches(activeFilter)};
 
 if(localStorage.getItem('ms_theme')==='light')document.body.classList.add('light');
 
@@ -270,9 +284,13 @@ document.querySelectorAll('[data-scroll]').forEach(b=>b.onclick=()=>$(b.dataset.
 document.querySelectorAll('.filter[data-filter]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.filter[data-filter]').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
-  renderMatches(b.dataset.filter);
+  activeFilter=b.dataset.filter;
+  if(activeFilter!=='football'&&activeFilter!=='all')activeLeague='all';
+  renderLeagueFilter();
+  renderMatches(activeFilter);
 });
 
+renderLeagueFilter();
 renderMatches();
 renderHistory();
 calc(false);
