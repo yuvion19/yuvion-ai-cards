@@ -229,7 +229,7 @@ function eloEstimate(form,standing,totalTeams){
 }
 function poissonPrediction(a,b,home=true,eloA=1500,eloB=1500){
   const eloAdj=(eloA-eloB)/400;
-  let xga=1.18+(a.attack-b.defense)*.012+(a.form-b.form)*.005+(home?.18:0)+eloAdj*.18;
+  let xga=1.18+(a.attack-b.defense)*.012+(a.form-b.form)*.005+(home ? .18 : 0)+eloAdj*.18;
   let xgb=1.05+(b.attack-a.defense)*.012+(b.form-a.form)*.005-eloAdj*.12;
   xga=clamp(xga,.25,3.8);xgb=clamp(xgb,.25,3.8);
   const fact=n=>{let v=1;for(let i=2;i<=n;i++)v*=i;return v};const pois=(k,l)=>Math.exp(-l)*Math.pow(l,k)/fact(k);
