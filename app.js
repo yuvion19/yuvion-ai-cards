@@ -4,8 +4,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   const safe=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const nav=q(".nav"), menu=q(".menu-btn");
   const navItems=[
-    ["/","Главная"],["/history/","История"],["/red-sloboda/","Красная Слобода"],
-    ["/juuri/","Джуури"],["/culture/","Культура"],["/archive/","Архив"],["/cemetery/","Память"]
+    ["/history/","История"],["/juuri/","Джуури"],["/traditions/","Традиции"],
+    ["/archive/","Архив"],["/map/","Карта"],["/about/","О проекте"]
   ];
   if(nav){
     const path=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";
