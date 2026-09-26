@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b0f14" />
   <title>MatchScope AI — аналитика спортивных матчей</title>
-  <link rel="stylesheet" href="styles.css?v=20260927d" />
+  <link rel="stylesheet" href="styles.css?v=20260927e" />
 </head>
 <body>
   <header class="topbar">
@@ -62,12 +62,16 @@
         </div>
         <div class="live-state"><span id="liveDot" class="live-dot loading"></span><span id="liveStatus">Подключение к данным матчей…</span><button id="refreshLive" class="secondary">Обновить</button></div>
       </div>
+      <div class="uncertainty-panel panel">
+        <div class="uncertainty-head"><div><span class="eyebrow">НЕОПРЕДЕЛЁННОСТЬ</span><h3>Самые непредсказуемые матчи сегодня</h3></div><small>100 = максимально близкие вероятности</small></div>
+        <div id="uncertaintyList" class="uncertainty-list"></div>
+      </div>
       <div id="matchGrid" class="match-grid"></div>
       <p class="source-note">Футбол загружается отдельно по крупным клубным и международным турнирам: топ-лиги Европы, еврокубки, РПЛ, MLS, Бразилия, Аргентина, Саудовская Аравия, UEFA Nations League и товарищеские матчи. TheSportsDB — основной источник, ESPN — резерв.</p>
     </section>
 
     <section id="analyzer" class="section analyzer-section">
-      <div class="section-head"><div><span class="eyebrow">MATCHSCOPE 2.0</span><h2>Анализатор матча</h2></div><button id="refreshIntelligence" class="secondary">Обновить авто-анализ</button></div><div id="autoIntelligence" class="panel auto-intelligence"><div class="intel-state">Выберите реальный футбольный матч — система автоматически загрузит форму, Elo, таблицу и H2H.</div></div>
+      <div class="section-head"><div><span class="eyebrow">РУЧНАЯ МОДЕЛЬ</span><h2>Анализатор матча</h2></div></div>
       <div class="analyzer-layout">
         <div class="panel inputs">
           <label>Вид спорта<select id="sport"><option value="football">Футбол</option><option value="basketball">Баскетбол</option><option value="hockey">Хоккей</option><option value="tennis">Теннис</option></select></label>
@@ -94,7 +98,7 @@
         <div class="stat-card"><small>Brier Score</small><strong id="brierValue">—</strong><p>Считается только по реально завершённым прогнозам. Ниже — лучше.</p></div>
         <div class="stat-card"><small>Log Loss</small><strong id="loglossValue">—</strong><p>Реальная оценка качества сохранённых вероятностей после финального результата.</p></div>
         <div class="stat-card"><small>Проверено прогнозов</small><strong id="verifiedValue">0</strong><p>История автоматически сверяется с итоговыми результатами матчей.</p></div>
-        <div class="stat-card"><small>Model</small><strong>2.0</strong><p>Elo + последние матчи + таблица + Poisson. Ручные параметры остаются доступными.</p></div>
+        <div class="stat-card"><small>Match Center</small><strong>LIVE</strong><p>Составы, травмы, игроки, таблица и динамика вероятностей внутри карточки матча.</p></div>
       </div>
       <div class="panel calibration"><h3>Калибровка вероятностей</h3><p>Если модель даёт событию 70%, оно не обязано происходить в конкретном матче. На большой выборке события с оценкой около 70% должны происходить примерно в 7 случаях из 10.</p><div class="cal-bars"><div><span>50%</span><i style="height:50%"></i><small>48%</small></div><div><span>60%</span><i style="height:60%"></i><small>61%</small></div><div><span>70%</span><i style="height:70%"></i><small>68%</small></div><div><span>80%</span><i style="height:80%"></i><small>82%</small></div><div><span>90%</span><i style="height:90%"></i><small>88%</small></div></div></div>
     </section>
@@ -105,7 +109,26 @@
     </section>
   </main>
 
-  <footer><b>MatchScope AI</b><span>Реальные матчи • вероятностная модель • бесплатный хостинг</span></footer>
-  <script src="app.js?v=20260927d"></script>
+  <div id="matchCenterOverlay" class="mc-overlay" hidden>
+    <div class="mc-modal">
+      <div class="mc-topbar">
+        <div><span class="eyebrow">MATCH CENTER</span><h2 id="mcTitle">Матч</h2><p id="mcMeta"></p></div>
+        <button id="mcClose" class="icon-btn mc-close" aria-label="Закрыть">×</button>
+      </div>
+      <div id="mcScore" class="mc-score"></div>
+      <div class="mc-actions"><button id="mcToAnalyzer" class="secondary">Открыть в ручном анализаторе</button><button id="mcRefresh" class="secondary">Обновить данные</button></div>
+      <div class="mc-grid">
+        <section class="mc-card"><h3>Изменение прогноза</h3><div id="mcChart" class="mc-chart"></div></section>
+        <section class="mc-card"><h3>Статистика матча</h3><div id="mcTeamStats"></div></section>
+        <section class="mc-card"><h3>Составы</h3><div id="mcLineups"></div></section>
+        <section class="mc-card"><h3>Травмы / недоступные</h3><div id="mcInjuries"></div></section>
+        <section class="mc-card mc-wide"><h3>Статистика игроков</h3><div id="mcPlayers"></div></section>
+        <section class="mc-card mc-wide"><h3>Турнирная таблица</h3><div id="mcStandings"></div></section>
+      </div>
+    </div>
+  </div>
+
+  <footer><b>MatchScope AI</b><span>Реальные матчи • Match Center • вероятностная модель • бесплатный хостинг</span></footer>
+  <script src="app.js?v=20260927e"></script>
 </body>
 </html>
