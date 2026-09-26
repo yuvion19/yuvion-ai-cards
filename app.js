@@ -132,7 +132,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const pageField=q("#correction-form [name='page']"); if(pageField&&!pageField.value) pageField.value=document.referrer||location.pathname;
 
 });
-import("/museum-v3.js").catch(function(e){console.warn("Museum v3 unavailable",e);});
+(()=>{if(window.__museumV3Script)return;window.__museumV3Script=true;const s=document.createElement("script");s.src="/museum-v3.js?v=5";s.defer=true;s.onerror=()=>console.warn("Museum v3 unavailable");document.head.appendChild(s)})();
 
 
 document.addEventListener("DOMContentLoaded",()=>{
