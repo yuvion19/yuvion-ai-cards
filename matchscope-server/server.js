@@ -430,12 +430,16 @@ async function startupDiagnostics(){
   try{
     const date=ymdInMoscow(0),data=await getMatches(date,'all',true);
     console.log('[startup-diagnostics]',JSON.stringify({date,total:data.matches.length,football:data.matches.filter(x=>x.sport==='football').length,leagues:data.footballLeagues}));
-    const sample=data.matches.find(x=>x.sport==='football'&&x.espnLeague);
+    const sample=data.matches.find(x=>x.sport==='football'&&x.espnLeague&&x.sourceId);
     if(sample){
       try{
-        const intel=await matchIntelligence(sample.espnLeague,sample.a,sample.b,date);
-        console.log('[intelligence-selftest]',JSON.stringify({ok:true,league:sample.espnLeague,match:sample.a+' vs '+sample.b,eloA:intel.teamA.elo,eloB:intel.teamB.elo,lastA:intel.teamA.form.games.length,lastB:intel.teamB.form.games.length,pred:intel.prediction}));
-      }catch(e){console.log('[intelligence-selftest]',JSON.stringify({ok:false,match:sample.a+' vs '+sample.b,error:String(e?.message||e)}));}
+        const center=await getMatchCenter(sample.espnLeague,sample.sourceId,Number(date.slice(0,4)));
+        console.log('[match-center-selftest]',JSON.stringify({
+          ok:true,league:sample.espnLeague,match:sample.a+' vs '+sample.b,
+          lineups:center.lineups.length,injuries:center.injuries.length,playerStats:center.playerStats.length,
+          standings:center.standings.length,teamStats:center.teamStats.length,available:center.available
+        }));
+      }catch(e){console.log('[match-center-selftest]',JSON.stringify({ok:false,match:sample.a+' vs '+sample.b,error:String(e?.message||e)}));}
     }
   }catch(e){console.log('[startup-diagnostics-error]',e?.stack||String(e));}
 }
@@ -453,11 +457,6 @@ const server=http.createServer(async(req,res)=>{
     const league=u.searchParams.get('league')||'',event=u.searchParams.get('event')||'',season=Number(u.searchParams.get('season')||new Date().getFullYear());
     if(!league||!event)return send(res,400,{error:'league and event required'});
     try{return send(res,200,await getMatchCenter(league,event,season));}catch(e){return send(res,502,{error:'match center unavailable',detail:String(e?.message||e)});}
-  }
-  if(u.pathname==='/api/intelligence'){
-    const league=u.searchParams.get('league')||'',teamA=u.searchParams.get('teamA')||'',teamB=u.searchParams.get('teamB')||'',date=(u.searchParams.get('date')||ymdInMoscow(0)).replace(/\D/g,'');
-    if(!league||!teamA||!teamB)return send(res,400,{error:'league, teamA and teamB required'});
-    try{return send(res,200,await matchIntelligence(league,teamA,teamB,date));}catch(e){return send(res,502,{error:'intelligence unavailable',detail:String(e?.message||e)});}
   }
   if(u.pathname==='/api/standings'){
     const league=u.searchParams.get('league')||'',season=Number(u.searchParams.get('season')||new Date().getFullYear());
