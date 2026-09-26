@@ -165,6 +165,58 @@ async function loadMatch(id){
   else renderIntelligence(null,'Для этого события автоматическая статистика пока недоступна. Можно использовать ручной анализ.');
 }
 
+function formSequence(games){
+  if(!games?.length)return '<span class="form-empty">нет данных</span>';
+  return games.slice(0,8).map(g=>'<span class="form-dot '+(g.result==='W'?'win':g.result==='D'?'draw':'loss')+'">'+g.result+'</span>').join('');
+}
+function lastGamesHTML(games){
+  if(!games?.length)return '<div class="intel-empty">Нет завершённых матчей в доступном расписании.</div>';
+  return '<div class="recent-games">'+games.slice(0,5).map(g=>'<div><span>'+escapeHTML(new Date(g.date).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}))+'</span><b>'+escapeHTML(g.opponent)+'</b><strong>'+g.gf+':'+g.ga+'</strong></div>').join('')+'</div>';
+}
+function renderIntelligence(data,message=''){
+  const box=$('autoIntelligence');
+  if(!box)return;
+  if(!data){
+    box.innerHTML='<div class="intel-state">'+escapeHTML(message||'Выберите реальный футбольный матч, чтобы загрузить автоматическую статистику.')+'</div>';
+    return;
+  }
+  const a=data.teamA,b=data.teamB,p=data.prediction,h2h=data.h2h||[];
+  box.innerHTML='<div class="intel-head"><div><span class="eyebrow">MATCHSCOPE 2.0</span><h3>Автоматический анализ данных</h3></div><span class="source-badge live">ELO + FORM + POISSON</span></div>'+
+  '<div class="intel-team-grid">'+
+    '<article class="intel-team"><div class="intel-team-name">'+(a.logo?'<img src="'+escapeHTML(a.logo)+'" alt="">':'')+'<div><small>Команда 1</small><b>'+escapeHTML(a.name)+'</b></div><strong>'+a.elo+' Elo</strong></div>'+
+      '<div class="intel-metrics"><span>Форма <b>'+a.form.form+'/100</b></span><span>Атака <b>'+a.form.attack+'</b></span><span>Защита <b>'+a.form.defense+'</b></span><span>PPG <b>'+a.form.ppg+'</b></span></div>'+
+      '<div class="form-row">'+formSequence(a.form.games)+'</div>'+lastGamesHTML(a.form.games)+
+      (a.standing?'<div class="table-chip">Таблица: <b>'+a.standing.rank+' место</b> · '+a.standing.points+' оч.</div>':'')+'</article>'+
+    '<article class="intel-team"><div class="intel-team-name">'+(b.logo?'<img src="'+escapeHTML(b.logo)+'" alt="">':'')+'<div><small>Команда 2</small><b>'+escapeHTML(b.name)+'</b></div><strong>'+b.elo+' Elo</strong></div>'+
+      '<div class="intel-metrics"><span>Форма <b>'+b.form.form+'/100</b></span><span>Атака <b>'+b.form.attack+'</b></span><span>Защита <b>'+b.form.defense+'</b></span><span>PPG <b>'+b.form.ppg+'</b></span></div>'+
+      '<div class="form-row">'+formSequence(b.form.games)+'</div>'+lastGamesHTML(b.form.games)+
+      (b.standing?'<div class="table-chip">Таблица: <b>'+b.standing.rank+' место</b> · '+b.standing.points+' оч.</div>':'')+'</article>'+
+  '</div>'+
+  '<div class="intel-prediction"><div><small>Авто П1</small><strong>'+Math.round(p.p1*100)+'%</strong></div><div><small>Ничья</small><strong>'+Math.round(p.px*100)+'%</strong></div><div><small>Авто П2</small><strong>'+Math.round(p.p2*100)+'%</strong></div><div><small>xG</small><strong>'+p.xgA+' — '+p.xgB+'</strong></div></div>'+
+  '<div class="h2h"><h4>Очные встречи в доступной истории</h4>'+(h2h.length?lastGamesHTML(h2h):'<div class="intel-empty">Недавние H2H не найдены.</div>')+'</div>';
+}
+async function loadIntelligence(m=selectedMatchContext){
+  if(!m||m.sport!=='football'||!m.espnLeague)return;
+  intelligenceLoading=true;
+  renderIntelligence(null,'Загружаем последние матчи, таблицу и Elo…');
+  try{
+    const date=(m.date?new Date(m.date):new Date());
+    const date8=String(date.getFullYear())+String(date.getMonth()+1).padStart(2,'0')+String(date.getDate()).padStart(2,'0');
+    const url=LIVE_API+'/api/intelligence?league='+encodeURIComponent(m.espnLeague)+'&teamA='+encodeURIComponent(m.a)+'&teamB='+encodeURIComponent(m.b)+'&date='+date8;
+    const resp=await fetch(url,{cache:'no-store'});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    intelligenceData=await resp.json();
+    const a=intelligenceData.teamA.form,b=intelligenceData.teamB.form;
+    setSlider('atkA',a.attack);setSlider('defA',a.defense);setSlider('formA',a.form);
+    setSlider('atkB',b.attack);setSlider('defB',b.defense);setSlider('formB',b.form);
+    calc(false);
+    renderIntelligence(intelligenceData);
+  }catch(err){
+    intelligenceData=null;
+    renderIntelligence(null,'Авто-анализ сейчас недоступен. Ручная модель продолжает работать.');
+  }finally{intelligenceLoading=false}
+}
+
 function readInputs(){
   return {
     a:{atk:+$('atkA').value,def:+$('defA').value,form:+$('formA').value},
