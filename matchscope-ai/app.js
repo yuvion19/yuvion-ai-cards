@@ -364,7 +364,8 @@ async function refreshMatchCenter(){
   }
   try{
     const season=(m.date?new Date(m.date):new Date()).getFullYear();
-    const url=LIVE_API+'/api/match-center?league='+encodeURIComponent(m.espnLeague)+'&event='+encodeURIComponent(m.sourceId)+'&season='+season;
+    const date8=(m.date?new Date(m.date):new Date());const dateKeyForCenter=''+date8.getFullYear()+String(date8.getMonth()+1).padStart(2,'0')+String(date8.getDate()).padStart(2,'0');
+    const url=LIVE_API+'/api/match-center?league='+encodeURIComponent(m.espnLeague)+'&event='+encodeURIComponent(m.sourceId||'')+'&season='+season+'&teamA='+encodeURIComponent(m.a)+'&teamB='+encodeURIComponent(m.b)+'&date='+dateKeyForCenter;
     const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);
     const d=await r.json();
     $('mcMeta').textContent=(m.league||'')+' · '+formatMatchTime(m)+(d.venue?' · '+d.venue:'')+(d.status?' · '+d.status:'');
