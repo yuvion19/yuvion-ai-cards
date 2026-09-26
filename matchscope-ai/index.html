@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b0f14" />
   <title>MatchScope AI — аналитика спортивных матчей</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260927b" />
 </head>
 <body>
   <header class="topbar">
@@ -60,7 +60,7 @@
         <div class="live-state"><span id="liveDot" class="live-dot loading"></span><span id="liveStatus">Подключение к данным матчей…</span><button id="refreshLive" class="secondary">Обновить</button></div>
       </div>
       <div id="matchGrid" class="match-grid"></div>
-      <p class="source-note">Расписание: бесплатный публичный sports feed. Возможны задержки или временная недоступность источника.</p>
+      <p class="source-note">Расписание: TheSportsDB Free API; ESPN используется как резервный источник. Возможны задержки или временная недоступность внешних данных.</p>
     </section>
 
     <section id="analyzer" class="section analyzer-section">
@@ -103,6 +103,6 @@
   </main>
 
   <footer><b>MatchScope AI</b><span>Реальные матчи • вероятностная модель • бесплатный хостинг</span></footer>
-  <script src="app.js"></script>
+  <script src="app.js?v=20260927b"></script>
 </body>
 </html>
