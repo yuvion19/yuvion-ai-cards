@@ -276,8 +276,17 @@ function ymdInMoscow(offsetDays=0){
   const map=Object.fromEntries(parts.map(p=>[p.type,p.value]));return `${map.year}${map.month}${map.day}`;
 }
 async function startupDiagnostics(){
-  try{const date=ymdInMoscow(0),data=await getMatches(date,'all',true);console.log('[startup-diagnostics]',JSON.stringify({date,total:data.matches.length,football:data.matches.filter(x=>x.sport==='football').length,leagues:data.footballLeagues}));}
-  catch(e){console.log('[startup-diagnostics-error]',e?.stack||String(e));}
+  try{
+    const date=ymdInMoscow(0),data=await getMatches(date,'all',true);
+    console.log('[startup-diagnostics]',JSON.stringify({date,total:data.matches.length,football:data.matches.filter(x=>x.sport==='football').length,leagues:data.footballLeagues}));
+    const sample=data.matches.find(x=>x.sport==='football'&&x.espnLeague);
+    if(sample){
+      try{
+        const intel=await matchIntelligence(sample.espnLeague,sample.a,sample.b,date);
+        console.log('[intelligence-selftest]',JSON.stringify({ok:true,league:sample.espnLeague,match:sample.a+' vs '+sample.b,eloA:intel.teamA.elo,eloB:intel.teamB.elo,lastA:intel.teamA.form.games.length,lastB:intel.teamB.form.games.length,pred:intel.prediction}));
+      }catch(e){console.log('[intelligence-selftest]',JSON.stringify({ok:false,match:sample.a+' vs '+sample.b,error:String(e?.message||e)}));}
+    }
+  }catch(e){console.log('[startup-diagnostics-error]',e?.stack||String(e));}
 }
 
 const server=http.createServer(async(req,res)=>{
