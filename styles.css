@@ -177,3 +177,30 @@ body:not(.reference-home) .site-header .nav a.active{background:#65121b!importan
 @media(max-width:560px){
   .hub-grid,.feature-grid,.book-grid,.route-grid,.about-grid,.people-grid,.collections-grid,.wisdom-grid,.holidays-grid{grid-template-columns:1fr!important;padding:22px 12px!important}
 }
+
+
+/* === ТЗ reference system: internal pages === */
+body:not(.tz-home){background:#f3e7d3!important;color:#2f2117!important;font-family:"Cormorant Garamond",Georgia,serif!important}
+body:not(.tz-home) .site-header{height:72px!important;background:#f8f0e1!important;color:#2f2117!important;border-bottom:1px solid rgba(99,65,34,.24)!important;padding:0 8.7vw!important}
+body:not(.tz-home) .site-header .brand{color:#6c111a!important}
+body:not(.tz-home) .site-header .brand b{font-size:24px!important;font-family:"Cormorant Garamond",Georgia,serif!important}
+body:not(.tz-home) .site-header .brand small{color:#745f4c!important}
+body:not(.tz-home) .site-header .nav{background:#f3e7d3!important}
+body:not(.tz-home) .site-header .nav a{color:#2f2117!important;border-color:#c8ae84!important}
+body:not(.tz-home) .site-header .nav a:hover,body:not(.tz-home) .site-header .nav a.active{background:#6c111a!important;color:#fff3df!important}
+.content-hero{max-width:none!important;margin:0!important;padding:58px 8.7vw 44px!important;background:linear-gradient(100deg,#f4ead8,#ead7b7)!important;border-bottom:1px solid #c8ae84!important}
+.content-hero .label{color:#9b6d35!important;font:700 9px system-ui,sans-serif!important;letter-spacing:.17em!important}
+.content-hero h1{font-size:clamp(56px,7vw,96px)!important;line-height:.9!important;color:#6c111a!important;margin:12px 0 18px!important;letter-spacing:-.04em!important;font-family:"Cormorant Garamond",Georgia,serif!important}
+.content-hero p{max-width:820px!important;font:18px/1.52 "Cormorant Garamond",Georgia,serif!important;color:#5d4938!important}
+.paper-page,.page-main,.section{background:#f3e7d3!important}
+.section{padding:50px 5vw!important}
+.section-head{border-color:#c8ae84!important}.section-head h2{color:#6c111a!important;font-family:"Cormorant Garamond",Georgia,serif!important}.section-head p{color:#745f4c!important}
+.hub-grid,.feature-grid,.book-grid,.route-grid,.about-grid,.people-grid,.collections-grid,.wisdom-grid,.holidays-grid{gap:0!important;padding:34px 5vw!important;max-width:1500px!important}
+.hub-card,.collection-card,.person-card,.route-grid article,.feature-grid article,.book-grid article,.about-grid article,.wisdom-grid article,.holidays-grid article{background:rgba(255,250,241,.52)!important;border:1px solid #c8ae84!important;border-radius:0!important;box-shadow:none!important;color:#2f2117!important;margin:-1px 0 0 -1px!important;padding:24px!important}
+.hub-card h2,.collection-card h2,.person-card h2,.feature-grid h2,.route-grid h2{color:#6c111a!important;font-size:29px!important;font-family:"Cormorant Garamond",Georgia,serif!important}
+.hub-card p,.collection-card p,.person-card p,.feature-grid p,.route-grid p{color:#745f4c!important;line-height:1.58!important}
+.pill,.status-badge,.index{border-radius:0!important;background:transparent!important;color:#9b6d35!important;border-color:#9b6d35!important}
+.text-link{color:#6c111a!important;font-weight:700!important}
+.footer{background:#191510!important;color:#eee0cd!important;border-top:0!important;padding:30px 5vw!important}.footer p,.footer small{color:#b7a596!important}
+@media(max-width:900px){body:not(.tz-home) .site-header{padding:0 18px!important}.hub-grid,.feature-grid,.book-grid,.route-grid,.about-grid,.people-grid,.collections-grid,.wisdom-grid,.holidays-grid{grid-template-columns:1fr 1fr!important}}
+@media(max-width:560px){.hub-grid,.feature-grid,.book-grid,.route-grid,.about-grid,.people-grid,.collections-grid,.wisdom-grid,.holidays-grid{grid-template-columns:1fr!important;padding:22px 12px!important}}
