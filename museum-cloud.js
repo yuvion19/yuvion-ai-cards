@@ -16,12 +16,13 @@ window.initMuseumCloud=async function(){
    const live=await C.select("museum_content","select=slug,content_type,title,subtitle,summary,category,tags,year_start,year_end,city,source_title,source_url,media_url,thumbnail_url,verification_status,confidence&published=eq.true&order=title.asc&limit=1000");
    if(Array.isArray(live)&&live.length) all=live;
  }catch(e){console.warn("Using static museum catalog fallback",e)}
+ all=all.filter(x=>x.content_type!=="source");
  window.NITI_ACTIVE_CATALOG=all;
 
- const typeName={place:"Место",photo:"Фото",person:"Личность",book:"Книга",source:"Источник",article:"Статья",recipe:"Кухня",juhuri_word:"Джуури",juhuri_phrase:"Джуури",proverb:"Мудрость",object:"Предмет",audio:"Аудио",video:"Видео"};
+ const typeName={place:"Место",photo:"Фото",person:"Личность",book:"Книга",article:"Статья",recipe:"Кухня",juhuri_word:"Джуури",juhuri_phrase:"Джуури",proverb:"Мудрость",object:"Предмет",audio:"Аудио",video:"Видео"};
  const card=x=>`<article class="collection-card cloud-card">${x.thumbnail_url?`<img class="cloud-thumb" src="${esc(x.thumbnail_url)}" alt="" loading="lazy">`:""}<span class="pill">${esc(typeName[x.content_type]||x.content_type)} · ${esc(x.verification_status||"")}</span><h2>${esc(x.title)}</h2>${x.subtitle?`<p><strong>${esc(x.subtitle)}</strong></p>`:""}<p>${esc(x.summary||"")}</p><small>${esc([x.city,x.category,x.source_title].filter(Boolean).join(" · "))}</small>${x.source_url?`<a class="text-link block-link" target="_blank" rel="noopener" href="${esc(x.source_url)}">Источник ↗</a>`:""}</article>`;
 
- const counts={all:all.length,books:all.filter(x=>x.content_type==="book").length,people:all.filter(x=>x.content_type==="person").length,sources:all.filter(x=>x.content_type==="source").length};
+ const counts={all:all.length,books:all.filter(x=>x.content_type==="book").length,people:all.filter(x=>x.content_type==="person").length};
  Object.entries(counts).forEach(([k,v])=>document.querySelectorAll('[data-cloud-stat="'+k+'"]').forEach(e=>e.textContent=v));
 
  const featured=q("#cloud-featured");
@@ -48,7 +49,7 @@ window.initMuseumCloud=async function(){
    const out=q("#cloud-search-results");
    const run=()=>{
      const term=search.value.trim().toLowerCase(),t=searchType?.value||"";
-     const map={book:["book","source"],dish:["recipe"],word:["juhuri_word","juhuri_phrase"],place:["place"],person:["person"],organization:["article"],tradition:["article"],poetry:["article"],history:["article"]},types=map[t]||null;
+     const map={book:["book"],dish:["recipe"],word:["juhuri_word","juhuri_phrase"],place:["place"],person:["person"],organization:["article"],tradition:["article"],poetry:["article"],history:["article"]},types=map[t]||null;
      const hit=term?all.filter(x=>(!types||types.includes(x.content_type))&&(x.title+" "+(x.subtitle||"")+" "+(x.summary||"")+" "+(x.category||"")+" "+(x.city||"")).toLowerCase().includes(term)).slice(0,100):[];
      if(out)out.innerHTML=hit.length?'<h2 class="cloud-search-title">Облачный музейный каталог</h2>'+hit.map(x=>`<div class="search-hit"><strong>${esc(x.title)}</strong><span>${esc((x.summary||"").slice(0,220))}</span>${x.source_url?`<a class="text-link" target="_blank" rel="noopener" href="${esc(x.source_url)}">Источник ↗</a>`:""}</div>`).join(""):"";
    };
@@ -58,12 +59,12 @@ window.initMuseumCloud=async function(){
  const path=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";
  const matchers={
   "/people/":x=>x.content_type==="person",
-  "/library/":x=>["book","source"].includes(x.content_type),
+  "/library/":x=>x.content_type==="book",
   "/red-sloboda/":x=>x.content_type==="place",
   "/juuri/":x=>["juhuri_word","juhuri_phrase"].includes(x.content_type)||((x.tags||[]).includes("джуури")),
   "/kitchen/":x=>x.content_type==="recipe",
   "/photos/":x=>x.content_type==="photo",
-  "/archive/":x=>["photo","book","source","audio","video"].includes(x.content_type),
+  "/archive/":x=>["photo","book","audio","video","object"].includes(x.content_type),
   "/organizations/":x=>x.category==="организации"||x.category==="современная жизнь",
   "/poetry/":x=>x.category==="литература"||((x.tags||[]).includes("поэзия")),
   "/calendar/":x=>x.category==="календарь",
@@ -76,7 +77,7 @@ window.initMuseumCloud=async function(){
    const hit=all.filter(fn).slice(0,120);
    if(hit.length){
      const sec=document.createElement("section");sec.className="section paper cloud-collection";
-     sec.innerHTML=`<div class="section-head" style="border-color:var(--line)"><div><span class="label teal">Музейная база</span><h2>Материалы раздела</h2></div><a class="text-link" href="/catalog/">Весь каталог ↗</a></div><div class="collections-grid">${hit.map(card).join("")}</div>`;
+     sec.innerHTML=`<div class="section-head" style="border-color:var(--line)"><div><span class="label teal">Материалы</span><h2>Материалы раздела</h2></div></div><div class="collections-grid">${hit.map(card).join("")}</div>`;
      q("main")?.appendChild(sec);
    }
  }
@@ -93,7 +94,7 @@ window.initMuseumCloud=async function(){
  q("#correction-form")?.addEventListener("submit",async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await C.insert("museum_corrections",{target_url:location.pathname,issue_text:f.get("issue"),proposed_text:f.get("proposal")||null,source_url:f.get("source")||null,contact_note:f.get("contact")||null});e.currentTarget.reset();alert("Исправление отправлено на проверку.")}catch{alert("Не удалось отправить.")}});
  q("#newsletter-form")?.addEventListener("submit",async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await C.insert("newsletter_subscriptions",{email:f.get("email"),locale:"ru"});e.currentTarget.reset();alert("Подписка сохранена.")}catch{alert("Адрес уже подписан или временно недоступен.")}});
  q("#cloud-contribute-form")?.addEventListener("submit",async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await C.insert("community_submissions",{kind:f.get("type"),title:f.get("title"),description:f.get("description")||null,source_note:f.get("source")||null,contact_note:f.get("contact")||null,rights_confirmed:!!f.get("rights")});e.currentTarget.reset();alert("Материал отправлен на модерацию.")}catch{alert("Не удалось отправить материал.")}});
- q("#museum-assistant-form")?.addEventListener("submit",e=>{e.preventDefault();const term=String(new FormData(e.currentTarget).get("q")||"").trim().toLowerCase(),out=q("#assistant-output");const hit=all.filter(x=>(x.title+" "+(x.summary||"")).toLowerCase().includes(term.split(" ")[0])).slice(0,5);out.innerHTML=hit.length?hit.map(x=>`<article class="search-hit"><strong>${esc(x.title)}</strong><span>${esc(x.summary||"")}</span>${x.source_url?`<a class="text-link" target="_blank" rel="noopener" href="${esc(x.source_url)}">Источник ↗</a>`:""}</article>`).join(""):'<p class="muted">В архиве проекта пока нет подтверждённых данных для ответа.</p>'});
+ q("#museum-assistant-form")?.addEventListener("submit",e=>{e.preventDefault();const term=String(new FormData(e.currentTarget).get("q")||"").trim().toLowerCase(),out=q("#assistant-output");const hit=all.filter(x=>(x.title+" "+(x.summary||"")).toLowerCase().includes(term.split(" ")[0])).slice(0,5);out.innerHTML=hit.length?hit.map(x=>`<article class="search-hit"><strong>${esc(x.title)}</strong><span>${esc(x.summary||"")}</span>${x.source_url?`<a class="text-link" target="_blank" rel="noopener" href="${esc(x.source_url)}">Источник ↗</a>`:""}</article>`).join(""):'<p class="muted">В материалах проекта пока нет подтверждённых данных для ответа.</p>'});
  q("#kids-toggle")?.addEventListener("click",e=>{document.body.classList.toggle("kids-mode");e.currentTarget.textContent=document.body.classList.contains("kids-mode")?"Обычный режим":"Детский режим"});
  qa("[data-read-mode]").forEach(b=>b.addEventListener("click",()=>{document.body.classList.toggle("compact-reading",b.dataset.readMode==="short");qa("[data-read-mode]").forEach(x=>x.classList.toggle("active",x===b))}));
 };

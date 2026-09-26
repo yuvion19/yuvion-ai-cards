@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const nav=q(".nav"), menu=q(".menu-btn");
   const navItems=[
     ["/history/","История"],["/juuri/","Джуури"],["/traditions/","Традиции"],
-    ["/archive/","Архив"],["/map/","Карта"],["/about/","О проекте"]
+    ["/archive/","Материалы"],["/map/","Карта"],["/about/","О проекте"]
   ];
   if(nav){
     const path=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";
