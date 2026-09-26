@@ -275,6 +275,16 @@ async function matchIntelligence(league,teamAName,teamBName,targetDate){
   let gamesA=completedTeamGames(schA,teamA.id,before),gamesB=completedTeamGames(schB,teamB.id,before);
   if(gamesA.length<3||gamesB.length<3){
     try{
+      const [schA2,schB2]=await Promise.all([
+        fetchJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/teams/${teamA.id}/schedule`,10000),
+        fetchJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/teams/${teamB.id}/schedule`,10000)
+      ]);
+      if(gamesA.length<3)gamesA=completedTeamGames(schA2,teamA.id,before);
+      if(gamesB.length<3)gamesB=completedTeamGames(schB2,teamB.id,before);
+    }catch(e){}
+  }
+  if(gamesA.length<3||gamesB.length<3){
+    try{
       const rangeEvents=await leagueHistoryRange(league,targetDate);
       if(gamesA.length<3)gamesA=completedFromParsedEvents(rangeEvents,teamA.id,teamA.displayName||teamAName,before);
       if(gamesB.length<3)gamesB=completedFromParsedEvents(rangeEvents,teamB.id,teamB.displayName||teamBName,before);
