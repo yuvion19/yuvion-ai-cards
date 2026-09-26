@@ -3,136 +3,271 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#f3e7d3">
-<meta name="description" content="Нити Памяти — цифровой музей истории, языка и традиций горских евреев.">
-<link rel="stylesheet" href="/styles.css">
-<script defer src="/data.js"></script>
-<script defer src="/app.js"></script>
-<title>Нити Памяти — цифровой музей</title>
-</head>
-<body class="reference-home">
+<meta name="theme-color" content="#f4ead8">
+<meta name="description" content="Нити памяти — история, язык и традиции горских евреев">
+<title>Нити памяти</title>
+<style>
+:root{
+  --paper:#f3e8d7;
+  --paper2:#ead8ba;
+  --paper3:#e6d1ad;
+  --wine:#65121b;
+  --wine2:#450b11;
+  --ink:#2b2018;
+  --muted:#705f4d;
+  --gold:#9c6d36;
+  --line:#cbb28a;
+  --black:#171410;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink)}
+body{font-family:Georgia,"Times New Roman",serif}
+a{color:inherit;text-decoration:none}
+img{display:block}
+.header{
+  height:64px;
+  display:grid;
+  grid-template-columns:310px 1fr 245px;
+  align-items:center;
+  padding:0 8.6vw;
+  background:#f6eddf;
+  border-bottom:1px solid rgba(102,72,40,.22);
+  position:sticky;top:0;z-index:50
+}
+.logo{display:flex;align-items:center;gap:12px;color:var(--wine)}
+.logoMark{width:36px;height:36px;border:1px solid var(--gold);border-radius:50%;display:grid;place-items:center;font-size:19px}
+.logo b{font-size:22px;font-weight:500;white-space:nowrap}
+.nav{display:flex;justify-content:center;gap:35px;font-size:14px;white-space:nowrap}
+.nav a:hover{color:var(--wine)}
+.actions{display:flex;justify-content:flex-end;align-items:center;gap:13px}
+.actions .search{font-size:22px}
+.support{background:var(--wine);color:#fff2df;padding:12px 17px;font-size:12px;border-radius:2px}
+.burger{display:none;font-size:22px}
 
-<header class="site-header reference-header">
-  <a class="brand" href="/">
-    <span class="reference-logo">✦</span>
-    <span><b>Нити памяти</b><small>цифровой музей</small></span>
-  </a>
-  <button class="menu-btn" aria-label="Открыть меню">☰</button>
-  <nav class="nav"></nav>
+.hero{
+  height:348px;
+  position:relative;
+  overflow:hidden;
+  background:
+    linear-gradient(90deg,rgba(244,234,216,.99) 0%,rgba(244,234,216,.94) 34%,rgba(244,234,216,.42) 58%,rgba(94,48,28,.05) 100%),
+    url("https://upload.wikimedia.org/wikipedia/commons/4/4f/Red_village_and_Guba_in_Azerbaijan.jpg") center 44%/cover no-repeat;
+}
+.hero:before{
+  content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(10deg,rgba(88,60,36,.025) 0 1px,transparent 1px 5px)
+}
+.heroText{position:absolute;left:9.2vw;top:60px;width:560px;z-index:3}
+.hero h1{margin:0;color:var(--wine);font-size:78px;line-height:.88;letter-spacing:-.045em;font-weight:600}
+.hero h2{margin:9px 0 9px;font-size:30px;line-height:1.08;font-weight:400}
+.hero p{margin:0;width:505px;font-size:15px;line-height:1.42}
+.heroBtn{display:inline-block;margin-top:18px;padding:12px 25px;background:var(--wine);color:#fff2df;font-size:13px;border-radius:2px}
+.heroPeople{position:absolute;right:0;bottom:0;width:39%;height:100%;z-index:2}
+.heroPeople:before{
+  content:"";position:absolute;right:10px;bottom:0;width:100%;height:100%;
+  background:radial-gradient(circle at 60% 58%,rgba(78,49,34,.18),transparent 48%);
+}
+.person{position:absolute;bottom:0;object-fit:cover;object-position:center top;filter:grayscale(.28) sepia(.62) saturate(.72) contrast(1.05);mix-blend-mode:multiply}
+.person.men{
+  width:180px;height:270px;right:205px;
+  -webkit-mask-image:linear-gradient(to top,#000 74%,transparent 100%);
+  mask-image:linear-gradient(to top,#000 74%,transparent 100%)
+}
+.person.girls{
+  width:212px;height:330px;right:3px;
+  -webkit-mask-image:linear-gradient(to top,#000 76%,transparent 100%);
+  mask-image:linear-gradient(to top,#000 76%,transparent 100%)
+}
+.handNote{position:absolute;right:23px;top:28px;z-index:4;color:#794f38;font-size:16px;line-height:1.2;font-style:italic;transform:rotate(-4deg)}
+
+.features{
+  height:80px;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  align-items:center;
+  padding:0 8.5vw;
+  background:#f0e2ca;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line)
+}
+.feature{height:48px;display:flex;align-items:center;gap:14px;padding:0 26px;border-right:1px solid var(--line)}
+.feature:last-child{border-right:0}
+.iconCircle{width:43px;height:43px;min-width:43px;border-radius:50%;display:grid;place-items:center;background:#9a6c37;color:#fff0d5;font-size:20px}
+.featureText{font-size:14px;line-height:1.14}
+
+.middle{height:292px;display:grid;grid-template-columns:38.5% 38% 23.5%}
+.history{
+  padding:23px 42px;
+  background:linear-gradient(120deg,#450b11,#781b25);
+  color:#f7e8d4;
+  position:relative;overflow:hidden
+}
+.history h2,.mapBlock h2,.juhuri h2,.archiveIntro h2{margin:0;font-size:32px;font-weight:400}
+.history p{margin:10px 0 22px;width:390px;font-size:14px;line-height:1.45;color:#ead7c4}
+.timeline{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 20px}
+.timeline:before{content:"";position:absolute;left:0;right:0;top:7px;height:1px;background:#d9aa61}
+.era{position:relative;padding-top:18px;font-size:11px;line-height:1.24}
+.era:before{content:"";position:absolute;top:2px;left:0;width:9px;height:9px;border:2px solid #efc77c;background:#661019;border-radius:50%}
+.era b{display:block;font-weight:400}.era span{color:#d5c2af}
+.smallBtn{display:inline-block;padding:9px 16px;border:1px solid currentColor;font-size:11px}
+
+.mapBlock{padding:22px 34px;background:#efdfc4;position:relative;overflow:hidden}
+.mapBlock h2{color:var(--wine)}
+.mapBlock p{margin:8px 0 0;width:350px;font-size:13px;line-height:1.38}
+.mapCanvas{position:absolute;left:18px;right:0;bottom:0;height:198px}
+.mapCanvas svg{width:100%;height:100%}
+.mapLabel{font:12px Georgia,serif;fill:#5d4735}
+.mapDot{fill:#71141d;stroke:#f8e7cb;stroke-width:3}
+.mapButton{position:absolute;left:35px;bottom:18px;padding:9px 19px;border:1px solid #855837;background:rgba(246,235,217,.7);font-size:11px}
+
+.juhuri{padding:23px 25px;background:#f1e5ce;position:relative;overflow:hidden}
+.juhuri h2{color:var(--wine)}
+.juhuri>p{margin:5px 0 8px;font-size:12px}
+.openBook{position:absolute;left:15px;bottom:47px;width:148px;height:114px;display:flex;gap:3px;transform:rotate(-4deg)}
+.bookPage{flex:1;background:#d7c09a;border:1px solid #b6966b;padding:10px 8px;color:#654c39;font-size:11px;line-height:1.45;box-shadow:0 3px 8px rgba(52,32,16,.15)}
+.words{position:absolute;left:178px;right:12px;top:91px}
+.word{display:flex;gap:8px;align-items:flex-start;margin-bottom:9px}
+.word .sound{color:var(--wine);font-size:12px}.word b{display:block;font-size:12px}.word small{display:block;font-size:9px;color:#6c5b49}
+.juuriButton{position:absolute;left:27px;bottom:13px;padding:8px 15px;border:1px solid #94693b;font-size:11px}
+
+.archive{height:164px;display:grid;grid-template-columns:24% 1fr;background:#f4e8d4;border-top:1px solid var(--line)}
+.archiveIntro{padding:19px 0 0 3.1vw}
+.archiveIntro h2{color:var(--wine)}
+.archiveIntro p{margin:5px 0 15px;width:240px;font-size:12px;line-height:1.35}
+.archiveIntro a{display:inline-block;padding:8px 16px;border:1px solid #875938;font-size:11px}
+.gallery{display:grid;grid-template-columns:repeat(6,1fr);height:100%}
+.gallery a{position:relative;overflow:hidden;border-left:4px solid #f4e8d4}
+.gallery img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) sepia(.5) contrast(1.04)}
+.gallery a:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(57,28,16,.18),transparent 58%)}
+
+.footer{height:74px;background:var(--black);color:#eee0cd;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;padding:0 3.2vw}
+.footerLogo{display:flex;align-items:center;gap:12px;color:#d3ab69}.footerLogo b{font-size:22px;font-weight:400}
+.quote{text-align:center;font-size:15px;font-style:italic;color:#b7a596}
+.creator{justify-self:end;border-left:1px solid #413831;padding-left:34px}.creator small,.creator strong{display:block}.creator small{font-size:9px;color:#9a8d7f;text-transform:uppercase}.creator strong{font-size:14px;margin-top:3px;font-weight:400}
+
+@media(max-width:1100px){
+  .header{grid-template-columns:1fr auto;padding:0 20px}.nav,.support{display:none}.burger{display:block}
+  .hero{height:500px}.heroText{left:28px;top:53px;width:55%}.hero h1{font-size:66px}.heroPeople{width:46%}
+  .features{height:auto;grid-template-columns:repeat(2,1fr);padding:10px 20px}.feature{border-right:0;border-bottom:1px solid var(--line);min-height:60px}
+  .middle{height:auto;grid-template-columns:1fr}.history,.mapBlock,.juhuri{min-height:300px}
+  .archive{height:auto;grid-template-columns:1fr}.archiveIntro{padding:24px}.gallery{height:260px;grid-template-columns:repeat(3,1fr)}
+  .footer{height:auto;min-height:110px;grid-template-columns:1fr 1fr;padding:20px}.quote{display:none}
+}
+@media(max-width:650px){
+  .header{height:60px}.logo b{font-size:19px}
+  .hero{height:620px;background-position:center}.heroText{left:20px;right:20px;top:38px;width:auto}.hero h1{font-size:56px}.hero h2{font-size:24px}.hero p{width:auto}
+  .heroPeople{width:100%;height:300px;bottom:0}.person.men{right:126px;width:148px;height:225px}.person.girls{right:3px;width:170px;height:260px}
+  .features{grid-template-columns:1fr}.history,.mapBlock,.juhuri{padding:24px 20px}.history p,.mapBlock p{width:auto}
+  .gallery{grid-template-columns:repeat(2,1fr);height:330px}.footer{grid-template-columns:1fr}.creator{justify-self:start;border-left:0;padding-left:0;margin-top:10px}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a class="logo" href="/"><span class="logoMark">✦</span><b>Нити памяти</b></a>
+  <nav class="nav">
+    <a href="/history/">История</a>
+    <a href="/juuri/">Джуури</a>
+    <a href="/traditions/">Традиции</a>
+    <a href="/archive/">Архив</a>
+    <a href="/map/">Карта</a>
+    <a href="/about/">О проекте</a>
+  </nav>
+  <div class="actions">
+    <a class="search" href="/search/">⌕</a>
+    <a class="support" href="/contribute/">Поддержать проект</a>
+    <span class="burger">☰</span>
+  </div>
 </header>
 
-<main>
-  <section class="ref-hero">
-    <div class="ref-hero-copy">
-      <span class="ref-kicker">Горские евреи · Кавказ · Джуури</span>
-      <h1>Нити<br>памяти</h1>
-      <h2>История, язык и традиции горских евреев</h2>
-      <p>Цифровой музей о людях, местах и культурной памяти — чтобы сохранить наследие и передать его будущим поколениям.</p>
-      <div class="ref-actions">
-        <a class="ref-btn solid" href="/history/">Начать путешествие</a>
-        <a class="ref-btn" href="/archive/">Открыть архив</a>
-      </div>
-    </div>
-    <figure class="ref-hero-photo">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/4/4f/Red_village_and_Guba_in_Azerbaijan.jpg" alt="Красная Слобода и Куба, Азербайджан" loading="eager">
-      <figcaption>
-        <strong>Красная Слобода</strong>
-        <span>Куба · Азербайджан</span>
-      </figcaption>
-    </figure>
-  </section>
+<section class="hero">
+  <div class="heroText">
+    <h1>Нити памяти</h1>
+    <h2>История, язык и традиции горских евреев</h2>
+    <p>Цифровой проект о наследии, людях и культуре горских евреев Кавказа — для сохранения памяти и передачи её будущим поколениям.</p>
+    <a class="heroBtn" href="/history/">Узнать историю &nbsp;→</a>
+  </div>
+  <div class="heroPeople">
+    <img class="person men" src="https://upload.wikimedia.org/wikipedia/commons/e/ed/Mountain_jewish_men.jpg" alt="">
+    <img class="person girls" src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Jewish_Girls_of_the_Caucasus%2C_1913.jpg" alt="">
+    <div class="handNote">Память<br>объединяет<br>поколения</div>
+  </div>
+</section>
 
-  <section class="ref-intro-strip">
-    <span>История народа</span>
-    <i></i>
-    <p>Музей построен как путешествие: от исторической родины и языка — к архивам, культуре и памяти.</p>
-  </section>
+<section class="features">
+  <div class="feature"><span class="iconCircle">▤</span><span class="featureText">Реальные истории<br>людей</span></div>
+  <div class="feature"><span class="iconCircle">▧</span><span class="featureText">Уникальные архивные<br>материалы</span></div>
+  <div class="feature"><span class="iconCircle">✡</span><span class="featureText">Интерактивная карта<br>общин</span></div>
+  <div class="feature"><span class="iconCircle">◧</span><span class="featureText">Язык джуури<br>и устное наследие</span></div>
+  <div class="feature"><span class="iconCircle">♙</span><span class="featureText">Традиции, обычаи<br>и культура</span></div>
+</section>
 
-  <section class="ref-history">
-    <div class="ref-history-copy">
-      <span class="ref-kicker light">История</span>
-      <h2>Путь через века</h2>
-      <p>Горские евреи веками жили на Кавказе, создавая общины, язык, литературную и религиозную традицию. Здесь история раскрывается через документы, людей и места.</p>
-      <div class="ref-era-list">
-        <a href="/history/"><b>01</b><span><strong>Истоки и Кавказ</strong><small>ранние общины и исторический контекст</small></span></a>
-        <a href="/red-sloboda/"><b>02</b><span><strong>Красная Слобода</strong><small>город, синагоги, дома и общественная жизнь</small></span></a>
-        <a href="/history/"><b>03</b><span><strong>XX век</strong><small>образование, литература и перемены</small></span></a>
-        <a href="/communities/"><b>04</b><span><strong>Диаспора</strong><small>общины в разных странах мира</small></span></a>
-      </div>
-      <a class="ref-text-link light" href="/history/">Открыть историю →</a>
+<section class="middle">
+  <article class="history">
+    <h2>История</h2>
+    <p>Путь горских евреев сквозь века — от древних поселений до наших дней.</p>
+    <div class="timeline">
+      <div class="era"><b>XV–XVIII вв.</b><span>Жизнь на Кавказе</span></div>
+      <div class="era"><b>XIX век</b><span>Общины и города</span></div>
+      <div class="era"><b>XX век</b><span>Перемены эпохи</span></div>
+      <div class="era"><b>Сегодня</b><span>Новые горизонты</span></div>
     </div>
-    <div class="ref-map-panel">
-      <span class="ref-kicker">Карта общин</span>
-      <h3>Кавказ и дороги памяти</h3>
-      <div class="ref-map-art" aria-label="Схематическая карта общин">
-        <svg viewBox="0 0 640 420" role="img">
-          <path d="M108 74 C179 43 235 74 284 65 C362 52 429 89 515 75 C548 108 536 143 569 173 C525 206 523 248 486 279 C428 326 350 319 295 348 C245 321 196 336 145 304 C118 270 83 235 91 196 C63 153 79 112 108 74Z" fill="#d9c6a6" stroke="#9a7b58" stroke-width="2"/>
-          <path d="M149 121 C205 151 247 145 305 126 M180 262 C246 236 331 246 429 207 M300 104 C320 163 336 226 340 300" fill="none" stroke="#b1926f" stroke-width="1.5" stroke-dasharray="6 8"/>
-          <g class="map-pin"><circle cx="420" cy="132" r="8"/><text x="435" y="137">Дербент</text></g>
-          <g class="map-pin"><circle cx="355" cy="204" r="8"/><text x="370" y="209">Красная Слобода</text></g>
-          <g class="map-pin"><circle cx="383" cy="225" r="6"/><text x="397" y="230">Куба</text></g>
-          <g class="map-pin"><circle cx="268" cy="264" r="8"/><text x="282" y="269">Баку</text></g>
-        </svg>
-      </div>
-      <p class="ref-map-note">География музея связывает общины, маршруты, документы и личные истории.</p>
-      <a class="ref-text-link" href="/map/">Открыть карту →</a>
-    </div>
-  </section>
+    <a class="smallBtn" href="/history/">Интерактивная хронология &nbsp;→</a>
+  </article>
 
-  <section class="ref-juhuri">
-    <figure class="ref-juhuri-photo">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/3/35/Mountain_Jews_Guba.jpg" alt="Занятие в горско-еврейской школе в Кубе, начало 1920-х">
-      <figcaption>Горско-еврейская школа в Кубе · начало 1920-х · общественное достояние</figcaption>
-    </figure>
-    <div class="ref-juhuri-copy">
-      <span class="ref-kicker">Язык джуури</span>
-      <h2>Язык, который хранит память</h2>
-      <p>Джуури — один из центральных элементов культурной памяти горских евреев. В музее собраны словари, учебники, литературные издания и отдельные языковые карточки.</p>
-      <div class="ref-word-grid">
-        <div><strong>Шолум</strong><span>приветствие</span></div>
-        <div><strong>астара</strong><span>звезда</span></div>
-        <div><strong>бирор</strong><span>брат</span></div>
-      </div>
-      <a class="ref-btn solid" href="/juuri/">Открыть раздел джуури</a>
+  <article class="mapBlock">
+    <h2>Карта общин</h2>
+    <p>Исторические места компактного проживания и культурной памяти горских евреев.</p>
+    <div class="mapCanvas">
+      <svg viewBox="0 0 610 210" aria-hidden="true">
+        <path d="M24 52 C91 20 154 37 219 31 C310 21 390 35 471 24 C529 37 554 67 587 98 C544 124 519 157 459 169 C392 191 318 176 258 186 C193 173 133 185 86 164 C44 138 22 97 24 52Z" fill="#dbc7a7" stroke="#b19470" stroke-width="1.5"/>
+        <path d="M95 60 C166 95 253 92 331 71 M126 148 C224 122 333 128 486 92 M318 47 C322 95 327 131 333 175" fill="none" stroke="#c2a47f" stroke-dasharray="5 6"/>
+        <g><circle class="mapDot" cx="360" cy="78" r="6"/><text class="mapLabel" x="371" y="82">Дербент</text></g>
+        <g><circle class="mapDot" cx="405" cy="112" r="6"/><text class="mapLabel" x="416" y="116">Куба</text></g>
+        <g><circle class="mapDot" cx="358" cy="132" r="6"/><text class="mapLabel" x="369" y="136">Красная Слобода</text></g>
+        <g><circle class="mapDot" cx="478" cy="146" r="6"/><text class="mapLabel" x="489" y="150">Баку</text></g>
+      </svg>
     </div>
-  </section>
+    <a class="mapButton" href="/map/">Открыть карту &nbsp;→</a>
+  </article>
 
-  <section class="ref-archive">
-    <div class="ref-archive-head">
-      <div><span class="ref-kicker">Архив памяти</span><h2>Люди, документы и фотографии</h2></div>
-      <a class="ref-text-link" href="/archive/">Смотреть весь архив →</a>
+  <article class="juhuri">
+    <h2>Джуури</h2>
+    <p>Язык, который хранит память поколений.</p>
+    <div class="openBook">
+      <div class="bookPage">א ב ג<br>שלום<br><br>джуури<br>язык<br>памяти</div>
+      <div class="bookPage">Juhuri<br>Словарь<br><br>слова<br>и<br>истории</div>
     </div>
-    <div class="ref-photo-row">
-      <a href="/people/" class="ref-photo-card tall">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/e/ed/Mountain_jewish_men.jpg" alt="Горские евреи Кавказа, около 1900 года">
-        <span><b>Люди</b><small>около 1900 года</small></span>
-      </a>
-      <a href="/archive/" class="ref-photo-card">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/3/35/Mountain_Jews_Guba.jpg" alt="Школа горских евреев в Кубе">
-        <span><b>Образование</b><small>Куба · 1920-е</small></span>
-      </a>
-      <a href="/culture/" class="ref-photo-card">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Jewish_Girls_of_the_Caucasus%2C_1913.jpg" alt="Горские еврейки Кавказа до 1913 года">
-        <span><b>Культура</b><small>Кавказ · до 1913</small></span>
-      </a>
-      <a href="/library/" class="ref-photo-card text-card">
-        <span class="ref-kicker">Библиотека</span>
-        <strong>Книги, рукописи, пресса и исследования</strong>
-        <small>Перейти в библиотеку →</small>
-      </a>
+    <div class="words">
+      <div class="word"><span class="sound">◖</span><span><b>Шолум</b><small>приветствие</small></span></div>
+      <div class="word"><span class="sound">◖</span><span><b>астара</b><small>звезда</small></span></div>
+      <div class="word"><span class="sound">◖</span><span><b>бирор</b><small>брат</small></span></div>
     </div>
-    <p class="ref-attribution">Архивные изображения: Wikimedia Commons. Фотография Красной Слободы: Asif Masimov, CC BY-SA 3.0; исторические изображения — public domain.</p>
-  </section>
+    <a class="juuriButton" href="/juuri/">Изучать джуури &nbsp;→</a>
+  </article>
+</section>
 
-  <section class="ref-closing">
-    <span>Память — это то, что связывает поколения.</span>
-    <a href="/about/">О проекте</a>
-  </section>
-</main>
+<section class="archive">
+  <div class="archiveIntro">
+    <h2>Архив памяти</h2>
+    <p>Семейные фотографии, документы и истории, которые нельзя потерять.</p>
+    <a href="/archive/">Открыть архив &nbsp;→</a>
+  </div>
+  <div class="gallery">
+    <a href="/people/"><img src="https://upload.wikimedia.org/wikipedia/commons/e/ed/Mountain_jewish_men.jpg" alt="Архивное фото"></a>
+    <a href="/juuri/"><img src="https://upload.wikimedia.org/wikipedia/commons/3/35/Mountain_Jews_Guba.jpg" alt="Горско-еврейская школа в Кубе"></a>
+    <a href="/culture/"><img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Jewish_Girls_of_the_Caucasus%2C_1913.jpg" alt="Архивное фото"></a>
+    <a href="/red-sloboda/"><img src="https://upload.wikimedia.org/wikipedia/commons/4/4f/Red_village_and_Guba_in_Azerbaijan.jpg" alt="Красная Слобода"></a>
+    <a href="/library/"><img src="https://upload.wikimedia.org/wikipedia/commons/e/ed/Mountain_jewish_men.jpg" alt="Архивное фото"></a>
+    <a href="/archive/"><img src="https://upload.wikimedia.org/wikipedia/commons/3/35/Mountain_Jews_Guba.jpg" alt="Архивное фото"></a>
+  </div>
+</section>
 
-<footer class="footer reference-footer">
-  <div><b>Нити памяти</b><p>Цифровой музей истории и культуры горских евреев.</p></div>
-  <div><small>Создатель проекта</small><strong>Давидов Дон Сережович</strong><small>© 2026</small></div>
+<footer class="footer">
+  <div class="footerLogo"><span class="logoMark">✦</span><b>Нити памяти</b></div>
+  <div class="quote">«Народ жив, пока жива его память»</div>
+  <div class="creator"><small>Проект создан</small><strong>Давидов Дон Сережович</strong></div>
 </footer>
+
 </body>
 </html>
