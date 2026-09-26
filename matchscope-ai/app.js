@@ -263,16 +263,52 @@ function calc(save=true){
 
   if(save){
     const h=JSON.parse(localStorage.getItem('ms_history')||'[]');
-    h.unshift({date:new Date().toLocaleString('ru-RU'),sport:labels[sport],match:`${A} — ${B}`,summary});
+    h.unshift({date:new Date().toLocaleString('ru-RU'),createdAt:new Date().toISOString(),sport:labels[sport],sportKey:sport,match:`${A} — ${B}`,summary,probabilities:sport==='football'?[...footballMath(a,b,$('homeAdv').checked).main]:null,sourceId:selectedMatchContext?.sourceId||null,resultSource:selectedMatchContext?.espnLeague&&selectedMatchContext?.sourceId?'ESPN':(selectedMatchContext?.sourceId?'TheSportsDB':null),espnLeague:selectedMatchContext?.espnLeague||null,eventDate:selectedMatchContext?.date||null,teamA:A,teamB:B,verified:false});
     localStorage.setItem('ms_history',JSON.stringify(h.slice(0,30)));
     renderHistory();
   }
 }
 
+function scorePrediction(entry){
+  if(!entry.probabilities||entry.actual==null)return '';
+  const p=entry.probabilities.map(Number),actual=entry.actual;
+  const targets=[actual===0?1:0,actual===1?1:0,actual===2?1:0];
+  const brier=p.reduce((s,x,i)=>s+Math.pow(x-targets[i],2),0)/3;
+  const logloss=-Math.log(Math.max(0.001,p[actual]||0.001));
+  return '<small>Brier '+brier.toFixed(3)+' · LogLoss '+logloss.toFixed(3)+'</small>';
+}
 function renderHistory(){
   const h=JSON.parse(localStorage.getItem('ms_history')||'[]'),el=$('historyList');
-  if(!h.length){el.innerHTML='<div class="empty">История пока пуста. Сделайте расчёт в анализаторе.</div>';return}
-  el.innerHTML=h.map(x=>`<div class="history-item"><div><b>${escapeHTML(x.match)}</b><br><small>${escapeHTML(x.date)}</small></div><div>${escapeHTML(x.sport)}</div><div><b>${escapeHTML(x.summary)}</b></div></div>`).join('');
+  if(!h.length){el.innerHTML='<div class="empty">История пока пуста. Сделайте расчёт в анализаторе.</div>';updateModelStats(h);return}
+  el.innerHTML=h.map(x=>'<div class="history-item"><div><b>'+escapeHTML(x.match)+'</b><br><small>'+escapeHTML(x.date)+'</small></div><div>'+escapeHTML(x.sport)+(x.verified?'<br><span class="verified-badge">'+(x.correct?'✓ исход совпал':'результат проверен')+'</span>':'')+'</div><div><b>'+escapeHTML(x.summary)+'</b><br>'+scorePrediction(x)+'</div></div>').join('');
+  updateModelStats(h);
+}
+function updateModelStats(h){
+  const verified=h.filter(x=>x.verified&&Array.isArray(x.probabilities)&&x.actual!=null);
+  if(!$('brierValue'))return;
+  if(!verified.length){$('brierValue').textContent='—';$('loglossValue').textContent='—';$('verifiedValue').textContent='0';return}
+  let bs=0,ll=0;
+  verified.forEach(x=>{const t=[x.actual===0?1:0,x.actual===1?1:0,x.actual===2?1:0];bs+=x.probabilities.reduce((s,p,i)=>s+Math.pow(p-t[i],2),0)/3;ll+=-Math.log(Math.max(.001,x.probabilities[x.actual]||.001))});
+  $('brierValue').textContent=(bs/verified.length).toFixed(3);$('loglossValue').textContent=(ll/verified.length).toFixed(3);$('verifiedValue').textContent=String(verified.length);
+}
+async function verifyHistory(){
+  const h=JSON.parse(localStorage.getItem('ms_history')||'[]');
+  let changed=false;
+  for(const x of h.slice(0,15)){
+    if(x.verified||!x.sourceId||!x.eventDate||new Date(x.eventDate)>new Date())continue;
+    try{
+      const url=LIVE_API+'/api/result?source='+encodeURIComponent(x.resultSource||'')+'&id='+encodeURIComponent(x.sourceId)+'&sport='+encodeURIComponent(x.sportKey||'football')+'&league='+encodeURIComponent(x.espnLeague||'');
+      const r=await fetch(url,{cache:'no-store'});if(!r.ok)continue;
+      const d=await r.json(),e=d.event;
+      if(!e||e.state!=='post'||e.scoreA==null||e.scoreB==null)continue;
+      const a=Number(e.scoreA),b=Number(e.scoreB);
+      x.actual=a>b?0:a===b?1:2;x.verified=true;
+      x.correct=Array.isArray(x.probabilities)&&x.probabilities.indexOf(Math.max(...x.probabilities))===x.actual;
+      x.finalScore=a+':'+b;changed=true;
+    }catch(err){}
+  }
+  if(changed)localStorage.setItem('ms_history',JSON.stringify(h));
+  renderHistory();
 }
 
 function dateKey(offset=0){
@@ -335,6 +371,7 @@ $('themeBtn').onclick=()=>{document.body.classList.toggle('light');localStorage.
 $('todayBtn').onclick=()=>loadLiveMatches(0);
 $('tomorrowBtn').onclick=()=>loadLiveMatches(1);
 $('refreshLive').onclick=()=>loadLiveMatches(dayOffset);
+if($('refreshIntelligence'))$('refreshIntelligence').onclick=()=>loadIntelligence();
 $('leagueFilter').onchange=()=>{activeLeague=$('leagueFilter').value;renderMatches(activeFilter)};
 
 if(localStorage.getItem('ms_theme')==='light')document.body.classList.add('light');
@@ -354,3 +391,4 @@ renderMatches();
 renderHistory();
 calc(false);
 loadLiveMatches(0);
+verifyHistory();
