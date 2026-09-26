@@ -13,7 +13,17 @@ const FOOTBALL_LEAGUES=[
   {id:'4480',name:'Champions League',espn:'uefa.champions'},
   {id:'4481',name:'Europa League',espn:'uefa.europa'},
   {id:'4355',name:'Russian Premier League',espn:'rus.1'},
-  {id:'4346',name:'MLS',espn:'usa.1'}
+  {id:'4346',name:'MLS',espn:'usa.1'},
+  {id:'4490',name:'UEFA Nations League',espn:'uefa.nations'},
+  {id:'4562',name:'International Friendlies',espn:'fifa.friendly'},
+  {id:'5071',name:'UEFA Conference League',espn:'uefa.europa.conf'},
+  {id:'4337',name:'Eredivisie',espn:'ned.1'},
+  {id:'4344',name:'Primeira Liga',espn:'por.1'},
+  {id:'4668',name:'Saudi Pro League',espn:'ksa.1'},
+  {id:'4406',name:'Argentinian Primera Division',espn:'arg.1'},
+  {id:'4351',name:'Brazilian Serie A',espn:'bra.1'},
+  {id:'4339',name:'Turkish Super Lig',espn:'tur.1'},
+  {id:'4338',name:'Belgian Pro League',espn:'bel.1'}
 ];
 
 const OTHER_SPORTS=[
