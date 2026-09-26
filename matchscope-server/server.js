@@ -178,6 +178,31 @@ function completedTeamGames(schedule,teamId,beforeDate){
   }
   return out.sort((a,b)=>new Date(b.date)-new Date(a.date));
 }
+function date8Shift(date8,days){
+  const d=new Date(Date.UTC(Number(date8.slice(0,4)),Number(date8.slice(4,6))-1,Number(date8.slice(6,8))));
+  d.setUTCDate(d.getUTCDate()+days);
+  return String(d.getUTCFullYear())+String(d.getUTCMonth()+1).padStart(2,'0')+String(d.getUTCDate()).padStart(2,'0');
+}
+function completedFromParsedEvents(events,teamId,teamName,beforeDate){
+  const cutoff=new Date(beforeDate||Date.now()),target=normalizeName(teamName),out=[];
+  for(const m of events||[]){
+    const d=new Date(m.date||0);if(!(d<cutoff))continue;
+    let mineA=teamId&&String(m.teamIdA)===String(teamId);
+    let mineB=teamId&&String(m.teamIdB)===String(teamId);
+    if(!mineA&&!mineB){mineA=normalizeName(m.a)===target;mineB=normalizeName(m.b)===target;}
+    if(!mineA&&!mineB||m.scoreA==null||m.scoreB==null)continue;
+    const gf=Number(mineA?m.scoreA:m.scoreB),ga=Number(mineA?m.scoreB:m.scoreA);
+    if(!Number.isFinite(gf)||!Number.isFinite(ga))continue;
+    out.push({id:String(m.sourceId||m.id),date:m.date,opponent:mineA?m.b:m.a,gf,ga,result:gf>ga?'W':gf<ga?'L':'D',home:mineA});
+  }
+  return out.sort((a,b)=>new Date(b.date)-new Date(a.date));
+}
+async function leagueHistoryRange(league,date8){
+  const start=date8Shift(date8,-150);
+  const cfg=leagueByEspn(league)||{name:league,espn:league,id:league};
+  const data=await fetchJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${start}-${date8}&limit=500`,15000);
+  return (data.events||[]).map(e=>parseEspnEvent(e,cfg,'football')).filter(Boolean);
+}
 function summarizeForm(games){
   const sample=games.slice(0,8),n=sample.length||1;
   const wins=sample.filter(g=>g.result==='W').length,draws=sample.filter(g=>g.result==='D').length,losses=sample.filter(g=>g.result==='L').length;
@@ -247,7 +272,14 @@ async function matchIntelligence(league,teamAName,teamBName,targetDate){
     fetchJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/teams/${teamB.id}/schedule?season=${season}`,10000)
   ]);
   const before=targetDate&&/^\d{8}$/.test(targetDate)?`${targetDate.slice(0,4)}-${targetDate.slice(4,6)}-${targetDate.slice(6,8)}T23:59:59Z`:new Date().toISOString();
-  const gamesA=completedTeamGames(schA,teamA.id,before),gamesB=completedTeamGames(schB,teamB.id,before);
+  let gamesA=completedTeamGames(schA,teamA.id,before),gamesB=completedTeamGames(schB,teamB.id,before);
+  if(gamesA.length<3||gamesB.length<3){
+    try{
+      const rangeEvents=await leagueHistoryRange(league,targetDate);
+      if(gamesA.length<3)gamesA=completedFromParsedEvents(rangeEvents,teamA.id,teamA.displayName||teamAName,before);
+      if(gamesB.length<3)gamesB=completedFromParsedEvents(rangeEvents,teamB.id,teamB.displayName||teamBName,before);
+    }catch(e){}
+  }
   const formA=summarizeForm(gamesA),formB=summarizeForm(gamesB);
   const standingA=standings.find(x=>String(x.teamId)===String(teamA.id)),standingB=standings.find(x=>String(x.teamId)===String(teamB.id));
   const eloA=eloEstimate(formA,standingA,standings.length),eloB=eloEstimate(formB,standingB,standings.length);
