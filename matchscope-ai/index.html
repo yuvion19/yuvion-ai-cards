@@ -5,14 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b0f14" />
   <title>MatchScope AI — аналитика спортивных матчей</title>
-  <link rel="stylesheet" href="styles.css?v=20260927e" />
+  <link rel="stylesheet" href="styles.css?v=20260927f" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><b>MatchScope AI</b><small>Sports probability lab</small></div></div>
     <nav>
       <button data-scroll="matches">Матчи</button>
-      <button data-scroll="analyzer">Анализатор</button>
       <button data-scroll="stats">Статистика</button>
       <button data-scroll="history">История</button>
     </nav>
@@ -26,7 +25,7 @@
         <h1>Не угадывать исход.<br><span>Оценивать вероятность.</span></h1>
         <p>Реальное расписание + автоматическая модель 2.0: форма команд, Elo, H2H, таблица и вероятностный прогноз. Без платного API-ключа.</p>
         <div class="hero-actions">
-          <button class="primary" data-scroll="analyzer">Открыть анализатор</button>
+          <button class="primary" data-scroll="matches">Открыть матчи</button>
           <button class="secondary" data-scroll="matches">Реальные матчи</button>
         </div>
       </div>
@@ -70,28 +69,6 @@
       <p class="source-note">Футбол загружается отдельно по крупным клубным и международным турнирам: топ-лиги Европы, еврокубки, РПЛ, MLS, Бразилия, Аргентина, Саудовская Аравия, UEFA Nations League и товарищеские матчи. TheSportsDB — основной источник, ESPN — резерв.</p>
     </section>
 
-    <section id="analyzer" class="section analyzer-section">
-      <div class="section-head"><div><span class="eyebrow">РУЧНАЯ МОДЕЛЬ</span><h2>Анализатор матча</h2></div></div>
-      <div class="analyzer-layout">
-        <div class="panel inputs">
-          <label>Вид спорта<select id="sport"><option value="football">Футбол</option><option value="basketball">Баскетбол</option><option value="hockey">Хоккей</option><option value="tennis">Теннис</option></select></label>
-          <div class="two"><label>Команда / игрок 1<input id="teamA" value="Arsenal" /></label><label>Команда / игрок 2<input id="teamB" value="Liverpool" /></label></div>
-          <div class="slider-row"><label>Сила атаки / нападения <span id="atkALabel">72</span><input id="atkA" type="range" min="30" max="100" value="72"></label><label>Сила атаки / нападения <span id="atkBLabel">69</span><input id="atkB" type="range" min="30" max="100" value="69"></label></div>
-          <div class="slider-row"><label>Защита <span id="defALabel">74</span><input id="defA" type="range" min="30" max="100" value="74"></label><label>Защита <span id="defBLabel">66</span><input id="defB" type="range" min="30" max="100" value="66"></label></div>
-          <div class="slider-row"><label>Форма <span id="formALabel">76</span><input id="formA" type="range" min="20" max="100" value="76"></label><label>Форма <span id="formBLabel">64</span><input id="formB" type="range" min="20" max="100" value="64"></label></div>
-          <label class="check"><input id="homeAdv" type="checkbox" checked> Домашнее преимущество для первой команды</label>
-          <button id="calcBtn" class="primary wide">Рассчитать и сохранить</button>
-        </div>
-
-        <div class="panel result-panel">
-          <div class="result-title"><div><small id="sportName">Футбол</small><h3><span id="outA">Arsenal</span> — <span id="outB">Liverpool</span></h3></div><span id="confidence" class="confidence">Средняя уверенность</span></div>
-          <div id="primaryResult" class="primary-result"></div>
-          <div id="secondaryResult" class="secondary-result"></div>
-          <div class="explain"><h4>Почему такой прогноз</h4><div id="factors"></div></div>
-        </div>
-      </div>
-    </section>
-
     <section id="stats" class="section">
       <div class="section-head"><div><span class="eyebrow">КАЧЕСТВО МОДЕЛИ</span><h2>Статистика</h2></div></div>
       <div class="stats-grid">
@@ -116,8 +93,9 @@
         <button id="mcClose" class="icon-btn mc-close" aria-label="Закрыть">×</button>
       </div>
       <div id="mcScore" class="mc-score"></div>
-      <div class="mc-actions"><button id="mcToAnalyzer" class="secondary">Открыть в ручном анализаторе</button><button id="mcRefresh" class="secondary">Обновить данные</button></div>
+      <div class="mc-actions"><button id="mcRefresh" class="secondary">Обновить данные</button></div>
       <div class="mc-grid">
+        <section class="mc-card mc-wide mc-analysis-card"><div class="mc-analysis-head"><div><span class="eyebrow">АНАЛИЗ МАТЧА</span><h3>Вероятностная модель</h3></div><span id="mcAnalysisConfidence" class="confidence"></span></div><div id="mcAnalysis"></div></section>
         <section class="mc-card"><h3>Изменение прогноза</h3><div id="mcChart" class="mc-chart"></div></section>
         <section class="mc-card"><h3>Статистика матча</h3><div id="mcTeamStats"></div></section>
         <section class="mc-card"><h3>Составы</h3><div id="mcLineups"></div></section>
@@ -129,6 +107,6 @@
   </div>
 
   <footer><b>MatchScope AI</b><span>Реальные матчи • Match Center • вероятностная модель • бесплатный хостинг</span></footer>
-  <script src="app.js?v=20260927e"></script>
+  <script src="app.js?v=20260927f"></script>
 </body>
 </html>
