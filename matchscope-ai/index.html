@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b0f14" />
   <title>MatchScope AI — аналитика спортивных матчей</title>
-  <link rel="stylesheet" href="styles.css?v=20260927c" />
+  <link rel="stylesheet" href="styles.css?v=20260927d" />
 </head>
 <body>
   <header class="topbar">
@@ -24,7 +24,7 @@
       <div>
         <span class="eyebrow">ВЕРОЯТНОСТНАЯ СПОРТИВНАЯ АНАЛИТИКА</span>
         <h1>Не угадывать исход.<br><span>Оценивать вероятность.</span></h1>
-        <p>Реальное расписание матчей + интерактивная модель для футбола, баскетбола, хоккея и тенниса. Без платного API-ключа.</p>
+        <p>Реальное расписание + автоматическая модель 2.0: форма команд, Elo, H2H, таблица и вероятностный прогноз. Без платного API-ключа.</p>
         <div class="hero-actions">
           <button class="primary" data-scroll="analyzer">Открыть анализатор</button>
           <button class="secondary" data-scroll="matches">Реальные матчи</button>
@@ -67,7 +67,7 @@
     </section>
 
     <section id="analyzer" class="section analyzer-section">
-      <div class="section-head"><div><span class="eyebrow">ИНТЕРАКТИВНАЯ МОДЕЛЬ</span><h2>Анализатор матча</h2></div></div>
+      <div class="section-head"><div><span class="eyebrow">MATCHSCOPE 2.0</span><h2>Анализатор матча</h2></div><button id="refreshIntelligence" class="secondary">Обновить авто-анализ</button></div><div id="autoIntelligence" class="panel auto-intelligence"><div class="intel-state">Выберите реальный футбольный матч — система автоматически загрузит форму, Elo, таблицу и H2H.</div></div>
       <div class="analyzer-layout">
         <div class="panel inputs">
           <label>Вид спорта<select id="sport"><option value="football">Футбол</option><option value="basketball">Баскетбол</option><option value="hockey">Хоккей</option><option value="tennis">Теннис</option></select></label>
@@ -91,10 +91,10 @@
     <section id="stats" class="section">
       <div class="section-head"><div><span class="eyebrow">КАЧЕСТВО МОДЕЛИ</span><h2>Статистика</h2></div></div>
       <div class="stats-grid">
-        <div class="stat-card"><small>Brier Score</small><strong>0.186</strong><p>Демонстрационная метрика. Ниже — лучше.</p></div>
-        <div class="stat-card"><small>Log Loss</small><strong>0.548</strong><p>Демонстрационная оценка качества вероятностей.</p></div>
-        <div class="stat-card"><small>Calibration</small><strong>0.93</strong><p>Показывает идею калибровки вероятностей.</p></div>
-        <div class="stat-card"><small>Mode</small><strong>LIVE</strong><p>Расписание реальное, модель прогнозов работает отдельно.</p></div>
+        <div class="stat-card"><small>Brier Score</small><strong id="brierValue">—</strong><p>Считается только по реально завершённым прогнозам. Ниже — лучше.</p></div>
+        <div class="stat-card"><small>Log Loss</small><strong id="loglossValue">—</strong><p>Реальная оценка качества сохранённых вероятностей после финального результата.</p></div>
+        <div class="stat-card"><small>Проверено прогнозов</small><strong id="verifiedValue">0</strong><p>История автоматически сверяется с итоговыми результатами матчей.</p></div>
+        <div class="stat-card"><small>Model</small><strong>2.0</strong><p>Elo + последние матчи + таблица + Poisson. Ручные параметры остаются доступными.</p></div>
       </div>
       <div class="panel calibration"><h3>Калибровка вероятностей</h3><p>Если модель даёт событию 70%, оно не обязано происходить в конкретном матче. На большой выборке события с оценкой около 70% должны происходить примерно в 7 случаях из 10.</p><div class="cal-bars"><div><span>50%</span><i style="height:50%"></i><small>48%</small></div><div><span>60%</span><i style="height:60%"></i><small>61%</small></div><div><span>70%</span><i style="height:70%"></i><small>68%</small></div><div><span>80%</span><i style="height:80%"></i><small>82%</small></div><div><span>90%</span><i style="height:90%"></i><small>88%</small></div></div></div>
     </section>
@@ -106,6 +106,6 @@
   </main>
 
   <footer><b>MatchScope AI</b><span>Реальные матчи • вероятностная модель • бесплатный хостинг</span></footer>
-  <script src="app.js?v=20260927c"></script>
+  <script src="app.js?v=20260927d"></script>
 </body>
 </html>
