@@ -13,11 +13,8 @@ const SOURCES = [
   { sport:'football', apiSport:'soccer', league:'fra.1', name:'Ligue 1' },
   { sport:'football', apiSport:'soccer', league:'uefa.champions', name:'Champions League' },
   { sport:'football', apiSport:'soccer', league:'uefa.europa', name:'Europa League' },
-  { sport:'football', apiSport:'soccer', league:'rus.1', name:'Russian Premier League' },
   { sport:'basketball', apiSport:'basketball', league:'nba', name:'NBA' },
-  { sport:'hockey', apiSport:'hockey', league:'nhl', name:'NHL' },
-  { sport:'tennis', apiSport:'tennis', league:'atp', name:'ATP' },
-  { sport:'tennis', apiSport:'tennis', league:'wta', name:'WTA' }
+  { sport:'hockey', apiSport:'hockey', league:'nhl', name:'NHL' }
 ];
 
 function cors(res) {
@@ -77,42 +74,86 @@ async function fetchSource(source, date) {
   const bases = ['https://site.api.espn.com','https://site.web.api.espn.com'];
   let lastErr;
   for (const base of bases) {
+    const url = `${base}/apis/site/v2/sports/${source.apiSport}/${source.league}/scoreboard?dates=${date}&limit=200`;
     try {
-      const url = `${base}/apis/site/v2/sports/${source.apiSport}/${source.league}/scoreboard?dates=${date}&limit=200`;
-      const r = await fetch(url, {headers:{'User-Agent':'Mozilla/5.0 MatchScope/1.0'}});
+      const r = await fetch(url, {headers:{'User-Agent':'Mozilla/5.0 MatchScope/1.0'}, signal:AbortSignal.timeout(10000)});
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
-      return (data.events || []).map(e=>parseEvent(e, source)).filter(Boolean);
-    } catch (e) { lastErr = e; }
+      return {items:(data.events || []).map(e=>parseEvent(e, source)).filter(Boolean), url};
+    } catch (e) {
+      lastErr = new Error(`${source.name}: ${e?.message || e}`);
+    }
   }
-  throw lastErr || new Error('source failed');
+  throw lastErr || new Error(source.name + ': source failed');
 }
 
-async function getMatches(date, sport='all') {
-  const key = `${date}:${sport}`;
+async function getMatches(date, sport='all', withDiagnostics=false) {
+  const key = `${date}:${sport}:${withDiagnostics?'debug':'normal'}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.time < CACHE_TTL) return hit.data;
   const selected = SOURCES.filter(s=>sport==='all' || s.sport===sport);
   const settled = await Promise.allSettled(selected.map(s=>fetchSource(s,date)));
-  const matches = settled.flatMap(x=>x.status==='fulfilled'?x.value:[]);
-  const failed = settled.filter(x=>x.status==='rejected').length;
+  const matches = [];
+  const diagnostics = [];
+  settled.forEach((result,idx)=>{
+    const source=selected[idx];
+    if(result.status==='fulfilled'){
+      matches.push(...result.value.items);
+      diagnostics.push({name:source.name,sport:source.sport,ok:true,count:result.value.items.length,url:result.value.url});
+    }else{
+      diagnostics.push({name:source.name,sport:source.sport,ok:false,count:0,error:String(result.reason?.message||result.reason)});
+    }
+  });
+  const failed = diagnostics.filter(x=>!x.ok).length;
   matches.sort((x,y)=>new Date(x.date||0)-new Date(y.date||0));
   const data = {date,sport,matches,sourceCount:selected.length,failedSources:failed,updatedAt:new Date().toISOString()};
+  if(withDiagnostics) data.diagnostics=diagnostics;
   cache.set(key,{time:Date.now(),data});
   return data;
+}
+
+function ymdInMoscow(offsetDays=0){
+  const now=new Date(Date.now()+offsetDays*86400000);
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+  const map=Object.fromEntries(parts.map(p=>[p.type,p.value]));
+  return `${map.year}${map.month}${map.day}`;
+}
+
+async function startupDiagnostics(){
+  const date=ymdInMoscow(0);
+  try{
+    const data=await getMatches(date,'all',true);
+    console.log('[startup-diagnostics]',JSON.stringify({
+      date,
+      total:data.matches.length,
+      failed:data.failedSources,
+      sources:data.diagnostics.map(x=>({name:x.name,ok:x.ok,count:x.count,error:x.error||null}))
+    }));
+  }catch(e){
+    console.log('[startup-diagnostics-error]',e?.stack||String(e));
+  }
 }
 
 const server = http.createServer(async (req,res)=>{
   if (req.method === 'OPTIONS') { cors(res); res.writeHead(204); return res.end(); }
   const u = new URL(req.url, `http://${req.headers.host}`);
+  console.log('[request]',req.method,u.pathname,u.search);
   if (u.pathname === '/health') return send(res,200,{ok:true,time:new Date().toISOString()});
   if (u.pathname === '/api/matches') {
     const date = (u.searchParams.get('date') || '').replace(/\D/g,'');
     const sport = u.searchParams.get('sport') || 'all';
     if (!/^\d{8}$/.test(date)) return send(res,400,{error:'date must be YYYYMMDD'});
-    try { return send(res,200,await getMatches(date,sport)); }
+    try { return send(res,200,await getMatches(date,sport,false)); }
     catch(e){ return send(res,502,{error:'sports source unavailable',detail:String(e?.message||e)}); }
   }
-  return send(res,200,{name:'MatchScope Live API',ok:true,endpoints:['/api/matches?date=YYYYMMDD&sport=all']});
+  if (u.pathname === '/api/debug') {
+    const date = (u.searchParams.get('date') || ymdInMoscow(0)).replace(/\D/g,'');
+    try { return send(res,200,await getMatches(date,'all',true)); }
+    catch(e){ return send(res,502,{error:'sports source unavailable',detail:String(e?.message||e)}); }
+  }
+  return send(res,200,{name:'MatchScope Live API',ok:true,endpoints:['/api/matches?date=YYYYMMDD&sport=all','/api/debug?date=YYYYMMDD']});
 });
-server.listen(PORT,()=>console.log('MatchScope Live API listening on',PORT));
+server.listen(PORT,()=>{
+  console.log('MatchScope Live API listening on',PORT);
+  startupDiagnostics();
+});
