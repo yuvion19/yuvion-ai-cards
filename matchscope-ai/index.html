@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b0f14" />
   <title>MatchScope AI — аналитика спортивных матчей</title>
-  <link rel="stylesheet" href="styles.css?v=20260927b" />
+  <link rel="stylesheet" href="styles.css?v=20260927c" />
 </head>
 <body>
   <header class="topbar">
@@ -57,10 +57,13 @@
           <button id="todayBtn" class="filter active">Сегодня</button>
           <button id="tomorrowBtn" class="filter">Завтра</button>
         </div>
+        <div id="leagueFilterWrap" class="league-filter-wrap">
+          <select id="leagueFilter" class="league-filter"><option value="all">Все футбольные лиги</option></select>
+        </div>
         <div class="live-state"><span id="liveDot" class="live-dot loading"></span><span id="liveStatus">Подключение к данным матчей…</span><button id="refreshLive" class="secondary">Обновить</button></div>
       </div>
       <div id="matchGrid" class="match-grid"></div>
-      <p class="source-note">Расписание: TheSportsDB Free API; ESPN используется как резервный источник. Возможны задержки или временная недоступность внешних данных.</p>
+      <p class="source-note">Футбол загружается отдельно по Premier League, LaLiga, Serie A, Bundesliga, Ligue 1, Champions League, Europa League, РПЛ и MLS. TheSportsDB — основной источник, ESPN — резерв.</p>
     </section>
 
     <section id="analyzer" class="section analyzer-section">
@@ -103,6 +106,6 @@
   </main>
 
   <footer><b>MatchScope AI</b><span>Реальные матчи • вероятностная модель • бесплатный хостинг</span></footer>
-  <script src="app.js?v=20260927b"></script>
+  <script src="app.js?v=20260927c"></script>
 </body>
 </html>
