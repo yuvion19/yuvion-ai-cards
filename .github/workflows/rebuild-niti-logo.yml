@@ -1,0 +1,35 @@
+name: Rebuild Niti Logo
+on:
+  push:
+    branches: [nitipamyati]
+    paths:
+      - 'assets/.logo_parts/**'
+permissions:
+  contents: write
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: nitipamyati
+          fetch-depth: 0
+      - name: Rebuild logo when all chunks exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=11
+          actual=$(find assets/.logo_parts -maxdepth 1 -type f -name 'part*.txt' 2>/dev/null | wc -l | tr -d ' ')
+          echo "logo parts: $actual/$expected"
+          if [ "$actual" -ne "$expected" ]; then
+            exit 0
+          fi
+          cat $(find assets/.logo_parts -maxdepth 1 -type f -name 'part*.txt' | sort) | base64 -d > assets/niti-logo-hq.webp
+          file assets/niti-logo-hq.webp
+          test -s assets/niti-logo-hq.webp
+          rm -rf assets/.logo_parts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/niti-logo-hq.webp assets/.logo_parts
+          git commit -m "Install high-quality Niti Pamyati logo"
+          git push origin HEAD:nitipamyati
