@@ -2,6 +2,8 @@ import express from 'express';
 import multer from 'multer';
 import ExcelJS from 'exceljs';
 import sharp from 'sharp';
+import archiver from 'archiver';
+import { MultiFormatReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } from '@zxing/library';
 import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
@@ -129,6 +131,45 @@ function photoGroup(expected,maps,multi=false){
   });
   return all.slice(0,4);
 }
+function levRatio(a='',b=''){
+  a=String(a);b=String(b);
+  if(a===b)return 1;
+  if(!a.length||!b.length)return 0;
+  const prev=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    let left=i,diag=i-1;
+    for(let j=1;j<=b.length;j++){
+      const up=prev[j];
+      const cur=Math.min(up+1,left+1,diag+(a[i-1]===b[j-1]?0:1));
+      prev[j]=cur;diag=up;left=cur;
+    }
+  }
+  return 1-prev[b.length]/Math.max(a.length,b.length);
+}
+function smartMatch(expected,files){
+  const n=normalizeName(expected), compact=n.stem.replace(/[^a-zа-яё0-9]/gi,'');
+  const nums=n.stem.match(/\d+/g)||[];
+  let best=null,bestScore=0;
+  for(const f of files){
+    const x=normalizeName(f.name);
+    const xc=x.stem.replace(/[^a-zа-яё0-9]/gi,'');
+    const xnums=x.stem.match(/\d+/g)||[];
+    let score=0;
+    if(x.key===n.key)score=100;
+    else if(x.stem===n.stem)score=99;
+    else if(variantBase(x.stem)===variantBase(n.stem))score=98;
+    else if(compact&&xc===compact)score=97;
+    else if(nums.length===1&&xnums.length===1&&nums[0].length>=3&&nums[0]===xnums[0])score=94;
+    else{
+      const ratio=levRatio(n.stem,x.stem);
+      if(ratio>=0.94)score=93;
+      else if(ratio>=0.9)score=89;
+      else if(n.stem.length>=4&&(x.stem.startsWith(n.stem)||n.stem.startsWith(x.stem)))score=87;
+    }
+    if(score>bestScore){best=f;bestScore=score;}
+  }
+  return best?{item:best,score:bestScore}:null;
+}
 function cellText(cell){
   const v=cell.value;
   if(v==null) return '';
@@ -185,14 +226,49 @@ async function readWorkbookInfo(inputPath,fileColumn,nameColumn,files,multiPhoto
   }
   return {sheet:ws.name,total,found,missing,duplicates,multiPhotoProducts:multi,blankFileNames,missingRows,duplicateRows};
 }
+async function fetchImageBuffer(url){
+  const r=await fetch(url,{headers:{'User-Agent':'PhotoExcel/6.0'}});
+  if(!r.ok)throw new Error('Фото HTTP '+r.status);
+  return Buffer.from(await r.arrayBuffer());
+}
 async function toJpegBuffer(url){
-  const r=await fetch(url,{headers:{'User-Agent':'PhotoExcel/3.0'}});
-  if(!r.ok) throw new Error('Фото HTTP '+r.status);
-  const input=Buffer.from(await r.arrayBuffer());
+  const input=await fetchImageBuffer(url);
   return sharp(input).rotate().resize({width:160,height:160,fit:'inside',withoutEnlargement:true})
     .jpeg({quality:60,mozjpeg:true}).toBuffer();
 }
-function analyzeFiles(files){
+async function inspectImage(url){
+  const input=await fetchImageBuffer(url);
+  const img=sharp(input,{failOn:'none'}).rotate();
+  const meta=await img.metadata();
+  const stat=await img.clone().greyscale().resize({width:256,height:256,fit:'inside',withoutEnlargement:true}).stats();
+  const width=meta.width||0,height=meta.height||0,sharpness=Number(stat.sharpness||0),entropy=Number(stat.entropy||0);
+  const issues=[];
+  if(width<600||height<600)issues.push('Низкое разрешение');
+  if(sharpness>0&&sharpness<1.4)issues.push('Возможная размытость');
+  if(entropy>0&&entropy<2.5)issues.push('Низкая детализация');
+  return {width,height,format:meta.format||'',sharpness:Number(sharpness.toFixed(2)),entropy:Number(entropy.toFixed(2)),issues};
+}
+async function dHash(url){
+  const input=await fetchImageBuffer(url);
+  const {data,info}=await sharp(input,{failOn:'none'}).rotate().greyscale().resize(9,8,{fit:'fill'}).raw().toBuffer({resolveWithObject:true});
+  let bits='';
+  for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+    const a=data[y*info.width+x],b=data[y*info.width+x+1];
+    bits+=a>b?'1':'0';
+  }
+  let hex='';
+  for(let i=0;i<bits.length;i+=4)hex+=parseInt(bits.slice(i,i+4),2).toString(16);
+  return hex;
+}
+function hammingHex(a,b){
+  let d=0;
+  for(let i=0;i<Math.min(a.length,b.length);i++){
+    let x=parseInt(a[i],16)^parseInt(b[i],16);
+    while(x){d+=x&1;x>>=1;}
+  }
+  return d+Math.abs(a.length-b.length)*4;
+}
+async function analyzeFiles(files){
   const formats={}, normalized=new Map(), groupCounts=new Map();
   let totalBytes=0;
   for(const f of files){
