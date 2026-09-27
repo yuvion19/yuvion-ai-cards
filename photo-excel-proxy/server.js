@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import sharp from 'sharp';
 import ZXing from '@zxing/library';
 const { MultiFormatReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } = ZXing;
@@ -170,6 +171,55 @@ function smartMatch(expected,files){
   }
   return best?{item:best,score:bestScore}:null;
 }
+function escapeRegExp(s=''){return String(s).replace(/[.*+?^$()|[\]\\{}]/g,'\\function cellText(cell){');}
+function normalizeSpreadsheetXml(xml=''){
+  const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const rx=new RegExp('xmlns:([A-Za-z_][\\w.-]*)=["\\\']'+escapeRegExp(ns)+'["\\\']');
+  const m=String(xml).match(rx);
+  if(!m)return {xml:String(xml),changed:false};
+  const p=m[1], tagRe=new RegExp('<(/?)'+escapeRegExp(p)+':','g');
+  let out=String(xml).replace(tagRe,'<$1');
+  const prefRe=new RegExp('\\s+xmlns:'+escapeRegExp(p)+'=["\\\']'+escapeRegExp(ns)+'["\\\']');
+  if(new RegExp('xmlns=["\\\']'+escapeRegExp(ns)+'["\\\']').test(out)) out=out.replace(prefRe,'');
+  else out=out.replace(prefRe,' xmlns="'+ns+'"');
+  return {xml:out,changed:out!==xml};
+}
+async function repairWorkbookXml(inputPath){
+  const buf=await fs.readFile(inputPath);
+  const zip=await JSZip.loadAsync(buf);
+  let changed=0;
+  const names=Object.keys(zip.files).filter(n=>/^xl\/.*\.xml$/i.test(n));
+  for(const name of names){
+    const file=zip.file(name); if(!file)continue;
+    const xml=await file.async('string');
+    const fixed=normalizeSpreadsheetXml(xml);
+    if(fixed.changed){zip.file(name,fixed.xml);changed++;}
+  }
+  if(!changed) throw new Error('Не удалось автоматически восстановить структуру Excel.');
+  const repaired=await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE',compressionOptions:{level:6}});
+  const out=path.join(TMP,'repaired-'+randomUUID()+'.xlsx');
+  await fs.writeFile(out,repaired);
+  return out;
+}
+async function loadWorkbookSafe(inputPath){
+  const wb=new ExcelJS.Workbook();
+  try{
+    await wb.xlsx.readFile(inputPath);
+    return {workbook:wb,repaired:false};
+  }catch(err){
+    const msg=err?.message||String(err);
+    if(!/reading ['"]?sheets|properties of undefined.*sheets/i.test(msg)) throw err;
+    const repairedPath=await repairWorkbookXml(inputPath);
+    try{
+      const wb2=new ExcelJS.Workbook();
+      await wb2.xlsx.readFile(repairedPath);
+      return {workbook:wb2,repaired:true};
+    }finally{
+      await fs.unlink(repairedPath).catch(()=>{});
+    }
+  }
+}
+
 function cellText(cell){
   const v=cell.value;
   if(v==null) return '';
@@ -221,8 +271,8 @@ function detectColumns(ws,fileWanted,nameWanted){
   return {fileCol,nameCol};
 }
 async function readWorkbookInfo(inputPath,fileColumn,nameColumn,files,multiPhoto=false){
-  const wb=new ExcelJS.Workbook();
-  await wb.xlsx.readFile(inputPath);
+  const loaded=await loadWorkbookSafe(inputPath);
+  const wb=loaded.workbook;
   const ws=wb.worksheets[0];
   if(!ws) throw new Error('В Excel нет листов.');
   const detected=detectColumns(ws,fileColumn||'Файл изображения',nameColumn||'Название товара');
@@ -344,8 +394,9 @@ async function processJob(id){
     });
     const maps=buildMaps(files);
     setJob(id,{status:'processing',progress:20,message:'Читаю Excel…',diskFiles:files.length});
-    const wb=new ExcelJS.Workbook();
-    await wb.xlsx.readFile(job.inputPath);
+    const loaded=await loadWorkbookSafe(job.inputPath);
+    const wb=loaded.workbook;
+    if(loaded.repaired) setJob(id,{message:'Excel автоматически восстановлен. Продолжаю обработку…'});
     const ws=wb.worksheets[0];
     if(!ws) throw new Error('В Excel нет листов.');
     const detected=detectColumns(ws,job.fileColumn||'Файл изображения',job.nameColumn||'Название товара');
@@ -504,7 +555,7 @@ function cleanup(){
 }
 setInterval(cleanup,15*60*1000).unref();
 
-app.get('/health',(req,res)=>res.json({ok:true,version:'6.1',jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
+app.get('/health',(req,res)=>res.json({ok:true,version:'6.1.1',jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
 
 app.post('/api/scan',async(req,res)=>{
   try{
@@ -737,7 +788,7 @@ app.get('/api/jobs/:id/download',(req,res)=>{
 });
 
 app.listen(PORT,'0.0.0.0',()=>{
-  console.log('Photo Excel service v6.1 listening on',PORT);
+  console.log('Photo Excel service v6.1.1 listening on',PORT);
   const p=new URLSearchParams({public_key:'https://disk.yandex.ru/d/zTdZ9PlnyQZY9A',limit:'1',offset:'0',preview_size:'360x360',preview_crop:'false'});
   yfetch(API+'?'+p.toString())
     .then(data=>console.log('YANDEX_SELF_TEST_OK',JSON.stringify({name:data.name||'',rootItems:data._embedded?.total??null})))
