@@ -2,7 +2,8 @@ import express from 'express';
 import multer from 'multer';
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
-import * as XLSX from 'xlsx';
+import * as XLSXNS from 'xlsx';
+const XLSX = XLSXNS.default || XLSXNS;
 import sharp from 'sharp';
 import ZXing from '@zxing/library';
 const { MultiFormatReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } = ZXing;
@@ -247,7 +248,8 @@ function sheetJsCellValue(cell){
   return cell.v;
 }
 async function rebuildWorkbookWithSheetJS(inputPath){
-  const raw=XLSX.readFile(inputPath,{cellDates:true,cellFormula:true,raw:true,dense:false});
+  const source=await fs.readFile(inputPath);
+  const raw=XLSX.read(source,{type:'buffer',cellDates:true,cellFormula:true,raw:true,dense:false});
   if(!raw||!Array.isArray(raw.SheetNames)||!raw.SheetNames.length)throw new Error('В Excel не найдены листы.');
   const wb=new ExcelJS.Workbook();
   raw.SheetNames.forEach((name,index)=>{
@@ -660,7 +662,7 @@ function cleanup(){
 }
 setInterval(cleanup,15*60*1000).unref();
 
-app.get('/health',(req,res)=>res.json({ok:true,version:'6.2.1',jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
+app.get('/health',(req,res)=>res.json({ok:true,version:'6.2.2',jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
 
 app.post('/api/scan',async(req,res)=>{
   try{
@@ -930,7 +932,7 @@ app.get('/api/jobs/:id/download',(req,res)=>{
 });
 
 app.listen(PORT,'0.0.0.0',()=>{
-  console.log('Photo Excel service v6.2.1 listening on',PORT);
+  console.log('Photo Excel service v6.2.2 listening on',PORT);
   const p=new URLSearchParams({public_key:'https://disk.yandex.ru/d/zTdZ9PlnyQZY9A',limit:'1',offset:'0',preview_size:'360x360',preview_crop:'false'});
   yfetch(API+'?'+p.toString())
     .then(data=>console.log('YANDEX_SELF_TEST_OK',JSON.stringify({name:data.name||'',rootItems:data._embedded?.total??null})))
