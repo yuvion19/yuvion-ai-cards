@@ -217,8 +217,12 @@ function analyzeFiles(files){
     largest
   };
 }
+function csvEscape(v=''){
+  const s=String(v??'');
+  return /[",\n\r;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
 function safeJob(j){
-  const {inputPath,outputPath,corrections,diskUrl,...rest}=j;
+  const {inputPath,outputPath,corrections,diskUrl,extrasList,...rest}=j;
   return rest;
 }
 async function processJob(id){
@@ -344,6 +348,7 @@ async function processJob(id){
       status:'done',progress:100,message:'Готово',outputPath,
       outputName:(job.originalName||'Фото_Товар').replace(/\.xlsx$/i,'')+(job.mode==='match'?'_сопоставление.xlsx':'_с_фото.xlsx'),
       unmatched,
+      extrasList:extras.map(x=>({name:x.name,path:x.path})),
       stats:{total,found,missing,duplicates,multiProducts,extras:extras.length,diskFiles:files.length}
     });
   }catch(err){
@@ -369,7 +374,7 @@ function cleanup(){
 }
 setInterval(cleanup,15*60*1000).unref();
 
-app.get('/health',(req,res)=>res.json({ok:true,version:3,jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
+app.get('/health',(req,res)=>res.json({ok:true,version:4,jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
 
 app.post('/api/scan',async(req,res)=>{
   try{
@@ -423,7 +428,7 @@ app.post('/api/jobs',upload.single('excel'),async(req,res)=>{
     multiPhoto:String(req.body.multiPhoto||'false')==='true',
     fileColumn:String(req.body.fileColumn||'Файл изображения'),
     nameColumn:String(req.body.nameColumn||'Название товара'),
-    corrections:{},unmatched:[],
+    corrections:{},unmatched:[],extrasList:[],
     stats:{total:0,found:0,missing:0,duplicates:0,multiProducts:0}
   });
   workQueue.push(id); runNext(); res.json({ok:true,id});
@@ -483,6 +488,26 @@ app.post('/api/jobs/:id/corrections',async(req,res)=>{
   }catch(err){res.status(400).json({ok:false,error:err?.message||String(err)});}
 });
 
+app.get('/api/jobs/:id/report/:type.csv',(req,res)=>{
+  const j=jobs.get(req.params.id);
+  if(!j) return res.status(404).send('job not found');
+  const type=String(req.params.type||'');
+  let rows=[], name='report.csv';
+  if(type==='missing'){
+    rows=[['Строка Excel','Название товара','Ожидаемый файл'],...(j.unmatched||[]).map(x=>[x.row,x.product,x.expected])];
+    name='missing_photos.csv';
+  }else if(type==='extras'){
+    rows=[['Файл','Путь'],...(j.extrasList||[]).map(x=>[x.name,x.path])];
+    name='extra_photos.csv';
+  }else{
+    return res.status(404).send('unknown report');
+  }
+  const csv='\uFEFF'+rows.map(r=>r.map(csvEscape).join(';')).join('\r\n');
+  res.setHeader('Content-Type','text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition','attachment; filename="'+name+'"');
+  res.send(csv);
+});
+
 app.get('/api/jobs/:id/download',(req,res)=>{
   const j=jobs.get(req.params.id);
   if(!j||j.status!=='done'||!j.outputPath) return res.status(404).send('not ready');
@@ -490,7 +515,7 @@ app.get('/api/jobs/:id/download',(req,res)=>{
 });
 
 app.listen(PORT,'0.0.0.0',()=>{
-  console.log('Photo Excel service v3 listening on',PORT);
+  console.log('Photo Excel service v4 listening on',PORT);
   const p=new URLSearchParams({public_key:'https://disk.yandex.ru/d/zTdZ9PlnyQZY9A',limit:'1',offset:'0',preview_size:'360x360',preview_crop:'false'});
   yfetch(API+'?'+p.toString())
     .then(data=>console.log('YANDEX_SELF_TEST_OK',JSON.stringify({name:data.name||'',rootItems:data._embedded?.total??null})))
