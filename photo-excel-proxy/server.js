@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
+import * as XLSX from 'xlsx';
 import sharp from 'sharp';
 import ZXing from '@zxing/library';
 const { MultiFormatReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } = ZXing;
@@ -223,21 +224,87 @@ async function repairWorkbookXml(inputPath){
   await fs.writeFile(out,repaired);
   return out;
 }
+function uniqueSheetName(wb,name,index){
+  let base=String(name||('Лист'+(index+1))).replace(/[\\/*?:\[\]]/g,' ').trim().slice(0,31)||('Лист'+(index+1));
+  let candidate=base,n=2;
+  while(wb.getWorksheet(candidate)){
+    const suffix=' '+n++;
+    candidate=base.slice(0,Math.max(1,31-suffix.length))+suffix;
+  }
+  return candidate;
+}
+function sheetJsCellValue(cell){
+  if(!cell)return null;
+  if(cell.f){
+    const formula={formula:String(cell.f)};
+    if(cell.v!==undefined&&cell.v!==null)formula.result=cell.v;
+    return formula;
+  }
+  if(cell.t==='d'&&cell.v instanceof Date)return cell.v;
+  if(cell.t==='b')return Boolean(cell.v);
+  if(cell.t==='n'&&typeof cell.v==='number')return cell.v;
+  if(cell.v===undefined||cell.v===null)return null;
+  return cell.v;
+}
+async function rebuildWorkbookWithSheetJS(inputPath){
+  const raw=XLSX.readFile(inputPath,{cellDates:true,cellFormula:true,raw:true,dense:false});
+  if(!raw||!Array.isArray(raw.SheetNames)||!raw.SheetNames.length)throw new Error('В Excel не найдены листы.');
+  const wb=new ExcelJS.Workbook();
+  raw.SheetNames.forEach((name,index)=>{
+    const src=raw.Sheets[name];
+    const ws=wb.addWorksheet(uniqueSheetName(wb,name,index));
+    const ref=src?.['!ref'];
+    if(!ref)return;
+    const range=XLSX.utils.decode_range(ref);
+    const maxRows=Math.min(range.e.r,200000);
+    const maxCols=Math.min(range.e.c,1000);
+    for(let r=range.s.r;r<=maxRows;r++){
+      for(let col=range.s.c;col<=maxCols;col++){
+        const addr=XLSX.utils.encode_cell({r,c:col});
+        const sc=src[addr];
+        if(!sc)continue;
+        const ec=ws.getCell(r+1,col+1);
+        ec.value=sheetJsCellValue(sc);
+        if(sc.l?.Target)ec.hyperlink=sc.l.Target;
+      }
+    }
+    for(const m of src['!merges']||[]){
+      try{ws.mergeCells(m.s.r+1,m.s.c+1,m.e.r+1,m.e.c+1)}catch{}
+    }
+    const cols=src['!cols']||[];
+    cols.forEach((col,i)=>{if(col?.wch)ws.getColumn(i+1).width=Math.min(80,Math.max(6,col.wch));});
+    const rows=src['!rows']||[];
+    rows.forEach((row,i)=>{if(row?.hpt)ws.getRow(i+1).height=row.hpt;});
+  });
+  return wb;
+}
 async function loadWorkbookSafe(inputPath){
   const wb=new ExcelJS.Workbook();
   try{
     await wb.xlsx.readFile(inputPath);
-    return {workbook:wb,repaired:false};
-  }catch(err){
-    const msg=err?.message||String(err);
-    if(!/reading ['"]?sheets|properties of undefined.*sheets/i.test(msg)) throw err;
-    const repairedPath=await repairWorkbookXml(inputPath);
+    return {workbook:wb,repaired:false,fallback:false};
+  }catch(firstErr){
+    let repairErr=null;
     try{
-      const wb2=new ExcelJS.Workbook();
-      await wb2.xlsx.readFile(repairedPath);
-      return {workbook:wb2,repaired:true};
-    }finally{
-      await fs.unlink(repairedPath).catch(()=>{});
+      const repairedPath=await repairWorkbookXml(inputPath);
+      try{
+        const wb2=new ExcelJS.Workbook();
+        await wb2.xlsx.readFile(repairedPath);
+        return {workbook:wb2,repaired:true,fallback:false};
+      }finally{
+        await fs.unlink(repairedPath).catch(()=>{});
+      }
+    }catch(err){
+      repairErr=err;
+    }
+    try{
+      const wb3=await rebuildWorkbookWithSheetJS(inputPath);
+      return {workbook:wb3,repaired:true,fallback:true};
+    }catch(fallbackErr){
+      const firstMsg=firstErr?.message||String(firstErr);
+      const repairMsg=repairErr?.message||String(repairErr);
+      const fallbackMsg=fallbackErr?.message||String(fallbackErr);
+      throw new Error('Не удалось прочитать Excel. Исходная ошибка: '+firstMsg+'. Ремонт: '+repairMsg+'. Резервное чтение: '+fallbackMsg);
     }
   }
 }
@@ -432,7 +499,8 @@ async function processJob(id){
     setJob(id,{status:'processing',progress:20,message:'Читаю Excel…',diskFiles:files.length});
     const loaded=await loadWorkbookSafe(job.inputPath);
     const wb=loaded.workbook;
-    if(loaded.repaired) setJob(id,{message:'Excel автоматически восстановлен. Продолжаю обработку…'});
+    if(loaded.fallback) setJob(id,{message:'Excel открыт резервным способом. Данные восстановлены, продолжаю обработку…'});
+    else if(loaded.repaired) setJob(id,{message:'Excel автоматически восстановлен. Продолжаю обработку…'});
     const ws=wb.worksheets[0];
     if(!ws) throw new Error('В Excel нет листов.');
     const detected=detectColumns(ws,job.fileColumn||'Файл изображения',job.nameColumn||'Название товара');
@@ -592,7 +660,7 @@ function cleanup(){
 }
 setInterval(cleanup,15*60*1000).unref();
 
-app.get('/health',(req,res)=>res.json({ok:true,version:'6.2',jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
+app.get('/health',(req,res)=>res.json({ok:true,version:'6.2.1',jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
 
 app.post('/api/scan',async(req,res)=>{
   try{
@@ -862,7 +930,7 @@ app.get('/api/jobs/:id/download',(req,res)=>{
 });
 
 app.listen(PORT,'0.0.0.0',()=>{
-  console.log('Photo Excel service v6.2 listening on',PORT);
+  console.log('Photo Excel service v6.2.1 listening on',PORT);
   const p=new URLSearchParams({public_key:'https://disk.yandex.ru/d/zTdZ9PlnyQZY9A',limit:'1',offset:'0',preview_size:'360x360',preview_crop:'false'});
   yfetch(API+'?'+p.toString())
     .then(data=>console.log('YANDEX_SELF_TEST_OK',JSON.stringify({name:data.name||'',rootItems:data._embedded?.total??null})))
