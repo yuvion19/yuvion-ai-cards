@@ -22,7 +22,7 @@ button,a.btn{width:100%;border:0;border-radius:14px;padding:14px;font-size:15px;
 </head>
 <body><div class="wrap">
 <div class="brand"><div class="logo">UV</div><div><h1>UVMALL → Telegram</h1><p>Server mode • iPhone</p></div></div>
-<section class="hero"><h2>Теперь через сервер.</h2><p>Safari больше не обращается к Telegram напрямую. Все запросы идут через серверный API UVMALL.</p><div class="badges"><span class="badge">iPhone Safari</span><span class="badge">TGS</span><span class="badge">WEBM</span><span class="badge">ZIP</span></div></section>
+<section class="hero"><h2>Теперь через сервер.</h2><p>Safari больше не обращается к Telegram напрямую. Все запросы идут через серверный API UVMALL.</p><div class="badges"><span class="badge">iPhone Safari</span><span class="badge">TGS</span><span class="badge">WEBM</span><span class="badge">ZIP</span><span class="badge" id="serverStatus">Сервер: проверка…</span></div></section>
 
 <section class="card"><div class="step"><div class="n">1</div><h3>Telegram</h3></div>
 <label>Bot Token из @BotFather</label><input id="token" type="password" autocomplete="off" autocapitalize="off" placeholder="123456789:AA...">
@@ -46,7 +46,7 @@ button,a.btn{width:100%;border:0;border-radius:14px;padding:14px;font-size:15px;
 
 <script>
 const API="https://huvbrphblapbobklttup.supabase.co/functions/v1/uvmall-telegram-api";
-const $=x=>document.getElementById(x); let ready=[],bot="";
+const $=x=>document.getElementById(x); let ready=[],bot=""; fetch(API).then(r=>r.json()).then(j=>{$("serverStatus").textContent=j.ok?"Сервер: ONLINE":"Сервер: ошибка";}).catch(()=>{$("serverStatus").textContent="Сервер: OFFLINE";});
 function log(s,c=""){const d=document.createElement("div");d.textContent=s;if(c)d.className=c;$("log").appendChild(d);$("log").scrollTop=99999}
 function clearLog(){$("log").innerHTML=""}
 function prog(n,t){const p=t?Math.round(n/t*100):0;$("bar").style.width=p+"%";$("pt").textContent=p+"% ("+n+"/"+t+")"}
