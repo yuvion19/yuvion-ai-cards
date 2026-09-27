@@ -26,7 +26,29 @@ app.use((req,res,next)=>{
   next();
 });
 
-const upload = multer({ dest: TMP, limits:{ fileSize:50*1024*1024 } });
+const upload = multer({ dest: TMP, limits:{ fileSize:50*1024*1024, files:20001 } });
+const jobUpload = upload.fields([
+  {name:'excel',maxCount:1},
+  {name:'photos',maxCount:20000}
+]);
+
+function localPhotoFromUpload(file,index){
+  const original=String(file.originalname||'photo').replace(/\\/g,'/');
+  const name=original.split('/').pop();
+  return {
+    name,
+    path:'local://'+index+'/'+name,
+    displayPath:original,
+    local:true,
+    localId:String(index),
+    localPath:file.path,
+    size:file.size||0,
+    mime:file.mimetype||''
+  };
+}
+function jobSourceFiles(job){
+  return job.sourceType==='local' ? (job.uploadedPhotos||[]) : null;
+}
 const jobs = new Map();
 const workQueue = [];
 const scanCache = new Map();
@@ -314,13 +336,19 @@ async function fetchImageBuffer(url){
   if(!r.ok)throw new Error('Фото HTTP '+r.status);
   return Buffer.from(await r.arrayBuffer());
 }
-async function toJpegBuffer(url){
-  const input=await fetchImageBuffer(url);
+async function imageSourceBuffer(source){
+  if(source&&typeof source==='object'&&source.localPath) return fs.readFile(source.localPath);
+  const url=typeof source==='string'?source:(source?.preview||source?.file||'');
+  if(!url) throw new Error('Нет источника изображения');
+  return fetchImageBuffer(url);
+}
+async function toJpegBuffer(source){
+  const input=await imageSourceBuffer(source);
   return sharp(input).rotate().resize({width:160,height:160,fit:'inside',withoutEnlargement:true})
     .jpeg({quality:60,mozjpeg:true}).toBuffer();
 }
-async function inspectImage(url){
-  const input=await fetchImageBuffer(url);
+async function inspectImage(source){
+  const input=await imageSourceBuffer(source);
   const img=sharp(input,{failOn:'none'}).rotate();
   const meta=await img.metadata();
   const stat=await img.clone().greyscale().resize({width:256,height:256,fit:'inside',withoutEnlargement:true}).stats();
@@ -331,8 +359,8 @@ async function inspectImage(url){
   if(entropy>0&&entropy<2.5)issues.push('Низкая детализация');
   return {width,height,format:meta.format||'',sharpness:Number(sharpness.toFixed(2)),entropy:Number(entropy.toFixed(2)),issues};
 }
-async function dHash(url){
-  const input=await fetchImageBuffer(url);
+async function dHash(source){
+  const input=await imageSourceBuffer(source);
   const {data,info}=await sharp(input,{failOn:'none'}).rotate().greyscale().resize(9,8,{fit:'fill'}).raw().toBuffer({resolveWithObject:true});
   let bits='';
   for(let y=0;y<8;y++)for(let x=0;x<8;x++){
@@ -381,17 +409,25 @@ function csvEscape(v=''){
   return /[",\n\r;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
 }
 function safeJob(j){
-  const {inputPath,outputPath,corrections,diskUrl,extrasList,matchedRecords,...rest}=j;
+  const {inputPath,outputPath,corrections,diskUrl,extrasList,matchedRecords,uploadedPhotos,...rest}=j;
   return rest;
 }
 async function processJob(id){
   const job=jobs.get(id);
   if(!job) return;
   try{
-    setJob(id,{status:'scanning',progress:3,message:'Сканирую Яндекс Диск…',unmatched:[]});
-    const files=await scanPublicDisk(job.diskUrl,s=>{
-      setJob(id,{progress:Math.min(18,3+Math.floor(s.files/500)),message:'Найдено фото: '+s.files.toLocaleString('ru-RU')});
-    });
+    let files=[];
+    if(job.sourceType==='local'){
+      setJob(id,{status:'scanning',progress:12,message:'Использую локальную папку…',unmatched:[]});
+      files=jobSourceFiles(job)||[];
+      if(!files.length) throw new Error('В выбранной папке нет поддерживаемых изображений.');
+      setJob(id,{progress:18,message:'Фото в локальной папке: '+files.length.toLocaleString('ru-RU')});
+    }else{
+      setJob(id,{status:'scanning',progress:3,message:'Сканирую Яндекс Диск…',unmatched:[]});
+      files=await scanPublicDisk(job.diskUrl,s=>{
+        setJob(id,{progress:Math.min(18,3+Math.floor(s.files/500)),message:'Найдено фото: '+s.files.toLocaleString('ru-RU')});
+      });
+    }
     const maps=buildMaps(files);
     setJob(id,{status:'processing',progress:20,message:'Читаю Excel…',diskFiles:files.length});
     const loaded=await loadWorkbookSafe(job.inputPath);
@@ -415,7 +451,7 @@ async function processJob(id){
       ws.getColumn(photoStart+i).width=job.mode==='match'?20:22;
     }
     ws.getCell(1,statusCol).value='Статус фото';
-    ws.getCell(1,pathCol).value='Пути на Яндекс Диске';
+    ws.getCell(1,pathCol).value='Пути к фотографиям';
     ws.getCell(1,confidenceCol).value='Уверенность';
     ws.getColumn(statusCol).width=27; ws.getColumn(pathCol).width=48; ws.getColumn(confidenceCol).width=18;
     ws.getRow(1).font={...(ws.getRow(1).font||{}),bold:true};
@@ -484,7 +520,7 @@ async function processJob(id){
             const item=matches[i], url=item.preview||item.file;
             if(!url) continue;
             try{
-              const buf=await toJpegBuffer(url);
+              const buf=await toJpegBuffer(item);
               const imageId=wb.addImage({buffer:buf,extension:'jpeg'});
               ws.getRow(r).height=96;
               ws.addImage(imageId,{tl:{col:photoStart+i-1+0.08,row:r-1+0.08},ext:{width:108,height:108},editAs:'oneCell'});
@@ -502,7 +538,7 @@ async function processJob(id){
         });
         matchedRecords.push({
           row:r,product,expected,confidence,matchMethod,
-          matches:matches.map(x=>({name:x.name,path:x.path,preview:x.preview||'',file:x.file||'',size:x.size||0}))
+          matches:matches.map(x=>({name:x.name,path:x.path,preview:x.preview||'',file:x.file||'',size:x.size||0,localId:x.localId||'',localPath:x.localPath||'',mime:x.mime||''}))
         });
       }
       if(r%5===0||r===ws.rowCount){
@@ -548,6 +584,7 @@ function cleanup(){
     if(now-j.updatedAt>60*60*1000){
       fs.unlink(j.inputPath||'').catch(()=>{});
       fs.unlink(j.outputPath||'').catch(()=>{});
+      for(const f of (j.uploadedPhotos||[])) fs.unlink(f.localPath||'').catch(()=>{});
       jobs.delete(id);
     }
   }
@@ -555,7 +592,7 @@ function cleanup(){
 }
 setInterval(cleanup,15*60*1000).unref();
 
-app.get('/health',(req,res)=>res.json({ok:true,version:'6.1.1',jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
+app.get('/health',(req,res)=>res.json({ok:true,version:'6.2',jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
 
 app.post('/api/scan',async(req,res)=>{
   try{
@@ -596,15 +633,38 @@ app.post('/api/precheck',upload.single('excel'),async(req,res)=>{
   }
 });
 
-app.post('/api/jobs',upload.single('excel'),async(req,res)=>{
-  if(!req.file) return res.status(400).json({error:'excel_required'});
+app.post('/api/jobs',jobUpload,async(req,res)=>{
+  const excelFile=req.files?.excel?.[0];
+  const photoUploads=req.files?.photos||[];
+  if(!excelFile){
+    for(const f of photoUploads) await fs.unlink(f.path).catch(()=>{});
+    return res.status(400).json({error:'excel_required'});
+  }
+  const sourceType=String(req.body.sourceType||'disk')==='local'?'local':'disk';
   const diskUrl=String(req.body.diskUrl||'').trim();
-  if(!diskUrl){await fs.unlink(req.file.path).catch(()=>{});return res.status(400).json({error:'disk_url_required'});}
+  const uploadedPhotos=photoUploads.filter(f=>isImage(f.originalname)).map(localPhotoFromUpload);
+  const rejected=photoUploads.filter(f=>!isImage(f.originalname));
+  for(const f of rejected) await fs.unlink(f.path).catch(()=>{});
+  const totalBytes=uploadedPhotos.reduce((s,f)=>s+(f.size||0),0);
+  if(sourceType==='local'&&!uploadedPhotos.length){
+    await fs.unlink(excelFile.path).catch(()=>{});
+    return res.status(400).json({error:'local_photos_required'});
+  }
+  if(sourceType==='local'&&totalBytes>500*1024*1024){
+    await fs.unlink(excelFile.path).catch(()=>{});
+    for(const f of uploadedPhotos) await fs.unlink(f.localPath).catch(()=>{});
+    return res.status(413).json({error:'local_folder_too_large',message:'Локальная папка больше 500 МБ. Выберите меньшую папку или используйте Яндекс Диск.'});
+  }
+  if(sourceType==='disk'&&!diskUrl){
+    await fs.unlink(excelFile.path).catch(()=>{});
+    for(const f of uploadedPhotos) await fs.unlink(f.localPath).catch(()=>{});
+    return res.status(400).json({error:'disk_url_required'});
+  }
   const id=randomUUID();
   jobs.set(id,{
     id,status:'queued',progress:1,message:'Задача в очереди',
-    createdAt:Date.now(),updatedAt:Date.now(),inputPath:req.file.path,
-    originalName:req.file.originalname,diskUrl,
+    createdAt:Date.now(),updatedAt:Date.now(),inputPath:excelFile.path,
+    originalName:excelFile.originalname,diskUrl,sourceType,uploadedPhotos,
     mode:req.body.mode==='match'?'match':'embedded',
     multiPhoto:String(req.body.multiPhoto||'false')==='true',
     fileColumn:String(req.body.fileColumn||'Файл изображения'),
@@ -631,7 +691,7 @@ app.get('/api/jobs/:id/candidates',async(req,res)=>{
   const j=jobs.get(req.params.id);
   if(!j) return res.status(404).json({error:'job_not_found'});
   try{
-    const files=await scanPublicDisk(j.diskUrl);
+    const files=j.sourceType==='local'?(j.uploadedPhotos||[]):await scanPublicDisk(j.diskUrl);
     const q=normalizeName(String(req.query.q||'')).stem;
     const row=Number(req.query.row)||0;
     const rowInfo=(j.unmatched||[]).find(x=>x.row===row);
@@ -656,7 +716,7 @@ app.post('/api/jobs/:id/corrections',async(req,res)=>{
   if(j.status!=='done'&&j.status!=='error') return res.status(409).json({error:'job_busy'});
   try{
     const corrections=Array.isArray(req.body?.corrections)?req.body.corrections:[];
-    const files=await scanPublicDisk(j.diskUrl);
+    const files=j.sourceType==='local'?(j.uploadedPhotos||[]):await scanPublicDisk(j.diskUrl);
     const validPaths=new Set(files.map(f=>f.path));
     for(const c of corrections){
       const row=Number(c.row), p=String(c.path||'');
@@ -701,10 +761,11 @@ async function runQualityAnalysis(id,limit=0){
   j.quality={status:'running',progress:0,checked:0,total:selected.length,issues:0,visualDuplicateGroups:0,items:[],duplicates:[]};
   const hashed=[];
   for(let i=0;i<selected.length;i++){
-    const item=selected[i],url=item.preview||item.file;
-    if(!url)continue;
+    const item=selected[i];
+    const source=item.localPath?item:(item.preview||item.file);
+    if(!source)continue;
     try{
-      const [q,h]=await Promise.all([inspectImage(url),dHash(url)]);
+      const [q,h]=await Promise.all([inspectImage(source),dHash(source)]);
       if(q.issues.length&&j.quality.items.length<250)j.quality.items.push({row:item.row,product:item.product,name:item.name,path:item.path,...q});
       hashed.push({row:item.row,product:item.product,name:item.name,path:item.path,hash:h});
       j.quality.issues+=q.issues.length?1:0;
@@ -757,11 +818,24 @@ app.get('/api/jobs/:id/products',(req,res)=>{
   if(!j)return res.status(404).json({error:'job_not_found'});
   const offset=Math.max(0,Number(req.query.offset)||0);
   const limit=Math.max(1,Math.min(100,Number(req.query.limit)||30));
+  const base=req.protocol+'://'+req.get('host');
   const list=(j.matchedRecords||[]).slice(offset,offset+limit).map(r=>({
     row:r.row,product:r.product,expected:r.expected,confidence:r.confidence,matchMethod:r.matchMethod,
-    matches:(r.matches||[]).map(x=>({name:x.name,path:x.path,preview:x.preview||x.file||''}))
+    matches:(r.matches||[]).map(x=>({
+      name:x.name,path:x.path,
+      preview:x.localId ? base+'/api/jobs/'+j.id+'/local-photo/'+encodeURIComponent(x.localId) : (x.preview||x.file||'')
+    }))
   }));
   res.json({ok:true,total:(j.matchedRecords||[]).length,offset,items:list});
+});
+
+app.get('/api/jobs/:id/local-photo/:localId',(req,res)=>{
+  const j=jobs.get(req.params.id);
+  if(!j||j.sourceType!=='local')return res.status(404).send('not found');
+  const f=(j.uploadedPhotos||[]).find(x=>x.localId===String(req.params.localId));
+  if(!f||!f.localPath)return res.status(404).send('not found');
+  if(f.mime)res.type(f.mime);
+  res.sendFile(path.resolve(f.localPath));
 });
 
 app.post('/api/decode-code',upload.single('image'),async(req,res)=>{
@@ -788,7 +862,7 @@ app.get('/api/jobs/:id/download',(req,res)=>{
 });
 
 app.listen(PORT,'0.0.0.0',()=>{
-  console.log('Photo Excel service v6.1.1 listening on',PORT);
+  console.log('Photo Excel service v6.2 listening on',PORT);
   const p=new URLSearchParams({public_key:'https://disk.yandex.ru/d/zTdZ9PlnyQZY9A',limit:'1',offset:'0',preview_size:'360x360',preview_crop:'false'});
   yfetch(API+'?'+p.toString())
     .then(data=>console.log('YANDEX_SELF_TEST_OK',JSON.stringify({name:data.name||'',rootItems:data._embedded?.total??null})))
