@@ -269,7 +269,7 @@ function hammingHex(a,b){
   }
   return d+Math.abs(a.length-b.length)*4;
 }
-async function analyzeFiles(files){
+function analyzeFiles(files){
   const formats={}, normalized=new Map(), groupCounts=new Map();
   let totalBytes=0;
   for(const f of files){
@@ -471,7 +471,7 @@ function cleanup(){
 }
 setInterval(cleanup,15*60*1000).unref();
 
-app.get('/health',(req,res)=>res.json({ok:true,version:4,jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
+app.get('/health',(req,res)=>res.json({ok:true,version:6,jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
 
 app.post('/api/scan',async(req,res)=>{
   try{
@@ -605,6 +605,134 @@ app.get('/api/jobs/:id/report/:type.csv',(req,res)=>{
   res.send(csv);
 });
 
+
+async function runQualityAnalysis(id,limit=0){
+  const j=jobs.get(id);
+  if(!j||!Array.isArray(j.matchedRecords))return;
+  const all=[];
+  for(const rec of j.matchedRecords){
+    for(const im of rec.matches||[]) all.push({row:rec.row,product:rec.product,expected:rec.expected,...im});
+  }
+  const selected=limit>0?all.slice(0,Math.min(limit,all.length)):all;
+  j.quality={status:'running',progress:0,checked:0,total:selected.length,issues:0,visualDuplicateGroups:0,items:[],duplicates:[]};
+  const hashed=[];
+  for(let i=0;i<selected.length;i++){
+    const item=selected[i],url=item.preview||item.file;
+    if(!url)continue;
+    try{
+      const [q,h]=await Promise.all([inspectImage(url),dHash(url)]);
+      if(q.issues.length&&j.quality.items.length<250)j.quality.items.push({row:item.row,product:item.product,name:item.name,path:item.path,...q});
+      hashed.push({row:item.row,product:item.product,name:item.name,path:item.path,hash:h});
+      j.quality.issues+=q.issues.length?1:0;
+    }catch(err){
+      if(j.quality.items.length<250)j.quality.items.push({row:item.row,product:item.product,name:item.name,path:item.path,issues:['Ошибка чтения изображения']});
+      j.quality.issues++;
+    }
+    j.quality.checked=i+1;
+    j.quality.progress=Math.round(((i+1)/Math.max(1,selected.length))*100);
+  }
+  const buckets=new Map();
+  for(const x of hashed){
+    const key=x.hash.slice(0,2);
+    if(!buckets.has(key))buckets.set(key,[]);
+    buckets.get(key).push(x);
+  }
+  const groups=[];
+  for(const arr of buckets.values()){
+    const used=new Set();
+    for(let i=0;i<arr.length;i++){
+      if(used.has(i))continue;
+      const g=[arr[i]];
+      for(let k=i+1;k<arr.length;k++){
+        if(!used.has(k)&&hammingHex(arr[i].hash,arr[k].hash)<=4){g.push(arr[k]);used.add(k);}
+      }
+      if(g.length>1){used.add(i);groups.push(g);}
+    }
+  }
+  j.quality.visualDuplicateGroups=groups.length;
+  j.quality.duplicates=groups.slice(0,100).map(g=>g.map(x=>({row:x.row,product:x.product,name:x.name,path:x.path})));
+  j.quality.status='done';
+  j.quality.progress=100;
+  j.updatedAt=Date.now();
+}
+
+function safePathPart(v=''){
+  return String(v||'item').normalize('NFKC').replace(/[\\/:*?"<>|]+/g,'_').replace(/\s+/g,' ').trim().slice(0,120)||'item';
+}
+
+app.post('/api/jobs/:id/quality',(req,res)=>{
+  const j=jobs.get(req.params.id);
+  if(!j)return res.status(404).json({error:'job_not_found'});
+  if(j.status!=='done')return res.status(409).json({error:'job_not_ready'});
+  if(j.quality?.status==='running')return res.json({ok:true,quality:j.quality});
+  const limit=Math.max(0,Math.min(10000,Number(req.body?.limit)||0));
+  runQualityAnalysis(j.id,limit).catch(err=>{
+    j.quality={...(j.quality||{}),status:'error',message:err?.message||String(err)};
+  });
+  res.json({ok:true,started:true});
+});
+
+app.get('/api/jobs/:id/products',(req,res)=>{
+  const j=jobs.get(req.params.id);
+  if(!j)return res.status(404).json({error:'job_not_found'});
+  const offset=Math.max(0,Number(req.query.offset)||0);
+  const limit=Math.max(1,Math.min(100,Number(req.query.limit)||30));
+  const list=(j.matchedRecords||[]).slice(offset,offset+limit).map(r=>({
+    row:r.row,product:r.product,expected:r.expected,confidence:r.confidence,matchMethod:r.matchMethod,
+    matches:(r.matches||[]).map(x=>({name:x.name,path:x.path,preview:x.preview||x.file||''}))
+  }));
+  res.json({ok:true,total:(j.matchedRecords||[]).length,offset,items:list});
+});
+
+app.get('/api/jobs/:id/export/ozon.zip',async(req,res)=>{
+  const j=jobs.get(req.params.id);
+  if(!j||j.status!=='done')return res.status(404).send('not ready');
+  res.setHeader('Content-Type','application/zip');
+  res.setHeader('Content-Disposition','attachment; filename="ozon_products.zip"');
+  const archive=archiver('zip',{zlib:{level:7}});
+  archive.on('error',err=>{try{res.destroy(err)}catch{}});
+  archive.pipe(res);
+  const report=[['Строка','Товар','Исходное имя','Экспортировано фото']];
+  for(const rec of j.matchedRecords||[]){
+    const base=safePathPart(normalizeName(rec.expected||String(rec.row)).stem||String(rec.row));
+    let count=0;
+    for(let i=0;i<Math.min(4,(rec.matches||[]).length);i++){
+      const im=rec.matches[i],url=im.file||im.preview;
+      if(!url)continue;
+      try{
+        const input=await fetchImageBuffer(url);
+        const out=await sharp(input,{failOn:'none'}).rotate()
+          .resize({width:900,height:1200,fit:'contain',background:{r:255,g:255,b:255,alpha:1},withoutEnlargement:false})
+          .flatten({background:{r:255,g:255,b:255}})
+          .jpeg({quality:90,mozjpeg:true}).toBuffer();
+        archive.append(out,{name:'products/'+base+'/'+base+'_'+(i+1)+'.jpg'});
+        count++;
+      }catch{}
+    }
+    report.push([rec.row,rec.product,rec.expected,count]);
+  }
+  const csv='\uFEFF'+report.map(r=>r.map(csvEscape).join(';')).join('\r\n');
+  archive.append(csv,{name:'report.csv'});
+  archive.finalize();
+});
+
+app.post('/api/decode-code',upload.single('image'),async(req,res)=>{
+  try{
+    if(!req.file)return res.status(400).json({error:'image_required'});
+    const input=await fs.readFile(req.file.path);
+    const {data,info}=await sharp(input,{failOn:'none'}).rotate().resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).removeAlpha().raw().toBuffer({resolveWithObject:true});
+    const source=new RGBLuminanceSource(Uint8ClampedArray.from(data),info.width,info.height);
+    const bitmap=new BinaryBitmap(new HybridBinarizer(source));
+    const reader=new MultiFormatReader();
+    const result=reader.decode(bitmap);
+    res.json({ok:true,text:result.getText(),format:String(result.getBarcodeFormat())});
+  }catch(err){
+    res.status(422).json({ok:false,error:'Код не распознан',detail:err?.message||String(err)});
+  }finally{
+    if(req.file?.path)await fs.unlink(req.file.path).catch(()=>{});
+  }
+});
+
 app.get('/api/jobs/:id/download',(req,res)=>{
   const j=jobs.get(req.params.id);
   if(!j||j.status!=='done'||!j.outputPath) return res.status(404).send('not ready');
@@ -612,7 +740,7 @@ app.get('/api/jobs/:id/download',(req,res)=>{
 });
 
 app.listen(PORT,'0.0.0.0',()=>{
-  console.log('Photo Excel service v4 listening on',PORT);
+  console.log('Photo Excel service v6 listening on',PORT);
   const p=new URLSearchParams({public_key:'https://disk.yandex.ru/d/zTdZ9PlnyQZY9A',limit:'1',offset:'0',preview_size:'360x360',preview_crop:'false'});
   yfetch(API+'?'+p.toString())
     .then(data=>console.log('YANDEX_SELF_TEST_OK',JSON.stringify({name:data.name||'',rootItems:data._embedded?.total??null})))
