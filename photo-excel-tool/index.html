@@ -92,7 +92,10 @@ button:disabled{opacity:.5;cursor:not-allowed}.hint{font-size:13px;color:var(--m
 
 <div class="card">
   <div class="step">4. Предпроверка</div>
-  <button id="precheckBtn" class="secondary">Проверить совпадения до обработки</button>
+  <div class="actions">
+    <button id="precheckBtn" class="secondary">Проверить совпадения до обработки</button>
+    <button id="quickRun" class="primary">Умный запуск: проверить и сразу собрать</button>
+  </div>
   <div id="precheck" class="panel">
     <div class="kpis">
       <div class="kpi"><b id="pTotal">0</b><span>товаров</span></div>
@@ -131,6 +134,10 @@ button:disabled{opacity:.5;cursor:not-allowed}.hint{font-size:13px;color:var(--m
     <div id="resultWarn" class="warnbox" style="display:none"></div>
   </div>
   <button id="download" class="download">Скачать готовый Excel</button>
+  <div id="reportButtons" class="actions" style="display:none">
+    <button id="missingCsv" class="secondary">CSV: товары без фото</button>
+    <button id="extrasCsv" class="secondary">CSV: лишние фото</button>
+  </div>
   <button id="fixBtn" class="secondary" style="display:none;margin-top:10px">Исправить ненайденные вручную</button>
   <div id="fixPanel" class="panel"></div>
 </div>
@@ -148,11 +155,36 @@ const API='https://photo-excel-yandex-proxy.onrender.com';
 const el=id=>document.getElementById(id);
 const fmt=n=>(Number(n)||0).toLocaleString('ru-RU');
 const mb=n=>(Number(n||0)/1024/1024).toFixed(1)+' МБ';
-let currentJob=null,pollTimer=null,corrections={};
+let currentJob=null,pollTimer=null,corrections={},lastJobSnapshot=null;
 
 function setProgress(n){el('bar').style.width=Math.max(0,Math.min(100,Number(n)||0))+'%'}
 function setStats(s={}){el('total').textContent=fmt(s.total);el('found').textContent=fmt(s.found);el('missing').textContent=fmt(s.missing);el('dups').textContent=fmt(s.duplicates)}
 function selectedFile(){return el('excel').files&&el('excel').files[0]}
+function saveSettings(){
+  const data={
+    disk:el('disk').value.trim(),
+    fileColumn:el('fileColumn').value.trim(),
+    nameColumn:el('nameColumn').value.trim(),
+    mode:el('mode').value,
+    multiPhoto:el('multiPhoto').checked
+  };
+  localStorage.setItem('photoExcelSettings',JSON.stringify(data));
+}
+function restoreSettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem('photoExcelSettings')||'{}');
+    if(s.disk)el('disk').value=s.disk;
+    if(s.fileColumn)el('fileColumn').value=s.fileColumn;
+    if(s.nameColumn)el('nameColumn').value=s.nameColumn;
+    if(s.mode)el('mode').value=s.mode;
+    if(typeof s.multiPhoto==='boolean')el('multiPhoto').checked=s.multiPhoto;
+  }catch{}
+}
+function rememberCurrentJob(id){
+  currentJob=id||null;
+  if(id)localStorage.setItem('photoExcelCurrentJob',id);
+  else localStorage.removeItem('photoExcelCurrentJob');
+}
 function commonFormData(){
   const file=selectedFile(); if(!file) throw new Error('Сначала выберите Excel-файл.');
   const fd=new FormData();
@@ -173,6 +205,9 @@ function showResult(s={}){
   const notes=[]; if(dups)notes.push('Точных дубликатов имён: '+fmt(dups)+'.'); if(extras)notes.push('Не использовано фото: '+fmt(extras)+'.');
   el('resultWarn').style.display=notes.length?'block':'none'; el('resultWarn').textContent=notes.join(' ');
   el('fixBtn').style.display=missing>0?'block':'none';
+  el('reportButtons').style.display=(missing>0||extras>0)?'grid':'none';
+  el('missingCsv').style.display=missing>0?'block':'none';
+  el('extrasCsv').style.display=extras>0?'block':'none';
 }
 function historyData(){
   try{return JSON.parse(localStorage.getItem('photoExcelHistory')||'[]')}catch{return[]}
@@ -194,6 +229,8 @@ function downloadOld(id){location.href=API+'/api/jobs/'+id+'/download'}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 el('excel').addEventListener('change',()=>{const f=selectedFile();el('excelInfo').textContent=f?'Выбран: '+f.name+' • '+mb(f.size):'Выберите исходный Excel-файл.'});
+['disk','fileColumn','nameColumn','mode','multiPhoto'].forEach(id=>el(id).addEventListener('change',saveSettings));
+el('disk').addEventListener('input',saveSettings);
 
 el('scan').onclick=async()=>{
   const diskUrl=el('disk').value.trim(); if(!diskUrl){el('scanStatus').textContent='Введите ссылку.';return}
@@ -219,29 +256,23 @@ el('analyticsBtn').onclick=async()=>{
   }catch(e){el('scanStatus').textContent='Ошибка аналитики: '+e.message}finally{el('analyticsBtn').disabled=false}
 };
 
-el('precheckBtn').onclick=async()=>{
-  el('precheckBtn').disabled=true;el('status').textContent='Выполняю предпропроверку Excel и Яндекс Диска…';
-  try{
-    const r=await fetch(API+'/api/precheck',{method:'POST',body:commonFormData()});
-    const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||'Ошибка предпроверки');
-    const p=data.precheck||{};el('precheck').classList.add('show');
-    el('pTotal').textContent=fmt(p.total);el('pFound').textContent=fmt(p.found);el('pMissing').textContent=fmt(p.missing);el('pDup').textContent=fmt(p.duplicates);el('pMulti').textContent=fmt(p.multiPhotoProducts);
-    el('precheckNote').textContent='Лист: «'+p.sheet+'». Фото на Диске: '+fmt(p.diskFiles)+'. Пустых имён файла: '+fmt(p.blankFileNames)+'.'+(p.missing?' Ненайденные строки будут перечислены в итоговом отчёте.':' Все строки готовы к обработке.');
-    el('status').textContent='Предпроверка завершена.';
-  }catch(e){el('status').textContent='Ошибка предпроверки: '+e.message}finally{el('precheckBtn').disabled=false}
-};
+el('precheckBtn').onclick=async()=>{try{await doPrecheck()}catch(e){el('status').textContent='Ошибка предпроверки: '+e.message}};
 
 async function poll(){
   if(!currentJob)return;
   try{
     const r=await fetch(API+'/api/jobs/'+currentJob,{cache:'no-store'});const j=await r.json();
-    if(!r.ok)throw new Error(j.error||'Задача не найдена');
+    if(!r.ok){
+      if(r.status===404){rememberCurrentJob(null);if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
+      throw new Error(j.error||'Задача не найдена');
+    }
+    lastJobSnapshot=j;
     setProgress(j.progress);setStats(j.stats||{});
     el('status').textContent=(j.message||j.status||'')+(j.diskFiles?'\nФото на Диске: '+fmt(j.diskFiles):'');
     if(j.status==='done'){
       clearInterval(pollTimer);pollTimer=null;el('run').disabled=false;showResult(j.stats||{});
       el('download').classList.add('show');el('download').onclick=()=>{location.href=API+'/api/jobs/'+currentJob+'/download'};
-      saveHistory(j);return;
+      saveHistory(j);rememberCurrentJob(currentJob);return;
     }
     if(j.status==='error'){clearInterval(pollTimer);pollTimer=null;el('run').disabled=false;setProgress(0);return}
   }catch(e){el('status').textContent='Связь с сервером: '+e.message+'\nПовторяю автоматически…'}
@@ -254,8 +285,30 @@ el('run').onclick=async()=>{
     setProgress(1);setStats({});el('status').textContent='Отправляю Excel и запускаю обработку…';
     const r=await fetch(API+'/api/jobs',{method:'POST',body:fd});const data=await r.json();
     if(!r.ok||!data.ok)throw new Error(data.error||'Не удалось создать задачу');
-    currentJob=data.id;corrections={};if(pollTimer)clearInterval(pollTimer);await poll();pollTimer=setInterval(poll,2500);
+    rememberCurrentJob(data.id);corrections={};saveSettings();if(pollTimer)clearInterval(pollTimer);await poll();pollTimer=setInterval(poll,2500);
   }catch(e){el('status').textContent='Ошибка запуска: '+e.message;el('run').disabled=false;setProgress(0)}
+};
+
+el('missingCsv').onclick=()=>{if(currentJob)location.href=API+'/api/jobs/'+currentJob+'/report/missing.csv'};
+el('extrasCsv').onclick=()=>{if(currentJob)location.href=API+'/api/jobs/'+currentJob+'/report/extras.csv'};
+
+async function doPrecheck(){
+  el('precheckBtn').disabled=true;el('quickRun').disabled=true;el('status').textContent='Выполняю предпроверку Excel и Яндекс Диска…';
+  try{
+    const r=await fetch(API+'/api/precheck',{method:'POST',body:commonFormData()});
+    const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||'Ошибка предпроверки');
+    const p=data.precheck||{};el('precheck').classList.add('show');
+    el('pTotal').textContent=fmt(p.total);el('pFound').textContent=fmt(p.found);el('pMissing').textContent=fmt(p.missing);el('pDup').textContent=fmt(p.duplicates);el('pMulti').textContent=fmt(p.multiPhotoProducts);
+    el('precheckNote').textContent='Лист: «'+p.sheet+'». Фото на Диске: '+fmt(p.diskFiles)+'. Пустых имён файла: '+fmt(p.blankFileNames)+'.'+(p.missing?' Ненайденные строки попадут в отчёт и их можно будет исправить вручную.':' Все строки готовы к обработке.');
+    el('status').textContent='Предпроверка завершена.';saveSettings();return p;
+  }finally{el('precheckBtn').disabled=false;el('quickRun').disabled=false}
+}
+
+el('quickRun').onclick=async()=>{
+  try{
+    await doPrecheck();
+    el('run').click();
+  }catch(e){el('status').textContent='Ошибка умного запуска: '+e.message}
 };
 
 el('fixBtn').onclick=async()=>{
@@ -288,7 +341,17 @@ el('fixBtn').onclick=async()=>{
   }catch(e){el('fixPanel').innerHTML='Ошибка: '+escapeHtml(e.message)}
 };
 
+restoreSettings();
 renderHistory();
+
+(async function resumeJob(){
+  const saved=localStorage.getItem('photoExcelCurrentJob');
+  if(!saved)return;
+  rememberCurrentJob(saved);
+  el('status').textContent='Проверяю незавершённую предыдущую задачу…';
+  await poll();
+  if(currentJob&&!pollTimer&&lastJobSnapshot&&lastJobSnapshot.status!=='done'&&lastJobSnapshot.status!=='error')pollTimer=setInterval(poll,2500);
+})();
 </script>
 </body>
 </html>
