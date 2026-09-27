@@ -1,6 +1,6 @@
 {
   "name": "photo-excel-service",
-  "version": "6.1.1",
+  "version": "6.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
     "express": "^4.21.2",
     "multer": "^1.4.5-lts.1",
     "sharp": "^0.33.5",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "xlsx": "^0.18.5"
   }
 }
