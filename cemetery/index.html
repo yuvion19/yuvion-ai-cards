@@ -1,1 +1,122 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#201a14"><title>Места памяти — Нить памяти</title><link rel="stylesheet" href="/styles.css"><script defer src="/data.js"></script><script defer src="/app.js"></script></head><body><header class="site-header"><a class="brand" href="/"><span class="brand-mark"><i></i></span><span><b>Нить памяти</b><small>мацевы и захоронения</small></span></a><button class="menu-btn" aria-label="Открыть меню">☰</button><nav class="nav"><a href="/">Главная</a><a href="/portal/">Экспозиция</a><a href="/history/">История</a><a href="/red-sloboda/">Красная Слобода</a><a href="/culture/">Культура</a><a href="/juuri/">Джуури</a><a href="/library/">Библиотека</a><a href="/kitchen/">Кухня</a><a class="active" href="/cemetery/">Память</a><a href="/archive/">Архив</a><a href="/interactive/">Интерактив</a><a href="/memory/">Моё</a><a href="/search/">Поиск</a><a href="/about/">О проекте</a></nav></header><main class="page-main paper-page"><section class="content-hero"><span class="label teal">мацевы и захоронения</span><h1>Места памяти</h1><p>Каталог захоронений, мацев, фотографий, дат и семейных связей. Публичные и приватные сведения разделяются.</p></section><section class="feature-grid"><article><h2>Поиск по имени</h2><p>Имя, фамилия, годы жизни и варианты написания.</p></article><article><h2>Карточка памяти</h2><p>Фото памятника, транскрипция, перевод, координаты и связанные материалы.</p></article><article><h2>Карта кладбища</h2><p>Секции и GPS добавляются только после полевой проверки.</p></article><article><h2>MatzevaLog</h2><p>В библиотеке сохранена точка входа в открытый каталог надгробий.</p><a class="text-link" target="_blank" rel="noopener" href="https://matzevalog.github.io/matzevalog/">Открыть каталог ↗</a></article><article><h2>Родословная</h2><p>Семейные связи и персональные записи хранятся отдельно.</p><a class="text-link" href="/genealogy/">Открыть ↗</a></article></section></main><footer class="footer"><div><b>Нить памяти</b><p>Память о горских евреях: традиции, язык и кухня.</p></div><div><small>Автор проекта</small><strong>Давидов Дон Сережович</strong><small>© 2026</small></div></footer></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#201a14">
+  <meta name="description" content="Кладбище Красной Слободы — интегрированный каталог MatzevaLog: мацевы, имена, даты и мемориальные записи.">
+  <meta property="og:title" content="Кладбище Красной Слободы — Нити Памяти">
+  <meta property="og:description" content="Интегрированный каталог MatzevaLog QBA внутри цифрового музея «Нити Памяти».">
+  <meta property="og:type" content="website">
+  <title>Кладбище Красной Слободы — Нити Памяти</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/data.js"></script>
+  <script defer src="/app.js"></script>
+  <style>
+    .cemetery-shell{max-width:1480px;margin:0 auto;padding:0 24px 72px}
+    .cemetery-intro{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,360px);gap:38px;align-items:end;padding:54px 0 30px;border-bottom:1px solid rgba(90,73,55,.22)}
+    .cemetery-intro h1{margin:8px 0 16px;font-size:clamp(44px,7vw,92px);line-height:.92}
+    .cemetery-intro p{max-width:780px;font-size:clamp(16px,1.5vw,20px);line-height:1.65}
+    .cemetery-source{padding:20px;border:1px solid rgba(106,85,57,.28);background:#f6efe4}
+    .cemetery-source b{display:block;margin-bottom:6px;font-size:1.15rem}
+    .cemetery-source small{display:block;line-height:1.5;color:#655c52}
+    .cemetery-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .cemetery-actions a{display:inline-flex;padding:10px 14px;border:1px solid #805e36;text-decoration:none}
+    .catalog-note{margin:28px 0 16px;padding:15px 18px;border-left:3px solid #8a2d2b;background:#f4eadb;line-height:1.55}
+    .catalog-frame-wrap{overflow:hidden;border:1px solid rgba(79,60,41,.35);background:#fff;box-shadow:0 18px 52px rgba(36,25,16,.12)}
+    .catalog-frame{display:block;width:100%;height:min(78vh,920px);min-height:680px;border:0;background:#fff}
+    .cemetery-guide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:28px}
+    .cemetery-guide article{padding:22px;border:1px solid rgba(79,60,41,.2);background:#f5eee3}
+    .cemetery-guide .index{display:block;margin-bottom:14px;color:#8a2d2b;font-size:.74rem;letter-spacing:.14em}
+    .cemetery-guide h2{margin:0 0 10px;font-size:1.45rem}
+    .cemetery-guide p{margin:0;line-height:1.55;color:#51483f}
+    @media(max-width:900px){
+      .cemetery-intro{grid-template-columns:1fr}
+      .catalog-frame{min-height:620px}
+      .cemetery-guide{grid-template-columns:1fr}
+    }
+    @media(max-width:600px){
+      .cemetery-shell{padding-left:14px;padding-right:14px}
+      .catalog-frame{height:72vh;min-height:520px}
+    }
+  </style>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="/">
+    <span class="brand-mark"><i></i></span>
+    <span><b>Нити Памяти</b><small>кладбище Красной Слободы</small></span>
+  </a>
+  <button class="menu-btn" aria-label="Открыть меню">☰</button>
+  <nav class="nav">
+    <a href="/">Главная</a>
+    <a href="/history/">История</a>
+    <a href="/red-sloboda/">Красная Слобода</a>
+    <a href="/culture/">Культура</a>
+    <a href="/juuri/">Джуури</a>
+    <a href="/library/">Библиотека</a>
+    <a href="/kitchen/">Кухня</a>
+    <a class="active" href="/cemetery/">Кладбище</a>
+    <a href="/archive/">Архив</a>
+    <a href="/search/">Поиск</a>
+    <a href="/about/">О проекте</a>
+  </nav>
+</header>
+
+<main class="page-main paper-page">
+  <div class="cemetery-shell">
+    <section class="cemetery-intro">
+      <div>
+        <span class="label teal">память поколений · Красная Слобода</span>
+        <h1>Кладбище</h1>
+        <p>Каталог надгробий и мемориальных записей Красной Слободы встроен в музей напрямую из MatzevaLog. Имена, даты и карточки остаются данными внешнего исследовательского каталога и не переиздаются от имени «Нити Памяти».</p>
+      </div>
+      <aside class="cemetery-source">
+        <b>Источник: MatzevaLog · QBA</b>
+        <small>Внешний каталог открыт внутри музейной страницы. Если браузер ограничивает встраивание, используйте прямую ссылку.</small>
+        <div class="cemetery-actions">
+          <a href="https://matzevalog.github.io/matzevalog/cemeteries/QBA.html" target="_blank" rel="noopener noreferrer">Открыть оригинал ↗</a>
+        </div>
+      </aside>
+    </section>
+
+    <div class="catalog-note">
+      Каталог ниже загружается с <b>matzevalog.github.io</b>. «Нити Памяти» сохраняет атрибуцию источника и не изменяет внешние записи. Для научного цитирования сверяйте конкретную карточку непосредственно в MatzevaLog.
+    </div>
+
+    <section class="catalog-frame-wrap" aria-label="Каталог кладбища Красной Слободы MatzevaLog">
+      <iframe
+        class="catalog-frame"
+        src="https://matzevalog.github.io/matzevalog/cemeteries/QBA.html"
+        title="MatzevaLog — каталог кладбища Красной Слободы QBA"
+        loading="lazy"
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
+    </section>
+
+    <section class="cemetery-guide" aria-label="Как работать с каталогом">
+      <article>
+        <span class="index">01 · ИМЯ</span>
+        <h2>Варианты записи</h2>
+        <p>Сохраняйте форму имени именно так, как она дана в источнике. Транслитерацию и нормализованное написание лучше хранить отдельно, чтобы не потерять исходную атрибуцию.</p>
+      </article>
+      <article>
+        <span class="index">02 · ДАТА</span>
+        <h2>Хронология семьи</h2>
+        <p>Даты на надгробиях помогают выстраивать семейную и общинную хронологию. При переводе календарей и чтении повреждённых надписей нужна отдельная проверка.</p>
+      </article>
+      <article>
+        <span class="index">03 · ЭПИТАФИЯ</span>
+        <h2>Текст как источник</h2>
+        <p>Эпитафия может содержать родственные связи, титулы и религиозные формулы. Ценность записи выше, когда рядом сохраняются фотография, транскрипция, перевод и ссылка на источник.</p>
+      </article>
+    </section>
+  </div>
+</main>
+
+<footer class="footer">
+  <div><b>Нити Памяти</b><p>Цифровой музей истории и культуры горских евреев.</p></div>
+  <div><small>Источник каталога</small><strong>MatzevaLog · QBA</strong><small>© 2026 «Нити Памяти»</small></div>
+</footer>
+</body>
+</html>
