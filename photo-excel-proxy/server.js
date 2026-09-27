@@ -3,7 +3,8 @@ import multer from 'multer';
 import ExcelJS from 'exceljs';
 import sharp from 'sharp';
 import archiver from 'archiver';
-import { MultiFormatReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } from '@zxing/library';
+import ZXing from '@zxing/library';
+const { MultiFormatReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } = ZXing;
 import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
@@ -298,7 +299,7 @@ function csvEscape(v=''){
   return /[",\n\r;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
 }
 function safeJob(j){
-  const {inputPath,outputPath,corrections,diskUrl,extrasList,...rest}=j;
+  const {inputPath,outputPath,corrections,diskUrl,extrasList,matchedRecords,...rest}=j;
   return rest;
 }
 async function processJob(id){
@@ -324,13 +325,15 @@ async function processJob(id){
     const photoCols=job.multiPhoto?4:1;
     const statusCol=photoStart+photoCols;
     const pathCol=statusCol+1;
+    const confidenceCol=pathCol+1;
     for(let i=0;i<photoCols;i++){
       ws.getCell(1,photoStart+i).value=job.mode==='match'?(photoCols>1?'Совпадение '+(i+1):'Совпадение'):(photoCols>1?'Фото '+(i+1):'Фото');
       ws.getColumn(photoStart+i).width=job.mode==='match'?20:22;
     }
     ws.getCell(1,statusCol).value='Статус фото';
     ws.getCell(1,pathCol).value='Пути на Яндекс Диске';
-    ws.getColumn(statusCol).width=27; ws.getColumn(pathCol).width=48;
+    ws.getCell(1,confidenceCol).value='Уверенность';
+    ws.getColumn(statusCol).width=27; ws.getColumn(pathCol).width=48; ws.getColumn(confidenceCol).width=18;
     ws.getRow(1).font={...(ws.getRow(1).font||{}),bold:true};
 
     const old=wb.getWorksheet('Отчёт сопоставления');
@@ -343,13 +346,14 @@ async function processJob(id){
       {header:'Статус',key:'status',width:28},
       {header:'Найденные файлы',key:'matched',width:46},
       {header:'Пути',key:'path',width:58},
-      {header:'Фото',key:'count',width:10}
+      {header:'Фото',key:'count',width:10},
+      {header:'Уверенность',key:'confidence',width:18}
     ];
     report.getRow(1).font={bold:true};
 
     const total=Math.max(0,ws.rowCount-1);
     let found=0,missing=0,duplicates=0,multiProducts=0;
-    const used=new Set(), unmatched=[];
+    const used=new Set(), unmatched=[], matchedRecords=[];
     const filesByPath=new Map(files.map(f=>[f.path,f]));
 
     for(let r=2;r<=ws.rowCount;r++){
@@ -358,23 +362,35 @@ async function processJob(id){
       if(!expected&&!product) continue;
       const exact=expected?(maps.exact.get(normalizeName(expected).key)||[]):[];
       if(exact.length>1) duplicates++;
-      let matches=[];
+      let matches=[], confidence=0, matchMethod='', smartCandidate=null;
       const correctionPath=job.corrections?.[String(r)];
-      if(correctionPath&&filesByPath.has(correctionPath)) matches=[filesByPath.get(correctionPath)];
-      else if(expected) matches=photoGroup(expected,maps,job.multiPhoto);
+      if(correctionPath&&filesByPath.has(correctionPath)){
+        matches=[filesByPath.get(correctionPath)];confidence=100;matchMethod='manual';
+      }else if(expected){
+        matches=photoGroup(expected,maps,job.multiPhoto);
+        if(matches.length){confidence=exact.length?100:99;matchMethod='exact';}
+        else{
+          smartCandidate=smartMatch(expected,files);
+          if(smartCandidate&&smartCandidate.score>=94){
+            matches=[smartCandidate.item];confidence=smartCandidate.score;matchMethod='smart';
+          }
+        }
+      }
 
       if(!matches.length){
         missing++;
-        unmatched.push({row:r,product,expected});
+        unmatched.push({row:r,product,expected,suggestion:smartCandidate&&smartCandidate.score>=80?{name:smartCandidate.item.name,path:smartCandidate.item.path,score:smartCandidate.score}:null});
         ws.getCell(r,statusCol).value='Не найдено';
-        report.addRow({row:r,product,expected,status:'Не найдено',matched:'',path:'',count:0});
+        ws.getCell(r,confidenceCol).value=smartCandidate?smartCandidate.score+'%':'';
+        report.addRow({row:r,product,expected,status:'Не найдено',matched:'',path:'',count:0,confidence:smartCandidate?smartCandidate.score+'%':''});
       }else{
         found++;
         if(matches.length>1) multiProducts++;
         matches.forEach(x=>used.add(x.path));
-        const status=correctionPath?'Исправлено вручную':(matches.length>1?'Найдено '+matches.length+' фото':'Найдено');
+        const status=matchMethod==='manual'?'Исправлено вручную':(matchMethod==='smart'?'Умное совпадение':(matches.length>1?'Найдено '+matches.length+' фото':'Найдено'));
         ws.getCell(r,statusCol).value=status;
         ws.getCell(r,pathCol).value=matches.map(x=>x.path).join('\n');
+        ws.getCell(r,confidenceCol).value=confidence+'%';
 
         if(job.mode==='match'){
           matches.forEach((item,i)=>{ if(i<photoCols) ws.getCell(r,photoStart+i).value=item.name; });
@@ -398,7 +414,11 @@ async function processJob(id){
         report.addRow({
           row:r,product,expected,status,
           matched:matches.map(x=>x.name).join('\n'),
-          path:matches.map(x=>x.path).join('\n'),count:matches.length
+          path:matches.map(x=>x.path).join('\n'),count:matches.length,confidence:confidence+'%'
+        });
+        matchedRecords.push({
+          row:r,product,expected,confidence,matchMethod,
+          matches:matches.map(x=>({name:x.name,path:x.path,preview:x.preview||'',file:x.file||'',size:x.size||0}))
         });
       }
       if(r%5===0||r===ws.rowCount){
@@ -424,8 +444,9 @@ async function processJob(id){
       status:'done',progress:100,message:'Готово',outputPath,
       outputName:(job.originalName||'Фото_Товар').replace(/\.xlsx$/i,'')+(job.mode==='match'?'_сопоставление.xlsx':'_с_фото.xlsx'),
       unmatched,
+      matchedRecords,
       extrasList:extras.map(x=>({name:x.name,path:x.path})),
-      stats:{total,found,missing,duplicates,multiProducts,extras:extras.length,diskFiles:files.length}
+      stats:{total,found,missing,duplicates,multiProducts,extras:extras.length,diskFiles:files.length,smartMatched:matchedRecords.filter(x=>x.matchMethod==='smart').length}
     });
   }catch(err){
     setJob(id,{status:'error',progress:0,message:err?.message||String(err)});
@@ -504,8 +525,8 @@ app.post('/api/jobs',upload.single('excel'),async(req,res)=>{
     multiPhoto:String(req.body.multiPhoto||'false')==='true',
     fileColumn:String(req.body.fileColumn||'Файл изображения'),
     nameColumn:String(req.body.nameColumn||'Название товара'),
-    corrections:{},unmatched:[],extrasList:[],
-    stats:{total:0,found:0,missing:0,duplicates:0,multiProducts:0}
+    corrections:{},unmatched:[],extrasList:[],matchedRecords:[],quality:{status:'idle',progress:0,checked:0,issues:0,visualDuplicateGroups:0,items:[]},
+    stats:{total:0,found:0,missing:0,duplicates:0,multiProducts:0,smartMatched:0}
   });
   workQueue.push(id); runNext(); res.json({ok:true,id});
 });
