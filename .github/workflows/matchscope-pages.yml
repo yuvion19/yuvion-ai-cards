@@ -1,10 +1,11 @@
-name: Deploy MatchScope AI to GitHub Pages
+name: Deploy MatchScope AI + UVMALL to GitHub Pages
 
 on:
   push:
     branches: [main]
     paths:
       - "matchscope-ai/**"
+      - "uvmall-miniapp-pages/**"
       - ".github/workflows/matchscope-pages.yml"
   workflow_dispatch:
 
@@ -28,10 +29,16 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Upload MatchScope
+      - name: Stage Pages
+        run: |
+          rm -rf _pages
+          mkdir -p _pages/uvmall
+          cp -R matchscope-ai/. _pages/
+          cp -R uvmall-miniapp-pages/. _pages/uvmall/
+      - name: Upload Pages
         uses: actions/upload-pages-artifact@v4
         with:
-          path: matchscope-ai
+          path: _pages
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
