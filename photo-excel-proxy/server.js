@@ -2,7 +2,6 @@ import express from 'express';
 import multer from 'multer';
 import ExcelJS from 'exceljs';
 import sharp from 'sharp';
-import archiver from 'archiver';
 import ZXing from '@zxing/library';
 const { MultiFormatReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } = ZXing;
 import { randomUUID } from 'crypto';
@@ -181,21 +180,54 @@ function cellText(cell){
   }
   return String(v);
 }
-function findHeader(ws,wanted){
-  const target=String(wanted||'').trim().toLowerCase();
-  let found=0;
+function normalizeHeader(v=''){
+  return String(v||'').normalize('NFKC').trim().toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ');
+}
+function findHeader(ws,wanted,aliases=[]){
+  const exact=[wanted,...aliases].map(normalizeHeader).filter(Boolean);
+  const headers=[];
   ws.getRow(1).eachCell({includeEmpty:true},(cell,col)=>{
-    if(cellText(cell).trim().toLowerCase()===target) found=col;
+    headers.push({col,text:normalizeHeader(cellText(cell))});
   });
-  return found;
+  for(const t of exact){
+    const hit=headers.find(h=>h.text===t);
+    if(hit)return hit.col;
+  }
+  for(const t of exact){
+    const hit=headers.find(h=>h.text&&t&&(h.text.includes(t)||t.includes(h.text)));
+    if(hit)return hit.col;
+  }
+  return 0;
+}
+function detectColumns(ws,fileWanted,nameWanted){
+  let fileCol=findHeader(ws,fileWanted,[
+    'файл изображения','файл фото','фото','изображение','image','image file','filename','имя файла','файл'
+  ]);
+  let nameCol=findHeader(ws,nameWanted,[
+    'название товара','наименование товара','товар','наименование','название','product name','product'
+  ]);
+  if(!fileCol){
+    ws.getRow(1).eachCell({includeEmpty:true},(cell,col)=>{
+      const h=normalizeHeader(cellText(cell));
+      if(!fileCol&&/(фото|изображ|image|файл)/.test(h))fileCol=col;
+    });
+  }
+  if(!nameCol){
+    ws.getRow(1).eachCell({includeEmpty:true},(cell,col)=>{
+      const h=normalizeHeader(cellText(cell));
+      if(!nameCol&&/(товар|назван|наимен|product)/.test(h))nameCol=col;
+    });
+  }
+  return {fileCol,nameCol};
 }
 async function readWorkbookInfo(inputPath,fileColumn,nameColumn,files,multiPhoto=false){
   const wb=new ExcelJS.Workbook();
   await wb.xlsx.readFile(inputPath);
   const ws=wb.worksheets[0];
   if(!ws) throw new Error('В Excel нет листов.');
-  const fileCol=findHeader(ws,fileColumn||'Файл изображения');
-  const nameCol=findHeader(ws,nameColumn||'Название товара');
+  const detected=detectColumns(ws,fileColumn||'Файл изображения',nameColumn||'Название товара');
+  const fileCol=detected.fileCol;
+  const nameCol=detected.nameCol;
   if(!fileCol) throw new Error('Не найдена колонка «'+(fileColumn||'Файл изображения')+'».');
   if(!nameCol) throw new Error('Не найдена колонка «'+(nameColumn||'Название товара')+'».');
   const maps=buildMaps(files);
@@ -316,8 +348,9 @@ async function processJob(id){
     await wb.xlsx.readFile(job.inputPath);
     const ws=wb.worksheets[0];
     if(!ws) throw new Error('В Excel нет листов.');
-    const fileCol=findHeader(ws,job.fileColumn||'Файл изображения');
-    const nameCol=findHeader(ws,job.nameColumn||'Название товара');
+    const detected=detectColumns(ws,job.fileColumn||'Файл изображения',job.nameColumn||'Название товара');
+    const fileCol=detected.fileCol;
+    const nameCol=detected.nameCol;
     if(!fileCol) throw new Error('Не найдена колонка «'+(job.fileColumn||'Файл изображения')+'».');
     if(!nameCol) throw new Error('Не найдена колонка «'+(job.nameColumn||'Название товара')+'».');
 
@@ -471,7 +504,7 @@ function cleanup(){
 }
 setInterval(cleanup,15*60*1000).unref();
 
-app.get('/health',(req,res)=>res.json({ok:true,version:6,jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
+app.get('/health',(req,res)=>res.json({ok:true,version:'6.1',jobs:jobs.size,queued:workQueue.length,running,scanCache:scanCache.size}));
 
 app.post('/api/scan',async(req,res)=>{
   try{
@@ -656,10 +689,6 @@ async function runQualityAnalysis(id,limit=0){
   j.updatedAt=Date.now();
 }
 
-function safePathPart(v=''){
-  return String(v||'item').normalize('NFKC').replace(/[\\/:*?"<>|]+/g,'_').replace(/\s+/g,' ').trim().slice(0,120)||'item';
-}
-
 app.post('/api/jobs/:id/quality',(req,res)=>{
   const j=jobs.get(req.params.id);
   if(!j)return res.status(404).json({error:'job_not_found'});
@@ -682,38 +711,6 @@ app.get('/api/jobs/:id/products',(req,res)=>{
     matches:(r.matches||[]).map(x=>({name:x.name,path:x.path,preview:x.preview||x.file||''}))
   }));
   res.json({ok:true,total:(j.matchedRecords||[]).length,offset,items:list});
-});
-
-app.get('/api/jobs/:id/export/ozon.zip',async(req,res)=>{
-  const j=jobs.get(req.params.id);
-  if(!j||j.status!=='done')return res.status(404).send('not ready');
-  res.setHeader('Content-Type','application/zip');
-  res.setHeader('Content-Disposition','attachment; filename="ozon_products.zip"');
-  const archive=archiver('zip',{zlib:{level:7}});
-  archive.on('error',err=>{try{res.destroy(err)}catch{}});
-  archive.pipe(res);
-  const report=[['Строка','Товар','Исходное имя','Экспортировано фото']];
-  for(const rec of j.matchedRecords||[]){
-    const base=safePathPart(normalizeName(rec.expected||String(rec.row)).stem||String(rec.row));
-    let count=0;
-    for(let i=0;i<Math.min(4,(rec.matches||[]).length);i++){
-      const im=rec.matches[i],url=im.file||im.preview;
-      if(!url)continue;
-      try{
-        const input=await fetchImageBuffer(url);
-        const out=await sharp(input,{failOn:'none'}).rotate()
-          .resize({width:900,height:1200,fit:'contain',background:{r:255,g:255,b:255,alpha:1},withoutEnlargement:false})
-          .flatten({background:{r:255,g:255,b:255}})
-          .jpeg({quality:90,mozjpeg:true}).toBuffer();
-        archive.append(out,{name:'products/'+base+'/'+base+'_'+(i+1)+'.jpg'});
-        count++;
-      }catch{}
-    }
-    report.push([rec.row,rec.product,rec.expected,count]);
-  }
-  const csv='\uFEFF'+report.map(r=>r.map(csvEscape).join(';')).join('\r\n');
-  archive.append(csv,{name:'report.csv'});
-  archive.finalize();
 });
 
 app.post('/api/decode-code',upload.single('image'),async(req,res)=>{
@@ -740,7 +737,7 @@ app.get('/api/jobs/:id/download',(req,res)=>{
 });
 
 app.listen(PORT,'0.0.0.0',()=>{
-  console.log('Photo Excel service v6 listening on',PORT);
+  console.log('Photo Excel service v6.1 listening on',PORT);
   const p=new URLSearchParams({public_key:'https://disk.yandex.ru/d/zTdZ9PlnyQZY9A',limit:'1',offset:'0',preview_size:'360x360',preview_crop:'false'});
   yfetch(API+'?'+p.toString())
     .then(data=>console.log('YANDEX_SELF_TEST_OK',JSON.stringify({name:data.name||'',rootItems:data._embedded?.total??null})))
