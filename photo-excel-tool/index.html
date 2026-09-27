@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Фото → Excel</title>
 <meta name="theme-color" content="#111827">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;--ok:#059669;--bad:#dc2626;--warn:#d97706}
 *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
@@ -36,8 +39,17 @@ button:disabled{opacity:.5;cursor:not-allowed}.hint{font-size:13px;color:var(--m
 .historyRow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-top:1px solid var(--line);padding:10px 0}.historyRow:first-child{border-top:0}
 .smallBtn{padding:8px 10px;font-size:12px;border-radius:9px;background:#eef2ff;color:#3730a3}
 .download{display:none;margin-top:12px;background:#059669;color:white;width:100%}.download.show{display:block}
+.toolGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
+.gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.productCard{border:1px solid var(--line);border-radius:14px;padding:10px;background:#fff}
+.productImgs{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-top:8px}
+.productImgs img{width:100%;aspect-ratio:1/1;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#f9fafb}
+.qualityTable{display:grid;gap:8px;margin-top:10px}
+.qualityRow{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+.scannerBox{display:grid;gap:10px}
+.installBtn{background:#111827;color:#fff;width:100%}
 .privacy{font-size:12px;color:var(--muted);line-height:1.5}
-@media(max-width:680px){.row,.actions{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:1fr 1fr}.analyticsGrid{grid-template-columns:1fr 1fr}.resultGrid{grid-template-columns:1fr 1fr}.resultHead{align-items:flex-start}.resultPct{font-size:30px}.fixGrid{grid-template-columns:1fr}h1{font-size:27px}}
+@media(max-width:680px){.row,.actions,.toolGrid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:1fr 1fr}.analyticsGrid{grid-template-columns:1fr 1fr}.resultGrid{grid-template-columns:1fr 1fr}.gallery{grid-template-columns:1fr}.resultHead{align-items:flex-start}.resultPct{font-size:30px}.fixGrid{grid-template-columns:1fr}h1{font-size:27px}}
 </style>
 </head>
 <body>
@@ -140,6 +152,27 @@ button:disabled{opacity:.5;cursor:not-allowed}.hint{font-size:13px;color:var(--m
   </div>
   <button id="fixBtn" class="secondary" style="display:none;margin-top:10px">Исправить ненайденные вручную</button>
   <div id="fixPanel" class="panel"></div>
+
+  <div id="v6Tools" class="panel">
+    <b>Инструменты v6</b>
+    <div class="toolGrid">
+      <button id="qualityBtn" class="secondary">Проверить качество и визуальные дубли</button>
+      <button id="galleryBtn" class="secondary">Открыть галерею товаров</button>
+      <button id="ozonBtn" class="success">Скачать Ozon ZIP 900×1200</button>
+      <button id="installBtn" class="installBtn">Установить как приложение</button>
+    </div>
+    <div id="qualityPanel" class="panel"></div>
+    <div id="galleryPanel" class="panel"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="step">Сканер QR / штрихкода</div>
+  <div class="scannerBox">
+    <input id="codeImage" type="file" accept="image/*">
+    <button id="codeBtn" class="secondary">Считать код с фотографии</button>
+    <div id="codeResult" class="status">Загрузите фото с QR-кодом или штрихкодом.</div>
+  </div>
 </div>
 
 <div class="card">
@@ -205,6 +238,7 @@ function showResult(s={}){
   const notes=[]; if(dups)notes.push('Точных дубликатов имён: '+fmt(dups)+'.'); if(extras)notes.push('Не использовано фото: '+fmt(extras)+'.');
   el('resultWarn').style.display=notes.length?'block':'none'; el('resultWarn').textContent=notes.join(' ');
   el('fixBtn').style.display=missing>0?'block':'none';
+  el('v6Tools').classList.add('show');
   el('reportButtons').style.display=(missing>0||extras>0)?'grid':'none';
   el('missingCsv').style.display=missing>0?'block':'none';
   el('extrasCsv').style.display=extras>0?'block':'none';
@@ -258,6 +292,20 @@ el('analyticsBtn').onclick=async()=>{
 
 el('precheckBtn').onclick=async()=>{try{await doPrecheck()}catch(e){el('status').textContent='Ошибка предпроверки: '+e.message}};
 
+function renderQuality(q={}){
+  if(!q||q.status==='idle')return;
+  el('qualityPanel').classList.add('show');
+  if(q.status==='running'){
+    el('qualityPanel').innerHTML='<b>Проверка качества: '+fmt(q.progress)+'%</b><div class="hint">Проверено '+fmt(q.checked)+' из '+fmt(q.total)+'.</div>';
+    return;
+  }
+  if(q.status==='error'){
+    el('qualityPanel').innerHTML='<b>Ошибка проверки качества</b><div class="hint">'+escapeHtml(q.message||'')+'</div>';
+    return;
+  }
+  const issues=(q.items||[]).slice(0,30).map(x=>'<div class="qualityRow"><div class="itemTitle">Строка '+x.row+' — '+escapeHtml(x.product||x.name)+'</div><div class="itemMeta">'+escapeHtml((x.issues||[]).join(', '))+(x.width?' • '+x.width+'×'+x.height:'')+(x.sharpness?' • резкость '+x.sharpness:'')+'</div></div>').join('');
+  el('qualityPanel').innerHTML='<div class="kpis"><div class="kpi"><b>'+fmt(q.checked)+'</b><span>проверено</span></div><div class="kpi"><b class="warn">'+fmt(q.issues)+'</b><span>с проблемами</span></div><div class="kpi"><b>'+fmt(q.visualDuplicateGroups)+'</b><span>визуальных дублей</span></div></div><div class="hint">Ниже показаны первые проблемные изображения.</div><div class="qualityTable">'+(issues||'<div class="hint">Проблем не найдено.</div>')+'</div>';
+}
 async function poll(){
   if(!currentJob)return;
   try{
@@ -267,7 +315,7 @@ async function poll(){
       throw new Error(j.error||'Задача не найдена');
     }
     lastJobSnapshot=j;
-    setProgress(j.progress);setStats(j.stats||{});
+    setProgress(j.progress);setStats(j.stats||{});renderQuality(j.quality||{});
     el('status').textContent=(j.message||j.status||'')+(j.diskFiles?'\nФото на Диске: '+fmt(j.diskFiles):'');
     if(j.status==='done'){
       clearInterval(pollTimer);pollTimer=null;el('run').disabled=false;showResult(j.stats||{});
@@ -281,12 +329,66 @@ async function poll(){
 el('run').onclick=async()=>{
   try{
     const fd=commonFormData();
-    el('run').disabled=true;el('download').classList.remove('show');el('result').classList.remove('show');el('fixBtn').style.display='none';el('fixPanel').classList.remove('show');
+    el('run').disabled=true;el('download').classList.remove('show');el('result').classList.remove('show');el('fixBtn').style.display='none';el('fixPanel').classList.remove('show');el('v6Tools').classList.remove('show');el('qualityPanel').classList.remove('show');el('galleryPanel').classList.remove('show');
     setProgress(1);setStats({});el('status').textContent='Отправляю Excel и запускаю обработку…';
     const r=await fetch(API+'/api/jobs',{method:'POST',body:fd});const data=await r.json();
     if(!r.ok||!data.ok)throw new Error(data.error||'Не удалось создать задачу');
     rememberCurrentJob(data.id);corrections={};saveSettings();if(pollTimer)clearInterval(pollTimer);await poll();pollTimer=setInterval(poll,2500);
   }catch(e){el('status').textContent='Ошибка запуска: '+e.message;el('run').disabled=false;setProgress(0)}
+};
+
+el('qualityBtn').onclick=async()=>{
+  if(!currentJob)return;
+  el('qualityBtn').disabled=true;
+  el('qualityPanel').classList.add('show');
+  el('qualityPanel').innerHTML='Запускаю проверку качества всех найденных фото…';
+  try{
+    const r=await fetch(API+'/api/jobs/'+currentJob+'/quality',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit:0})});
+    const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Ошибка запуска');
+    if(!pollTimer)pollTimer=setInterval(poll,2500);
+    await poll();
+  }catch(e){el('qualityPanel').innerHTML='Ошибка: '+escapeHtml(e.message)}
+  finally{el('qualityBtn').disabled=false}
+};
+
+async function loadGallery(offset=0){
+  if(!currentJob)return;
+  el('galleryPanel').classList.add('show');
+  el('galleryPanel').innerHTML='Загружаю галерею…';
+  try{
+    const r=await fetch(API+'/api/jobs/'+currentJob+'/products?offset='+offset+'&limit=30');
+    const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Ошибка галереи');
+    const cards=(d.items||[]).map(x=>{
+      const imgs=(x.matches||[]).map(m=>m.preview?'<img src="'+escapeHtml(m.preview)+'" alt="">':'').join('');
+      return '<div class="productCard"><div class="itemTitle">'+escapeHtml(x.product||'Строка '+x.row)+'</div><div class="itemMeta">Строка '+x.row+' • '+escapeHtml(x.expected||'')+' • '+fmt(x.confidence)+'%</div><div class="productImgs">'+imgs+'</div></div>';
+    }).join('');
+    const next=offset+30<d.total?'<button class="secondary" onclick="loadGallery('+(offset+30)+')" style="margin-top:10px">Следующие 30</button>':'';
+    const prev=offset>0?'<button class="secondary" onclick="loadGallery('+Math.max(0,offset-30)+')" style="margin-top:10px">Предыдущие 30</button>':'';
+    el('galleryPanel').innerHTML='<div class="hint">Товаров: '+fmt(d.total)+'. Показаны '+fmt(offset+1)+'–'+fmt(Math.min(offset+30,d.total))+'.</div><div class="gallery">'+cards+'</div><div class="actions">'+prev+next+'</div>';
+  }catch(e){el('galleryPanel').innerHTML='Ошибка: '+escapeHtml(e.message)}
+}
+window.loadGallery=loadGallery;
+el('galleryBtn').onclick=()=>loadGallery(0);
+el('ozonBtn').onclick=()=>{if(currentJob)location.href=API+'/api/jobs/'+currentJob+'/export/ozon.zip'};
+
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e});
+el('installBtn').onclick=async()=>{
+  if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}
+  else alert('На iPhone: Поделиться → На экран «Домой». На Android откройте меню браузера → Установить приложение.');
+};
+
+el('codeBtn').onclick=async()=>{
+  const file=el('codeImage').files&&el('codeImage').files[0];
+  if(!file){el('codeResult').textContent='Сначала выберите фотографию.';return}
+  const fd=new FormData();fd.append('image',file);
+  el('codeBtn').disabled=true;el('codeResult').textContent='Распознаю код…';
+  try{
+    const r=await fetch(API+'/api/decode-code',{method:'POST',body:fd});
+    const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Код не распознан');
+    el('codeResult').textContent='Найдено: '+d.text+'\nФормат: '+d.format;
+  }catch(e){el('codeResult').textContent='Не удалось распознать: '+e.message}
+  finally{el('codeBtn').disabled=false}
 };
 
 el('missingCsv').onclick=()=>{if(currentJob)location.href=API+'/api/jobs/'+currentJob+'/report/missing.csv'};
@@ -343,6 +445,7 @@ el('fixBtn').onclick=async()=>{
 
 restoreSettings();
 renderHistory();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 (async function resumeJob(){
   const saved=localStorage.getItem('photoExcelCurrentJob');
