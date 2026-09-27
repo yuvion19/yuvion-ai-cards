@@ -1,16 +1,19 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#08090c"><title>UVMALL → Telegram</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08090c">
+<title>UVMALL → Telegram</title>
 <style>
 :root{--bg:#08090c;--card:#14171d;--line:#2a2f39;--text:#f7f8fb;--muted:#98a1b0;--red:#ff3434;--ok:#35d07f;--bad:#ff8585}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;background:radial-gradient(900px 520px at 50% -250px,rgba(255,52,52,.28),transparent 70%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif}
-body{min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
-.wrap{max-width:650px;margin:auto;padding:18px 14px 40px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:15px}.logo{width:50px;height:50px;border-radius:16px;background:linear-gradient(145deg,#ff655a,var(--red));display:grid;place-items:center;font-weight:950;font-size:20px}.brand h1{margin:0;font-size:23px}.brand p{margin:3px 0 0;color:var(--muted);font-size:12px}
+body{min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}.wrap{max-width:650px;margin:auto;padding:18px 14px 40px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:15px}.logo{width:50px;height:50px;border-radius:16px;background:linear-gradient(145deg,#ff655a,var(--red));display:grid;place-items:center;font-weight:950;font-size:20px}.brand h1{margin:0;font-size:23px}.brand p{margin:3px 0 0;color:var(--muted);font-size:12px}
 .hero,.card{background:linear-gradient(145deg,rgba(25,28,35,.98),rgba(13,15,20,.98));border:1px solid var(--line);border-radius:23px;padding:18px;margin-top:12px;box-shadow:0 16px 45px rgba(0,0,0,.24)}
 .hero h2{font-size:30px;line-height:1.04;margin:0 0 8px}.hero p,.help{color:var(--muted);font-size:12px;line-height:1.5}.step{display:flex;gap:10px;align-items:center;margin-bottom:10px}.n{width:30px;height:30px;border-radius:9px;background:#252a33;display:grid;place-items:center;font-weight:800}.step h3{margin:0;font-size:17px}
-label{display:block;margin:11px 0 6px;font-size:12px;font-weight:700}input,select{width:100%;background:#090b0f;color:#fff;border:1px solid #303642;border-radius:14px;padding:13px;font-size:16px;outline:none}.grid{display:grid;grid-template-columns:1fr;gap:8px}@media(min-width:560px){.grid.two{grid-template-columns:1fr 1fr}}
+label{display:block;margin:11px 0 6px;font-size:12px;font-weight:700}input,select{width:100%;background:#090b0f;color:#fff;border:1px solid #303642;border-radius:14px;padding:13px;font-size:16px;outline:none}
+.grid{display:grid;grid-template-columns:1fr;gap:8px}@media(min-width:560px){.grid.two{grid-template-columns:1fr 1fr}}
 button,a.btn{width:100%;border:0;border-radius:14px;padding:14px;font-size:15px;font-weight:800;display:flex;justify-content:center;align-items:center;text-decoration:none}.primary{background:linear-gradient(180deg,#ff6258,#f32c2c);color:#fff}.secondary{background:#242934;color:#fff;border:1px solid #373d48}.ghost{background:transparent;color:#e3e7ee;border:1px solid #343a45}
 .files,.log{margin-top:9px;background:#090b0f;border:1px solid #252b34;border-radius:13px;padding:10px;font-size:12px;line-height:1.45;overflow:auto}.files{max-height:155px}.log{height:185px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.ok{color:var(--ok)}.bad{color:var(--bad)}
 .progress{height:9px;background:#090b0f;border:1px solid #252b34;border-radius:999px;overflow:hidden;margin-top:12px}.bar{height:100%;width:0;background:linear-gradient(90deg,var(--red),#ff9648);transition:width .2s}.result{display:none;margin-top:11px;padding:12px;border-radius:13px;background:#12351f}.result a{color:#8fffb8;font-weight:800;text-decoration:none}.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.badge{padding:6px 9px;border-radius:999px;border:1px solid #343a45;background:#1a1e25;font-size:11px}.note{margin-top:13px;color:var(--muted);font-size:11px}
@@ -18,40 +21,84 @@ button,a.btn{width:100%;border:0;border-radius:14px;padding:14px;font-size:15px;
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body><div class="wrap">
-<div class="brand"><div class="logo">UV</div><div><h1>UVMALL → Telegram</h1><p>GitHub Pages • iPhone</p></div></div>
-<section class="hero"><h2>Создай набор прямо с iPhone.</h2><p>Анимированные emoji .TGS и video stickers .WEBM. Поддерживается загрузка ZIP.</p><div class="badges"><span class="badge">iPhone Safari</span><span class="badge">TGS</span><span class="badge">WEBM</span><span class="badge">ZIP</span></div></section>
+<div class="brand"><div class="logo">UV</div><div><h1>UVMALL → Telegram</h1><p>Server mode • iPhone</p></div></div>
+<section class="hero"><h2>Теперь через сервер.</h2><p>Safari больше не обращается к Telegram напрямую. Все запросы идут через серверный API UVMALL.</p><div class="badges"><span class="badge">iPhone Safari</span><span class="badge">TGS</span><span class="badge">WEBM</span><span class="badge">ZIP</span></div></section>
+
 <section class="card"><div class="step"><div class="n">1</div><h3>Telegram</h3></div>
 <label>Bot Token из @BotFather</label><input id="token" type="password" autocomplete="off" autocapitalize="off" placeholder="123456789:AA...">
 <div class="grid two" style="margin-top:8px"><button class="secondary" id="check">Проверить бота</button><button class="ghost" id="openbot">Открыть моего бота</button></div>
 <label>Telegram user_id</label><input id="uid" inputmode="numeric" placeholder="Например 123456789">
 <div class="grid two" style="margin-top:8px"><button class="secondary" id="find">Найти ID после /start</button><a class="btn ghost" href="https://t.me/BotFather">Открыть @BotFather</a></div>
 <div class="help">Сначала отправь своему боту /start, затем нажми «Найти ID».</div></section>
+
 <section class="card"><div class="step"><div class="n">2</div><h3>Пакет</h3></div>
 <label>Тип</label><select id="mode"><option value="animated">Анимированные эмодзи (.TGS)</option><option value="video">Видео-стикеры (.WEBM)</option></select>
 <label>Название</label><input id="title" value="UVMALL V2" maxlength="64">
 <label>Выбери ZIP или файлы</label><input id="pick" type="file" multiple accept=".zip,.tgs,.webm,application/zip">
 <div id="files" class="files">Файлы ещё не выбраны.</div><button class="secondary" id="prepare" style="margin-top:8px">Проверить файлы</button></section>
+
 <section class="card"><div class="step"><div class="n">3</div><h3>Создание</h3></div>
 <button class="primary" id="create">Создать набор в Telegram</button><div class="progress"><div id="bar" class="bar"></div></div><div id="pt" class="help">0%</div><div id="result" class="result"><a id="link" target="_blank">Открыть набор в Telegram</a></div></section>
-<section class="card"><div class="step"><div class="n">✓</div><h3>Журнал</h3></div><div id="log" class="log">Готово к работе.</div></section>
-<div class="note">Bot Token не сохраняется. Он используется только для обращения к Telegram Bot API из этой страницы.</div>
+
+<section class="card"><div class="step"><div class="n">✓</div><h3>Журнал</h3></div><div id="log" class="log">Версия 2.0. Готово к работе.</div></section>
+<div class="note">Bot Token не сохраняется в браузере. Он отправляется по HTTPS на сервер только для текущих запросов к Telegram.</div>
 </div>
+
 <script>
-const $=x=>document.getElementById(x),TG="https://api.telegram.org/bot"; let ready=[],bot="";
-function log(s,c=""){let d=document.createElement("div");d.textContent=s;if(c)d.className=c;$("log").appendChild(d);$("log").scrollTop=99999}
+const API="https://huvbrphblapbobklttup.supabase.co/functions/v1/uvmall-telegram-api";
+const $=x=>document.getElementById(x); let ready=[],bot="";
+function log(s,c=""){const d=document.createElement("div");d.textContent=s;if(c)d.className=c;$("log").appendChild(d);$("log").scrollTop=99999}
 function clearLog(){$("log").innerHTML=""}
-function prog(n,t){let p=t?Math.round(n/t*100):0;$("bar").style.width=p+"%";$("pt").textContent=p+"% ("+n+"/"+t+")"}
-async function api(m,fd){let t=$("token").value.trim();if(!t)throw Error("Введи Bot Token");let r=await fetch(TG+t+"/"+m,{method:"POST",body:fd||new FormData()});let j;try{j=await r.json()}catch{throw Error("Telegram не ответил JSON. Возможно Safari блокирует запрос.")}if(!j.ok)throw Error(j.description||"Telegram API error");return j.result}
+function prog(n,t){const p=t?Math.round(n/t*100):0;$("bar").style.width=p+"%";$("pt").textContent=p+"% ("+n+"/"+t+")"}
+async function post(body){const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});let j;try{j=await r.json()}catch{throw Error("Сервер не вернул JSON")};if(!r.ok||!j.ok)throw Error(j.error||"Ошибка сервера");return j}
 function emoji(n){n=n.toLowerCase();for(const a of [["like","👍"],["love","❤️"],["hello","👋"],["done","✅"],["thanks","🙏"],["hooray","🎉"],["phone","📱"],["shopping","🛍️"],["new","📣"],["discount","🏷️"],["order","📦"],["delivery","🚚"],["qr","📷"],["search","🔎"],["secure","🛡️"],["gift","🎁"],["coffee","☕"],["idea","💡"],["rating","⭐"],["location","📍"],["time","⏱️"],["cart","🛒"],["photo","📸"],["support","🎧"],["notice","🔔"],["hot","🔥"],["private","🔒"],["launch","🚀"],["money","💳"],["inventory","📦"],["easy","👌"],["best","🏆"]])if(n.includes(a[0]))return a[1];return"👍"}
-$("check").onclick=async()=>{clearLog();try{let x=await api("getMe");bot=x.username;log("✓ Бот @"+bot,"ok")}catch(e){log("Ошибка: "+e.message,"bad")}}
-$("openbot").onclick=async()=>{try{if(!bot)bot=(await api("getMe")).username;location.href="https://t.me/"+bot}catch(e){log("Ошибка: "+e.message,"bad")}}
-$("find").onclick=async()=>{clearLog();try{let a=await api("getUpdates"),f=[...a].reverse().map(u=>u.message?.from||u.edited_message?.from||u.callback_query?.from).find(x=>x?.id);if(!f)throw Error("Сначала отправь своему боту /start");$("uid").value=f.id;log("✓ ID: "+f.id,"ok")}catch(e){log("Ошибка: "+e.message,"bad")}}
-$("pick").onchange=()=>{let a=[...$("pick").files];$("files").innerHTML=a.length?a.map(f=>"• "+f.name+" — "+(f.size/1024).toFixed(1)+" КБ").join("<br>"):"Файлы ещё не выбраны."}
-async function prepareFiles(){let a=[...$("pick").files];if(!a.length)throw Error("Выбери ZIP или файлы");let ext=$("mode").value==="animated"?".tgs":".webm",out=[];for(const f of a){if(f.name.toLowerCase().endsWith(".zip")){if(!window.JSZip)throw Error("Не загрузился ZIP-модуль");let z=await JSZip.loadAsync(f);for(const e of Object.values(z.files))if(!e.dir&&e.name.toLowerCase().endsWith(ext)){let b=await e.async("blob");out.push(new File([b],e.name.split("/").pop()))}}else if(f.name.toLowerCase().endsWith(ext))out.push(f)}if(!out.length)throw Error("Нет подходящих "+ext.toUpperCase()+" файлов");if(out.length>50)throw Error("Максимум 50 файлов");let lim=ext===".tgs"?65536:262144;for(const f of out)if(f.size>lim)throw Error(f.name+" превышает лимит");ready=out;$("files").innerHTML=ready.map((f,i)=>(i+1)+". "+f.name+" → "+emoji(f.name)).join("<br>");return out}
+function toB64(file){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]);r.onerror=no;r.readAsDataURL(file)})}
+
+$("check").onclick=async()=>{clearLog();try{const j=await post({action:"check",token:$("token").value.trim()});bot=j.username;log("✓ Бот @"+bot,"ok")}catch(e){log("Ошибка: "+e.message,"bad")}}
+$("openbot").onclick=async()=>{try{if(!bot){const j=await post({action:"check",token:$("token").value.trim()});bot=j.username}location.href="https://t.me/"+bot}catch(e){log("Ошибка: "+e.message,"bad")}}
+$("find").onclick=async()=>{clearLog();try{const j=await post({action:"find_id",token:$("token").value.trim()});$("uid").value=j.user_id;log("✓ ID: "+j.user_id+(j.name?" — "+j.name:""),"ok")}catch(e){log("Ошибка: "+e.message,"bad")}}
+$("pick").onchange=()=>{const a=[...$("pick").files];$("files").innerHTML=a.length?a.map(f=>"• "+f.name+" — "+(f.size/1024).toFixed(1)+" КБ").join("<br>"):"Файлы ещё не выбраны."}
+
+async function prepareFiles(){
+ const a=[...$("pick").files];if(!a.length)throw Error("Выбери ZIP или файлы");
+ const ext=$("mode").value==="animated"?".tgs":".webm",out=[];
+ for(const f of a){
+   if(f.name.toLowerCase().endsWith(".zip")){
+     if(!window.JSZip)throw Error("ZIP-модуль не загрузился. Распакуй ZIP и выбери файлы напрямую.");
+     const z=await JSZip.loadAsync(f);
+     for(const e of Object.values(z.files))if(!e.dir&&e.name.toLowerCase().endsWith(ext)){const b=await e.async("blob");out.push(new File([b],e.name.split("/").pop()))}
+   } else if(f.name.toLowerCase().endsWith(ext)) out.push(f);
+ }
+ if(!out.length)throw Error("Нет подходящих "+ext.toUpperCase()+" файлов");
+ if(out.length>50)throw Error("Максимум 50 файлов");
+ const lim=ext===".tgs"?65536:262144;
+ for(const f of out)if(f.size>lim)throw Error(f.name+" превышает лимит");
+ ready=out;$("files").innerHTML=ready.map((f,i)=>(i+1)+". "+f.name+" → "+emoji(f.name)).join("<br>");
+ return out;
+}
 $("prepare").onclick=async()=>{clearLog();try{await prepareFiles();log("✓ Подготовлено: "+ready.length,"ok")}catch(e){log("Ошибка: "+e.message,"bad")}}
-$("create").onclick=async()=>{clearLog();$("result").style.display="none";prog(0,1);try{let uid=$("uid").value.trim(),mode=$("mode").value,title=$("title").value.trim();if(!/^\d+$/.test(uid))throw Error("Введи корректный user_id");if(!title)throw Error("Введи название");if(!ready.length)await prepareFiles();let me=await api("getMe");bot=me.username;let fmt=mode==="animated"?"animated":"video",type=mode==="animated"?"custom_emoji":"regular",suffix="_by_"+bot.toLowerCase(),base=("uvmall_"+(mode==="animated"?"emoji":"stickers")+"_"+uid.slice(-6)+"_"+Date.now().toString().slice(-5)).replace(/[^a-z0-9_]/g,"_"),name=base.slice(0,64-suffix.length).replace(/_+$/,"")+suffix;
-async function upload(f){let d=new FormData();d.set("user_id",uid);d.set("sticker_format",fmt);d.set("sticker",f,f.name);return api("uploadStickerFile",d)}
-let first=await upload(ready[0]),fd=new FormData();fd.set("user_id",uid);fd.set("name",name);fd.set("title",title);fd.set("sticker_type",type);fd.set("stickers",JSON.stringify([{sticker:first.file_id,format:fmt,emoji_list:[emoji(ready[0].name)]}]));await api("createNewStickerSet",fd);prog(1,ready.length);log("✓ 1/"+ready.length,"ok");
-for(let i=1;i<ready.length;i++){let up=await upload(ready[i]),x=new FormData();x.set("user_id",uid);x.set("name",name);x.set("sticker",JSON.stringify({sticker:up.file_id,format:fmt,emoji_list:[emoji(ready[i].name)]}));await api("addStickerToSet",x);prog(i+1,ready.length);log("✓ "+(i+1)+"/"+ready.length,"ok")}
-let url=(mode==="animated"?"https://t.me/addemoji/":"https://t.me/addstickers/")+name;$("link").href=url;$("result").style.display="block";log("Готово. Набор создан.","ok")}catch(e){log("Ошибка: "+e.message,"bad")}}
-</script></body></html>
+
+$("create").onclick=async()=>{
+ clearLog();$("result").style.display="none";prog(0,1);
+ try{
+   const token=$("token").value.trim(),user_id=$("uid").value.trim(),mode=$("mode").value,title=$("title").value.trim();
+   if(!token)throw Error("Введи Bot Token");
+   if(!/^\d+$/.test(user_id))throw Error("Введи корректный user_id");
+   if(!title)throw Error("Введи название");
+   if(!ready.length)await prepareFiles();
+
+   const first=ready[0];
+   log("1/"+ready.length+" — создаю набор…");
+   const created=await post({action:"create",token,user_id,mode,title,emoji:emoji(first.name),file_name:first.name,data_base64:await toB64(first)});
+   prog(1,ready.length);log("✓ 1/"+ready.length,"ok");
+
+   for(let i=1;i<ready.length;i++){
+     const f=ready[i];log((i+1)+"/"+ready.length+" — "+f.name);
+     await post({action:"add",token,user_id,mode,set_name:created.set_name,emoji:emoji(f.name),file_name:f.name,data_base64:await toB64(f)});
+     prog(i+1,ready.length);log("✓ добавлен","ok");
+   }
+   $("link").href=created.link;$("result").style.display="block";log("Готово. Набор создан.","ok");
+ }catch(e){log("Ошибка: "+e.message,"bad")}
+}
+</script>
+</body></html>
