@@ -83,11 +83,19 @@ details{background:#fff;border:1px solid var(--line);border-radius:18px;margin:1
     <summary>Дополнительно</summary>
     <div class="advanced">
       <label>Источник фотографий</label>
-      <input id="disk" type="text" value="https://disk.yandex.ru/d/zTdZ9PlnyQZY9A">
-      <div class="actions">
-        <button id="scan" class="secondary">Проверить папку</button>
-        <button id="analyticsBtn" class="secondary">Аналитика базы</button>
+      <div class="row">
+        <input id="disk" type="text" value="https://disk.yandex.ru/d/zTdZ9PlnyQZY9A" placeholder="Ссылка на Яндекс Диск">
+        <div>
+          <input id="folderInput" type="file" webkitdirectory directory multiple class="hidden">
+          <button id="pickFolder" class="secondary" type="button">Папка с компьютера</button>
+        </div>
       </div>
+      <div id="folderStatus" class="hint">Используется: Яндекс Диск</div>
+      <div class="actions">
+        <button id="clearFolder" class="secondary hidden" type="button">Вернуться к Яндекс Диску</button>
+        <button id="scan" class="secondary">Проверить источник</button>
+      </div>
+      <button id="analyticsBtn" class="secondary" style="margin-top:9px">Аналитика базы</button>
       <div id="analyticsPanel" class="panel hidden"></div>
 
       <div class="row">
@@ -136,8 +144,40 @@ const el=id=>document.getElementById(id);
 const fmt=n=>(Number(n)||0).toLocaleString('ru-RU');
 const mb=n=>(Number(n||0)/1024/1024).toFixed(1)+' МБ';
 let currentJob=null,pollTimer=null,lastJob=null,qualityStarted=false,deferredInstall=null;
+let localFolderFiles=[];
 
 function selectedFile(){return el('excel').files&&el('excel').files[0]}
+function isImageFile(f){return /\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(String(f?.name||''))}
+function localFolderBytes(){return localFolderFiles.reduce((s,f)=>s+(f.size||0),0)}
+function updateSourceUI(){
+  if(localFolderFiles.length){
+    el('folderStatus').textContent='Используется: локальная папка • '+fmt(localFolderFiles.length)+' фото • '+mb(localFolderBytes());
+    el('sourceText').textContent='Локальная папка • '+fmt(localFolderFiles.length)+' фото ✓';
+    el('clearFolder').classList.remove('hidden');
+  }else{
+    el('folderStatus').textContent='Используется: Яндекс Диск';
+    el('clearFolder').classList.add('hidden');
+  }
+}
+function clearLocalFolder(){
+  localFolderFiles=[];
+  el('folderInput').value='';
+  updateSourceUI();
+  checkSource();
+}
+function localAnalytics(){
+  const formats={},seen=new Map();let totalBytes=0;
+  for(const f of localFolderFiles){
+    totalBytes+=f.size||0;
+    const name=String(f.name||'').toLowerCase();
+    const ext=(name.split('.').pop()||'').replace('jpeg','jpg');
+    formats[ext||'без расширения']=(formats[ext||'без расширения']||0)+1;
+    const key=name.replace(/\.jpeg$/i,'.jpg');
+    seen.set(key,(seen.get(key)||0)+1);
+  }
+  const dup=[...seen.values()].reduce((s,n)=>s+Math.max(0,n-1),0);
+  return {total:localFolderFiles.length,uniqueNames:seen.size,duplicateFiles:dup,totalBytes,formats};
+}
 function setProgress(n){el('bar').style.width=Math.max(0,Math.min(100,Number(n)||0))+'%'}
 function setStats(s={}){el('total').textContent=fmt(s.total);el('found').textContent=fmt(s.found);el('missing').textContent=fmt(s.missing)}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -156,10 +196,19 @@ function restoreSettings(){
     if(typeof s.multiPhoto==='boolean')el('multiPhoto').checked=s.multiPhoto;
   }catch{}
 }
-function formData(){
+function formData(includePhotos=true){
   const file=selectedFile();if(!file)throw new Error('Сначала выберите Excel-файл.');
   const fd=new FormData();
-  fd.append('excel',file);fd.append('diskUrl',el('disk').value.trim());
+  fd.append('excel',file);
+  if(localFolderFiles.length){
+    fd.append('sourceType','local');
+    if(includePhotos){
+      for(const f of localFolderFiles) fd.append('photos',f,f.webkitRelativePath||f.name);
+    }
+  }else{
+    fd.append('sourceType','disk');
+    fd.append('diskUrl',el('disk').value.trim());
+  }
   fd.append('mode',el('mode').value);fd.append('fileColumn',el('fileColumn').value.trim());
   fd.append('nameColumn',el('nameColumn').value.trim());fd.append('multiPhoto',String(el('multiPhoto').checked));
   return fd;
@@ -167,10 +216,15 @@ function formData(){
 function rememberJob(id){currentJob=id||null;if(id)localStorage.setItem('photoExcelCurrentJob',id);else localStorage.removeItem('photoExcelCurrentJob')}
 
 async function checkSource(){
+  if(localFolderFiles.length){
+    updateSourceUI();
+    return localFolderFiles.length;
+  }
   try{
     const r=await fetch(API+'/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({diskUrl:el('disk').value.trim()})});
     const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Ошибка');
     el('sourceText').textContent='Папка Pics • '+fmt(d.count)+' фото ✓';
+    el('folderStatus').textContent='Используется: Яндекс Диск • '+fmt(d.count)+' фото';
     return d.count;
   }catch{
     el('sourceText').textContent='Источник фото требует проверки';
@@ -254,23 +308,35 @@ async function poll(){
 async function mainRun(){
   try{
     formData();
+    if(localFolderFiles.length&&localFolderBytes()>500*1024*1024) throw new Error('Локальная папка больше 500 МБ. Выберите меньшую папку или используйте Яндекс Диск.');
     el('mainRun').disabled=true;el('downloadCard').classList.add('hidden');el('result').classList.remove('show');el('afterTools').classList.add('hidden');
     el('fixPanel').classList.add('hidden');qualityStarted=false;setProgress(1);setStats({});
-    el('status').textContent='Проверяю Excel и фотографии…';
+    el('status').textContent=localFolderFiles.length?'Подготавливаю локальную папку и Excel…':'Проверяю Excel и фотографии…';
     saveSettings();
 
-    const pre=await fetch(API+'/api/precheck',{method:'POST',body:formData()});
-    const pd=await pre.json();if(!pre.ok||!pd.ok)throw new Error(pd.error||'Не удалось проверить Excel');
-    const p=pd.precheck||{};
-    el('status').textContent='Проверка завершена: '+fmt(p.found)+' из '+fmt(p.total)+' предварительно найдены. Запускаю сборку…';
+    if(!localFolderFiles.length){
+      const pre=await fetch(API+'/api/precheck',{method:'POST',body:formData(false)});
+      const pd=await pre.json();if(!pre.ok||!pd.ok)throw new Error(pd.error||'Не удалось проверить Excel');
+      const p=pd.precheck||{};
+      el('status').textContent='Проверка завершена: '+fmt(p.found)+' из '+fmt(p.total)+' предварительно найдены. Запускаю сборку…';
+    }else{
+      el('status').textContent='Загружаю '+fmt(localFolderFiles.length)+' фото и запускаю обработку…';
+    }
 
-    const r=await fetch(API+'/api/jobs',{method:'POST',body:formData()});const d=await r.json();
-    if(!r.ok||!d.ok)throw new Error(d.error||'Не удалось запустить обработку');
+    const r=await fetch(API+'/api/jobs',{method:'POST',body:formData(true)});const d=await r.json();
+    if(!r.ok||!d.ok)throw new Error(d.message||d.error||'Не удалось запустить обработку');
     rememberJob(d.id);if(pollTimer)clearInterval(pollTimer);await poll();pollTimer=setInterval(poll,2500);
   }catch(e){el('status').textContent='Ошибка: '+e.message;el('mainRun').disabled=false;setProgress(0)}
 }
 
 el('excel').addEventListener('change',()=>{const f=selectedFile();el('excelInfo').textContent=f?'Выбран: '+f.name+' • '+mb(f.size):'Выберите исходный Excel-файл.'});
+el('pickFolder').onclick=()=>el('folderInput').click();
+el('folderInput').addEventListener('change',()=>{
+  localFolderFiles=Array.from(el('folderInput').files||[]).filter(isImageFile);
+  updateSourceUI();
+  if(localFolderFiles.length) el('status').textContent='Выбрана локальная папка: '+fmt(localFolderFiles.length)+' фото.';
+});
+el('clearFolder').onclick=clearLocalFolder;
 el('mainRun').onclick=mainRun;
 ['disk','fileColumn','nameColumn','mode','multiPhoto'].forEach(id=>el(id).addEventListener('change',saveSettings));
 el('disk').addEventListener('input',saveSettings);
@@ -280,10 +346,16 @@ el('scan').onclick=async()=>{el('scan').disabled=true;await checkSource();el('sc
 el('analyticsBtn').onclick=async()=>{
   el('analyticsBtn').disabled=true;el('analyticsPanel').classList.remove('hidden');el('analyticsPanel').textContent='Анализирую базу…';
   try{
-    const r=await fetch(API+'/api/analytics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({diskUrl:el('disk').value.trim()})});
-    const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Ошибка');
-    const a=d.analytics||{};
-    el('analyticsPanel').innerHTML='<div class="analytics"><div class="kpi"><b>'+fmt(a.total)+'</b><span>фото</span></div><div class="kpi"><b>'+fmt(a.uniqueNames)+'</b><span>уникальных имён</span></div><div class="kpi"><b>'+fmt(a.duplicateFiles)+'</b><span>дублей</span></div><div class="kpi"><b>'+mb(a.totalBytes)+'</b><span>объём</span></div></div>';
+    let a;
+    if(localFolderFiles.length){
+      a=localAnalytics();
+    }else{
+      const r=await fetch(API+'/api/analytics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({diskUrl:el('disk').value.trim()})});
+      const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Ошибка');
+      a=d.analytics||{};
+    }
+    const tags=Object.entries(a.formats||{}).sort((x,y)=>y[1]-x[1]).map(([k,v])=>'<span class="small">'+escapeHtml(String(k).toUpperCase())+' '+fmt(v)+'</span>').join(' ');
+    el('analyticsPanel').innerHTML='<div class="analytics"><div class="kpi"><b>'+fmt(a.total)+'</b><span>фото</span></div><div class="kpi"><b>'+fmt(a.uniqueNames)+'</b><span>уникальных имён</span></div><div class="kpi"><b>'+fmt(a.duplicateFiles)+'</b><span>дублей</span></div><div class="kpi"><b>'+mb(a.totalBytes)+'</b><span>объём</span></div></div><div class="hint" style="margin-top:10px">Форматы: '+tags+'</div>';
   }catch(e){el('analyticsPanel').textContent='Ошибка: '+e.message}finally{el('analyticsBtn').disabled=false}
 };
 
@@ -342,7 +414,7 @@ el('codeBtn').onclick=async()=>{
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e});
 el('installBtn').onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}else alert('На iPhone: Поделиться → На экран «Домой». На Android: меню браузера → Установить приложение.')};
 
-restoreSettings();renderHistory();checkSource();
+restoreSettings();renderHistory();updateSourceUI();checkSource();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 (async()=>{
   const saved=localStorage.getItem('photoExcelCurrentJob');if(!saved)return;rememberJob(saved);el('status').textContent='Проверяю предыдущую задачу…';await poll();
