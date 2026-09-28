@@ -87,7 +87,9 @@ details{background:#fff;border:1px solid var(--line);border-radius:18px;margin:1
         <input id="disk" type="text" value="https://disk.yandex.ru/d/zTdZ9PlnyQZY9A" placeholder="Ссылка на Яндекс Диск">
         <div>
           <input id="folderInput" type="file" webkitdirectory directory multiple class="hidden">
+          <input id="zipInput" type="file" accept=".zip,application/zip" class="hidden">
           <button id="pickFolder" class="secondary" type="button">Папка с компьютера</button>
+          <button id="pickZip" class="secondary" type="button" style="margin-top:8px">ZIP с фотографиями</button>
         </div>
       </div>
       <div id="folderStatus" class="hint">Используется: Яндекс Диск</div>
@@ -118,9 +120,14 @@ details{background:#fff;border:1px solid var(--line);border-radius:18px;margin:1
           <button id="galleryBtn" class="secondary">Галерея товаров</button>
         </div>
         <div class="actions">
+          <button id="previewBtn" class="secondary">Предпросмотр сопоставлений</button>
+          <button id="retryBtn" class="secondary hidden">Повторить только ошибки</button>
+        </div>
+        <div class="actions">
           <button id="missingCsv" class="secondary">CSV: без фото</button>
           <button id="extrasCsv" class="secondary">CSV: лишние фото</button>
         </div>
+        <div id="precheckPanel" class="panel hidden"></div>
         <div id="qualityPanel" class="panel hidden"></div>
         <div id="galleryPanel" class="panel hidden"></div>
       </div>
@@ -143,16 +150,40 @@ const API='https://photo-excel-yandex-proxy.onrender.com';
 const el=id=>document.getElementById(id);
 const fmt=n=>(Number(n)||0).toLocaleString('ru-RU');
 const mb=n=>(Number(n||0)/1024/1024).toFixed(1)+' МБ';
-let currentJob=null,pollTimer=null,lastJob=null,qualityStarted=false,deferredInstall=null;
-let localFolderFiles=[];
+let currentJob=null,pollTimer=null,lastJob=null,qualityStarted=false,deferredInstall=null,lastPrecheck=null;
+let localFolderFiles=[],zipSourceFile=null,filteredLocalFiles=null;
 
 function selectedFile(){return el('excel').files&&el('excel').files[0]}
 function isImageFile(f){return /\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(String(f?.name||''))}
-function localFolderBytes(){return localFolderFiles.reduce((s,f)=>s+(f.size||0),0)}
+function localFolderBytes(list=localFolderFiles){return list.reduce((s,f)=>s+(f.size||0),0)}
+function normalizeClientName(name=''){
+  const s=String(name).normalize('NFKC').trim().toLowerCase().replace(/\s+/g,' ');
+  const i=s.lastIndexOf('.');
+  const stem=i>0?s.slice(0,i):s;
+  let ext=i>0?s.slice(i+1):'';
+  if(ext==='jpeg')ext='jpg';
+  return {key:stem+(ext?'.'+ext:''),stem,ext};
+}
+function variantBaseClient(stem=''){
+  const m=String(stem).trim().match(/^(.*?)(?:[_\-\s]+|\s*\()([1-9])\)?$/);
+  return m&&m[1].trim()?m[1].trim():String(stem).trim();
+}
+function matchingRules(){try{return JSON.parse(localStorage.getItem('photoExcelMatchRules')||'{}')||{}}catch{return {}}}
+function saveRule(expected,name){
+  if(!expected||!name)return;
+  const r=matchingRules();r[normalizeClientName(expected).key]=name;
+  localStorage.setItem('photoExcelMatchRules',JSON.stringify(r));
+}
 function updateSourceUI(){
   if(localFolderFiles.length){
-    el('folderStatus').textContent='Используется: локальная папка • '+fmt(localFolderFiles.length)+' фото • '+mb(localFolderBytes());
+    const sent=filteredLocalFiles?.length||localFolderFiles.length;
+    const extra=filteredLocalFiles&&filteredLocalFiles.length<localFolderFiles.length?' • к отправке '+fmt(sent):'';
+    el('folderStatus').textContent='Используется: локальная папка • '+fmt(localFolderFiles.length)+' фото'+extra+' • '+mb(localFolderBytes(filteredLocalFiles||localFolderFiles));
     el('sourceText').textContent='Локальная папка • '+fmt(localFolderFiles.length)+' фото ✓';
+    el('clearFolder').classList.remove('hidden');
+  }else if(zipSourceFile){
+    el('folderStatus').textContent='Используется: ZIP • '+zipSourceFile.name+' • '+mb(zipSourceFile.size);
+    el('sourceText').textContent='ZIP с фотографиями ✓';
     el('clearFolder').classList.remove('hidden');
   }else{
     el('folderStatus').textContent='Используется: Яндекс Диск';
@@ -160,10 +191,9 @@ function updateSourceUI(){
   }
 }
 function clearLocalFolder(){
-  localFolderFiles=[];
-  el('folderInput').value='';
-  updateSourceUI();
-  checkSource();
+  localFolderFiles=[];filteredLocalFiles=null;zipSourceFile=null;
+  el('folderInput').value='';el('zipInput').value='';
+  updateSourceUI();checkSource();
 }
 function localAnalytics(){
   const formats={},seen=new Map();let totalBytes=0;
@@ -196,30 +226,32 @@ function restoreSettings(){
     if(typeof s.multiPhoto==='boolean')el('multiPhoto').checked=s.multiPhoto;
   }catch{}
 }
-function formData(includePhotos=true){
+function formData(includePhotos=true,photoList=null){
   const file=selectedFile();if(!file)throw new Error('Сначала выберите Excel-файл.');
   const fd=new FormData();
   fd.append('excel',file);
   if(localFolderFiles.length){
     fd.append('sourceType','local');
     if(includePhotos){
-      for(const f of localFolderFiles) fd.append('photos',f,f.webkitRelativePath||f.name);
+      for(const f of (photoList||filteredLocalFiles||localFolderFiles)) fd.append('photos',f,f.webkitRelativePath||f.name);
     }
+  }else if(zipSourceFile){
+    fd.append('sourceType','zip');
+    if(includePhotos)fd.append('sourceZip',zipSourceFile,zipSourceFile.name);
   }else{
     fd.append('sourceType','disk');
     fd.append('diskUrl',el('disk').value.trim());
   }
   fd.append('mode',el('mode').value);fd.append('fileColumn',el('fileColumn').value.trim());
   fd.append('nameColumn',el('nameColumn').value.trim());fd.append('multiPhoto',String(el('multiPhoto').checked));
+  fd.append('rules',JSON.stringify(matchingRules()));
   return fd;
 }
 function rememberJob(id){currentJob=id||null;if(id)localStorage.setItem('photoExcelCurrentJob',id);else localStorage.removeItem('photoExcelCurrentJob')}
 
 async function checkSource(){
-  if(localFolderFiles.length){
-    updateSourceUI();
-    return localFolderFiles.length;
-  }
+  if(localFolderFiles.length){updateSourceUI();return localFolderFiles.length;}
+  if(zipSourceFile){updateSourceUI();return 1;}
   try{
     const r=await fetch(API+'/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({diskUrl:el('disk').value.trim()})});
     const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Ошибка');
@@ -230,6 +262,56 @@ async function checkSource(){
     el('sourceText').textContent='Источник фото требует проверки';
     return 0;
   }
+}
+
+function renderPreview(p=lastPrecheck){
+  lastPrecheck=p||lastPrecheck;
+  const panel=el('precheckPanel');if(!lastPrecheck){panel.classList.remove('hidden');panel.textContent='Предпросмотр ещё не создан.';return}
+  const rows=(lastPrecheck.preview||[]).slice(0,100).map(x=>
+    '<div class="qualityRow"><b>Строка '+x.row+' — '+escapeHtml(x.product||'Без названия')+'</b>'+
+    '<div class="meta">'+escapeHtml(x.expected||'без файла')+' → '+escapeHtml(x.matched||'не найдено')+
+    ' • '+escapeHtml(x.status||'')+(x.confidence?' • '+fmt(x.confidence)+'%':'')+'</div></div>'
+  ).join('');
+  panel.classList.remove('hidden');
+  panel.innerHTML='<b>Лист: '+escapeHtml(lastPrecheck.sheet||'')+'</b>'+
+    '<div class="hint">Колонки: '+escapeHtml(lastPrecheck.fileColumnName||'')+' / '+escapeHtml(lastPrecheck.nameColumnName||'')+
+    ' • найдено '+fmt(lastPrecheck.found)+' из '+fmt(lastPrecheck.total)+'</div>'+
+    '<div style="margin-top:8px">'+(rows||'<div class="hint">Нет данных для предпросмотра.</div>')+'</div>';
+}
+async function getNeededFiles(){
+  const fd=new FormData();fd.append('excel',selectedFile());
+  fd.append('fileColumn',el('fileColumn').value.trim());fd.append('nameColumn',el('nameColumn').value.trim());
+  const r=await fetch(API+'/api/needed',{method:'POST',body:fd});const d=await r.json();
+  if(!r.ok||!d.ok)throw new Error(d.error||'Не удалось прочитать список файлов из Excel');
+  return d;
+}
+function filterLocalFiles(needed=[]){
+  if(!localFolderFiles.length||!needed.length)return localFolderFiles;
+  const keys=new Set(),stems=new Set(),bases=new Set(),nums=new Set();
+  for(const n of needed){
+    const x=normalizeClientName(n);keys.add(x.key);stems.add(x.stem);bases.add(variantBaseClient(x.stem));
+    for(const m of (x.stem.match(/\d+/g)||[]))if(m.length>=3)nums.add(m);
+  }
+  const out=localFolderFiles.filter(f=>{
+    const x=normalizeClientName(f.name),base=variantBaseClient(x.stem);
+    if(keys.has(x.key)||stems.has(x.stem)||bases.has(base))return true;
+    return (x.stem.match(/\d+/g)||[]).some(n=>n.length>=3&&nums.has(n));
+  });
+  return out.length?out:localFolderFiles;
+}
+function clientLocalPreview(neededData,files){
+  const byKey=new Map(),byStem=new Map(),byBase=new Map();
+  for(const f of files){
+    const n=normalizeClientName(f.name);
+    if(!byKey.has(n.key))byKey.set(n.key,f);
+    if(!byStem.has(n.stem))byStem.set(n.stem,f);
+    const b=variantBaseClient(n.stem);if(!byBase.has(b))byBase.set(b,f);
+  }
+  const preview=(neededData.needed||[]).slice(0,100).map((e,i)=>{
+    const n=normalizeClientName(e),f=byKey.get(n.key)||byStem.get(n.stem)||byBase.get(variantBaseClient(n.stem));
+    return {row:i+2,product:'',expected:e,matched:f?.name||'',status:f?'Найдено':'Не найдено',confidence:f?100:0};
+  });
+  return {sheet:neededData.sheet,total:neededData.total,found:preview.filter(x=>x.matched).length,preview};
 }
 
 function showResult(s={}){
@@ -245,9 +327,9 @@ function showResult(s={}){
   el('resultInfo').textContent=info.length?info.join(' '):'Сопоставление завершено без дополнительных замечаний.';
   if(missing){
     el('resultProblem').classList.remove('hidden');el('resultProblem').textContent=fmt(missing)+' товаров требуют ручной проверки.';
-    el('fixBtn').classList.remove('hidden');
+    el('fixBtn').classList.remove('hidden');el('retryBtn').classList.remove('hidden');
   }else{
-    el('resultProblem').classList.add('hidden');el('fixBtn').classList.add('hidden');
+    el('resultProblem').classList.add('hidden');el('fixBtn').classList.add('hidden');el('retryBtn').classList.add('hidden');
   }
   el('missingCsv').style.display=missing?'block':'none';el('extrasCsv').style.display=extras?'block':'none';
 }
@@ -308,22 +390,32 @@ async function poll(){
 async function mainRun(){
   try{
     formData();
-    if(localFolderFiles.length&&localFolderBytes()>500*1024*1024) throw new Error('Локальная папка больше 500 МБ. Выберите меньшую папку или используйте Яндекс Диск.');
     el('mainRun').disabled=true;el('downloadCard').classList.add('hidden');el('result').classList.remove('show');el('afterTools').classList.add('hidden');
-    el('fixPanel').classList.add('hidden');qualityStarted=false;setProgress(1);setStats({});
-    el('status').textContent=localFolderFiles.length?'Подготавливаю локальную папку и Excel…':'Проверяю Excel и фотографии…';
-    saveSettings();
+    el('fixPanel').classList.add('hidden');el('precheckPanel').classList.add('hidden');qualityStarted=false;setProgress(1);setStats({});
+    saveSettings();filteredLocalFiles=null;
 
-    if(!localFolderFiles.length){
+    if(localFolderFiles.length){
+      el('status').textContent='Читаю Excel и отбираю только нужные фотографии…';
+      const needed=await getNeededFiles();
+      filteredLocalFiles=filterLocalFiles(needed.needed||[]);
+      lastPrecheck=clientLocalPreview(needed,filteredLocalFiles);
+      renderPreview(lastPrecheck);
+      updateSourceUI();
+      if(localFolderBytes(filteredLocalFiles)>500*1024*1024)throw new Error('Нужные фотографии превышают 500 МБ. Используйте ZIP или Яндекс Диск.');
+      el('status').textContent='Из '+fmt(localFolderFiles.length)+' фото выбрано '+fmt(filteredLocalFiles.length)+' нужных. Загружаю…';
+    }else if(zipSourceFile){
+      if(zipSourceFile.size>550*1024*1024)throw new Error('ZIP больше 550 МБ.');
+      el('status').textContent='Загружаю ZIP и Excel…';
+      lastPrecheck=null;
+    }else{
+      el('status').textContent='Проверяю Excel и фотографии…';
       const pre=await fetch(API+'/api/precheck',{method:'POST',body:formData(false)});
       const pd=await pre.json();if(!pre.ok||!pd.ok)throw new Error(pd.error||'Не удалось проверить Excel');
-      const p=pd.precheck||{};
-      el('status').textContent='Проверка завершена: '+fmt(p.found)+' из '+fmt(p.total)+' предварительно найдены. Запускаю сборку…';
-    }else{
-      el('status').textContent='Загружаю '+fmt(localFolderFiles.length)+' фото и запускаю обработку…';
+      lastPrecheck=pd.precheck||{};renderPreview(lastPrecheck);
+      el('status').textContent='Лист «'+(lastPrecheck.sheet||'')+'»: '+fmt(lastPrecheck.found)+' из '+fmt(lastPrecheck.total)+' предварительно найдены. Запускаю сборку…';
     }
 
-    const r=await fetch(API+'/api/jobs',{method:'POST',body:formData(true)});const d=await r.json();
+    const r=await fetch(API+'/api/jobs',{method:'POST',body:formData(true,filteredLocalFiles)});const d=await r.json();
     if(!r.ok||!d.ok)throw new Error(d.message||d.error||'Не удалось запустить обработку');
     rememberJob(d.id);if(pollTimer)clearInterval(pollTimer);await poll();pollTimer=setInterval(poll,2500);
   }catch(e){el('status').textContent='Ошибка: '+e.message;el('mainRun').disabled=false;setProgress(0)}
@@ -331,10 +423,17 @@ async function mainRun(){
 
 el('excel').addEventListener('change',()=>{const f=selectedFile();el('excelInfo').textContent=f?'Выбран: '+f.name+' • '+mb(f.size):'Выберите исходный Excel-файл.'});
 el('pickFolder').onclick=()=>el('folderInput').click();
+el('pickZip').onclick=()=>el('zipInput').click();
 el('folderInput').addEventListener('change',()=>{
+  zipSourceFile=null;el('zipInput').value='';filteredLocalFiles=null;
   localFolderFiles=Array.from(el('folderInput').files||[]).filter(isImageFile);
   updateSourceUI();
-  if(localFolderFiles.length) el('status').textContent='Выбрана локальная папка: '+fmt(localFolderFiles.length)+' фото.';
+  if(localFolderFiles.length)el('status').textContent='Выбрана локальная папка: '+fmt(localFolderFiles.length)+' фото.';
+});
+el('zipInput').addEventListener('change',()=>{
+  localFolderFiles=[];filteredLocalFiles=null;el('folderInput').value='';
+  zipSourceFile=el('zipInput').files?.[0]||null;updateSourceUI();
+  if(zipSourceFile)el('status').textContent='Выбран ZIP: '+zipSourceFile.name+' • '+mb(zipSourceFile.size);
 });
 el('clearFolder').onclick=clearLocalFolder;
 el('mainRun').onclick=mainRun;
@@ -349,6 +448,9 @@ el('analyticsBtn').onclick=async()=>{
     let a;
     if(localFolderFiles.length){
       a=localAnalytics();
+    }else if(zipSourceFile){
+      el('analyticsPanel').innerHTML='<div class="hint">Для ZIP подробная аналитика появится после обработки. Размер архива: '+mb(zipSourceFile.size)+'</div>';
+      return;
     }else{
       const r=await fetch(API+'/api/analytics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({diskUrl:el('disk').value.trim()})});
       const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Ошибка');
@@ -373,6 +475,18 @@ window.loadGallery=loadGallery;el('galleryBtn').onclick=()=>loadGallery(0);
 el('missingCsv').onclick=()=>{if(currentJob)location.href=API+'/api/jobs/'+currentJob+'/report/missing.csv'};
 el('extrasCsv').onclick=()=>{if(currentJob)location.href=API+'/api/jobs/'+currentJob+'/report/extras.csv'};
 
+el('previewBtn').onclick=()=>renderPreview();
+el('retryBtn').onclick=async()=>{
+  if(!currentJob)return;el('retryBtn').disabled=true;el('status').textContent='Повторно проверяю только ненайденные строки…';
+  try{
+    const r=await fetch(API+'/api/jobs/'+currentJob+'/retry-missing',{method:'POST'});
+    const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Не удалось повторить проверку');
+    el('status').textContent='Повторная проверка: найдено ещё '+fmt(d.recovered)+', осталось '+fmt(d.remaining)+'.';
+    if(lastJob)lastJob.stats=d.stats||lastJob.stats;setStats(d.stats||{});showResult(d.stats||{});
+  }catch(e){el('status').textContent='Ошибка повторной проверки: '+e.message}
+  finally{el('retryBtn').disabled=false}
+};
+
 el('fixBtn').onclick=async()=>{
   if(!currentJob)return;el('fixPanel').classList.remove('hidden');el('fixPanel').textContent='Загружаю позиции…';
   try{
@@ -380,19 +494,19 @@ el('fixBtn').onclick=async()=>{
     const items=d.items||[];
     el('fixPanel').innerHTML='<b>Требуют проверки: '+fmt(items.length)+'</b><div id="fixList"></div><button id="applyFixes" class="success" style="margin-top:10px">Применить выбранные исправления</button>';
     el('fixList').innerHTML=items.slice(0,100).map(x=>{
-      const suggestion=x.suggestion?'<div class="info">Предлагается: <b>'+escapeHtml(x.suggestion.name)+'</b> • '+fmt(x.suggestion.score)+'% <button class="small acceptSuggestion" data-path="'+escapeHtml(x.suggestion.path)+'" style="margin-left:6px">Принять</button></div>':'';
-      return '<div class="fix" data-row="'+x.row+'"><b>Строка '+x.row+' — '+escapeHtml(x.product||'Без названия')+'</b><div class="meta">Ожидалось: '+escapeHtml(x.expected||'не указано')+'</div>'+suggestion+'<div class="actions"><input class="q" type="text" value="'+escapeHtml(x.expected||'')+'"><button class="small find">Найти другой файл</button></div><div class="candidate"></div></div>';
+      const suggestion=x.suggestion?'<div class="info">Предлагается: <b>'+escapeHtml(x.suggestion.name)+'</b> • '+fmt(x.suggestion.score)+'% <button class="small acceptSuggestion" data-path="'+escapeHtml(x.suggestion.path)+'" data-name="'+escapeHtml(x.suggestion.name)+'" style="margin-left:6px">Принять</button></div>':'';
+      return '<div class="fix" data-row="'+x.row+'" data-expected="'+escapeHtml(x.expected||'')+'"><b>Строка '+x.row+' — '+escapeHtml(x.product||'Без названия')+'</b><div class="meta">Ожидалось: '+escapeHtml(x.expected||'не указано')+'</div>'+suggestion+'<div class="actions"><input class="q" type="text" value="'+escapeHtml(x.expected||'')+'"><button class="small find">Найти другой файл</button></div><div class="candidate"></div></div>';
     }).join('');
-    document.querySelectorAll('.acceptSuggestion').forEach(b=>b.onclick=()=>{const box=b.closest('.fix');box.dataset.chosen=b.dataset.path;b.textContent='Выбрано ✓'});
+    document.querySelectorAll('.acceptSuggestion').forEach(b=>b.onclick=()=>{const box=b.closest('.fix');box.dataset.chosen=b.dataset.path;box.dataset.chosenName=b.dataset.name;b.textContent='Выбрано ✓'});
     document.querySelectorAll('.find').forEach(b=>b.onclick=async()=>{
       const box=b.closest('.fix'),row=box.dataset.row,q=box.querySelector('.q').value,out=box.querySelector('.candidate');out.textContent='Ищу…';
       const rr=await fetch(API+'/api/jobs/'+currentJob+'/candidates?row='+row+'&q='+encodeURIComponent(q));const dd=await rr.json();
-      const opts=(dd.items||[]).map(x=>'<option value="'+escapeHtml(x.path)+'">'+escapeHtml(x.name)+'</option>').join('');
+      const opts=(dd.items||[]).map(x=>'<option value="'+escapeHtml(x.path)+'" data-name="'+escapeHtml(x.name)+'">'+escapeHtml(x.name)+'</option>').join('');
       out.innerHTML=opts?'<select class="sel"><option value="">Выберите файл</option>'+opts+'</select>':'Ничего не найдено.';
-      const sel=out.querySelector('.sel');if(sel)sel.onchange=()=>{box.dataset.chosen=sel.value};
+      const sel=out.querySelector('.sel');if(sel)sel.onchange=()=>{box.dataset.chosen=sel.value;box.dataset.chosenName=sel.options[sel.selectedIndex]?.dataset?.name||sel.options[sel.selectedIndex]?.text||''};
     });
     el('applyFixes').onclick=async()=>{
-      const corrections=[];document.querySelectorAll('.fix').forEach(x=>{if(x.dataset.chosen)corrections.push({row:Number(x.dataset.row),path:x.dataset.chosen})});
+      const corrections=[];document.querySelectorAll('.fix').forEach(x=>{if(x.dataset.chosen){corrections.push({row:Number(x.dataset.row),path:x.dataset.chosen});saveRule(x.dataset.expected,x.dataset.chosenName)}});
       if(!corrections.length){el('status').textContent='Не выбрано ни одного исправления.';return}
       const rr=await fetch(API+'/api/jobs/'+currentJob+'/corrections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({corrections})});
       const dd=await rr.json();if(!rr.ok||!dd.ok)throw new Error(dd.error||'Ошибка');
