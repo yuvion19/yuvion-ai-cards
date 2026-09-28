@@ -219,7 +219,12 @@ function smartMatch(expected,files){
   }
   return best?{item:best,score:bestScore}:null;
 }
-function escapeRegExp(s=''){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\function escapeRegExp(s=''){return String(s).replace(/[.*+?^$()|[\]\\{}]/g,'\\function cellText(cell){');}');}
+function escapeRegExp(s=''){
+  const specials='\\^$.*+?()[]{}|';
+  let out='';
+  for(const ch of String(s))out+=specials.includes(ch)?'\\\\'+ch:ch;
+  return out;
+}
 function normalizeSpreadsheetXml(xml=''){
   const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
   const rx=new RegExp('xmlns:([A-Za-z_][\\w.-]*)=["\\\']'+escapeRegExp(ns)+'["\\\']');
