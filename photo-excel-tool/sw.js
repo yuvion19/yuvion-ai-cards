@@ -1,5 +1,5 @@
-const CACHE='photo-excel-v6';
-const CORE=['./','./?v=6','./manifest.webmanifest','./icon.svg'];
+const CACHE='photo-excel-v6.3';
+const CORE=['./','./?v=6.3','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
 self.addEventListener('fetch',e=>{
