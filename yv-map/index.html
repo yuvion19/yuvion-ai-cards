@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#b72e29">
+<title>Южные Ворота — интерактивная карта</title>
+<style>
+:root{--bg:#f5f2eb;--panel:#fffdf8;--text:#181b1d;--muted:#6d706f;--line:#d8d2c5;--red:#b72e29;--dark:#24292c;--ok:#2f6b4f}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+button,input{font:inherit}.shell{min-height:100vh}.top{height:66px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:10px}.logo{width:40px;height:40px;border-radius:7px;background:var(--red);color:white;display:grid;place-items:center;font-weight:800}.brand strong{display:block;font-size:14px;letter-spacing:.04em}.brand small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.nav{display:flex;gap:7px;flex-wrap:wrap}.nav button{border:1px solid var(--line);background:#fff;padding:8px 11px;border-radius:7px;cursor:pointer}.nav button.active{background:var(--dark);color:white;border-color:var(--dark)}
+main{padding:14px;max-width:1600px;margin:auto}.view{display:none}.view.active{display:block}
+.head{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:12px}.eyebrow{font-size:10px;color:var(--muted);letter-spacing:.12em;font-weight:700}.head h1{font-size:25px;margin:5px 0 0}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:#fff;padding:9px 12px;border-radius:7px;cursor:pointer;text-decoration:none;color:inherit}.btn.primary{background:var(--red);color:white;border-color:var(--red)}
+.mapgrid{display:grid;grid-template-columns:240px minmax(0,1fr);gap:10px}.side,.framebox,.card,.detail{background:var(--panel);border:1px solid var(--line);border-radius:12px}.side{padding:13px}.side h3{font-size:12px;margin:0 0 8px}.side p{font-size:12px;color:var(--muted);line-height:1.45}.chips{display:flex;flex-wrap:wrap;gap:5px}.chip{font-size:11px;border:1px solid var(--line);padding:5px 7px;border-radius:999px;background:white}.notice{margin-top:12px;padding:10px;border-left:3px solid var(--red);background:#fbf0ee;font-size:12px;line-height:1.45}.framebox{overflow:hidden}.iframewrap{height:calc(100vh - 165px);min-height:540px;background:#ece8df}.iframewrap iframe{width:100%;height:100%;border:0;display:block}.framefoot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.searchbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-bottom:12px}.searchbar input{padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:white}.badge{display:inline-block;padding:6px 9px;border-radius:999px;background:#f8e7c7;color:#7a5310;font-size:11px;font-weight:700}
+.pavgrid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:10px}.list{display:grid;gap:6px}.row{width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);padding:11px;border-radius:9px;display:grid;grid-template-columns:110px minmax(120px,1fr) minmax(120px,1fr) 120px;gap:10px;align-items:center;cursor:pointer}.row:hover,.row.sel{border-color:var(--red)}.code{font-weight:800;color:var(--red)}.muted{color:var(--muted);font-size:12px}.status{font-size:11px;font-weight:700}.detail{padding:16px;min-height:240px}.detail h2{margin:7px 0 12px;font-size:22px}.kv{padding:10px 0;border-top:1px solid var(--line)}.kv span{display:block;font-size:11px;color:var(--muted)}.kv strong{display:block;margin-top:3px;font-size:13px}.about{max-width:850px}.about p{line-height:1.6;color:#454a4d}.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}.fact{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px}.fact b{display:block;font-size:12px}.fact span{display:block;color:var(--muted);font-size:12px;margin-top:5px;line-height:1.4}
+@media(max-width:850px){.top{height:auto;align-items:flex-start;padding:10px}.brand small{display:none}.nav{justify-content:flex-end}.mapgrid,.pavgrid{grid-template-columns:1fr}.side{order:2}.framebox{order:1}.iframewrap{height:68vh;min-height:430px}.row{grid-template-columns:95px 1fr}.row .cat,.row .status{grid-column:2}.facts{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.framefoot{align-items:flex-start;flex-direction:column}}
+@media(max-width:520px){main{padding:8px}.top{gap:8px}.brand strong{font-size:12px}.logo{width:34px;height:34px}.nav button{padding:7px 8px;font-size:12px}.head h1{font-size:21px}.iframewrap{height:65vh;min-height:390px}.side{padding:11px}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="top">
+  <div class="brand"><div class="logo">ЮВ</div><div><strong>ЮЖНЫЕ ВОРОТА</strong><small>интерактивная карта комплекса</small></div></div>
+  <div class="nav">
+    <button class="active" data-view="map">Карта</button>
+    <button data-view="pavilions">Павильоны</button>
+    <button data-view="about">О проекте</button>
+  </div>
+</header>
+<main>
+<section class="view active" id="map">
+  <div class="head"><div><div class="eyebrow">ОФИЦИАЛЬНЫЙ КАРТОГРАФИЧЕСКИЙ СЛОЙ</div><h1>Интерактивная карта</h1></div><div class="actions"><button class="btn" id="reload">Обновить</button><a class="btn primary" href="https://yugnie-vorota.ru/map/index.html?v=3" target="_blank" rel="noopener">Открыть отдельно ↗</a></div></div>
+  <div class="mapgrid">
+    <aside class="side">
+      <h3>Что есть на карте</h3>
+      <div class="chips">
+        <span class="chip">Входы 1–23</span><span class="chip">Парковки</span><span class="chip">Торговые зоны</span><span class="chip">Автовокзал</span><span class="chip">Бесплатный транспорт</span><span class="chip">Общественный транспорт</span><span class="chip">ПВЗ</span><span class="chip">Аптеки</span><span class="chip">Кафе</span><span class="chip">Туалеты</span>
+      </div>
+      <div class="notice"><b>Реальная схема.</b><br>Внутри загружается официальная интерактивная карта yugnie-vorota.ru. Если конкретный встроенный браузер скрывает iframe, нажмите «Открыть отдельно».</div>
+      <p>Поиск категорий и торговых линий работает внутри официальной карты.</p>
+    </aside>
+    <div class="framebox">
+      <div class="iframewrap"><iframe id="officialMap" src="https://yugnie-vorota.ru/map/index.html?v=3" title="Официальная карта ТК Южные Ворота" allow="fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      <div class="framefoot"><span>Источник: официальная схема ТК «Южные Ворота»</span><span>Москва, 19 км МКАД, вл. 20, стр. 1</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="pavilions">
+  <div class="head"><div><div class="eyebrow">БАЗА ПАВИЛЬОНОВ</div><h1>Павильоны и арендаторы</h1></div><span class="badge">ДЕМО-ДАННЫЕ</span></div>
+  <div class="searchbar"><input id="q" type="search" placeholder="Линия, павильон, арендатор, категория"><button class="btn" id="clear">Очистить</button></div>
+  <div class="pavgrid"><div class="list" id="list"></div><aside class="detail" id="detail"><div class="muted">Выберите павильон.</div></aside></div>
+</section>
+
+<section class="view" id="about">
+  <div class="about">
+    <div class="eyebrow">ТК «ЮЖНЫЕ ВОРОТА»</div><h1>Онлайн-навигация по комплексу</h1>
+    <p>Эта версия сделана как отдельная переносимая оболочка для официальной схемы. Её можно разместить на поддомене <b>map.yugnie-vorota.ru</b> и затем подключить реальную базу арендаторов, Excel-импорт и административную панель.</p>
+    <div class="facts"><div class="fact"><b>Карта</b><span>официальный интерактивный слой</span></div><div class="fact"><b>Павильоны</b><span>сейчас демонстрационные записи</span></div><div class="fact"><b>Следующий уровень</b><span>единая база + реальные арендаторы + маршруты</span></div></div>
+  </div>
+</section>
+</main>
+</div>
+<script>
+(function(){
+var p=[
+{id:"1",line:"Р18",number:"120–122",tenant:"ДомТекстиль",category:"Домашний текстиль",status:"Занят",note:"Демонстрационная запись"},
+{id:"2",line:"Р18",number:"126",tenant:"Текстиль Опт",category:"Домашний текстиль",status:"Занят",note:"Демонстрационная запись"},
+{id:"3",line:"Р12",number:"044",tenant:"Игрушки+",category:"Игрушки",status:"Занят",note:"Демонстрационная запись"},
+{id:"4",line:"Р9",number:"031",tenant:"Tech Point",category:"Электроника",status:"Скоро открытие",note:"Демонстрационная запись"},
+{id:"5",line:"Р7",number:"018",tenant:"Дом & Дача",category:"Товары для дома",status:"Занят",note:"Демонстрационная запись"},
+{id:"6",line:"Р5",number:"055",tenant:"Свободный павильон",category:"Упаковка",status:"Свободен",note:"Демонстрационная запись"},
+{id:"7",line:"Р3",number:"009",tenant:"Style Hall",category:"Одежда и головные уборы",status:"Ремонт",note:"Демонстрационная запись"}
+];
+var selected=null;
+function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]})}
+function show(v){document.querySelectorAll(".view").forEach(function(x){x.classList.toggle("active",x.id===v)});document.querySelectorAll(".nav button").forEach(function(x){x.classList.toggle("active",x.dataset.view===v)})}
+document.querySelectorAll(".nav button").forEach(function(b){b.addEventListener("click",function(){show(b.dataset.view)})});
+document.getElementById("reload").addEventListener("click",function(){var f=document.getElementById("officialMap");f.src=f.src});
+function render(){
+ var q=document.getElementById("q").value.trim().toLowerCase();
+ var arr=p.filter(function(x){return !q||[x.line,x.number,x.tenant,x.category,x.status].join(" ").toLowerCase().indexOf(q)>=0});
+ var root=document.getElementById("list");
+ root.innerHTML=arr.length?arr.map(function(x){return '<button class="row '+(selected===x.id?'sel':'')+'" data-id="'+esc(x.id)+'"><span class="code">'+esc(x.line)+' · '+esc(x.number)+'</span><strong>'+esc(x.tenant)+'</strong><span class="muted cat">'+esc(x.category)+'</span><span class="status">'+esc(x.status)+'</span></button>'}).join(""):'<div class="card" style="padding:16px">Ничего не найдено.</div>';
+ root.querySelectorAll(".row").forEach(function(b){b.addEventListener("click",function(){select(b.dataset.id)})});
+}
+function select(id){
+ selected=id;render();var x=p.find(function(a){return a.id===id});if(!x)return;
+ document.getElementById("detail").innerHTML='<div class="code">'+esc(x.line)+' · пав. '+esc(x.number)+'</div><h2>'+esc(x.tenant)+'</h2><div class="kv"><span>Категория</span><strong>'+esc(x.category)+'</strong></div><div class="kv"><span>Статус</span><strong>'+esc(x.status)+'</strong></div><div class="kv"><span>Примечание</span><strong>'+esc(x.note)+'</strong></div>';
+}
+document.getElementById("q").addEventListener("input",render);
+document.getElementById("clear").addEventListener("click",function(){document.getElementById("q").value="";render()});
+render();
+})();
+</script>
+</body>
+</html>
