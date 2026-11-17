@@ -1,0 +1,111 @@
+name: Niti Pamyati — IndexNow notifications
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niti-pamyati-indexnow
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Submit recently updated museum pages via IndexNow
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+          from datetime import date, timedelta
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError, URLError
+          from urllib.parse import urlsplit
+          from xml.etree import ElementTree as ET
+
+          SITE = "https://niti-pamyati.art"
+          HOST = "niti-pamyati.art"
+          KEY = "5d9c37d66d57045755c6174496e57bbd"
+          KEY_LOCATION = f"{SITE}/{KEY}.txt"
+          SITEMAP = f"{SITE}/sitemap.xml"
+          MAX_URLS = 100
+          RECENT_DAYS = 2  # Handles a late publication or a delayed Actions run.
+          TODAY = date.today()
+
+          def fetch(url):
+              req = Request(url, headers={"User-Agent": "NitiPamyati-SEO-Autopilot/1.0"})
+              with urlopen(req, timeout=25) as r:
+                  return r.read()
+
+          try:
+              live_key = fetch(KEY_LOCATION).decode("utf-8").strip()
+              if live_key != KEY:
+                  raise ValueError("The published IndexNow key file is missing or mismatched.")
+              root = ET.fromstring(fetch(SITEMAP))
+          except Exception as exc:
+              sys.exit(f"Preflight failed, no notifications sent: {exc}")
+
+          ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+          changed = []
+          for item in root.findall("sm:url", ns):
+              loc = item.findtext("sm:loc", default="", namespaces=ns).strip()
+              modified = item.findtext("sm:lastmod", default="", namespaces=ns).strip()
+              parsed = urlsplit(loc)
+              if parsed.scheme != "https" or parsed.netloc != HOST or not modified:
+                  continue
+              try:
+                  changed_at = date.fromisoformat(modified[:10])
+              except ValueError:
+                  continue
+              age = TODAY - changed_at
+              if timedelta(0) <= age <= timedelta(days=RECENT_DAYS):
+                  changed.append(loc)
+
+          changed = list(dict.fromkeys(changed))
+          print(f"Sitemap: {SITEMAP}")
+          print(f"Recently updated canonical URLs: {len(changed)}")
+          if len(changed) > MAX_URLS:
+              sys.exit(f"{len(changed)} changed URLs exceed safety limit {MAX_URLS}; investigate before sending.")
+          if not changed:
+              print("No recently updated URLs; skipped IndexNow.")
+              sys.exit(0)
+
+          payload = json.dumps({
+              "host": HOST,
+              "key": KEY,
+              "keyLocation": KEY_LOCATION,
+              "urlList": changed
+          }).encode("utf-8")
+
+          failures = 0
+          for endpoint in ("https://api.indexnow.org/indexnow", "https://yandex.com/indexnow"):
+              req = Request(
+                  endpoint, data=payload, method="POST",
+                  headers={
+                      "Content-Type": "application/json; charset=utf-8",
+                      "User-Agent": "NitiPamyati-SEO-Autopilot/1.0"
+                  }
+              )
+              try:
+                  with urlopen(req, timeout=35) as r:
+                      status = r.status
+                  print(f"{endpoint}: HTTP {status}; accepted/pending, not proof of indexing.")
+                  if status not in (200, 202):
+                      failures += 1
+              except HTTPError as err:
+                  print(f"{endpoint}: HTTP {err.code}: {err.reason}")
+                  failures += 1
+              except URLError as err:
+                  print(f"{endpoint}: transport error: {err.reason}")
+                  failures += 1
+
+          if failures:
+              sys.exit(f"IndexNow notification failed at {failures} endpoint(s).")
+          print("Notifications delivered; crawling and indexing are decided by search engines.")
+          PY
