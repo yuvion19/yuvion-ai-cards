@@ -112,8 +112,10 @@ def statistics():
     return {k:totals.get(k,0) for k in ("new","in_progress","resolved","closed","total","replies")}
 
 def storage_status():
-    return {"path_kind":"persistent" if DB_PATH.startswith("/var/data/") else "ephemeral",
-            "storage_warning":None if DB_PATH.startswith("/var/data/") else
+    # A path named /var/data is not proof a persistent disk is mounted.
+    mounted=DB_PATH.startswith("/var/data/") and os.path.ismount("/var/data")
+    return {"path_kind":"persistent" if mounted else "ephemeral",
+            "storage_warning":None if mounted else
             "Render Free filesystem is ephemeral; tickets may be lost on restart."}
 
 EVENTS = {"search", "search_empty", "catalog_unavailable", "help_opened",
