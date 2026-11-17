@@ -219,7 +219,7 @@ def search(query="", category="", min_price=None, max_price=None, qty=None,
     for p in products:
         if category and norm(category) != norm(p["category"]): continue
         price = p["price"]
-        if qty and p["wholesale_price"] is not None and (p["min_qty"] or 0) <= qty:
+        if qty and p["wholesale_price"] is not None and p["min_qty"] is not None and p["min_qty"] <= qty:
             price = p["wholesale_price"]
         if minp is not None and (price is None or price < minp): continue
         if maxp is not None and (price is None or price > maxp): continue
