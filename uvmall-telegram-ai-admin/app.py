@@ -16,6 +16,7 @@ log = logging.getLogger("uvmall")
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 MANAGER_ID = int(os.environ.get("ADMIN_CHAT_ID", "0") or "0")
 OWNER_ID = int(os.environ.get("OWNER_USER_ID", "0") or "0")
+OWNER_USERNAME = os.environ.get("OWNER_USERNAME", "UVMALL19").lstrip("@").lower()
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 PUBLIC_URL = (os.environ.get("WEBHOOK_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or "").rstrip("/")
 AI_KEY = os.environ.get("OPENAI_API_KEY", "")
@@ -88,23 +89,30 @@ def process_message(message, business=False):
     if sender.get("is_bot"): return
     cid = int(chat_obj["id"])
     bid = message.get("business_connection_id", "") if business else ""
-    # Do not read unrelated personal accounts: business automation requires verified owner ID.
-    if business and (not OWNER_ID or not bid): return
+    # Never process a personal-account message without a Telegram-provided business connection.
+    if business and not bid: return
     if business:
         # Telegram validates the Business connection. Block another account's connection.
         try:
             connection = tg("getBusinessConnection", business_connection_id=bid)
-            if int((connection.get("user") or {}).get("id", 0)) != OWNER_ID: return
+            account = connection.get("user") or {}
+            owner_id = int(account.get("id", 0))
+            owner_username = str(account.get("username") or "").lower()
+            # Optional stable owner ID takes precedence; otherwise require exact public account username.
+            if OWNER_ID:
+                if owner_id != OWNER_ID: return
+            elif not OWNER_USERNAME or owner_username != OWNER_USERNAME:
+                return
             if not connection.get("is_enabled"): return
             rights = connection.get("rights") or {}
             if not rights.get("can_reply"): return
         except Exception:
             log.warning("Business connection could not be verified")
             return
-        if sender.get("id") == OWNER_ID: return
+        if int(sender.get("id", 0)) == owner_id: return
     text = (message.get("text") or "").strip()
     key = (bid or "direct") + ":" + str(cid)
-    clean = re.sub(r"\\s+", " ", text.lower()).strip(" .!?")
+    clean = re.sub(r"\s+", " ", text.lower()).strip(" .!?")
     if not business and clean in {"/myid", "/id"}:
         send(cid, "Ваш Telegram chat ID: " + str(cid) + "\nДобавьте его в ADMIN_CHAT_ID и OWNER_USER_ID в секретах сервера.")
         return
