@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("uvmall")
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 MANAGER_ID = int(os.environ.get("ADMIN_CHAT_ID", "0") or "0")
+MANAGER_STATUS = {"reachable": False, "checked": False}
 OWNER_ID = int(os.environ.get("OWNER_USER_ID", "0") or "0")
 OWNER_USERNAME = os.environ.get("OWNER_USERNAME", "UVMALL19").lstrip("@").lower()
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
@@ -465,6 +466,7 @@ class Handler(BaseHTTPRequestHandler):
                 "name": "UVMALL Telegram AI Admin", "status": "online",
                 "telegram_configured": bool(TOKEN),
                 "manager_configured": bool(MANAGER_ID),
+                "manager_chat_reachable": MANAGER_STATUS["reachable"],
                 "owner_configured": bool(OWNER_ID),
                 "ai_enabled": bool(GIGACHAT_AUTH_KEY),
                 "ai_provider": "UVMALL AI",
@@ -514,11 +516,13 @@ def register_webhook():
            secret_token=WEBHOOK_SECRET,
            allowed_updates=["message", "callback_query", "business_message", "business_connection"],
            drop_pending_updates=False)
-        try:
-            tg("setMyName", name="UVMALL AI — Помощник")
-            tg("setMyShortDescription", short_description="UVMALL AI — умная помощь покупателям и арендаторам UVMALL.")
-            tg("setMyDescription", description="UVMALL AI — виртуальный помощник маркетплейса UVMALL. Вопросы о товарах, продавцах, регистрации, размещении и поддержке. Сайт: https://uvmall.ru/ Менеджер: @UVMALL19.")
-            tg("setMyCommands", commands=[
+        # Profile settings are independent: a Telegram 429 on the name must
+        # not prevent updating the help descriptions and command menu.
+        operations = [
+            ("setMyName", {"name": "UVMALL AI — Помощник"}),
+            ("setMyShortDescription", {"short_description": "UVMALL AI — умная помощь покупателям и арендаторам UVMALL."}),
+            ("setMyDescription", {"description": "UVMALL AI — виртуальный помощник маркетплейса UVMALL. Вопросы о товарах, продавцах, регистрации, размещении и поддержке. Сайт: https://uvmall.ru/ Менеджер: @UVMALL19."}),
+            ("setMyCommands", {"commands": [
                 {"command": "start", "description": "Начать и открыть меню"},
                 {"command": "help", "description": "Помощь: темы и инструкции"},
                 {"command": "seller", "description": "Помощь арендаторам"},
@@ -528,10 +532,33 @@ def register_webhook():
                 {"command": "manager", "description": "Связаться с менеджером"},
                 {"command": "myid", "description": "Узнать свой Telegram ID"},
                 {"command": "stop", "description": "Отключить автоответы"}
-            ])
-            tg("setChatMenuButton", menu_button={"type": "commands"})
-        except Exception:
-            log.exception("Bot profile setup failed; webhook remains active")
+            ]}),
+            ("setChatMenuButton", {"menu_button": {"type": "commands"}}),
+        ]
+        for method, args in operations:
+            try:
+                if method == "setMyName":
+                    # Avoid unnecessary rename requests, which Telegram rate limits.
+                    current = tg("getMyName") or {}
+                    if current.get("name") == args["name"]:
+                        log.info("Telegram bot name already UVMALL AI")
+                        continue
+                tg(method, **args)
+                log.info("Telegram bot profile updated: %s", method)
+            except HTTPError as err:
+                log.warning("Telegram bot profile %s deferred: HTTP %d", method, err.code)
+            except Exception as err:
+                log.warning("Telegram bot profile %s unavailable: %s", method, type(err).__name__)
+        if MANAGER_ID:
+            try:
+                chat = tg("getChat", chat_id=MANAGER_ID)
+                MANAGER_STATUS["reachable"] = int(chat.get("id") or 0) == MANAGER_ID
+                MANAGER_STATUS["checked"] = True
+                log.info("Manager chat check: %s", "reachable" if MANAGER_STATUS["reachable"] else "not_reachable")
+            except Exception as err:
+                MANAGER_STATUS["checked"] = True
+                MANAGER_STATUS["reachable"] = False
+                log.warning("Manager chat not yet accessible to bot: %s", type(err).__name__)
         log.info("Webhook registered for @uv_mallbot")
     except Exception:
         log.exception("Webhook registration failed; retry after restart")
