@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111217"><title>UVMALL AI — Каталог и оптовые закупки</title>
+<style>
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;color:#f5f4f6;background:#111217;font-synthesis:none;--red:#e34855;--card:#1b1d24;--muted:#979ca9;--border:#31333b}
+*{box-sizing:border-box}body{margin:0;padding:0 0 92px}button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}.wrap{max-width:940px;margin:auto;padding:16px 16px 22px}
+.header{position:sticky;z-index:8;top:0;background:#111217f0;backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
+.header .wrap{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:12px;padding-bottom:12px}
+.brand{font-size:21px;font-weight:900;letter-spacing:.6px}.brand b{color:var(--red)}.small{font-size:12px;color:var(--muted)}.headlinks{display:flex;gap:13px;font-size:12px;color:#ccc}
+.hero{padding:23px 2px 20px}.eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;color:#f18992}
+.hero h1{font-weight:860;font-size:clamp(28px,6vw,45px);line-height:1.06;letter-spacing:-1.5px;margin:12px 0}.hero h1 span{color:var(--red)}.hero p{color:#b4b8c3;max-width:550px;line-height:1.55;font-size:14px}
+.search{display:grid;grid-template-columns:1fr auto;gap:8px;background:var(--card);padding:9px;border:1px solid var(--border);border-radius:18px}
+input,select,textarea{color:#f5f5f6;background:#23252e;border:1px solid #414550;border-radius:11px;padding:12px 13px;min-width:0;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:#e34855}.search input{border:0;background:transparent;padding:8px}.primary{border:0;background:var(--red);color:#fff;padding:12px 18px;border-radius:11px;font-weight:700}
+.primary:disabled{opacity:.55}.secondary{border:1px solid var(--border);color:#eee;background:#2a2c35;padding:10px 12px;border-radius:10px}
+.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.filters input,.filters select{font-size:12px;padding:10px}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:26px 0 13px;gap:12px}
+.section-title h2{margin:0;font-size:20px}.count{font-size:12px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.card{overflow:hidden;border:1px solid var(--border);border-radius:16px;background:var(--card);display:flex;flex-direction:column}
+.card .photo{aspect-ratio:1.36;background:linear-gradient(140deg,#30313a,#18191e);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.card .photo img{width:100%;height:100%;object-fit:contain}.placeholder{font-size:37px;color:#8b8d94}
+.card .inner{padding:12px;display:flex;flex-direction:column;gap:7px;flex:1}
+.card .name{font-size:14px;font-weight:700;line-height:1.3;min-height:35px}.card .meta{color:#afb2bb;font-size:11px;line-height:1.5}
+.price{font-size:18px;font-weight:800}.price small{font-size:11px;color:#b9bdc6;font-weight:400}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}.actions button,.actions a{font-size:12px;padding:8px 10px}
+.heart{border:0;background:#292b36;color:#e8e7eb;border-radius:9px;min-width:36px}.heart.active{color:#ff6570}
+.notice{background:#24242b;border:1px solid #40404a;padding:20px;border-radius:17px;margin:13px 0;line-height:1.6}
+.notice strong{display:block;font-size:17px;margin-bottom:4px}.notice p{font-size:13px;color:#b8bbc5}
+.notice a{color:#ff929c;text-decoration:underline}
+.pill{display:inline-flex;font-size:11px;background:#32242a;color:#ff9da7;border:1px solid #694149;padding:5px 8px;border-radius:30px}
+.panel{border:1px solid var(--border);border-radius:16px;background:var(--card);padding:18px;margin:14px 0}
+.panel h3{margin:0 0 10px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stack{display:grid;gap:11px}.field{display:grid;gap:5px;font-size:12px;color:#babec9}
+.tabs{display:flex;gap:8px;overflow:auto;scrollbar-width:none}.tab{white-space:nowrap;background:#272934;color:#c6c8d0;border:1px solid var(--border);padding:10px 15px;border-radius:11px}
+.tab.active{background:#502a30;border-color:var(--red);color:#fff}.hidden{display:none!important}
+#message{padding:10px;font-size:13px;color:#ffb1b9;min-height:22px}
+.compare{overflow:auto}.compare table{width:100%;font-size:12px;border-collapse:collapse}.compare th,.compare td{border-bottom:1px solid #444;padding:9px;min-width:110px;vertical-align:top;text-align:left}
+.nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:20;background:#1b1d24ee;backdrop-filter:blur(18px);border-top:1px solid var(--border);padding:8px 8px max(9px,env(safe-area-inset-bottom));justify-content:center;gap:4px}
+.nav button{flex:1;max-width:170px;border:0;background:transparent;border-radius:10px;color:#aeb1bd;padding:9px 3px;font-size:11px;display:grid;gap:5px;justify-items:center}.nav button.active{color:#ff7b88;background:#31242c}.nav .symbol{font-size:18px}
+.terms{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#b6bbc6}.terms input{width:17px;min-width:17px;height:17px;margin-top:1px;accent-color:#ef5260}
+footer{margin:30px 0 2px;color:#9ba0a9;font-size:11px;line-height:1.7}
+@media(min-width:700px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}.card .photo{aspect-ratio:1.4}.wrap{padding-left:22px;padding-right:22px}}
+@media(max-width:460px){.filters{grid-template-columns:1fr 1fr}.headlinks{display:none}.hero{padding-top:18px}.grid2{grid-template-columns:1fr}}
+</style></head><body>
+<header class="header"><div class="wrap"><a class="brand" href="/app">UV<b>MALL</b> <span style="font-size:10px;color:#bcbfc7;font-weight:500">AI</span></a><div class="headlinks"><a href="https://uvmall.ru/" target="_blank" rel="noopener">Сайт UVMALL</a><a href="https://t.me/UVMALL19" target="_blank" rel="noopener">Менеджер</a></div><span class="pill">Telegram</span></div></header>
+<main class="wrap">
+<div class="hero"><div class="eyebrow">Товары • Поставщики • Опт</div><h1>Найдём нужное.<br><span>Закупим выгоднее.</span></h1><p>Каталог и оптовые заявки UVMALL. Показываем только предложения из подключённого каталога, без придуманных цен и остатков.</p>
+<div class="search"><input id="q" aria-label="Поиск товаров" placeholder="Название товара, бренд, категория…" autocomplete="off"><button class="primary" id="searchBtn">Найти</button></div>
+<div class="filters">
+<select id="category" aria-label="Категория"><option value="">Все категории</option></select>
+<input id="maxPrice" inputmode="decimal" placeholder="Цена до, ₽" aria-label="Цена до">
+<input id="qty" inputmode="numeric" placeholder="Кол-во, шт." aria-label="Количество">
+<select id="sort" aria-label="Сортировка"><option value="relevance">По релевантности</option><option value="price_asc">Сначала дешевле</option><option value="price_desc">Сначала дороже</option></select>
+</div></div>
+<div class="tabs" id="tabs"><button class="tab active" data-view="catalog">Каталог</button><button class="tab" data-view="favorites">Избранное</button><button class="tab" data-view="compare">Сравнение</button><button class="tab" data-view="rfq">Оптовая заявка</button></div>
+<div id="message" role="status"></div>
+<section id="catalogView"><div class="section-title"><h2>Товары</h2><span class="count" id="count">Проверяем каталог…</span></div><div id="catalogNotice"></div><div class="cards" id="results"></div><div style="margin-top:16px;text-align:center"><button id="more" class="secondary hidden">Показать ещё</button></div></section>
+<section id="favoritesView" class="hidden"><div class="section-title"><h2>Избранные товары</h2></div><p class="small">Сохранено на вашем устройстве, без передачи данных третьим лицам.</p><div id="favoritesItems" class="cards"></div></section>
+<section id="compareView" class="hidden"><div class="section-title"><h2>Сравнение товаров</h2></div><p class="small">Добавьте до четырёх товаров, нажимая «Сравнить» на карточке.</p><div id="compareItems" class="compare"></div></section>
+<section id="rfqView" class="hidden"><div class="section-title"><h2>Запросить оптовое предложение</h2></div>
+<div class="panel"><p class="small">Опишите потребность. Заявка уйдёт менеджеру UVMALL, который сможет связаться с вами в Telegram. Отправка работает только из Telegram Mini App.</p>
+<form id="rfqForm" class="stack"><div class="field"><label for="rfqItem">Товары или категории</label><textarea id="rfqItem" rows="3" required maxlength="600" placeholder="Например: 500 махровых полотенец, 70×140 см"></textarea></div>
+<div class="grid2"><div class="field"><label for="rfqQty">Количество, шт.</label><input id="rfqQty" inputmode="numeric" min="1" max="10000000" type="number" placeholder="500"></div>
+<div class="field"><label for="rfqBudget">Бюджет, ₽ (необязательно)</label><input id="rfqBudget" type="number" inputmode="decimal" min="0" max="1000000000" placeholder="50000"></div></div>
+<div class="field"><label for="rfqNotes">Дополнительные условия</label><textarea id="rfqNotes" rows="3" maxlength="800" placeholder="Цвет, размер, доставка, минимальная партия"></textarea></div>
+<label class="terms"><input type="checkbox" id="rfqConsent" required><span>Согласен передать менеджеру UVMALL текст заявки и свой Telegram ID для связи. Не передаю пароли, коды или платёжные данные.</span></label>
+<button type="submit" class="primary" id="rfqSubmit">Отправить менеджеру</button><div id="rfqMessage" class="small" role="status"></div></form></div></section>
+<footer>UVMALL AI · Каталог: <a href="https://uvmall.ru/">uvmall.ru</a> · Помощь: <a href="https://t.me/UVMALL19">@UVMALL19</a><br>Цены и наличие подтверждаются продавцом. Приложение не оформляет оплату и не хранит данные банковских карт.</footer>
+</main>
+<nav class="nav" aria-label="Навигация">
+<button data-view="catalog" class="active"><span class="symbol">⌕</span>Каталог</button>
+<button data-view="favorites"><span class="symbol">♡</span>Избранное</button>
+<button data-view="compare"><span class="symbol">≡</span>Сравнить</button>
+<button data-view="rfq"><span class="symbol">✎</span>Оптовая заявка</button>
+</nav>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+"use strict";
+const tg=window.Telegram&&window.Telegram.WebApp||null;
+if(tg){try{tg.ready();tg.expand()}catch(e){}}
+const $=id=>document.getElementById(id);
+const escaped=str=>String(str??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const money=n=>typeof n==="number"&&Number.isFinite(n)?new Intl.NumberFormat("ru-RU",{maximumFractionDigits:2}).format(n)+" ₽":"Цена уточняется";
+const state={view:"catalog",products:[],connected:false,offset:0,total:0,favorites:[],compare:[],fetching:false};
+try{state.favorites=JSON.parse(localStorage.getItem("uvmall_favorites")||"[]");if(!Array.isArray(state.favorites))state.favorites=[]}catch(e){state.favorites=[]}
+function save(){try{localStorage.setItem("uvmall_favorites",JSON.stringify(state.favorites.slice(0,100)))}catch(e){}}
+function message(s){$("message").textContent=s||""}
+function showView(v){
+ state.view=v;
+ ["catalog","favorites","compare","rfq"].forEach(id=>{
+  $(id+"View").classList.toggle("hidden",id!==v);
+  document.querySelectorAll("[data-view='"+id+"']").forEach(el=>el.classList.toggle("active",id===v))
+ });
+ if(v==="favorites")renderFavorites();if(v==="compare")renderCompare();
+}
+document.querySelectorAll("[data-view]").forEach(btn=>btn.addEventListener("click",()=>showView(btn.dataset.view)));
+function notice(text,extra=""){return '<div class="notice"><strong>'+escaped(text)+'</strong><p>'+escaped(extra)+'</p><a href="https://uvmall.ru/" target="_blank" rel="noopener">Открыть сайт UVMALL</a> · <a href="https://t.me/UVMALL19" target="_blank" rel="noopener">Написать менеджеру</a></div>'}
+function card(p){
+ const id=escaped(p.id),name=escaped(p.title),img=p.image_url?'<img src="'+escaped(p.image_url)+'" loading="lazy" alt="'+name+'" onerror="this.remove()">':'<span class="placeholder">▣</span>';
+ const fav=state.favorites.some(f=>f.id===p.id),comp=state.compare.some(f=>f.id===p.id);
+ const url=p.url&&p.url.startsWith("https://")?escaped(p.url):"https://uvmall.ru/";
+ return '<article class="card"><div class="photo">'+img+'</div><div class="inner">'+
+ '<div class="name">'+name+'</div><div class="meta">'+escaped([p.seller,p.category,p.pavilion?"Павильон "+p.pavilion:""].filter(Boolean).join(" · "))+'</div>'+
+ '<div class="price">'+money(p.display_price??p.price)+'</div>'+
+ (p.wholesale_price!==null&&p.wholesale_price!==undefined?'<div class="small">Оптовая от '+money(p.wholesale_price)+(p.min_qty?' · от '+escaped(p.min_qty)+' шт.':'')+'</div>':'')+
+ '<div class="actions"><a class="primary" href="'+url+'" target="_blank" rel="noopener">Товар ↗</a>'+
+ '<button class="heart '+(fav?'active':'')+'" data-action="fav" data-id="'+id+'" title="Избранное" aria-label="Избранное">'+(fav?'♥':'♡')+'</button>'+
+ '<button class="secondary" data-action="compare" data-id="'+id+'">'+(comp?'✓ В сравнении':'+ Сравнить')+'</button>'+
+ '<button class="secondary" data-action="rfq" data-id="'+id+'">Запросить опт</button></div></div></article>';
+}
+function findProduct(id){
+ return [...state.products,...state.favorites,...state.compare].find(p=>p.id===id);
+}
+document.body.addEventListener("click",e=>{
+ const b=e.target.closest("[data-action]");if(!b)return;
+ const p=findProduct(b.dataset.id);if(!p)return;
+ if(b.dataset.action==="fav"){
+  if(state.favorites.some(f=>f.id===p.id))state.favorites=state.favorites.filter(f=>f.id!==p.id);
+  else state.favorites.unshift(p);save();refreshCards();
+ }else if(b.dataset.action==="compare"){
+  if(state.compare.some(f=>f.id===p.id))state.compare=state.compare.filter(f=>f.id!==p.id);
+  else if(state.compare.length<4)state.compare.push(p);
+  else {message("В сравнении может быть не больше 4 товаров.");return}
+  refreshCards();
+ }else if(b.dataset.action==="rfq"){
+  $("rfqItem").value=p.title+" — "+p.url;
+  showView("rfq");window.scrollTo({top:100,behavior:"smooth"});
+ }
+});
+function refreshCards(){renderProducts();renderFavorites();renderCompare()}
+function renderProducts(){const target=$("results");target.innerHTML=state.products.map(card).join("");$("more").classList.toggle("hidden",state.products.length>=state.total)}
+function renderFavorites(){const a=state.favorites;$("favoritesItems").innerHTML=a.length?a.map(card).join(""):notice("Список пока пуст","Сохраните интересующие товары из каталога.")}
+function renderCompare(){
+ const a=state.compare;const el=$("compareItems");
+ if(!a.length){el.innerHTML=notice("Товары для сравнения не выбраны","Добавьте товары из результатов поиска.");return}
+ const line=(name,fn)=>'<tr><th>'+name+'</th>'+a.map(p=>'<td>'+escaped(fn(p)||"—")+'</td>').join("")+'</tr>';
+ el.innerHTML='<table><thead><tr><th>Параметр</th>'+a.map(p=>'<th>'+escaped(p.title)+'</th>').join("")+'</tr></thead><tbody>'+
+ line("Цена",p=>money(p.price))+line("Опт",p=>p.wholesale_price==null?"Не указана":money(p.wholesale_price))+
+ line("Категория",p=>p.category)+line("Продавец",p=>p.seller)+line("Павильон",p=>p.pavilion)+
+ '</tbody></table><div style="margin-top:12px"><button class="secondary" id="clearCompare">Очистить сравнение</button></div>';
+ $("clearCompare").onclick=()=>{state.compare=[];refreshCards()}
+}
+async function categories(){
+ try{const r=await fetch("/api/catalog/categories");if(!r.ok)throw Error("HTTP");const d=await r.json();
+   const sel=$("category");sel.innerHTML='<option value="">Все категории</option>';
+   for(const c of d.categories||[]){const o=document.createElement("option");o.value=c;o.textContent=c;sel.appendChild(o)}
+ }catch(e){}
+}
+async function search(reset=true){
+ if(state.fetching)return;
+ if(reset){state.offset=0;state.products=[]}
+ state.fetching=true;message("");
+ const u=new URL("/api/catalog/search",location.origin);
+ u.searchParams.set("q",$("q").value.trim());u.searchParams.set("limit","18");u.searchParams.set("offset",String(state.offset));
+ if($("category").value)u.searchParams.set("category",$("category").value);
+ if($("maxPrice").value)u.searchParams.set("max_price",$("maxPrice").value);
+ if($("qty").value)u.searchParams.set("qty",$("qty").value);
+ u.searchParams.set("sort",$("sort").value);
+ try{const r=await fetch(u.toString(),{headers:{"Accept":"application/json"},cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();
+  state.connected=!!d.connected;state.products.push(...(d.products||[]));state.total=d.total||0;state.offset=state.products.length;
+  $("count").textContent=d.total?d.total+" найдено":(d.connected?"Ничего не найдено":"Каталог не подключён");
+  $("catalogNotice").innerHTML=!d.connected?notice("Каталог UVMALL пока не подключён",
+    "Сервис работает, но у него пока нет доступа к настоящему экспорту товаров UVMALL. Показывать вымышленные товары мы не будем."):
+    !d.total?notice("По вашему запросу результатов нет","Попробуйте другое название, категорию или цену."):"";
+  renderProducts();
+ }catch(e){$("catalogNotice").innerHTML=notice("Ошибка загрузки каталога","Повторите попытку или перейдите на сайт UVMALL.");message("Не удалось получить данные.");}
+ finally{state.fetching=false}
+}
+$("searchBtn").onclick=()=>{showView("catalog");search(true)};
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter"){showView("catalog");search(true)}});
+$("more").onclick=()=>search(false);["category","sort"].forEach(id=>$(id).onchange=()=>search(true));
+$("rfqForm").onsubmit=async e=>{
+ e.preventDefault();const el=$("rfqMessage");el.textContent="";
+ if(!tg||!tg.initData){el.textContent="Заявка отправляется только внутри Telegram. Откройте @uv_mallbot и нажмите «Каталог».",window.open("https://t.me/uv_mallbot","_blank");return}
+ const item=$("rfqItem").value.trim();if(!item||!$("rfqConsent").checked)return;
+ const btn=$("rfqSubmit");btn.disabled=true;btn.textContent="Отправка…";
+ try{
+  const r=await fetch("/api/rfq",{method:"POST",headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({initData:tg.initData,item,quantity:$("rfqQty").value,budget:$("rfqBudget").value,
+   notes:$("rfqNotes").value,consent:true})});
+  const x=await r.json();
+  if(!r.ok||!x.ok)throw Error(x.message||"Не удалось отправить");
+  el.textContent="Заявка отправлена менеджеру UVMALL. Ответ придёт в Telegram.";
+  $("rfqForm").reset();
+ }catch(err){el.textContent=err.message||"Не удалось отправить. Напишите @UVMALL19."}
+ finally{btn.disabled=false;btn.textContent="Отправить менеджеру"}
+};
+categories();search();
+</script></body></html>
