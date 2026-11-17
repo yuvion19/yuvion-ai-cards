@@ -13,6 +13,16 @@ class TicketTests(unittest.TestCase):
     def tearDown(self):
         tickets.DB_PATH=self.previous
         self.temp.cleanup()
+    def test_unique_ids_across_ephemeral_db_resets(self):
+        old=tickets.create("support",123,"Before reboot","k1")
+        self.assertGreaterEqual(old["id"],100_000_000_000)
+        # Simulate an erased or replaced Render ephemeral volume.
+        tickets.DB_PATH=os.path.join(self.temp.name,"replacement.db")
+        tickets.initialize()
+        fresh=tickets.create("support",456,"After reboot","k2")
+        self.assertNotEqual(old["id"],fresh["id"])
+        self.assertIsNone(tickets.get(old["id"]))
+
     def test_deduplicates_requests(self):
         t=tickets.create("support",12345,"Need help","msg:12345:1")
         same=tickets.create("support",12345,"Need help","msg:12345:1")
