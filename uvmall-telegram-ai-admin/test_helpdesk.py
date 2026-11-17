@@ -23,6 +23,12 @@ class HelpdeskTests(unittest.TestCase):
                 self.assertLessEqual(len(("h|" + section + "|" + topic).encode()), 64)
                 self.assertTrue(answer.strip())
 
+    def test_application_button_opens_uvmall(self):
+        items = [button for row in h.root_markup()["inline_keyboard"] for button in row]
+        site = [button for button in items if button.get("text") == "Открыть сайт UVMALL"]
+        self.assertEqual(len(site), 1)
+        self.assertEqual(site[0]["url"], "https://uvmall.ru/")
+
     def test_numbered_menu(self):
         for name, meta in h.SECTIONS.items():
             keys = list(meta["topics"])
