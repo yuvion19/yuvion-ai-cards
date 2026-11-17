@@ -41,6 +41,11 @@ def initialize():
             count INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY(day,name)
         )""")
+        db.execute("""CREATE TABLE IF NOT EXISTS ai_limits(
+            customer_id INTEGER PRIMARY KEY,
+            window_started INTEGER NOT NULL,
+            requests INTEGER NOT NULL
+        )""")
         db.execute("CREATE INDEX IF NOT EXISTS ticket_status_created ON tickets(status,created_at)")
         db.execute("CREATE INDEX IF NOT EXISTS ticket_customer_created ON tickets(customer_id,created_at)")
     return True
@@ -148,3 +153,23 @@ def prune_history(retention_days=90):
                   (before,)).rowcount
         db.execute("DELETE FROM metrics WHERE day<?",(cutoff,))
     return count
+
+def allow_ai(customer_id,limit=25,period=3600):
+    """Atomically enforce at most limit accepted AI calls per Telegram ID per window."""
+    cid=int(customer_id)
+    if cid<=0:return False
+    now=int(time.time())
+    limit=max(1,min(int(limit),100))
+    with LOCK, _connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        record=db.execute("SELECT window_started,requests FROM ai_limits WHERE customer_id=?",
+                          (cid,)).fetchone()
+        if record is None or now-record["window_started"]>=period:
+            db.execute("""INSERT INTO ai_limits(customer_id,window_started,requests)
+                   VALUES(?,?,1) ON CONFLICT(customer_id) DO UPDATE SET
+                   window_started=excluded.window_started,requests=1""",(cid,now))
+            return True
+        if record["requests"]>=limit:
+            return False
+        db.execute("UPDATE ai_limits SET requests=requests+1 WHERE customer_id=?",(cid,))
+        return True
