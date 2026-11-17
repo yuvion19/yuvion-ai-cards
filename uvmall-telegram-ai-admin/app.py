@@ -789,7 +789,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         p=urlsplit(self.path).path
-        self.send_response(200 if p in ("/","/health","/app") else 404)
+        self.send_response(200 if p in ("/","/health","/app","/operator") else 404)
         self.send_header("Content-Length","0")
         self.end_headers()
 
@@ -798,6 +798,22 @@ class Handler(BaseHTTPRequestHandler):
         path=parsed.path.rstrip("/") or "/"
         params=parse_qs(parsed.query,keep_blank_values=True)
         val=lambda key,default="":(params.get(key) or [default])[0]
+        if path=="/operator":
+            # Static shell only: all ticket data is guarded by Telegram HMAC.
+            body=Path(__file__).with_name("operator.html").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type","text/html; charset=utf-8")
+            self.send_header("X-Content-Type-Options","nosniff")
+            self.send_header("Cache-Control","no-store")
+            self.send_header("Referrer-Policy","no-referrer")
+            self.send_header("Content-Security-Policy",
+                "default-src 'self' https://telegram.org; script-src 'self' 'unsafe-inline' https://telegram.org; "
+                "style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; "
+                "base-uri 'self'; object-src 'none'; frame-ancestors https://web.telegram.org")
+            self.send_header("Content-Length",str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path=="/app":
             # Old links now redirect to the official marketplace.
             self.send_response(302)
@@ -840,7 +856,9 @@ class Handler(BaseHTTPRequestHandler):
                 "catalog_feed_configured":catalogue["configured"],
                 "app_destination": SITE,
                 "miniapp_enabled": False,
-                "inline_handler_enabled":True})
+                "inline_handler_enabled":True,
+                "operator_panel_enabled":True,
+                "tickets_storage":tk.storage_status()["path_kind"]})
             return
         self.json_response(404,{"error":"not_found"})
 
@@ -859,6 +877,44 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 log.exception("Telegram webhook failed")
                 self.json_response(500,{"ok":False})
+            return
+        if path in ("/api/operator/list","/api/operator/action"):
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+                if length<=0 or length>9000:
+                    self.json_response(413,{"ok":False,"message":"Неверный размер запроса."});return
+                payload=json.loads(self.rfile.read(length))
+                identity=cm.verify_init_data(payload.get("initData",""),TOKEN)
+                if not MANAGER_ID or not identity or identity["id"]!=MANAGER_ID:
+                    self.json_response(403,{"ok":False,"message":"Доступ только менеджеру UVMALL."});return
+                if path=="/api/operator/list":
+                    wanted=str(payload.get("status") or "all")
+                    self.json_response(200,{"ok":True,"tickets":tk.list_tickets(wanted,limit=60),
+                        "statistics":tk.statistics(),"storage":tk.storage_status()})
+                    return
+                ticket_id=int(payload.get("ticket_id") or 0)
+                ticket=tk.get(ticket_id)
+                if ticket is None:
+                    self.json_response(404,{"ok":False,"message":"Обращение не найдено."});return
+                action=str(payload.get("action") or "")
+                if action=="reply":
+                    body=str(payload.get("text") or "").strip()
+                    if not body or len(body)>3500 or cm.looks_secret(body):
+                        self.json_response(400,{"ok":False,"message":"Неверный текст ответа."});return
+                    if not deliver_ticket_reply(ticket,body):
+                        self.json_response(503,{"ok":False,
+                            "message":"Telegram не разрешил доставить ответ. Свяжитесь через @UVMALL19."});return
+                    updated=tk.mark_replied(ticket_id)
+                elif action in ("new","in_progress","resolved","closed"):
+                    updated=tk.transition(ticket_id,action)
+                else:
+                    self.json_response(400,{"ok":False,"message":"Неизвестная операция."});return
+                self.json_response(200,{"ok":True,"ticket":updated})
+            except (ValueError,TypeError):
+                self.json_response(400,{"ok":False,"message":"Некорректные параметры."})
+            except Exception:
+                log.exception("Operator API error")
+                self.json_response(500,{"ok":False,"message":"Ошибка панели оператора."})
             return
         if path=="/api/admin/catalog/refresh":
             secret=os.environ.get("CATALOG_ADMIN_TOKEN","")
@@ -900,8 +956,19 @@ class Handler(BaseHTTPRequestHandler):
                         return
                     timestamps.append(now)
                     RFQ_RATE[uid]=timestamps
-                if reply_manager(cm.rfq_message(lead)):
-                    self.json_response(200,{"ok":True})
+                fingerprint=hashlib.sha256(
+                    (str(uid)+json.dumps(
+                        [lead["item"],lead["quantity"],lead["budget"],lead["notes"]],
+                        ensure_ascii=False,sort_keys=True)).encode("utf-8")).hexdigest()[:32]
+                # Deduplicate exact same form submitted again in the same 10-minute period.
+                dedupe="web_rfq:"+str(uid)+":"+fingerprint+":"+str(int(now//600))
+                ticket=tk.create("wholesale",uid,
+                   cm.rfq_message(lead)[:800],dedupe)
+                if ticket["notified"] or reply_manager(
+                    "Оптовая заявка №"+str(ticket["id"])+"\n"+cm.rfq_message(lead)+
+                    "\nОтветить: /reply "+str(ticket["id"])+" текст"):
+                    tk.notify(ticket["id"])
+                    self.json_response(200,{"ok":True,"ticket_id":ticket["id"]})
                 else:
                     self.json_response(503,{"ok":False,"message":"Менеджер недоступен. "
                                               "Напишите @UVMALL19 напрямую."})
@@ -990,9 +1057,9 @@ def validate_help_center():
     assert catalog_markup(False)["inline_keyboard"][0][0]["url"] == SITE, "Website button must be a normal URL"
     import io
     import unittest
-    import test_helpdesk, test_catalog, test_commerce, test_multimodal
+    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets
     suite = unittest.TestSuite()
-    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal):
+    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(mod))
     results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
     if not results.wasSuccessful():
@@ -1002,6 +1069,8 @@ def validate_help_center():
 
 if __name__ == "__main__":
     validate_help_center()
+    tk.initialize()
+    log.info("UVMALL operator ticket database ready: %s",tk.storage_status()["path_kind"])
     if cat.FEED_URL:
         threading.Thread(target=cat.background_refresh, daemon=True).start()
     else:
