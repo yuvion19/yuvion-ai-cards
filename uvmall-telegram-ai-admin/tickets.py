@@ -35,6 +35,12 @@ def initialize():
            replies INTEGER NOT NULL DEFAULT 0,
            created_at INTEGER NOT NULL,
            updated_at INTEGER NOT NULL)""")
+        db.execute("""CREATE TABLE IF NOT EXISTS metrics(
+            day TEXT NOT NULL,
+            name TEXT NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(day,name)
+        )""")
         db.execute("CREATE INDEX IF NOT EXISTS ticket_status_created ON tickets(status,created_at)")
         db.execute("CREATE INDEX IF NOT EXISTS ticket_customer_created ON tickets(customer_id,created_at)")
     return True
@@ -109,3 +115,34 @@ def storage_status():
     return {"path_kind":"persistent" if DB_PATH.startswith("/var/data/") else "ephemeral",
             "storage_warning":None if DB_PATH.startswith("/var/data/") else
             "Render Free filesystem is ephemeral; tickets may be lost on restart."}
+
+EVENTS = {"search", "search_empty", "catalog_unavailable", "help_opened",
+          "ai_answer", "ai_fallback", "ticket_created", "rfq_sent"}
+
+def metric(event):
+    """Aggregate anonymous events by UTC day; never retain personal search terms."""
+    if event not in EVENTS:
+        raise ValueError("Invalid metric")
+    day=time.strftime("%Y-%m-%d",time.gmtime())
+    with LOCK, _connect() as db:
+        db.execute("""INSERT INTO metrics(day,name,count) VALUES(?,?,1)
+          ON CONFLICT(day,name) DO UPDATE SET count=count+1""",(day,event))
+
+def metrics(days=7):
+    since=time.strftime("%Y-%m-%d",time.gmtime(time.time()-int(days)*86400))
+    with LOCK, _connect() as db:
+        rows=db.execute("""SELECT name,SUM(count) AS total FROM metrics
+                          WHERE day>=? GROUP BY name""",(since,)).fetchall()
+    values={x["name"]:int(x["total"]) for x in rows}
+    return {k:values.get(k,0) for k in sorted(EVENTS)}
+
+def prune_history(retention_days=90):
+    """Only remove resolved/closed tickets after retention; leave active work open."""
+    before=int(time.time())-max(30,int(retention_days))*86400
+    cutoff=time.strftime("%Y-%m-%d",time.gmtime(time.time()-180*86400))
+    with LOCK, _connect() as db:
+        count=db.execute("""DELETE FROM tickets
+                  WHERE status IN ('resolved','closed') AND updated_at<?""",
+                  (before,)).rowcount
+        db.execute("DELETE FROM metrics WHERE day<?",(cutoff,))
+    return count
