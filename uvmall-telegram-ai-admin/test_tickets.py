@@ -33,6 +33,25 @@ class TicketTests(unittest.TestCase):
         tickets.transition(b["id"],"resolved")
         self.assertEqual(len(tickets.list_tickets("new")),1)
         self.assertEqual(len(tickets.list_tickets("all")),2)
+    def test_anonymous_metrics(self):
+        tickets.metric("search")
+        tickets.metric("search")
+        tickets.metric("search_empty")
+        result=tickets.metrics()
+        self.assertEqual(result["search"],2)
+        self.assertEqual(result["search_empty"],1)
+        with self.assertRaises(ValueError):
+            tickets.metric("include_customer_id")
+    def test_prune_old_resolved_only(self):
+        a=tickets.create("support",11,"Closed","old:1")
+        b=tickets.create("support",12,"Open","old:2")
+        tickets.transition(a["id"],"closed")
+        with tickets.LOCK, tickets._connect() as db:
+            db.execute("UPDATE tickets SET updated_at=1 WHERE id IN (?,?)",(a["id"],b["id"]))
+        self.assertEqual(tickets.prune_history(),1)
+        self.assertIsNotNone(tickets.get(b["id"]))
+        self.assertIsNone(tickets.get(a["id"]))
+
     def test_no_sql_injection(self):
         t=tickets.create("support",33,"A message","key:33")
         with self.assertRaises(ValueError):
