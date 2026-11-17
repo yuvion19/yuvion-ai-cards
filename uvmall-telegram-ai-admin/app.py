@@ -2,6 +2,9 @@
 """UVMALL Telegram support bot webhook service. Standard library only."""
 from __future__ import annotations
 import json
+import hashlib
+import ssl
+import uuid
 import logging
 import os
 import re
@@ -9,6 +12,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, urlopen
+from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -19,7 +23,18 @@ OWNER_ID = int(os.environ.get("OWNER_USER_ID", "0") or "0")
 OWNER_USERNAME = os.environ.get("OWNER_USERNAME", "UVMALL19").lstrip("@").lower()
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 PUBLIC_URL = (os.environ.get("WEBHOOK_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or "").rstrip("/")
-AI_KEY = os.environ.get("OPENAI_API_KEY", "")
+# GigaChat authorization key is kept only in Render secrets, never in source or logs.
+GIGACHAT_AUTH_KEY = os.environ.get("GIGACHAT_AUTH_KEY", "").strip()
+GIGACHAT_SCOPE = os.environ.get("GIGACHAT_SCOPE", "GIGACHAT_API_PERS")
+GIGACHAT_MODEL = os.environ.get("GIGACHAT_MODEL", "GigaChat-2")
+GIGACHAT_PROBE = os.environ.get("GIGACHAT_PROBE", "1") == "1"
+AI_KEY = GIGACHAT_AUTH_KEY
+GIGACHAT_ACCESS = {"value": "", "until": 0, "scope": "", "status": "not_configured" if not GIGACHAT_AUTH_KEY else "pending"}
+GIGACHAT_TLS_CONTEXT = None
+GIGACHAT_TLS_LOCK = threading.RLock()
+# Pinned public root certificate fingerprint (SHA-256 of DER).
+RUSSIAN_ROOT_FINGERPRINT = "d26d2d0231b7c39f92cc738512ba54103519e4405d68b5bd703e9788ca8ecf31"
+RUSSIAN_ROOT_URL = "https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt"
 POLICY_URL = os.environ.get("PRIVACY_POLICY_URL", "")
 PORT = int(os.environ.get("PORT", "10000"))
 API = "https://api.telegram.org/bot" + TOKEN + "/"
@@ -45,10 +60,10 @@ PROMPT = ("Ты автоматический помощник UVMALL. Отвеч
     "Ты не имеешь доступа к базе UVMALL. Никогда не проси пароль, код, паспорт или карту. "
     "Если не знаешь ответа, направь к менеджеру. Не представляйся человеком.")
 
-def post_json(url, data, headers=None, timeout=15):
+def post_json(url, data, headers=None, timeout=15, ssl_context=None):
     body = json.dumps(data, ensure_ascii=False).encode()
     req = Request(url, body, {"Content-Type": "application/json", **(headers or {})}, method="POST")
-    with urlopen(req, timeout=timeout) as res:
+    with urlopen(req, timeout=timeout, context=ssl_context) as res:
         return json.loads(res.read().decode())
 
 def tg(method, **kwargs):
@@ -67,20 +82,126 @@ def reply_manager(message):
         try: send(MANAGER_ID, message)
         except Exception: log.exception("Manager delivery failed")
 
+def gigachat_ssl_context():
+    """Keep normal CA verification, adding a pinned Russian root only for GigaChat."""
+    global GIGACHAT_TLS_CONTEXT
+    with GIGACHAT_TLS_LOCK:
+        if GIGACHAT_TLS_CONTEXT is not None:
+            return GIGACHAT_TLS_CONTEXT
+        ctx = ssl.create_default_context()
+        try:
+            # The public CA certificate contains no secrets. If its own server has
+            # an untrusted national chain, accept ONLY a byte-for-byte pinned root.
+            try:
+                with urlopen(RUSSIAN_ROOT_URL, timeout=9, context=ssl.create_default_context()) as r:
+                    pem = r.read(16000)
+            except (ssl.SSLError, URLError):
+                with urlopen(RUSSIAN_ROOT_URL, timeout=9, context=ssl._create_unverified_context()) as r:
+                    pem = r.read(16000)
+            if b"-----BEGIN CERTIFICATE-----" in pem:
+                pem_text = pem.decode("ascii").strip()
+                der = ssl.PEM_cert_to_DER_cert(pem_text)
+            else:
+                der = pem
+                pem_text = ssl.DER_cert_to_PEM_cert(der)
+            if hashlib.sha256(der).hexdigest().lower() != RUSSIAN_ROOT_FINGERPRINT:
+                raise ValueError("national CA fingerprint mismatch")
+            ctx.load_verify_locations(cadata=pem_text)
+        except Exception as ex:
+            log.warning("GigaChat national CA could not be installed (%s); keeping standard TLS verification", type(ex).__name__)
+        GIGACHAT_TLS_CONTEXT = ctx
+        return ctx
+
+def gigachat_token():
+    if not GIGACHAT_AUTH_KEY:
+        raise RuntimeError("GigaChat key not configured")
+    with GIGACHAT_TLS_LOCK:
+        if GIGACHAT_ACCESS["value"] and time.time() < GIGACHAT_ACCESS["until"]:
+            return GIGACHAT_ACCESS["value"]
+        scopes = [GIGACHAT_ACCESS["scope"]] if GIGACHAT_ACCESS["scope"] else [GIGACHAT_SCOPE]
+        scopes += [v for v in ("GIGACHAT_API_PERS", "GIGACHAT_API_B2B", "GIGACHAT_API_CORP") if v not in scopes]
+        for scope in scopes:
+            req = Request(
+                "https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
+                data=urlencode({"scope": scope}).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": "application/json",
+                    "Authorization": "Basic " + GIGACHAT_AUTH_KEY,
+                    "RqUID": str(uuid.uuid4()),
+                },
+                method="POST",
+            )
+            try:
+                with urlopen(req, timeout=16, context=gigachat_ssl_context()) as r:
+                    data = json.loads(r.read(30000))
+                token = str(data["access_token"])
+                exp = float(data.get("expires_at") or (time.time() + 1800))
+                if exp > 100000000000: exp /= 1000
+                GIGACHAT_ACCESS.update({
+                    "value": token, "scope": scope,
+                    "until": min(exp - 90, time.time() + 1500),
+                    "status": "oauth_verified",
+                })
+                log.info("GigaChat OAuth successful; access token cached (no key logged)")
+                return token
+            except HTTPError as err:
+                log.warning("GigaChat OAuth HTTP %d for configured scope", err.code)
+                if err.code not in (400, 401, 403): break
+            except Exception as err:
+                log.warning("GigaChat OAuth connection issue: %s", type(err).__name__)
+                break
+        GIGACHAT_ACCESS["status"] = "oauth_failed"
+        raise RuntimeError("GigaChat OAuth unavailable")
+
+def gigachat_completion(message):
+    token = gigachat_token()
+    response = post_json(
+        "https://api.giga.chat/v1/chat/completions",
+        {"model": GIGACHAT_MODEL,
+         "messages": [
+             {"role": "system", "content": PROMPT},
+             {"role": "user", "content": message[:1200]}
+         ],
+         "temperature": 0.2, "max_tokens": 230, "stream": False},
+        {"Authorization": "Bearer " + token},
+        timeout=23,
+        ssl_context=gigachat_ssl_context(),
+    )
+    text = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+    if not isinstance(text, str):
+        text = str(text)
+    if text.strip(): GIGACHAT_ACCESS["status"] = "chat_verified"
+    return text.strip()[:650]
+
 def answer_ai(text):
-    if not AI_KEY: return None
+    if not GIGACHAT_AUTH_KEY: return None
+    # Do not forward messages containing passwords, payment details, secrets,
+    # IDs/documents, or direct contact details to the AI provider.
+    lowered = text.lower()
+    if re.search(r"(парол|password|паспорт|снилс|cvv|cvc|код из смс|sms-код|api.?key|токен)", lowered):
+        return "Не отправляйте персональные данные или пароли. Для помощи обратитесь к менеджеру: " + CONTACT
+    sanitized = re.sub(r"[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}", "[email скрыт]", text)
+    sanitized = re.sub(r"(?<!\\w)(?:\\+7|8)[\\s()\\-]*\\d[\\d\\s()\\-]{8,14}", "[телефон скрыт]", sanitized)
     try:
-        res = post_json("https://api.openai.com/v1/responses", {
-            "model": os.environ.get("OPENAI_MODEL", "gpt-4.1-mini"),
-            "input": [{"role": "system", "content": PROMPT},
-                      {"role": "user", "content": text[:1200]}],
-            "store": False, "max_output_tokens": 240
-        }, {"Authorization": "Bearer " + AI_KEY}, timeout=18)
-        return " ".join(c.get("text", "") for x in res.get("output", [])
-            for c in x.get("content", []) if c.get("type") == "output_text").strip()[:650] or None
-    except Exception:
-        log.warning("AI response failed; fallback to menu")
-        return None
+        return gigachat_completion(sanitized)
+    except HTTPError as err:
+        GIGACHAT_ACCESS["status"] = "chat_http_error"
+        log.warning("GigaChat inference failed: HTTP %s", err.code)
+    except Exception as err:
+        log.warning("GigaChat inference unavailable: %s", type(err).__name__)
+    return None
+
+def probe_gigachat():
+    if not GIGACHAT_AUTH_KEY or not GIGACHAT_PROBE: return
+    try:
+        result = gigachat_completion("Ответь одним словом: готов.")
+        log.info("GigaChat startup check: %s", "chat_verified" if result else "empty_reply")
+    except HTTPError as err:
+        GIGACHAT_ACCESS["status"] = "chat_http_error"
+        log.warning("GigaChat startup check: HTTP %s", err.code)
+    except Exception as err:
+        log.warning("GigaChat startup check unavailable: %s", type(err).__name__)
 
 def process_message(message, business=False):
     chat_obj = message.get("chat") or {}
@@ -213,7 +334,9 @@ class Handler(BaseHTTPRequestHandler):
                 "telegram_configured": bool(TOKEN),
                 "manager_configured": bool(MANAGER_ID),
                 "owner_configured": bool(OWNER_ID),
-                "ai_enabled": bool(AI_KEY)
+                "ai_enabled": bool(GIGACHAT_AUTH_KEY),
+                "ai_provider": "GigaChat",
+                "gigachat_status": GIGACHAT_ACCESS["status"]
             }, ensure_ascii=False).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -275,6 +398,7 @@ def register_webhook():
 
 if __name__ == "__main__":
     threading.Thread(target=register_webhook, daemon=True).start()
+    threading.Thread(target=probe_gigachat, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     log.info("UVMALL HTTP webhook service listening on %s", PORT)
     server.serve_forever()
