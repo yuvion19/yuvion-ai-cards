@@ -898,6 +898,7 @@ def register_webhook():
 
 def validate_help_center():
     # Local, network-free checks before starting the production listener.
+    assert catalog_markup(False)["inline_keyboard"][0][0]["url"] == SITE, "Website button must be a normal URL"
     import io
     import unittest
     import test_helpdesk, test_catalog, test_commerce, test_multimodal
