@@ -21,6 +21,7 @@ import catalog as cat
 import commerce as cm
 import multimodal as mm
 import tickets as tk
+import uptime as up
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("uvmall")
@@ -226,6 +227,7 @@ def probe_gigachat():
         log.warning("GigaChat startup check unavailable: %s", type(err).__name__)
 
 def show_help(cid, bid="", section=None, topic=None):
+    tk.metric("help_opened")
     if section and topic:
         return send(cid, hd.page_text(section, topic), bid,
                     hd.page_markup(section) if not bid else None)
@@ -258,6 +260,7 @@ def handoff_manager(cid, sender, key, bid="", topic="", request_id=None):
             + "\nПанель: /panel")
         if delivered: tk.notify(ticket_id)
     if delivered:
+        if not ticket["notified"]: tk.metric("ticket_created")
         with LOCK:
             PAUSED.add(key)
             PENDING.pop(key, None)
@@ -296,8 +299,12 @@ def process_manager_command(cid, text):
         return True
     if cmd=="/stats":
         stats=tk.statistics()
+        usage=tk.metrics()
         send(cid,"UVMALL AI — статистика обращений\n"+
              "\n".join(k+": "+str(v) for k,v in stats.items())+
+             "\nПоиски (7 дней): "+str(usage["search"])+
+             "\nНичего не найдено: "+str(usage["search_empty"])+
+             "\nКаталог не подключён: "+str(usage["catalog_unavailable"])+
              "\nВнимание: текущая база Render может очищаться при перезапуске.")
         return True
     if cmd=="/tickets":
@@ -326,7 +333,7 @@ def process_manager_command(cid, text):
                 send(cid,"Ответ не доставлен — Telegram не разрешил отправку. "
                          "Попробуйте связаться с клиентом через @UVMALL19.")
             return True
-        status={"\/close":"closed","/close":"closed","/reopen":"in_progress",
+        status={"/close":"closed","/reopen":"in_progress",
                 "/resolve":"resolved"}.get(cmd)
         updated=tk.transition(ticket["id"],status)
         send(cid,"Обращение №"+str(updated["id"])+" → "+updated["status"])
@@ -404,7 +411,9 @@ def catalog_markup(include_search=True):
     return {"inline_keyboard":buttons}
 
 def catalogue_search(cid, query, bid=""):
+    tk.metric("search")
     if not cat.status()["count"]:
+        tk.metric("catalog_unavailable")
         send(cid,
              "Поиск UVMALL AI готов, но реальные товары ещё не синхронизированы с каталогом сайта.\n"
              "Пока можно открыть uvmall.ru или отправить оптовую заявку менеджеру. "
@@ -415,6 +424,7 @@ def catalogue_search(cid, query, bid=""):
     found=cat.search(params["query"] or query, max_price=params["max_price"],
                      qty=params["qty"], limit=5)
     if not found["total"]:
+        tk.metric("search_empty")
         send(cid, "По запросу «" + query[:120] + "» совпадений не найдено.\n"
              "Попробуйте другое название, уберите ценовое ограничение или уточните "
              "запрос в каталоге.", bid,
@@ -489,11 +499,26 @@ def process_rfq(cid, key, state, text, sender, bid="", request_id=None):
             "Заявка №"+str(ticket["id"])+"\n"+lead+
             "\nОтветить: /reply "+str(ticket["id"])+" текст"):
             tk.notify(ticket["id"])
+            if not ticket["notified"]: tk.metric("rfq_sent")
             send(cid,"Оптовая заявка №"+str(ticket["id"])+" передана менеджеру UVMALL. "
                  "При необходимости он ответит в Telegram. "+CONTACT,bid)
         else:
             send(cid,"Передать заявку автоматически не удалось. "
                  "Напишите менеджеру: "+CONTACT,bid)
+
+def check_site_for_customer(cid,bid=""):
+    # Run a bounded network check outside the Telegram webhook processing thread.
+    try:
+        main=up.check_one("marketplace")
+        seller=up.check_one("seller")
+        send(cid,"Проверка сайтов UVMALL из сети нашего сервера:\n"+
+                 "uvmall.ru: "+up.public_text(main)+"\n"+
+                 "seller.uvmall.ru: "+up.public_text(seller)+"\n"+
+                 "При проблеме с доступом можно написать менеджеру: "+CONTACT,bid)
+    except Exception as err:
+        log.warning("Website status check failed: %s",type(err).__name__)
+        send(cid,"Не удалось проверить доступность сайтов. "
+                 "Свяжитесь с менеджером: "+CONTACT,bid)
 
 def process_inline_query(q):
     qid=q.get("id")
@@ -624,6 +649,10 @@ def process_message(message, business=False):
                  "в этот чат, когда обработка завершится.",bid)
         threading.Thread(target=process_media_after_consent,
                          args=(cid,key,record,bid),daemon=True).start()
+        return
+    if clean in {"/status", "статус сайта", "сайт работает"}:
+        send(cid,"Проверяю доступность сайта UVMALL из сети сервера бота…",bid)
+        threading.Thread(target=check_site_for_customer,args=(cid,bid),daemon=True).start()
         return
     if clean in {"/catalog","/site","сайт", "каталог", "магазин"}:
         send(cid,"Официальный сайт UVMALL: " + SITE + "\nЕсли сайт не загружается, обратитесь к менеджеру: " + CONTACT,bid,
@@ -890,7 +919,7 @@ class Handler(BaseHTTPRequestHandler):
                 if path=="/api/operator/list":
                     wanted=str(payload.get("status") or "all")
                     self.json_response(200,{"ok":True,"tickets":tk.list_tickets(wanted,limit=60),
-                        "statistics":tk.statistics(),"storage":tk.storage_status()})
+                        "statistics":tk.statistics(),"metrics":tk.metrics(),"storage":tk.storage_status()})
                     return
                 ticket_id=int(payload.get("ticket_id") or 0)
                 ticket=tk.get(ticket_id)
@@ -968,6 +997,7 @@ class Handler(BaseHTTPRequestHandler):
                     "Оптовая заявка №"+str(ticket["id"])+"\n"+cm.rfq_message(lead)+
                     "\nОтветить: /reply "+str(ticket["id"])+" текст"):
                     tk.notify(ticket["id"])
+                    if not ticket["notified"]: tk.metric("rfq_sent")
                     self.json_response(200,{"ok":True,"ticket_id":ticket["id"]})
                 else:
                     self.json_response(503,{"ok":False,"message":"Менеджер недоступен. "
@@ -1012,6 +1042,7 @@ def register_webhook():
                 {"command": "search", "description": "Найти товар в каталоге"},
                 {"command": "catalog", "description": "Ссылка на официальный сайт"},
                 {"command": "site", "description": "Перейти на uvmall.ru"},
+                {"command": "status", "description": "Проверить доступность сайта"},
                 {"command": "wholesale", "description": "Оставить оптовую заявку"},
                 {"command": "seller", "description": "Помощь арендаторам"},
                 {"command": "buyer", "description": "Помощь покупателям"},
@@ -1057,9 +1088,9 @@ def validate_help_center():
     assert catalog_markup(False)["inline_keyboard"][0][0]["url"] == SITE, "Website button must be a normal URL"
     import io
     import unittest
-    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets
+    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime
     suite = unittest.TestSuite()
-    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets):
+    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(mod))
     results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
     if not results.wasSuccessful():
@@ -1070,7 +1101,8 @@ def validate_help_center():
 if __name__ == "__main__":
     validate_help_center()
     tk.initialize()
-    log.info("UVMALL operator ticket database ready: %s",tk.storage_status()["path_kind"])
+    removed=tk.prune_history()
+    log.info("UVMALL operator ticket database ready: %s, old resolved tickets cleaned: %s",tk.storage_status()["path_kind"],removed)
     if cat.FEED_URL:
         threading.Thread(target=cat.background_refresh, daemon=True).start()
     else:
