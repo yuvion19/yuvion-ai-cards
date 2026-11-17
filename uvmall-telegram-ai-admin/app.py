@@ -274,7 +274,7 @@ def handle_callback_query(query):
             with LOCK: PENDING[key] = "help_topic|" + action + "|" + parts[2]
             show_help(cid, section=action, topic=parts[2])
         else:
-            with LOCK: PENDING.pop(key, None)
+            with LOCK: PENDING[key] = "help_list|" + action
             show_help(cid, section=action)
 
 def process_message(message, business=False):
@@ -334,15 +334,15 @@ def process_message(message, business=False):
         show_help(cid, bid)
         return
     if clean in {"/seller", "арендатор", "для арендаторов", "для продавцов"}:
-        with LOCK: PENDING.pop(key, None)
+        with LOCK: PENDING[key] = "help_list|seller"
         show_help(cid, bid, section="seller")
         return
     if clean in {"/buyer", "покупатель", "для покупателей"}:
-        with LOCK: PENDING.pop(key, None)
+        with LOCK: PENDING[key] = "help_list|buyer"
         show_help(cid, bid, section="buyer")
         return
     if clean in {"/tech", "техпомощь", "техническая помощь"}:
-        with LOCK: PENDING.pop(key, None)
+        with LOCK: PENDING[key] = "help_list|tech"
         show_help(cid, bid, section="tech")
         return
     if clean in {"/ask", "спросить ии", "спросить gigachat", "спросить гигачат",
@@ -351,6 +351,15 @@ def process_message(message, business=False):
         return
     if clean in {"/manager", "менеджер", "оператор", "5"}:
         handoff_manager(cid, sender, key, bid)
+        return
+    if state.startswith("help_list|") and clean.isdigit():
+        section = state.split("|", 1)[1]
+        topic = hd.topic_by_number(section, clean)
+        if topic is None:
+            send(cid, "Нет такого пункта. Выберите номер из меню или напишите /help.", bid)
+        else:
+            with LOCK: PENDING[key] = "help_topic|" + section + "|" + topic
+            show_help(cid, bid, section, topic)
         return
     if state == "help_question" or state.startswith("help_topic|"):
         context = ""
