@@ -789,7 +789,7 @@ def register_webhook():
             return
         tg("setWebhook", url=PUBLIC_URL + "/api/telegram",
            secret_token=WEBHOOK_SECRET,
-           allowed_updates=["message", "callback_query", "business_message", "business_connection"],
+           allowed_updates=["message", "callback_query", "inline_query", "business_message", "business_connection"],
            drop_pending_updates=False)
         # Profile settings are independent: a Telegram 429 on the name must
         # not prevent updating the help descriptions and command menu.
@@ -800,6 +800,9 @@ def register_webhook():
             ("setMyCommands", {"commands": [
                 {"command": "start", "description": "Начать и открыть меню"},
                 {"command": "help", "description": "Помощь: темы и инструкции"},
+                {"command": "search", "description": "Найти товар в каталоге"},
+                {"command": "catalog", "description": "Открыть каталог и Mini App"},
+                {"command": "wholesale", "description": "Оставить оптовую заявку"},
                 {"command": "seller", "description": "Помощь арендаторам"},
                 {"command": "buyer", "description": "Помощь покупателям"},
                 {"command": "tech", "description": "Техническая поддержка"},
@@ -808,7 +811,9 @@ def register_webhook():
                 {"command": "myid", "description": "Узнать свой Telegram ID"},
                 {"command": "stop", "description": "Отключить автоответы"}
             ]}),
-            ("setChatMenuButton", {"menu_button": {"type": "commands"}}),
+            ("setChatMenuButton", {"menu_button": (
+                {"type":"web_app","text":"Каталог UVMALL","web_app":{"url":APP_URL}}
+                if APP_URL else {"type":"commands"})}),
         ]
         for method, args in operations:
             try:
@@ -842,16 +847,22 @@ def validate_help_center():
     # Local, network-free checks before starting the production listener.
     import io
     import unittest
-    import test_helpdesk
-    suite = unittest.defaultTestLoader.loadTestsFromModule(test_helpdesk)
+    import test_helpdesk, test_catalog, test_commerce
+    suite = unittest.TestSuite()
+    for mod in (test_helpdesk,test_catalog,test_commerce):
+        suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(mod))
     results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
     if not results.wasSuccessful():
         raise RuntimeError("UVMALL Help Center self-tests failed")
-    log.info("UVMALL Help Center ready: %s tests passed, %s topics",
+    log.info("UVMALL AI ready: %s tests passed, %s help topics",
              results.testsRun, sum(len(v["topics"]) for v in hd.SECTIONS.values()))
 
 if __name__ == "__main__":
     validate_help_center()
+    if cat.FEED_URL:
+        threading.Thread(target=cat.background_refresh, daemon=True).start()
+    else:
+        log.warning("UVMALL product feed not configured: catalogue search will show no products")
     threading.Thread(target=register_webhook, daemon=True).start()
     threading.Thread(target=probe_gigachat, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
