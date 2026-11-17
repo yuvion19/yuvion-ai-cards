@@ -1,0 +1,120 @@
+name: Niti Pamyati — Weekly SEO Audit
+
+on:
+  schedule:
+    - cron: "21 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Audit live museum URLs and technical SEO
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import sys
+          from html.parser import HTMLParser
+          from urllib.parse import urlsplit
+          from urllib.request import Request, urlopen
+          from xml.etree import ElementTree as ET
+
+          ORIGIN = "https://niti-pamyati.art"
+          HOST = "niti-pamyati.art"
+          IMPORTANT = [
+              "/", "/o-narode.html", "/istoriya.html", "/dzhuhuri.html",
+              "/slovar.html", "/biblioteka.html", "/izdaniya/",
+              "/lyudi.html", "/arhiv.html", "/en/", "/he/",
+              "/muzei/", "/istochniki.html"
+          ]
+
+          def get(url):
+              request = Request(url, headers={"User-Agent":"NitiPamyati-SEO-Audit/1.0"})
+              with urlopen(request, timeout=30) as r:
+                  return r.status, r.read().decode("utf-8", "replace"), r.geturl()
+
+          class Head(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.in_title = False
+                  self.title = ""
+                  self.description = ""
+                  self.canonical = ""
+                  self.noindex = False
+              def handle_starttag(self, tag, attrs):
+                  a = dict(attrs)
+                  if tag == "title":
+                      self.in_title = True
+                  if tag == "meta":
+                      name = (a.get("name") or "").lower()
+                      if name == "description":
+                          self.description = a.get("content") or ""
+                      if name in ("robots", "googlebot") and "noindex" in (a.get("content") or "").lower():
+                          self.noindex = True
+                  if tag == "link" and "canonical" in (a.get("rel") or "").lower().split():
+                      self.canonical = a.get("href") or ""
+              def handle_endtag(self, tag):
+                  if tag == "title":
+                      self.in_title = False
+              def handle_data(self, data):
+                  if self.in_title:
+                      self.title += data
+
+          failures = []
+          try:
+              _, robots, _ = get(ORIGIN + "/robots.txt")
+              if "Sitemap: https://niti-pamyati.art/sitemap.xml" not in robots:
+                  failures.append("robots.txt has no canonical sitemap reference.")
+              status, xml, _ = get(ORIGIN + "/sitemap.xml")
+              root = ET.fromstring(xml)
+              ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+              entries = root.findall("s:url", ns)
+              urls = [item.findtext("s:loc", "", ns).strip() for item in entries]
+              if len(urls) != len(set(urls)):
+                  failures.append("Duplicate loc entries in sitemap.")
+              if not urls:
+                  failures.append("Sitemap has no URLs.")
+              invalid = [u for u in urls if urlsplit(u).scheme != "https" or urlsplit(u).netloc != HOST]
+              if invalid:
+                  failures.append(f"{len(invalid)} off-domain/non-HTTPS sitemap URLs.")
+              print(f"Sitemap: HTTP {status}, {len(urls)} URLs, {len(set(urls))} distinct.")
+          except Exception as exc:
+              sys.exit(f"Critical sitemap/robots error: {exc}")
+
+          for path in IMPORTANT:
+              url = ORIGIN + path
+              if url not in urls:
+                  failures.append(f"Core canonical URL missing from sitemap: {url}")
+                  continue
+              try:
+                  status, html, final_url = get(url)
+                  h = Head()
+                  h.feed(html)
+                  misses = []
+                  if status != 200:
+                      misses.append(f"HTTP {status}")
+                  if not h.title.strip():
+                      misses.append("title")
+                  if not h.description.strip():
+                      misses.append("description")
+                  if h.noindex:
+                      misses.append("noindex")
+                  if h.canonical != url:
+                      misses.append(f"canonical={h.canonical!r}, expected {url!r}")
+                  print(f"CHECK {path}: " + ("OK" if not misses else "; ".join(misses)))
+                  if misses:
+                      failures.append(path + ": " + "; ".join(misses))
+              except Exception as exc:
+                  failures.append(f"{path}: unable to read published page: {exc}")
+
+          if failures:
+              print("\nSEO audit problems:")
+              for issue in failures:
+                  print("- " + issue)
+              sys.exit(f"{len(failures)} SEO audit problem(s). Investigate before editing.")
+          print("Core checks passed. This is a technical audit, not proof of search ranking or indexing.")
+          PY
