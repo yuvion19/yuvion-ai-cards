@@ -1,6 +1,9 @@
 name: Niti Pamyati — Weekly SEO Audit
 
 on:
+  push:
+    paths:
+      - ".github/workflows/niti-pamyati-seo-audit.yml"
   schedule:
     - cron: "21 6 * * 1"
   workflow_dispatch:
@@ -18,6 +21,8 @@ jobs:
         run: |
           python3 - <<'PY'
           import sys
+          import os
+          from datetime import datetime, timezone
           from html.parser import HTMLParser
           from urllib.parse import urlsplit
           from urllib.request import Request, urlopen
@@ -111,6 +116,23 @@ jobs:
               except Exception as exc:
                   failures.append(f"{path}: unable to read published page: {exc}")
 
+          summary = [
+              "# Niti Pamyati — technical SEO report",
+              f"Checked (UTC): {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}",
+              f"Public sitemap URLs: {len(urls)}",
+              f"Core URLs examined: {len(IMPORTANT)}",
+              f"Problems detected: {len(failures)}",
+              "",
+              "## Findings",
+          ]
+          summary.extend("- " + item for item in failures) if failures else summary.append("- No problems in the checked URLs.")
+          summary.extend([
+              "",
+              "This checks technical signals only. It does not measure Google/Yandex traffic, rankings, or indexing."
+          ])
+          if os.getenv("GITHUB_STEP_SUMMARY"):
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
+                  report.write("\n".join(summary) + "\n")
           if failures:
               print("\nSEO audit problems:")
               for issue in failures:
