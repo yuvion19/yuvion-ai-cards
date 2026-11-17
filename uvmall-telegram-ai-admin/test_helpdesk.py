@@ -32,6 +32,14 @@ class HelpdeskTests(unittest.TestCase):
             self.assertIsNone(h.topic_by_number(name, "100"))
             self.assertIsNone(h.topic_by_number(name, "abc"))
 
+    def test_uvmall_ai_brand_visible(self):
+        buttons = [item["text"] for row in h.root_markup()["inline_keyboard"] for item in row]
+        self.assertTrue(any("UVMALL AI" in x for x in buttons))
+        for section, data in h.SECTIONS.items():
+            for topic in data["topics"]:
+                self.assertNotIn("GigaChat", h.page_text(section, topic))
+        self.assertIn("UVMALL AI", h.page_text("seller", "products"))
+
     def test_topic_matching(self):
         cases = {
             "Почему товар отклонён на модерации?": ("seller", "moderation"),
