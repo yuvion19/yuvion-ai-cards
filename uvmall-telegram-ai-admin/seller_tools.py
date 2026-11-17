@@ -5,6 +5,7 @@ This is not a replacement for the UVMALL seller-panel import API.
 """
 import csv
 import io
+import itertools
 import re
 import zipfile
 from xml.etree import ElementTree as ET
@@ -91,7 +92,7 @@ def csv_rows(data):
         dialect=csv.Sniffer().sniff(text[:8192],delimiters=";,\t")
         delimiter=dialect.delimiter
     except csv.Error:delimiter=";"
-    return list(csv.reader(io.StringIO(text),delimiter=delimiter))[:MAX_ROWS+2]
+    return list(itertools.islice(csv.reader(io.StringIO(text),delimiter=delimiter),MAX_ROWS+2))
 
 def xlsx_rows(data):
     if len(data)>MAX_FILE:raise ValueError("Файл слишком большой.")
