@@ -24,6 +24,7 @@ button,select,textarea{font:inherit;border-radius:8px;padding:9px 12px;border:1p
 <div class="box"><span class="small">Всего</span><div id="cTotal" class="num">—</div></div>
 </div>
 <div id="storage" class="box" style="margin-bottom:13px">Проверка хранилища...</div>
+<div id="usage" class="small" style="margin-bottom:13px">Аналитика запросов за 7 дней загружается...</div>
 <div class="filters"><label for="filter">Статус</label><select id="filter"><option value="all">Все</option><option value="new">Новые</option><option value="in_progress">В работе</option><option value="resolved">Решены</option><option value="closed">Закрытые</option></select><button id="reload" class="primary">Обновить</button></div>
 <div id="message" role="status"></div><div id="tickets" class="tickets"></div>
 <p class="note">Если клиент не начал диалог с ботом, Telegram может не разрешить отправить ему ответ. Тогда свяжитесь через официальный @UVMALL19.</p></div>
@@ -63,6 +64,7 @@ async function load(){
  const data=await api("/api/operator/list",{status:$("filter").value});
  const s=data.statistics; $("cNew").textContent=s.new;$("cWork").textContent=s.in_progress;
  $("cResolved").textContent=s.resolved;$("cTotal").textContent=s.total;
+ const m=data.metrics||{}; $("usage").textContent="За 7 дней: поисков "+(m.search||0)+", без результатов "+(m.search_empty||0)+", обращений к справке "+(m.help_opened||0)+", заявок "+(m.rfq_sent||0)+".";
  $("storage").textContent=data.storage.path_kind==="persistent"?
  "Хранилище подключено к постоянному диску.":
  "Внимание: временное хранилище Render Free. Заявки могут потеряться при перезапуске. Уведомления менеджеру сохраняются в Telegram.";
