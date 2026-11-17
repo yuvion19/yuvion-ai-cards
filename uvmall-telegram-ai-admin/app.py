@@ -3,6 +3,7 @@
 from __future__ import annotations
 import json
 import hashlib
+import hmac
 import ssl
 import uuid
 import logging
@@ -628,45 +629,151 @@ def handle_update(update):
         process_message(update["message"], False)
 
 class Handler(BaseHTTPRequestHandler):
+    def json_response(self, code, data):
+        content=json.dumps(data,ensure_ascii=False,separators=(",",":")).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type","application/json; charset=utf-8")
+        self.send_header("Cache-Control","no-store")
+        self.send_header("X-Content-Type-Options","nosniff")
+        self.send_header("Content-Length",str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
+    def do_HEAD(self):
+        p=urlsplit(self.path).path
+        self.send_response(200 if p in ("/","/health","/app") else 404)
+        self.send_header("Content-Length","0")
+        self.end_headers()
+
     def do_GET(self):
-        if self.path in ("/", "/health"):
-            body = json.dumps({
-                "name": "UVMALL Telegram AI Admin", "status": "online",
-                "telegram_configured": bool(TOKEN),
-                "manager_configured": bool(MANAGER_ID),
-                "manager_chat_reachable": MANAGER_STATUS["reachable"],
-                "owner_configured": bool(OWNER_ID),
-                "ai_enabled": bool(GIGACHAT_AUTH_KEY),
-                "ai_provider": "UVMALL AI",
-                "uvmall_ai_status": GIGACHAT_ACCESS["status"],
-                "help_enabled": True,
-                "help_topics": sum(len(s["topics"]) for s in hd.SECTIONS.values())
-            }, ensure_ascii=False).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-        else: self.send_error(404)
+        parsed=urlsplit(self.path)
+        path=parsed.path.rstrip("/") or "/"
+        params=parse_qs(parsed.query,keep_blank_values=True)
+        val=lambda key,default="":(params.get(key) or [default])[0]
+        if path=="/app":
+            try:
+                body=Path(__file__).with_name("miniapp.html").read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type","text/html; charset=utf-8")
+                self.send_header("X-Content-Type-Options","nosniff")
+                self.send_header("Cache-Control","no-store")
+                self.send_header("Content-Security-Policy","default-src 'self' https://telegram.org; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'unsafe-inline' 'self'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'")
+                self.send_header("Content-Length",str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception:
+                log.exception("Mini App file could not be loaded")
+                self.json_response(503,{"error":"mini_app_unavailable"})
+            return
+        if path=="/api/catalog/categories":
+            self.json_response(200,{"categories":cat.all_categories(),
+                                    "connected":bool(cat.status()["count"])})
+            return
+        if path=="/api/catalog/status":
+            self.json_response(200,cat.status())
+            return
+        if path=="/api/catalog/search":
+            try:
+                result=cat.search(query=val("q")[:180],category=val("category")[:100],
+                                  min_price=val("min_price")[:18],
+                                  max_price=val("max_price")[:18],
+                                  qty=val("qty")[:18],sort=val("sort")[:20],
+                                  limit=val("limit","18"),offset=val("offset","0"))
+                self.json_response(200,result)
+            except (ValueError,TypeError):
+                self.json_response(400,{"error":"invalid_filters"})
+            return
+        if path in ("/","/health"):
+            catalogue=cat.status()
+            self.json_response(200,{
+                "name":"UVMALL AI","status":"online",
+                "telegram_configured":bool(TOKEN),
+                "manager_configured":bool(MANAGER_ID),
+                "manager_chat_reachable":MANAGER_STATUS["reachable"],
+                "ai_provider":"UVMALL AI",
+                "ai_enabled":bool(GIGACHAT_AUTH_KEY),
+                "uvmall_ai_status":GIGACHAT_ACCESS["status"],
+                "help_enabled":True,"help_topics":sum(len(x["topics"]) for x in hd.SECTIONS.values()),
+                "catalog_enabled":bool(catalogue["count"]),
+                "catalog_items":catalogue["count"],
+                "catalog_feed_configured":catalogue["configured"],
+                "miniapp_enabled":True,
+                "inline_handler_enabled":True})
+            return
+        self.json_response(404,{"error":"not_found"})
 
     def do_POST(self):
-        if self.path != "/api/telegram":
-            self.send_error(404); return
-        if not WEBHOOK_SECRET or self.headers.get("X-Telegram-Bot-Api-Secret-Token") != WEBHOOK_SECRET:
-            self.send_error(403); return
-        size = int(self.headers.get("Content-Length", "0"))
-        if size <= 0 or size > MAX_BODY:
-            self.send_error(413); return
-        try:
-            update = json.loads(self.rfile.read(size).decode())
-            handle_update(update)
-            self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
-        except Exception:
-            log.exception("Webhook processing failed")
-            self.send_error(500)
+        path=urlsplit(self.path).path
+        if path=="/api/telegram":
+            if not WEBHOOK_SECRET or self.headers.get("X-Telegram-Bot-Api-Secret-Token")!=WEBHOOK_SECRET:
+                self.json_response(403,{"error":"forbidden"});return
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+                if length<=0 or length>MAX_BODY:
+                    self.json_response(413,{"error":"body_size"});return
+                update=json.loads(self.rfile.read(length))
+                handle_update(update)
+                self.json_response(200,{"ok":True})
+            except Exception:
+                log.exception("Telegram webhook failed")
+                self.json_response(500,{"ok":False})
+            return
+        if path=="/api/admin/catalog/refresh":
+            secret=os.environ.get("CATALOG_ADMIN_TOKEN","")
+            auth=self.headers.get("Authorization","")
+            if not secret or not hmac.compare_digest(auth,"Bearer "+secret):
+                self.json_response(403,{"error":"forbidden"});return
+            worked=cat.refresh()
+            self.json_response(200 if worked else 503,{"ok":worked,"catalog":cat.status()})
+            return
+        if path=="/api/admin/catalog/import":
+            secret=os.environ.get("CATALOG_ADMIN_TOKEN","")
+            auth=self.headers.get("Authorization","")
+            if not secret or not hmac.compare_digest(auth,"Bearer "+secret):
+                self.json_response(403,{"error":"forbidden"});return
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+                if length<=0 or length>cat.MAX_BYTES:
+                    self.json_response(413,{"error":"body_size"});return
+                rows=cat.decode_feed(self.rfile.read(length))
+                count=cat.install(rows,"manual_ephemeral")
+                self.json_response(200,{"ok":True,"count":count,
+                   "warning":"Manual import is not persistent. Set CATALOG_FEED_URL for durable sync."})
+            except Exception as ex:
+                self.json_response(400,{"error":type(ex).__name__})
+            return
+        if path=="/api/rfq":
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+                if length<10 or length>12000:
+                    self.json_response(413,{"ok":False,"message":"Недопустимый размер заявки."});return
+                body=json.loads(self.rfile.read(length))
+                lead=cm.rfq_from_body(body,TOKEN)
+                now=time.time();uid=lead["user"]["id"]
+                with LOCK:
+                    timestamps=[v for v in RFQ_RATE.get(uid,[]) if now-v<3600]
+                    if len(timestamps)>=3:
+                        self.json_response(429,{"ok":False,"message":"Лимит заявок: 3 в час. "
+                                                  "Обратитесь напрямую к @UVMALL19."})
+                        return
+                    timestamps.append(now)
+                    RFQ_RATE[uid]=timestamps
+                if reply_manager(cm.rfq_message(lead)):
+                    self.json_response(200,{"ok":True})
+                else:
+                    self.json_response(503,{"ok":False,"message":"Менеджер недоступен. "
+                                              "Напишите @UVMALL19 напрямую."})
+            except ValueError as ex:
+                self.json_response(400,{"ok":False,"message":str(ex)[:300]})
+            except Exception:
+                log.exception("RFQ submission failed")
+                self.json_response(500,{"ok":False,"message":"Ошибка отправки. "
+                                          "Свяжитесь с @UVMALL19."})
+            return
+        self.json_response(404,{"error":"not_found"})
 
-    def log_message(self, fmt, *args):
-        log.info(fmt, *args)
+    def log_message(self, fmt,*args):
+        log.info(fmt,*args)
 
 def register_webhook():
     if not TOKEN:
