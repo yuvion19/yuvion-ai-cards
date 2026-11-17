@@ -516,7 +516,20 @@ def register_webhook():
     except Exception:
         log.exception("Webhook registration failed; retry after restart")
 
+def validate_help_center():
+    # Local, network-free checks before starting the production listener.
+    import io
+    import unittest
+    import test_helpdesk
+    suite = unittest.defaultTestLoader.loadTestsFromModule(test_helpdesk)
+    results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
+    if not results.wasSuccessful():
+        raise RuntimeError("UVMALL Help Center self-tests failed")
+    log.info("UVMALL Help Center ready: %s tests passed, %s topics",
+             results.testsRun, sum(len(v["topics"]) for v in hd.SECTIONS.values()))
+
 if __name__ == "__main__":
+    validate_help_center()
     threading.Thread(target=register_webhook, daemon=True).start()
     threading.Thread(target=probe_gigachat, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
