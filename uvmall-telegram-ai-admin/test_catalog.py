@@ -39,6 +39,14 @@ class CatalogTests(unittest.TestCase):
     def test_feed_json(self):
         rows=c.decode_feed(json.dumps({"products":[{"title":"Кружка","url":"/product/2"}]}).encode())
         self.assertEqual(rows[0]["title"],"Кружка")
+    def test_wholesale_requires_known_minimum_quantity(self):
+        rows=[{"id":"w1","title":"Большой набор посуды",
+               "url":"https://uvmall.ru/p/1",
+               "price":1500,"wholesale_price":1000}]
+        c.install(rows,"test")
+        result=c.search("набор",qty=10)
+        self.assertEqual(result["products"][0]["display_price"],1500)
+
     def test_unavailable_qty(self):
         rows=[{"id":"q1","title":"Набор посуды","url":"https://uvmall.ru/p/1","price":1999}]
         c.install(rows,"test")
