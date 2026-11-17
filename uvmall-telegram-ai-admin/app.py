@@ -267,6 +267,21 @@ def handle_callback_query(query):
     cid = int(chat.get("id") or 0)
     if cid == 0 or int(sender.get("id") or 0) != cid: return
     data = str(query.get("data") or "")
+    if data=="s|start":
+        with LOCK:PENDING["direct:"+str(cid)]="catalog:query"
+        send(cid,"Что ищете на UVMALL? Напишите название товара, бренд, "
+                 "цену и нужное количество.\n"
+                 "Например: «электрочайник до 2000 ₽ оптом от 10 шт».",
+             reply_markup=catalog_markup(False))
+        return
+    if data=="s|app":
+        send(cid,"Откройте каталог UVMALL AI внутри Telegram. "
+                 "Товары появляются после подключения реального каталога сайта.",
+             reply_markup=catalog_markup(False))
+        return
+    if data=="r|start":
+        start_rfq(cid,"direct:"+str(cid))
+        return
     if not data.startswith("h|"): return
     parts = data.split("|")
     key = "direct:" + str(cid)
@@ -428,6 +443,15 @@ def process_message(message, business=False):
         if int(sender.get("id", 0)) == owner_id: return
     text = (message.get("text") or "").strip()
     key = (bid or "direct") + ":" + str(cid)
+    if not text and message.get("photo"):
+        send(cid,"Получил фотографию. Автоматическое сопоставление изображений "
+             "с каталогом ещё не подключено. Напишите название или описание "
+             "товара — помогу найти текстовым поиском.",bid)
+        return
+    if not text and (message.get("voice") or message.get("audio")):
+        send(cid,"Для поиска по каталогу пока нужен текстовый запрос. "
+             "Напишите название товара и нужное количество.",bid)
+        return
     clean = re.sub(r"\s+", " ", text.lower()).strip(" .!?")
     if not business and clean in {"/myid", "/id"}:
         send(cid, "Ваш Telegram chat ID: " + str(cid) + "\nДобавьте его в ADMIN_CHAT_ID и OWNER_USER_ID в секретах сервера.")
@@ -439,17 +463,42 @@ def process_message(message, business=False):
         with LOCK:
             PAUSED.add(key)
             PENDING.pop(key, None)
+            RFQ_DRAFT.pop(key,None)
         send(cid, "Автоматические ответы отключены. Для возврата напишите «возобновить».", bid)
         return
     if clean in {"возобновить", "/start", "меню"}:
         with LOCK:
             PAUSED.discard(key)
             PENDING.pop(key, None)
+            RFQ_DRAFT.pop(key,None)
         send(cid, WELCOME, bid, hd.root_markup() if not bid else None)
         return
     with LOCK:
         if key in PAUSED: return
         state = PENDING.get(key, "")
+    if clean in {"/catalog","каталог", "магазин"}:
+        send(cid,"Каталог UVMALL AI:",bid,
+             catalog_markup() if not bid else None)
+        return
+    if clean in {"/search","поиск","найти товар","искать"} or clean.startswith("/search "):
+        term=text.partition(" ")[2].strip() if clean.startswith("/search ") else ""
+        if term:
+            catalogue_search(cid,term,bid)
+        else:
+            with LOCK:PENDING[key]="catalog:query"
+            send(cid,"Напишите, что нужно найти: название, бренд, цену, "
+                     "количество или категорию. Например: «чайник до 2000 ₽».",bid,
+                 catalog_markup(False) if not bid else None)
+        return
+    if clean in {"/wholesale","оптовая заявка","закупка","запросить опт","опт"}:
+        start_rfq(cid,key,bid)
+        return
+    if state=="catalog:query":
+        catalogue_search(cid,text,bid)
+        return
+    if state.startswith("rfq:"):
+        process_rfq(cid,key,state,text,sender,bid)
+        return
     if clean in {"/help", "/faq", "помощь", "раздел помощь", "справка", "помоги"}:
         with LOCK: PENDING.pop(key, None)
         show_help(cid, bid)
@@ -537,9 +586,11 @@ def process_message(message, business=False):
     elif clean == "2" or "добавить товар" in clean or "разместить товар" in clean:
         send(cid, "Загрузите фотографии, названия, цены и характеристики в кабинете: " + SELLER
             + "\nЕсли требуется помощь с Excel, напишите «менеджер».", bid)
-    elif clean == "3" or "найти товар" in clean or "поставщик" in clean or "каталог" in clean:
-        send(cid, "Каталог UVMALL: " + SITE
-            + "\nДля подтверждения оптовой цены и наличия обратитесь к продавцу. Могу передать вопрос менеджеру.", bid)
+    elif clean == "3" or "найти товар" in clean or "поставщик" in clean:
+        with LOCK:PENDING[key]="catalog:query"
+        send(cid,"Что ищете в каталоге UVMALL? Напишите название товара, "
+                 "бренд, нужное количество и бюджет.",bid,
+             catalog_markup(False) if not bid else None)
     elif clean == "4" or "заказ" in clean or "ошибка" in clean:
         send(cid, "У меня нет доступа к статусам заказов или наличию. Напишите «менеджер»."
             + "\nНе присылайте пароли, коды и данные карт.", bid)
@@ -553,6 +604,8 @@ def process_message(message, business=False):
             send(cid, "Чтобы отправить заявку, мне потребуются имя/название магазина, номер павильона "
                 "и Telegram ID для обратной связи. Согласны на обработку этих данных? "
                 "Напишите «да» или «нет». Политика: " + POLICY_URL, bid)
+    elif clean.startswith(("ищу ","найди ","покажи товары ","подбери ","найти ")):
+        catalogue_search(cid,text,bid)
     else:
         send(cid, answer_ai(text) or "Я могу помочь с подключением продавцов и каталогом. "
             "Напишите «меню» или «менеджер». Сайт: " + SITE, bid)
@@ -565,7 +618,9 @@ def handle_update(update):
             if now - t > 3600: SEEN.pop(k, None)
         if uid in SEEN: return
         if uid is not None: SEEN[uid] = now
-    if "callback_query" in update:
+    if "inline_query" in update:
+        process_inline_query(update["inline_query"])
+    elif "callback_query" in update:
         handle_callback_query(update["callback_query"])
     elif "business_message" in update:
         process_message(update["business_message"], True)
