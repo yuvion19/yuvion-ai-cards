@@ -5,6 +5,7 @@ Do not claim durable storage unless UVMALL_DB_PATH points to a persistent disk.
 Only store tickets after explicit user request/consent.
 """
 import os
+import secrets
 import sqlite3
 import threading
 import time
@@ -73,12 +74,18 @@ def create(kind, customer_id, summary, request_key, business_id=""):
     summary = str(summary or "").strip()[:850]
     now = int(time.time())
     with LOCK, _connect() as db:
-        db.execute("""INSERT OR IGNORE INTO tickets
-           (request_key,kind,customer_id,business_id,summary,status,created_at,updated_at)
-           VALUES(?,?,?,?,?,?,?,?)""",
-           (key,kind,cid,str(business_id or "")[:180],summary,"new",now,now))
-        row=db.execute("SELECT * FROM tickets WHERE request_key=?",(key,)).fetchone()
-        return _record(row)
+        for attempt in range(6):
+            # Random 12-digit ticket IDs prevent cross-user ID reuse if
+            # Render replaces an ephemeral SQLite database on redeploy.
+            ticket_id=secrets.randbelow(900_000_000_000)+100_000_000_000
+            db.execute("""INSERT OR IGNORE INTO tickets
+               (id,request_key,kind,customer_id,business_id,summary,status,created_at,updated_at)
+               VALUES(?,?,?,?,?,?,?,?,?)""",
+               (ticket_id,key,kind,cid,str(business_id or "")[:180],
+                summary,"new",now,now))
+            row=db.execute("SELECT * FROM tickets WHERE request_key=?",(key,)).fetchone()
+            if row:return _record(row)
+    raise RuntimeError("Could not allocate a unique ticket ID")
 
 def get(ticket_id):
     with LOCK, _connect() as db:
