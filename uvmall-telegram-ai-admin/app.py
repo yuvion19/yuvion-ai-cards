@@ -279,7 +279,7 @@ def handle_callback_query(query):
              reply_markup=catalog_markup(False))
         return
     if data=="s|app":
-        send(cid,"Открыть сайт маркетплейса UVMALL: " + SITE,
+        send(cid,"Официальный сайт маркетплейса UVMALL: " + SITE,
              reply_markup=catalog_markup(False))
         return
     if data=="r|start":
@@ -312,7 +312,7 @@ def handle_callback_query(query):
 def catalog_markup(include_search=True):
     buttons = []
     if APP_URL:
-        buttons.append([{"text": "Открыть сайт UVMALL", "web_app": {"url": APP_URL}}])
+        buttons.append([{"text": "Открыть сайт UVMALL", "url": SITE}])
     if include_search:
         buttons.append([{"text": "Найти товар", "callback_data":"s|start"},
                         {"text":"Оптовая заявка", "callback_data":"r|start"}])
@@ -536,8 +536,8 @@ def process_message(message, business=False):
         threading.Thread(target=process_media_after_consent,
                          args=(cid,key,record,bid),daemon=True).start()
         return
-    if clean in {"/catalog","каталог", "магазин"}:
-        send(cid,"Каталог UVMALL AI:",bid,
+    if clean in {"/catalog","/site","сайт", "каталог", "магазин"}:
+        send(cid,"Официальный сайт UVMALL: " + SITE + "\nЕсли сайт не загружается, обратитесь к менеджеру: " + CONTACT,bid,
              catalog_markup() if not bid else None)
         return
     if clean in {"/search","поиск","найти товар","искать"} or clean.startswith("/search "):
@@ -854,7 +854,8 @@ def register_webhook():
                 {"command": "start", "description": "Начать и открыть меню"},
                 {"command": "help", "description": "Помощь: темы и инструкции"},
                 {"command": "search", "description": "Найти товар в каталоге"},
-                {"command": "catalog", "description": "Открыть сайт UVMALL"},
+                {"command": "catalog", "description": "Ссылка на официальный сайт"},
+                {"command": "site", "description": "Перейти на uvmall.ru"},
                 {"command": "wholesale", "description": "Оставить оптовую заявку"},
                 {"command": "seller", "description": "Помощь арендаторам"},
                 {"command": "buyer", "description": "Помощь покупателям"},
@@ -865,8 +866,7 @@ def register_webhook():
                 {"command": "stop", "description": "Отключить автоответы"}
             ]}),
             ("setChatMenuButton", {"menu_button": (
-                {"type":"web_app","text":"Открыть UVMALL","web_app":{"url":APP_URL}}
-                if APP_URL else {"type":"commands"})}),
+                {"type":"commands"})}),
         ]
         for method, args in operations:
             try:
