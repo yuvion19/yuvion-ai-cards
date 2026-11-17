@@ -22,6 +22,7 @@ import commerce as cm
 import multimodal as mm
 import tickets as tk
 import uptime as up
+import privacy as pv
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("uvmall")
@@ -197,22 +198,28 @@ def gigachat_completion(message):
     if text.strip(): GIGACHAT_ACCESS["status"] = "chat_verified"
     return text.strip()[:650]
 
-def answer_ai(text):
-    if not GIGACHAT_AUTH_KEY: return None
-    # Do not forward messages containing passwords, payment details, secrets,
-    # IDs/documents, or direct contact details to the AI provider.
-    lowered = text.lower()
-    if re.search(r"(парол|password|паспорт|снилс|cvv|cvc|код из смс|sms-код|api.?key|токен)", lowered):
-        return "Не отправляйте персональные данные или пароли. Для помощи обратитесь к менеджеру: " + CONTACT
-    sanitized = re.sub(r"[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}", "[email скрыт]", text)
-    sanitized = re.sub(r"(?<!\\w)(?:\\+7|8)[\\s()\\-]*\\d[\\d\\s()\\-]{8,14}", "[телефон скрыт]", sanitized)
+def answer_ai(text,customer_id=None):
+    if not GIGACHAT_AUTH_KEY:
+        return None
+    sanitized=pv.prepare_for_ai(text)
+    if sanitized is None:
+        return "Не отправляйте пароли, коды, данные карт и документы. " + \
+               "Для помощи обратитесь к менеджеру: " + CONTACT
+    if not sanitized:return None
+    if customer_id is not None and not tk.allow_ai(customer_id):
+        return "Вы достигли лимита вопросов UVMALL AI (25 в час). " + \
+               "Попробуйте /help или свяжитесь с менеджером: " + CONTACT
     try:
-        return gigachat_completion(sanitized)
+        result=gigachat_completion(sanitized)
+        if result:tk.metric("ai_answer")
+        else:tk.metric("ai_fallback")
+        return result
     except HTTPError as err:
         GIGACHAT_ACCESS["status"] = "chat_http_error"
         log.warning("GigaChat inference failed: HTTP %s", err.code)
     except Exception as err:
         log.warning("GigaChat inference unavailable: %s", type(err).__name__)
+    tk.metric("ai_fallback")
     return None
 
 def probe_gigachat():
@@ -716,7 +723,7 @@ def process_message(message, business=False):
             if len(components) == 3:
                 item = hd.SECTIONS.get(components[1], {}).get("topics", {}).get(components[2])
                 if item: context = "Раздел справки: " + item[0] + ". "
-        response = answer_ai(context + text)
+        response = answer_ai(context + text,cid)
         send(cid, (response or "Не удалось подготовить ответ прямо сейчас. "
              "Посмотрите раздел /help или обратитесь к менеджеру: " + CONTACT)
              + "\n\nМожно задать следующий вопрос или вернуться в /help.", bid)
@@ -785,7 +792,7 @@ def process_message(message, business=False):
     elif clean.startswith(("ищу ","найди ","покажи товары ","подбери ","найти ")):
         catalogue_search(cid,text,bid)
     else:
-        send(cid, answer_ai(text) or "Я могу помочь с подключением продавцов и каталогом. "
+        send(cid, answer_ai(text,cid) or "Я могу помочь с подключением продавцов и каталогом. "
             "Напишите «меню» или «менеджер». Сайт: " + SITE, bid)
 
 def handle_update(update):
@@ -1088,9 +1095,9 @@ def validate_help_center():
     assert catalog_markup(False)["inline_keyboard"][0][0]["url"] == SITE, "Website button must be a normal URL"
     import io
     import unittest
-    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime
+    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime, test_privacy
     suite = unittest.TestSuite()
-    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime):
+    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime,test_privacy):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(mod))
     results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
     if not results.wasSuccessful():
