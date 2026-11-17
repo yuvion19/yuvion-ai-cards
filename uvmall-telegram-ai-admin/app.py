@@ -12,9 +12,12 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, urlopen
-from urllib.parse import urlencode
+from urllib.parse import urlencode, parse_qs, urlsplit
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 import helpdesk as hd
+import catalog as cat
+import commerce as cm
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("uvmall")
@@ -48,6 +51,9 @@ MAX_BODY = 1048576
 SITE = "https://uvmall.ru/"
 SELLER = "https://seller.uvmall.ru/"
 CONTACT = "https://t.me/UVMALL19"
+APP_URL = PUBLIC_URL + "/app" if PUBLIC_URL.startswith("https://") else ""
+RFQ_DRAFT = {}
+RFQ_RATE = {}
 
 WELCOME = ("Здравствуйте! Вас приветствует UVMALL AI — виртуальный помощник маркетплейса.\n"
     "Помогу с вопросами по каталогу, заказам и подключению арендаторов.\n\n"
@@ -284,6 +290,113 @@ def handle_callback_query(query):
         else:
             with LOCK: PENDING[key] = "help_list|" + action
             show_help(cid, section=action)
+
+def catalog_markup(include_search=True):
+    buttons = []
+    if APP_URL:
+        buttons.append([{"text": "Каталог UVMALL", "web_app": {"url": APP_URL}}])
+    if include_search:
+        buttons.append([{"text": "Найти товар", "callback_data":"s|start"},
+                        {"text":"Оптовая заявка", "callback_data":"r|start"}])
+    buttons.append([{"text":"Связаться с менеджером", "url":CONTACT}])
+    return {"inline_keyboard":buttons}
+
+def catalogue_search(cid, query, bid=""):
+    if not cat.status()["count"]:
+        send(cid,
+             "Поиск UVMALL AI готов, но реальные товары ещё не синхронизированы с каталогом сайта.\n"
+             "Пока можно открыть uvmall.ru или отправить оптовую заявку менеджеру. "
+             "Я не буду показывать вымышленные товары и цены.",
+             bid, catalog_markup() if not bid else None)
+        return
+    params = cat.parse_natural(query)
+    found=cat.search(params["query"] or query, max_price=params["max_price"],
+                     qty=params["qty"], limit=5)
+    if not found["total"]:
+        send(cid, "По запросу «" + query[:120] + "» совпадений не найдено.\n"
+             "Попробуйте другое название, уберите ценовое ограничение или уточните "
+             "запрос в каталоге.", bid,
+             catalog_markup() if not bid else None)
+        return
+    send(cid, "UVMALL AI: найдено " + str(found["total"])
+         + " совпадений. Показываю первые " + str(len(found["products"]))
+         + ". Цены и наличие уточняются у продавца.", bid)
+    for p in found["products"]:
+        summary=cm.product_summary(p)
+        markup={"inline_keyboard":[[{"text":"Открыть товар", "url":p["url"]}],
+             [{"text":"Оптовая заявка", "callback_data":"r|start"}]]}
+        if p.get("image_url"):
+            try:
+                payload={"chat_id":cid, "photo":p["image_url"],"caption":summary[:1000]}
+                if bid: payload["business_connection_id"]=bid
+                if not bid: payload["reply_markup"]=markup
+                tg("sendPhoto",**payload)
+                continue
+            except Exception:
+                log.warning("Catalogue product image unavailable: sent text fallback")
+        send(cid,summary,bid,markup if not bid else None)
+    if found["total"]>len(found["products"]):
+        send(cid,"Остальные результаты доступны в каталоге Mini App.",
+             bid,catalog_markup(False) if not bid else None)
+
+def start_rfq(cid, key, bid=""):
+    with LOCK:
+        RFQ_DRAFT[key]={}
+        PENDING[key]="rfq:item"
+    send(cid, "Оптовая заявка UVMALL AI.\n"
+         "Какие товары вы ищете? Опишите название, характеристики и количество.\n"
+         "Для отмены напишите «меню». Не отправляйте пароли и платёжные данные.",bid)
+
+def process_rfq(cid, key, state, text, sender, bid=""):
+    raw=cm.allowed_text(text,700)
+    if cm.looks_secret(raw):
+        send(cid,"Не отправляйте пароли, коды или платёжные данные. "
+                 "Укажите только информацию о товарах.",bid)
+        return
+    with LOCK: draft=RFQ_DRAFT.setdefault(key,{})
+    if state=="rfq:item":
+        if len(raw)<4:
+            send(cid,"Опишите товары подробнее.",bid);return
+        draft["item"]=raw
+        with LOCK:PENDING[key]="rfq:budget"
+        send(cid,"Укажите примерный бюджет в рублях или напишите «не знаю». "
+                 "Количество товара можно указать здесь же.",bid)
+    elif state=="rfq:budget":
+        draft["conditions"]=raw[:300]
+        with LOCK:PENDING[key]="rfq:consent"
+        send(cid,"Для передачи заявки менеджеру UVMALL мы отправим текст запроса "
+                 "и ваш Telegram ID для ответа. Согласны?\n"
+                 "Напишите «да» для отправки или «нет» для отмены.",bid)
+    elif state=="rfq:consent":
+        with LOCK:
+            PENDING.pop(key,None)
+            RFQ_DRAFT.pop(key,None)
+        if raw.lower() not in ("да","согласен","согласна"):
+            send(cid,"Заявка не отправлена. Для связи с менеджером: "+CONTACT,bid)
+            return
+        # Construct as a single outbound message after explicit agreement.
+        lead="UVMALL AI — оптовая заявка\nTelegram ID: "+str(cid)
+        if sender.get("username"): lead+="\n@"+str(sender["username"])[:60]
+        lead+="\nТовары: "+draft.get("item","")[:650]
+        lead+="\nБюджет/условия: "+draft.get("conditions","")[:300]
+        lead+="\nКлиент согласился передать запрос менеджеру."
+        if reply_manager(lead):
+            send(cid,"Заявка передана менеджеру UVMALL. При необходимости "
+                     "он сможет ответить в Telegram. "+CONTACT,bid)
+        else:
+            send(cid,"Передать заявку автоматически не удалось. "
+                     "Напишите менеджеру напрямую: "+CONTACT,bid)
+
+def process_inline_query(q):
+    qid=q.get("id")
+    if not qid:return
+    text=cm.allowed_text(q.get("query",""),180)
+    if not text:return
+    found=cat.search(text,limit=12) if cat.status()["count"] else {"products":[]}
+    payload={"inline_query_id":qid,"results":cm.inline_items(found["products"]),
+             "cache_time":30,"is_personal":False}
+    try:tg("answerInlineQuery",**payload)
+    except Exception:log.exception("Inline catalogue query failed")
 
 def process_message(message, business=False):
     chat_obj = message.get("chat") or {}
