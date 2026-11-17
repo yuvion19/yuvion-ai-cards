@@ -169,3 +169,14 @@ def topic_by_words(text):
     if "возврат" in s or "вернуть товар" in s: return ("buyer", "return")
     if "безопасност" in s or "мошенник" in s: return ("tech", "security")
     return None
+
+def topic_by_number(section, number):
+    """Map 1-based textual help-menu choices to stable FAQ keys."""
+    meta = SECTIONS.get(section)
+    if not meta: return None
+    try:
+        i = int(str(number).strip()) - 1
+    except (ValueError, TypeError):
+        return None
+    keys = list(meta["topics"])
+    return keys[i] if 0 <= i < len(keys) else None
