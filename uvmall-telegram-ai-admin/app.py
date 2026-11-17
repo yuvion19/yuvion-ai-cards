@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, urlopen
 from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
+import helpdesk as hd
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("uvmall")
@@ -52,7 +53,8 @@ WELCOME = ("Здравствуйте! Я автоматический помощ
     "Выберите тему:\n1 — Стать продавцом\n2 — Разместить товары\n"
     "3 — Найти товар или поставщика\n4 — Заказы и техническая помощь\n"
     "5 — Связь с менеджером\n\n"
-    "Напишите «меню», чтобы увидеть темы снова, или «стоп», чтобы отключить автоответы.")
+    "Подробные инструкции — /help. Можно задавать вопросы своими словами.\n"
+    "Напишите «меню» для возврата или «стоп» для отключения автоответов.")
 PROMPT = ("Ты автоматический помощник UVMALL. Отвечай по-русски кратко и по делу, максимум 650 символов. "
     "Факты: uvmall.ru — каталог оптовых и розничных товаров поставщиков. "
     "Личный кабинет продавца seller.uvmall.ru. Контакт менеджера t.me/UVMALL19. "
@@ -72,9 +74,12 @@ def tg(method, **kwargs):
     if not data.get("ok"): raise RuntimeError("Telegram API failed: " + method)
     return data.get("result")
 
-def send(chat, text, business_id=""):
+def send(chat, text, business_id="", reply_markup=None):
     payload = {"chat_id": chat, "text": text[:3900], "link_preview_options": {"is_disabled": True}}
     if business_id: payload["business_connection_id"] = business_id
+    # Telegram Business messages also accept textual help commands; buttons
+    # are limited to direct bot chats so callback authorization stays simple.
+    if reply_markup and not business_id: payload["reply_markup"] = reply_markup
     return tg("sendMessage", **payload)
 
 def reply_manager(message):
@@ -203,6 +208,75 @@ def probe_gigachat():
     except Exception as err:
         log.warning("GigaChat startup check unavailable: %s", type(err).__name__)
 
+def show_help(cid, bid="", section=None, topic=None):
+    if section and topic:
+        return send(cid, hd.page_text(section, topic), bid,
+                    hd.page_markup(section) if not bid else None)
+    if section:
+        return send(cid, hd.section_text(section), bid,
+                    hd.section_markup(section) if not bid else None)
+    return send(cid, hd.help_text_for_business() if bid else hd.INTRO, bid,
+                hd.root_markup() if not bid else None)
+
+def ask_help_question(cid, key, bid=""):
+    with LOCK: PENDING[key] = "help_question"
+    send(cid, "Напишите ваш вопрос по UVMALL одним сообщением. "
+              "GigaChat подскажет, что можно сделать. Не передавайте пароли, коды, "
+              "данные карт и документы. Для выхода напишите «меню».", bid)
+
+def handoff_manager(cid, sender, key, bid="", topic=""):
+    if MANAGER_ID:
+        reply_manager("UVMALL — запрос клиента на помощь\nTelegram ID: " + str(cid)
+            + ("\n@" + sender.get("username", "") if sender.get("username") else "")
+            + ("\nТема: " + topic[:200] if topic else ""))
+        with LOCK:
+            PAUSED.add(key)
+            PENDING.pop(key, None)
+        send(cid, "Запрос направлен менеджеру. Бот приостановил автоответы. "
+                  "Прямой контакт: " + CONTACT
+                  + "\nЧтобы снова включить бота, напишите «возобновить».", bid)
+    else:
+        send(cid, "Автоматическая передача обращений пока не настроена. "
+                  "Напишите менеджеру напрямую: " + CONTACT + "\n"
+                  "Бот остаётся доступен для вопросов.", bid)
+
+def handle_callback_query(query):
+    # Inline help buttons belong to private chats with @uv_mallbot.
+    qid = query.get("id")
+    if qid:
+        try: tg("answerCallbackQuery", callback_query_id=qid)
+        except Exception: log.warning("Could not acknowledge Telegram callback")
+    message = query.get("message") or {}
+    chat = message.get("chat") or {}
+    sender = query.get("from") or {}
+    if chat.get("type") != "private" or message.get("business_connection_id"): return
+    cid = int(chat.get("id") or 0)
+    if cid == 0 or int(sender.get("id") or 0) != cid: return
+    data = str(query.get("data") or "")
+    if not data.startswith("h|"): return
+    parts = data.split("|")
+    key = "direct:" + str(cid)
+    action = parts[1] if len(parts) > 1 else "root"
+    if action == "start":
+        with LOCK:
+            PENDING.pop(key, None)
+            PAUSED.discard(key)
+        send(cid, WELCOME, reply_markup=hd.root_markup())
+    elif action == "root":
+        with LOCK: PENDING.pop(key, None)
+        show_help(cid)
+    elif action == "ask":
+        ask_help_question(cid, key)
+    elif action == "manager":
+        handoff_manager(cid, sender, key)
+    elif action in hd.SECTIONS:
+        if len(parts) == 3 and parts[2] in hd.SECTIONS[action]["topics"]:
+            with LOCK: PENDING[key] = "help_topic|" + action + "|" + parts[2]
+            show_help(cid, section=action, topic=parts[2])
+        else:
+            with LOCK: PENDING.pop(key, None)
+            show_help(cid, section=action)
+
 def process_message(message, business=False):
     chat_obj = message.get("chat") or {}
     if chat_obj.get("type") != "private": return
@@ -250,11 +324,46 @@ def process_message(message, business=False):
         with LOCK:
             PAUSED.discard(key)
             PENDING.pop(key, None)
-        send(cid, WELCOME, bid)
+        send(cid, WELCOME, bid, hd.root_markup() if not bid else None)
         return
     with LOCK:
         if key in PAUSED: return
         state = PENDING.get(key, "")
+    if clean in {"/help", "/faq", "помощь", "раздел помощь", "справка", "помоги"}:
+        with LOCK: PENDING.pop(key, None)
+        show_help(cid, bid)
+        return
+    if clean in {"/seller", "арендатор", "для арендаторов", "для продавцов"}:
+        with LOCK: PENDING.pop(key, None)
+        show_help(cid, bid, section="seller")
+        return
+    if clean in {"/buyer", "покупатель", "для покупателей"}:
+        with LOCK: PENDING.pop(key, None)
+        show_help(cid, bid, section="buyer")
+        return
+    if clean in {"/tech", "техпомощь", "техническая помощь"}:
+        with LOCK: PENDING.pop(key, None)
+        show_help(cid, bid, section="tech")
+        return
+    if clean in {"/ask", "спросить ии", "спросить gigachat", "спросить гигачат",
+                 "задать вопрос", "вопрос ии"}:
+        ask_help_question(cid, key, bid)
+        return
+    if clean in {"/manager", "менеджер", "оператор", "5"}:
+        handoff_manager(cid, sender, key, bid)
+        return
+    if state == "help_question" or state.startswith("help_topic|"):
+        context = ""
+        if state.startswith("help_topic|"):
+            components = state.split("|")
+            if len(components) == 3:
+                item = hd.SECTIONS.get(components[1], {}).get("topics", {}).get(components[2])
+                if item: context = "Раздел справки: " + item[0] + ". "
+        response = answer_ai(context + text)
+        send(cid, (response or "Не удалось подготовить ответ прямо сейчас. "
+             "Посмотрите раздел /help или обратитесь к менеджеру: " + CONTACT)
+             + "\n\nМожно задать следующий вопрос или вернуться в /help.", bid)
+        return
     if state == "consent":
         if clean not in {"да", "согласен", "согласна"}:
             with LOCK: PENDING.pop(key, None)
@@ -280,8 +389,14 @@ def process_message(message, business=False):
                 + "\nОтветить можно через основной Telegram @UVMALL19.")
             send(cid, "Спасибо. Заявка направлена менеджеру UVMALL.", bid)
         return
-    if clean in {"", "привет", "здравствуйте", "помощь", "/help"}:
-        send(cid, WELCOME, bid)
+    suggested_topic = hd.topic_by_words(clean)
+    if suggested_topic:
+        section, topic = suggested_topic
+        with LOCK: PENDING[key] = "help_topic|" + section + "|" + topic
+        show_help(cid, bid, section, topic)
+        return
+    if clean in {"", "привет", "здравствуйте"}:
+        send(cid, WELCOME, bid, hd.root_markup() if not bid else None)
     elif clean == "1" or "стать продавцом" in clean or "арендатор" in clean:
         send(cid, "Подключение продавцов UVMALL. Кабинет: " + SELLER
             + "\nЧтобы оставить заявку, напишите «заявка». Условия участия уточняет менеджер.", bid)
@@ -294,13 +409,8 @@ def process_message(message, business=False):
     elif clean == "4" or "заказ" in clean or "ошибка" in clean:
         send(cid, "У меня нет доступа к статусам заказов или наличию. Напишите «менеджер»."
             + "\nНе присылайте пароли, коды и данные карт.", bid)
-    elif clean == "5" or "менеджер" in clean or "оператор" in clean:
-        reply_manager("UVMALL — клиент просит менеджера. Telegram ID: " + str(cid)
-            + (" @" + sender["username"] if sender.get("username") else "")
-            + "\nВопрос: " + text[:300])
-        with LOCK: PAUSED.add(key)
-        send(cid, "Переключаю на менеджера. Для прямой связи: " + CONTACT
-            + "\nАвтоматические ответы в этом диалоге приостановлены.", bid)
+    elif "связаться с менеджером" in clean or "позвать менеджера" in clean:
+        handoff_manager(cid, sender, key, bid, text)
     elif clean == "заявка" or "подключиться" in clean:
         if not POLICY_URL.startswith("https://"):
             send(cid, "Заявки пока принимаются напрямую менеджером: " + CONTACT, bid)
@@ -321,7 +431,9 @@ def handle_update(update):
             if now - t > 3600: SEEN.pop(k, None)
         if uid in SEEN: return
         if uid is not None: SEEN[uid] = now
-    if "business_message" in update:
+    if "callback_query" in update:
+        handle_callback_query(update["callback_query"])
+    elif "business_message" in update:
         process_message(update["business_message"], True)
     elif "message" in update:
         process_message(update["message"], False)
@@ -336,7 +448,9 @@ class Handler(BaseHTTPRequestHandler):
                 "owner_configured": bool(OWNER_ID),
                 "ai_enabled": bool(GIGACHAT_AUTH_KEY),
                 "ai_provider": "GigaChat",
-                "gigachat_status": GIGACHAT_ACCESS["status"]
+                "gigachat_status": GIGACHAT_ACCESS["status"],
+                "help_enabled": True,
+                "help_topics": sum(len(s["topics"]) for s in hd.SECTIONS.values())
             }, ensure_ascii=False).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -378,7 +492,7 @@ def register_webhook():
             return
         tg("setWebhook", url=PUBLIC_URL + "/api/telegram",
            secret_token=WEBHOOK_SECRET,
-           allowed_updates=["message", "business_message", "business_connection"],
+           allowed_updates=["message", "callback_query", "business_message", "business_connection"],
            drop_pending_updates=False)
         try:
             tg("setMyName", name="UVMALL — Помощник")
@@ -386,10 +500,16 @@ def register_webhook():
             tg("setMyDescription", description="UVMALL — онлайн-маркетплейс поставщиков и продавцов. Помощь с регистрацией, размещением товаров, каталогом и заказами. Сайт: https://uvmall.ru/ Связь с менеджером: @UVMALL19.")
             tg("setMyCommands", commands=[
                 {"command": "start", "description": "Начать и открыть меню"},
-                {"command": "help", "description": "Разделы помощи"},
+                {"command": "help", "description": "Помощь: темы и инструкции"},
+                {"command": "seller", "description": "Помощь арендаторам"},
+                {"command": "buyer", "description": "Помощь покупателям"},
+                {"command": "tech", "description": "Техническая поддержка"},
+                {"command": "ask", "description": "Задать вопрос GigaChat"},
+                {"command": "manager", "description": "Связаться с менеджером"},
                 {"command": "myid", "description": "Узнать свой Telegram ID"},
                 {"command": "stop", "description": "Отключить автоответы"}
             ])
+            tg("setChatMenuButton", menu_button={"type": "commands"})
         except Exception:
             log.exception("Bot profile setup failed; webhook remains active")
         log.info("Webhook registered for @uv_mallbot")
