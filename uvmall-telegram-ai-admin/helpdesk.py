@@ -112,7 +112,7 @@ def root_markup():
         [{"text": "Арендаторам и продавцам", "callback_data": "h|seller"}],
         [{"text": "Покупателям", "callback_data": "h|buyer"}],
         [{"text": "Техническая помощь", "callback_data": "h|tech"}],
-        [{"text": "Спросить GigaChat", "callback_data": "h|ask"},
+        [{"text": "Спросить UVMALL AI", "callback_data": "h|ask"},
          {"text": "Менеджер", "callback_data": "h|manager"}],
         [{"text": "Главное меню", "callback_data": "h|start"}],
     ]}
@@ -133,7 +133,7 @@ def section_markup(section):
     rows = [[{"text": title, "callback_data": "h|" + section + "|" + code}]
             for code, (title, _) in obj["topics"].items()]
     rows.extend([
-        [{"text": "Другой вопрос — GigaChat", "callback_data": "h|ask"}],
+        [{"text": "Другой вопрос — UVMALL AI", "callback_data": "h|ask"}],
         [{"text": "Назад к помощи", "callback_data": "h|root"},
          {"text": "Менеджер", "callback_data": "h|manager"}],
     ])
@@ -143,11 +143,11 @@ def page_text(section, code):
     item = SECTIONS.get(section, {}).get("topics", {}).get(code)
     if not item: return INTRO
     title, answer = item
-    return title + "\n\n" + answer + "\n\nЕсли вопрос остался, напишите его в этом чате или нажмите «Спросить GigaChat»."
+    return title + "\n\n" + answer + "\n\nЕсли вопрос остался, напишите его в этом чате или нажмите «Спросить UVMALL AI»."
 
 def page_markup(section):
     return {"inline_keyboard": [
-        [{"text": "Спросить GigaChat", "callback_data": "h|ask"},
+        [{"text": "Спросить UVMALL AI", "callback_data": "h|ask"},
          {"text": "Менеджер", "callback_data": "h|manager"}],
         [{"text": "К вопросам раздела", "callback_data": "h|" + section},
          {"text": "Вся помощь", "callback_data": "h|root"}],
