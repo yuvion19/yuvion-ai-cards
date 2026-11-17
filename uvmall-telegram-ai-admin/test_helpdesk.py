@@ -9,7 +9,7 @@ class HelpdeskTests(unittest.TestCase):
 
     def test_root_buttons(self):
         rows = h.root_markup()["inline_keyboard"]
-        data = [b["callback_data"] for row in rows for b in row]
+        data = [b["callback_data"] for row in rows for b in row if "callback_data" in b]
         for route in ("h|seller", "h|buyer", "h|tech", "h|ask", "h|manager"):
             self.assertIn(route, data)
         self.assertTrue(all(len(route.encode("utf-8")) <= 64 for route in data))
