@@ -33,6 +33,18 @@ class TicketTests(unittest.TestCase):
         tickets.transition(b["id"],"resolved")
         self.assertEqual(len(tickets.list_tickets("new")),1)
         self.assertEqual(len(tickets.list_tickets("all")),2)
+    def test_locale_and_feedback(self):
+        self.assertEqual(tickets.get_language(123),"ru")
+        tickets.set_language(123,"tg")
+        self.assertEqual(tickets.get_language(123),"tg")
+        with self.assertRaises(ValueError):
+            tickets.set_language(123,"unsupported")
+        self.assertTrue(tickets.record_feedback(123,42,True))
+        self.assertFalse(tickets.record_feedback(123,42,False))
+        self.assertTrue(tickets.record_feedback(123,43,False))
+        self.assertEqual(tickets.metrics()["helpful_yes"],1)
+        self.assertEqual(tickets.metrics()["helpful_no"],1)
+
     def test_ai_quota(self):
         self.assertTrue(tickets.allow_ai(123,limit=2))
         self.assertTrue(tickets.allow_ai(123,limit=2))
