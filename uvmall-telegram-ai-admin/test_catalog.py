@@ -7,7 +7,7 @@ class CatalogTests(unittest.TestCase):
     def setUp(self):
         with c.LOCK:
             c.PRODUCTS.clear()
-            c.STATUS.update({"source":"not_connected","count":0})
+            c.STATUS.update({"source":"not_connected","count":0,"last_sync":None,"last_attempt":None,"error":None})
     def tearDown(self):
         with c.LOCK:
             c.PRODUCTS.clear()
