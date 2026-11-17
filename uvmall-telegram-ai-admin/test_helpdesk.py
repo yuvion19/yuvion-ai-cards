@@ -23,6 +23,15 @@ class HelpdeskTests(unittest.TestCase):
                 self.assertLessEqual(len(("h|" + section + "|" + topic).encode()), 64)
                 self.assertTrue(answer.strip())
 
+    def test_numbered_menu(self):
+        for name, meta in h.SECTIONS.items():
+            keys = list(meta["topics"])
+            for index, key in enumerate(keys, 1):
+                self.assertEqual(h.topic_by_number(name, str(index)), key)
+            self.assertIsNone(h.topic_by_number(name, "0"))
+            self.assertIsNone(h.topic_by_number(name, "100"))
+            self.assertIsNone(h.topic_by_number(name, "abc"))
+
     def test_topic_matching(self):
         cases = {
             "Почему товар отклонён на модерации?": ("seller", "moderation"),
