@@ -20,6 +20,7 @@ import helpdesk as hd
 import catalog as cat
 import commerce as cm
 import multimodal as mm
+import tickets as tk
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("uvmall")
@@ -240,23 +241,106 @@ def ask_help_question(cid, key, bid=""):
               "UVMALL AI подскажет, что можно сделать. Не передавайте пароли, коды, "
               "данные карт и документы. Для выхода напишите «меню».", bid)
 
-def handoff_manager(cid, sender, key, bid="", topic=""):
-    delivered = reply_manager(
-        "UVMALL AI — запрос клиента на помощь\nTelegram ID: " + str(cid)
-        + ("\n@" + sender.get("username", "") if sender.get("username") else "")
-        + ("\nТема: " + topic[:200] if topic else ""))
+def handoff_manager(cid, sender, key, bid="", topic="", request_id=None):
+    # Explicit manager handoff authorizes a minimal ticket entry.
+    dedupe = "support:" + str(cid) + ":" + str(request_id if request_id is not None else int(time.time() // 600))
+    ticket = tk.create("support", cid, topic[:450] or "Запрошена помощь менеджера", dedupe, bid)
+    ticket_id = ticket["id"]
+    if ticket["notified"]:
+        delivered = True
+    else:
+        delivered = reply_manager(
+            "UVMALL AI — обращение №" + str(ticket_id) +
+            "\nTelegram ID: " + str(cid)
+            + ("\n@" + sender.get("username", "") if sender.get("username") else "")
+            + ("\nТема: " + topic[:350] if topic else "")
+            + "\nОтветить: /reply " + str(ticket_id) + " текст"
+            + "\nПанель: /panel")
+        if delivered: tk.notify(ticket_id)
     if delivered:
         with LOCK:
             PAUSED.add(key)
             PENDING.pop(key, None)
-        send(cid, "Запрос успешно отправлен менеджеру UVMALL. "
-                  "UVMALL AI приостановил автоответы. "
-                  "Прямой контакт: " + CONTACT
-                  + "\nЧтобы снова включить помощника, напишите «возобновить».", bid)
+        send(cid, "Обращение №" + str(ticket_id) + " передано менеджеру UVMALL. "
+                  "Автоответы временно приостановлены. Прямой контакт: " + CONTACT
+                  + "\nДля включения помощника напишите «возобновить».", bid)
     else:
-        send(cid, "Не удалось автоматически передать обращение менеджеру. "
-                  "Напишите ему напрямую: " + CONTACT + "\n"
-                  "UVMALL AI остаётся доступен для вопросов.", bid)
+        send(cid, "Не удалось автоматически передать обращение. "
+                  "Напишите менеджеру: " + CONTACT, bid)
+
+def manager_panel_markup():
+    if not PUBLIC_URL.startswith("https://"):return None
+    return {"inline_keyboard":[[{
+        "text":"Открыть панель UVMALL AI",
+        "web_app":{"url":PUBLIC_URL+"/operator"}}]]}
+
+def process_manager_command(cid, text):
+    """Only called after cid == MANAGER_ID in a private direct bot chat."""
+    parts=text.strip().split(maxsplit=2)
+    if not parts:return False
+    cmd=parts[0].split("@")[0].lower()
+    if cmd in ("/help","/admin"):
+        send(cid,"Панель менеджера UVMALL AI:\n"
+            "/panel — панель заявок\n"
+            "/tickets — последние обращения\n"
+            "/stats — статистика\n"
+            "/reply ID текст — ответить клиенту\n"
+            "/close ID — закрыть обращение\n"
+            "/reopen ID — вернуть в работу\n"
+            "/site — сайт маркетплейса")
+        return True
+    if cmd=="/panel":
+        send(cid,"Панель менеджера UVMALL AI. Доступ подтверждается "
+                 "подписью Telegram. Запускать из этого сообщения.",
+             reply_markup=manager_panel_markup())
+        return True
+    if cmd=="/stats":
+        stats=tk.statistics()
+        send(cid,"UVMALL AI — статистика обращений\n"+
+             "\n".join(k+": "+str(v) for k,v in stats.items())+
+             "\nВнимание: текущая база Render может очищаться при перезапуске.")
+        return True
+    if cmd=="/tickets":
+        rows=tk.list_tickets(limit=15)
+        if not rows:send(cid,"Новых заявок пока нет.");return True
+        send(cid,"Последние обращения:\n"+"\n".join(
+            "#"+str(t["id"])+" ["+t["status"]+"] "+t["kind"]+
+            " — "+t["summary"][:65] for t in rows))
+        return True
+    if cmd in ("/reply","/close","/reopen","/resolve"):
+        if len(parts)<2 or not parts[1].isdigit():
+            send(cid,"Формат: "+cmd+" ID"+(" текст" if cmd=="/reply" else ""))
+            return True
+        ticket=tk.get(int(parts[1]))
+        if not ticket:send(cid,"Обращение не найдено.");return True
+        if cmd=="/reply":
+            body=parts[2].strip() if len(parts)>2 else ""
+            if not body or len(body)>3500 or cm.looks_secret(body):
+                send(cid,"Напишите ответ длиной до 3500 символов. "
+                         "Не пересылайте пароли, ключи и коды.")
+                return True
+            if deliver_ticket_reply(ticket,body):
+                tk.mark_replied(ticket["id"])
+                send(cid,"Ответ по обращению №"+str(ticket["id"])+" отправлен.")
+            else:
+                send(cid,"Ответ не доставлен — Telegram не разрешил отправку. "
+                         "Попробуйте связаться с клиентом через @UVMALL19.")
+            return True
+        status={"\/close":"closed","/close":"closed","/reopen":"in_progress",
+                "/resolve":"resolved"}.get(cmd)
+        updated=tk.transition(ticket["id"],status)
+        send(cid,"Обращение №"+str(updated["id"])+" → "+updated["status"])
+        return True
+    return False
+
+def deliver_ticket_reply(ticket,text):
+    try:
+        send(ticket["customer_id"],"Менеджер UVMALL по заявке №"+
+             str(ticket["id"])+":\n"+text, ticket["business_id"])
+        return True
+    except Exception as e:
+        log.warning("Operator reply not delivered: %s",type(e).__name__)
+        return False
 
 def handle_callback_query(query):
     # Inline help buttons belong to private chats with @uv_mallbot.
@@ -365,7 +449,7 @@ def start_rfq(cid, key, bid=""):
          "Какие товары вы ищете? Опишите название, характеристики и количество.\n"
          "Для отмены напишите «меню». Не отправляйте пароли и платёжные данные.",bid)
 
-def process_rfq(cid, key, state, text, sender, bid=""):
+def process_rfq(cid, key, state, text, sender, bid="", request_id=None):
     raw=cm.allowed_text(text,700)
     if cm.looks_secret(raw):
         send(cid,"Не отправляйте пароли, коды или платёжные данные. "
@@ -398,12 +482,18 @@ def process_rfq(cid, key, state, text, sender, bid=""):
         lead+="\nТовары: "+draft.get("item","")[:650]
         lead+="\nБюджет/условия: "+draft.get("conditions","")[:300]
         lead+="\nКлиент согласился передать запрос менеджеру."
-        if reply_manager(lead):
-            send(cid,"Заявка передана менеджеру UVMALL. При необходимости "
-                     "он сможет ответить в Telegram. "+CONTACT,bid)
+        ticket=tk.create("wholesale",cid,
+            draft.get("item","")[:500]+" | "+draft.get("conditions","")[:280],
+            "wholesale:"+str(cid)+":"+str(request_id if request_id is not None else int(time.time()//600)),bid)
+        if ticket["notified"] or reply_manager(
+            "Заявка №"+str(ticket["id"])+"\n"+lead+
+            "\nОтветить: /reply "+str(ticket["id"])+" текст"):
+            tk.notify(ticket["id"])
+            send(cid,"Оптовая заявка №"+str(ticket["id"])+" передана менеджеру UVMALL. "
+                 "При необходимости он ответит в Telegram. "+CONTACT,bid)
         else:
             send(cid,"Передать заявку автоматически не удалось. "
-                     "Напишите менеджеру напрямую: "+CONTACT,bid)
+                 "Напишите менеджеру: "+CONTACT,bid)
 
 def process_inline_query(q):
     qid=q.get("id")
@@ -490,9 +580,8 @@ def process_message(message, business=False):
     if not business and clean in {"/myid", "/id"}:
         send(cid, "Ваш Telegram chat ID: " + str(cid) + "\nДобавьте его в ADMIN_CHAT_ID и OWNER_USER_ID в секретах сервера.")
         return
-    if not business and MANAGER_ID and cid == MANAGER_ID and clean == "/help":
-        send(cid, "Администратор UVMALL. Заявки клиентов приходят в этот чат.")
-        return
+    if not business and MANAGER_ID and cid == MANAGER_ID:
+        if process_manager_command(cid, text): return
     if clean in {"стоп", "/stop", "отключить бота"}:
         with LOCK:
             PAUSED.add(key)
@@ -557,7 +646,7 @@ def process_message(message, business=False):
         catalogue_search(cid,text,bid)
         return
     if state.startswith("rfq:"):
-        process_rfq(cid,key,state,text,sender,bid)
+        process_rfq(cid,key,state,text,sender,bid,request_id=message.get("message_id"))
         return
     if clean in {"/help", "/faq", "помощь", "раздел помощь", "справка", "помоги"}:
         with LOCK: PENDING.pop(key, None)
@@ -580,7 +669,7 @@ def process_message(message, business=False):
         ask_help_question(cid, key, bid)
         return
     if clean in {"/manager", "менеджер", "оператор", "5"}:
-        handoff_manager(cid, sender, key, bid)
+        handoff_manager(cid, sender, key, bid, request_id=message.get("message_id"))
         return
     if state.startswith("help_list|") and clean.isdigit():
         section = state.split("|", 1)[1]
@@ -655,7 +744,7 @@ def process_message(message, business=False):
         send(cid, "У меня нет доступа к статусам заказов или наличию. Напишите «менеджер»."
             + "\nНе присылайте пароли, коды и данные карт.", bid)
     elif "связаться с менеджером" in clean or "позвать менеджера" in clean:
-        handoff_manager(cid, sender, key, bid, text)
+        handoff_manager(cid, sender, key, bid, text, request_id=message.get("message_id"))
     elif clean == "заявка" or "подключиться" in clean:
         if not POLICY_URL.startswith("https://"):
             send(cid, "Заявки пока принимаются напрямую менеджером: " + CONTACT, bid)
