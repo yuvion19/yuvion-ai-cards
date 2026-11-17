@@ -46,6 +46,17 @@ def initialize():
             window_started INTEGER NOT NULL,
             requests INTEGER NOT NULL
         )""")
+        db.execute("""CREATE TABLE IF NOT EXISTS languages(
+             customer_id INTEGER PRIMARY KEY,
+             lang TEXT NOT NULL DEFAULT 'ru'
+         )""")
+        db.execute("""CREATE TABLE IF NOT EXISTS feedback(
+             customer_id INTEGER NOT NULL,
+             message_id INTEGER NOT NULL,
+             positive INTEGER NOT NULL,
+             created_at INTEGER NOT NULL,
+             PRIMARY KEY(customer_id,message_id)
+         )""")
         db.execute("CREATE INDEX IF NOT EXISTS ticket_status_created ON tickets(status,created_at)")
         db.execute("CREATE INDEX IF NOT EXISTS ticket_customer_created ON tickets(customer_id,created_at)")
     return True
@@ -123,7 +134,7 @@ def storage_status():
             "storage_warning":None if mounted else
             "Render Free filesystem is ephemeral; tickets may be lost on restart."}
 
-EVENTS = {"search", "search_empty", "catalog_unavailable", "help_opened",
+EVENTS = {"search", "search_empty", "catalog_unavailable", "help_opened", "helpful_yes", "helpful_no",
           "ai_answer", "ai_fallback", "ticket_created", "rfq_sent"}
 
 def metric(event):
@@ -173,3 +184,28 @@ def allow_ai(customer_id,limit=25,period=3600):
             return False
         db.execute("UPDATE ai_limits SET requests=requests+1 WHERE customer_id=?",(cid,))
         return True
+
+def set_language(customer_id,lang):
+    if lang not in ("ru","en","tg","uz","zh","fa","hi"):
+        raise ValueError("Unsupported language")
+    with LOCK, _connect() as db:
+        db.execute("""INSERT INTO languages(customer_id,lang) VALUES(?,?)
+             ON CONFLICT(customer_id) DO UPDATE SET lang=excluded.lang""",
+             (int(customer_id),lang))
+
+def get_language(customer_id):
+    with LOCK, _connect() as db:
+        row=db.execute("SELECT lang FROM languages WHERE customer_id=?",
+                       (int(customer_id),)).fetchone()
+    return row["lang"] if row else "ru"
+
+def record_feedback(customer_id,message_id,positive):
+    if positive not in (True,False):raise ValueError("Invalid feedback")
+    if int(customer_id)<=0 or int(message_id)<=0:raise ValueError("Invalid identity")
+    with LOCK, _connect() as db:
+        count=db.execute("""INSERT OR IGNORE INTO feedback
+           (customer_id,message_id,positive,created_at) VALUES(?,?,?,?)""",
+           (int(customer_id),int(message_id),int(positive),int(time.time()))).rowcount
+    if count:
+        metric("helpful_yes" if positive else "helpful_no")
+    return bool(count)
