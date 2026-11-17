@@ -111,7 +111,7 @@ def root_markup():
     return {"inline_keyboard": [
         [{"text": "Найти товар", "callback_data": "s|start"},
          {"text": "Оптовая заявка", "callback_data": "r|start"}],
-        [{"text": "Каталог в Telegram", "callback_data": "s|app"}],
+        [{"text": "Открыть сайт UVMALL", "url": "https://uvmall.ru/"}],
         [{"text": "Арендаторам и продавцам", "callback_data": "h|seller"}],
         [{"text": "Покупателям", "callback_data": "h|buyer"}],
         [{"text": "Техническая помощь", "callback_data": "h|tech"}],
