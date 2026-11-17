@@ -19,6 +19,7 @@ from urllib.error import HTTPError, URLError
 import helpdesk as hd
 import catalog as cat
 import commerce as cm
+import multimodal as mm
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("uvmall")
@@ -55,6 +56,8 @@ CONTACT = "https://t.me/UVMALL19"
 APP_URL = PUBLIC_URL + "/app" if PUBLIC_URL.startswith("https://") else ""
 RFQ_DRAFT = {}
 RFQ_RATE = {}
+MEDIA_PENDING = {}
+MEDIA_RATE = {}
 
 WELCOME = ("Здравствуйте! Вас приветствует UVMALL AI — виртуальный помощник маркетплейса.\n"
     "Помогу с вопросами по каталогу, заказам и подключению арендаторов.\n\n"
@@ -414,6 +417,24 @@ def process_inline_query(q):
     try:tg("answerInlineQuery",**payload)
     except Exception:log.exception("Inline catalogue query failed")
 
+def process_media_after_consent(cid,key,media,bid=""):
+    """Background worker runs only after user explicitly accepts media forwarding."""
+    try:
+        phrase=mm.describe_media(
+            TOKEN, media["data"], media["type"], gigachat_token,gigachat_ssl_context,
+            model=os.environ.get("GIGACHAT_MEDIA_MODEL","GigaChat-2-Pro"))
+        if not phrase or phrase.lower() in ("не товар","неразборчиво"):
+            send(cid,"UVMALL AI не удалось уверенно распознать запрос. "
+                     "Напишите, пожалуйста, что вы ищете, текстом.",bid)
+            return
+        label="Предположительно на фото: " if media["type"]=="photo" else "Распознал запрос: "
+        send(cid,label+phrase+"\nПроверяю каталог UVMALL…",bid)
+        catalogue_search(cid,phrase,bid)
+    except Exception as err:
+        log.warning("UVMALL AI media recognition unavailable: %s",type(err).__name__)
+        send(cid,"Распознавание изображения или голоса сейчас недоступно. "
+                 "Напишите название товара текстом — помогу с поиском.",bid)
+
 def process_message(message, business=False):
     chat_obj = message.get("chat") or {}
     if chat_obj.get("type") != "private": return
@@ -444,14 +465,27 @@ def process_message(message, business=False):
         if int(sender.get("id", 0)) == owner_id: return
     text = (message.get("text") or "").strip()
     key = (bid or "direct") + ":" + str(cid)
-    if not text and message.get("photo"):
-        send(cid,"Получил фотографию. Автоматическое сопоставление изображений "
-             "с каталогом ещё не подключено. Напишите название или описание "
-             "товара — помогу найти текстовым поиском.",bid)
-        return
-    if not text and (message.get("voice") or message.get("audio")):
-        send(cid,"Для поиска по каталогу пока нужен текстовый запрос. "
-             "Напишите название товара и нужное количество.",bid)
+    if message.get("photo") or message.get("voice") or message.get("audio"):
+        with LOCK:
+            if key in PAUSED: return
+        if bid:
+            send(cid,"Поиск по фотографии и голосу доступен в отдельном "
+                     "@uv_mallbot. В обычном чате можете описать товар текстом.",bid)
+            return
+        photos=message.get("photo") or []
+        media=photos[-1] if photos else (message.get("voice") or message.get("audio"))
+        media_type="photo" if photos else "voice"
+        if not media or int(media.get("file_size") or 0)>mm.MAX_MEDIA:
+            send(cid,"Файл слишком большой или отсутствует. "
+                     "Попробуйте изображение/сообщение меньшего размера.",bid);return
+        with LOCK:
+            MEDIA_PENDING[key]={"type":media_type,"data":media,"time":time.time()}
+            PENDING[key]="media:consent"
+        send(cid,"Могу распознать "+("товар на фото" if photos else "голосовой запрос")
+            +" через UVMALL AI. Для этого файл будет передан провайдеру "
+             "GigaChat API, без сохранения на сервере UVMALL AI. "
+             "Не присылайте документы и секретные данные.\n"
+             "Согласны? Ответьте «да» или «нет».",bid)
         return
     clean = re.sub(r"\s+", " ", text.lower()).strip(" .!?")
     if not business and clean in {"/myid", "/id"}:
@@ -465,6 +499,7 @@ def process_message(message, business=False):
             PAUSED.add(key)
             PENDING.pop(key, None)
             RFQ_DRAFT.pop(key,None)
+            MEDIA_PENDING.pop(key,None)
         send(cid, "Автоматические ответы отключены. Для возврата напишите «возобновить».", bid)
         return
     if clean in {"возобновить", "/start", "меню"}:
@@ -472,11 +507,36 @@ def process_message(message, business=False):
             PAUSED.discard(key)
             PENDING.pop(key, None)
             RFQ_DRAFT.pop(key,None)
+            MEDIA_PENDING.pop(key,None)
         send(cid, WELCOME, bid, hd.root_markup() if not bid else None)
         return
     with LOCK:
         if key in PAUSED: return
         state = PENDING.get(key, "")
+    if state=="media:consent":
+        with LOCK:
+            record=MEDIA_PENDING.pop(key,None)
+            PENDING.pop(key,None)
+        if clean not in ("да","согласен","согласна"):
+            send(cid,"Фото/голос не отправлены на распознавание. "
+                     "Можете написать запрос текстом или открыть /search.",bid)
+            return
+        if not record or time.time()-record["time"]>600:
+            send(cid,"Срок подтверждения истёк. Отправьте файл повторно.",bid)
+            return
+        with LOCK:
+            times=[t for t in MEDIA_RATE.get(cid,[]) if time.time()-t<3600]
+            if len(times)>=3:
+                send(cid,"Для распознавания можно отправить не более "
+                         "трёх файлов в час. Используйте текстовый поиск.",bid)
+                return
+            times.append(time.time())
+            MEDIA_RATE[cid]=times
+        send(cid,"Принято. UVMALL AI распознаёт запрос; результат придёт "
+                 "в этот чат, когда обработка завершится.",bid)
+        threading.Thread(target=process_media_after_consent,
+                         args=(cid,key,record,bid),daemon=True).start()
+        return
     if clean in {"/catalog","каталог", "магазин"}:
         send(cid,"Каталог UVMALL AI:",bid,
              catalog_markup() if not bid else None)
@@ -847,9 +907,9 @@ def validate_help_center():
     # Local, network-free checks before starting the production listener.
     import io
     import unittest
-    import test_helpdesk, test_catalog, test_commerce
+    import test_helpdesk, test_catalog, test_commerce, test_multimodal
     suite = unittest.TestSuite()
-    for mod in (test_helpdesk,test_catalog,test_commerce):
+    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(mod))
     results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
     if not results.wasSuccessful():
