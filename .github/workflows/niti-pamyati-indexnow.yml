@@ -1,6 +1,9 @@
 name: Niti Pamyati — IndexNow notifications
 
 on:
+  push:
+    paths:
+      - ".github/workflows/niti-pamyati-indexnow.yml"
   schedule:
     - cron: "17 5 * * *"
   workflow_dispatch:
@@ -34,7 +37,7 @@ jobs:
           KEY = "5d9c37d66d57045755c6174496e57bbd"
           KEY_LOCATION = f"{SITE}/{KEY}.txt"
           SITEMAP = f"{SITE}/sitemap.xml"
-          MAX_URLS = 100
+          MAX_URLS = 200
           RECENT_DAYS = 2  # Handles a late publication or a delayed Actions run.
           TODAY = date.today()
 
