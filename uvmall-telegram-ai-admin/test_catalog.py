@@ -11,7 +11,7 @@ class CatalogTests(unittest.TestCase):
     def tearDown(self):
         with c.LOCK:
             c.PRODUCTS.clear()
-            c.STATUS.update({"source":"not_connected","count":0})
+            c.STATUS.update({"source":"not_connected","count":0,"last_sync":None,"last_attempt":None,"error":None})
     def test_no_fake_items(self):
         self.assertFalse(c.search("чайник")["products"])
         self.assertFalse(c.search("чайник")["connected"])
