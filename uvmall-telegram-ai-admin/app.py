@@ -53,7 +53,7 @@ MAX_BODY = 1048576
 SITE = "https://uvmall.ru/"
 SELLER = "https://seller.uvmall.ru/"
 CONTACT = "https://t.me/UVMALL19"
-APP_URL = PUBLIC_URL + "/app" if PUBLIC_URL.startswith("https://") else ""
+APP_URL = SITE  # Telegram application opens the public marketplace
 RFQ_DRAFT = {}
 RFQ_RATE = {}
 MEDIA_PENDING = {}
@@ -279,8 +279,7 @@ def handle_callback_query(query):
              reply_markup=catalog_markup(False))
         return
     if data=="s|app":
-        send(cid,"Откройте каталог UVMALL AI внутри Telegram. "
-                 "Товары появляются после подключения реального каталога сайта.",
+        send(cid,"Открыть сайт маркетплейса UVMALL: " + SITE,
              reply_markup=catalog_markup(False))
         return
     if data=="r|start":
@@ -313,7 +312,7 @@ def handle_callback_query(query):
 def catalog_markup(include_search=True):
     buttons = []
     if APP_URL:
-        buttons.append([{"text": "Каталог UVMALL", "web_app": {"url": APP_URL}}])
+        buttons.append([{"text": "Открыть сайт UVMALL", "web_app": {"url": APP_URL}}])
     if include_search:
         buttons.append([{"text": "Найти товар", "callback_data":"s|start"},
                         {"text":"Оптовая заявка", "callback_data":"r|start"}])
@@ -711,19 +710,12 @@ class Handler(BaseHTTPRequestHandler):
         params=parse_qs(parsed.query,keep_blank_values=True)
         val=lambda key,default="":(params.get(key) or [default])[0]
         if path=="/app":
-            try:
-                body=Path(__file__).with_name("miniapp.html").read_bytes()
-                self.send_response(200)
-                self.send_header("Content-Type","text/html; charset=utf-8")
-                self.send_header("X-Content-Type-Options","nosniff")
-                self.send_header("Cache-Control","no-store")
-                self.send_header("Content-Security-Policy","default-src 'self' https://telegram.org; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'unsafe-inline' 'self'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'")
-                self.send_header("Content-Length",str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-            except Exception:
-                log.exception("Mini App file could not be loaded")
-                self.json_response(503,{"error":"mini_app_unavailable"})
+            # Old links now redirect to the official marketplace.
+            self.send_response(302)
+            self.send_header("Location", SITE)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
             return
         if path=="/api/catalog/categories":
             self.json_response(200,{"categories":cat.all_categories(),
@@ -757,7 +749,8 @@ class Handler(BaseHTTPRequestHandler):
                 "catalog_enabled":bool(catalogue["count"]),
                 "catalog_items":catalogue["count"],
                 "catalog_feed_configured":catalogue["configured"],
-                "miniapp_enabled":True,
+                "app_destination": SITE,
+                "miniapp_enabled": False,
                 "inline_handler_enabled":True})
             return
         self.json_response(404,{"error":"not_found"})
@@ -861,7 +854,7 @@ def register_webhook():
                 {"command": "start", "description": "Начать и открыть меню"},
                 {"command": "help", "description": "Помощь: темы и инструкции"},
                 {"command": "search", "description": "Найти товар в каталоге"},
-                {"command": "catalog", "description": "Открыть каталог и Mini App"},
+                {"command": "catalog", "description": "Открыть сайт UVMALL"},
                 {"command": "wholesale", "description": "Оставить оптовую заявку"},
                 {"command": "seller", "description": "Помощь арендаторам"},
                 {"command": "buyer", "description": "Помощь покупателям"},
@@ -872,7 +865,7 @@ def register_webhook():
                 {"command": "stop", "description": "Отключить автоответы"}
             ]}),
             ("setChatMenuButton", {"menu_button": (
-                {"type":"web_app","text":"Каталог UVMALL","web_app":{"url":APP_URL}}
+                {"type":"web_app","text":"Открыть UVMALL","web_app":{"url":APP_URL}}
                 if APP_URL else {"type":"commands"})}),
         ]
         for method, args in operations:
