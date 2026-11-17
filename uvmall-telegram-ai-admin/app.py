@@ -23,6 +23,7 @@ import multimodal as mm
 import tickets as tk
 import uptime as up
 import privacy as pv
+import seller_tools as st
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("uvmall")
@@ -556,6 +557,19 @@ def process_media_after_consent(cid,key,media,bid=""):
         send(cid,"Распознавание изображения или голоса сейчас недоступно. "
                  "Напишите название товара текстом — помогу с поиском.",bid)
 
+def _seller_sheet_worker(cid,document,bid=""):
+    filename=str(document.get("file_name") or "")[:140]
+    try:
+        binary=mm.download_telegram_media(TOKEN,document)
+        result=st.audit(binary,filename)
+        send(cid,st.report(result)+"\n\n"
+             "Шаблон: "+PUBLIC_URL+"/tools/seller-template.csv",bid)
+    except Exception as err:
+        log.warning("Seller file inspection failed: %s",type(err).__name__)
+        send(cid,"Не удалось проверить таблицу. Поддерживаются .xlsx и .csv "
+             "размером до 8,5 МБ, до 2500 строк. Файл не изменён. "
+             "Можно скачать шаблон: "+PUBLIC_URL+"/tools/seller-template.csv",bid)
+
 def process_message(message, business=False):
     chat_obj = message.get("chat") or {}
     if chat_obj.get("type") != "private": return
@@ -586,6 +600,25 @@ def process_message(message, business=False):
         if int(sender.get("id", 0)) == owner_id: return
     text = (message.get("text") or "").strip()
     key = (bid or "direct") + ":" + str(cid)
+    if message.get("document"):
+        document=message["document"]
+        with LOCK:
+            if key in PAUSED:return
+        filename=str(document.get("file_name") or "").lower()
+        if bid:
+            send(cid,"Для безопасной проверки таблицы отправьте файл "
+                     "напрямую в @uv_mallbot.",bid)
+            return
+        if not filename.endswith((".csv",".xlsx")) or int(document.get("file_size") or 0)>st.MAX_FILE:
+            send(cid,"Отправьте файл .xlsx или .csv размером до 8,5 МБ. "
+                     "Другая документация не обрабатывается. "
+                     "Шаблон: "+PUBLIC_URL+"/tools/seller-template.csv")
+            return
+        send(cid,"Проверяю структуру таблицы без отправки её содержимого в ИИ. "
+                 "Файл не сохраняю и не публикую товары.")
+        threading.Thread(target=_seller_sheet_worker,
+                         args=(cid,document),daemon=True).start()
+        return
     if message.get("photo") or message.get("voice") or message.get("audio"):
         with LOCK:
             if key in PAUSED: return
@@ -656,6 +689,18 @@ def process_message(message, business=False):
                  "в этот чат, когда обработка завершится.",bid)
         threading.Thread(target=process_media_after_consent,
                          args=(cid,key,record,bid),daemon=True).start()
+        return
+    if clean in {"/template","шаблон","шаблон excel"}:
+        send(cid,"Шаблон таблицы продавца для Excel (CSV UTF-8): "
+            +PUBLIC_URL+"/tools/seller-template.csv"
+            +"\nЭто подготовительный формат, не подтверждённый для автоматического импорта в кабинет."
+            +"\nМожете прислать заполненный .xlsx/.csv прямо сюда — проверю ошибки.",bid)
+        return
+    if clean in {"/checkfile","проверить excel","проверить файл"}:
+        send(cid,"Пришлите таблицу .xlsx или .csv документом (до 8,5 МБ). "
+            "Проверю названия, категории, цены, фото и дубли артикулов; "
+            "ничего не изменю и не загружу в кабинет. "
+            "Шаблон: "+PUBLIC_URL+"/tools/seller-template.csv",bid)
         return
     if clean in {"/status", "статус сайта", "сайт работает"}:
         send(cid,"Проверяю доступность сайта UVMALL из сети сервера бота…",bid)
@@ -825,7 +870,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         p=urlsplit(self.path).path
-        self.send_response(200 if p in ("/","/health","/app","/operator") else 404)
+        self.send_response(200 if p in ("/","/health","/app","/operator","/tools/seller-template.csv") else 404)
         self.send_header("Content-Length","0")
         self.end_headers()
 
@@ -834,6 +879,17 @@ class Handler(BaseHTTPRequestHandler):
         path=parsed.path.rstrip("/") or "/"
         params=parse_qs(parsed.query,keep_blank_values=True)
         val=lambda key,default="":(params.get(key) or [default])[0]
+        if path=="/tools/seller-template.csv":
+            body=st.template_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type","text/csv; charset=utf-8")
+            self.send_header("Content-Disposition",'attachment; filename="UVMALL_Seller_Template.csv"')
+            self.send_header("X-Content-Type-Options","nosniff")
+            self.send_header("Cache-Control","public, max-age=3600")
+            self.send_header("Content-Length",str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path=="/operator":
             # Static shell only: all ticket data is guarded by Telegram HMAC.
             body=Path(__file__).with_name("operator.html").read_bytes()
@@ -1049,6 +1105,8 @@ def register_webhook():
                 {"command": "search", "description": "Найти товар в каталоге"},
                 {"command": "catalog", "description": "Ссылка на официальный сайт"},
                 {"command": "site", "description": "Перейти на uvmall.ru"},
+                {"command": "template", "description": "Шаблон Excel товаров"},
+                {"command": "checkfile", "description": "Проверить таблицу товаров"},
                 {"command": "status", "description": "Проверить доступность сайта"},
                 {"command": "wholesale", "description": "Оставить оптовую заявку"},
                 {"command": "seller", "description": "Помощь арендаторам"},
@@ -1095,9 +1153,9 @@ def validate_help_center():
     assert catalog_markup(False)["inline_keyboard"][0][0]["url"] == SITE, "Website button must be a normal URL"
     import io
     import unittest
-    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime, test_privacy
+    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime, test_privacy, test_seller_tools
     suite = unittest.TestSuite()
-    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime,test_privacy):
+    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime,test_privacy,test_seller_tools):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(mod))
     results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
     if not results.wasSuccessful():
