@@ -194,7 +194,7 @@ def matches(p, query):
     if not words: return 0
     title = norm(p["title"])
     target = " ".join([title, norm(p["category"]), norm(p["brand"]),
-                       norm(p["seller"]), norm(p["description"])])
+                       norm(p["seller"]), norm(p["pavilion"]), norm(p["description"])])
     score = 0
     for word in words:
         variants = [word] + [norm(x) for canon, alts in SYNONYMS.items()
