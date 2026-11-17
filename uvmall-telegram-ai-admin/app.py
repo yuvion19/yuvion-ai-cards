@@ -48,14 +48,14 @@ SITE = "https://uvmall.ru/"
 SELLER = "https://seller.uvmall.ru/"
 CONTACT = "https://t.me/UVMALL19"
 
-WELCOME = ("Здравствуйте! Я автоматический помощник UVMALL.\n"
+WELCOME = ("Здравствуйте! Вас приветствует UVMALL AI — виртуальный помощник маркетплейса.\n"
     "Помогу с вопросами по каталогу, заказам и подключению арендаторов.\n\n"
     "Выберите тему:\n1 — Стать продавцом\n2 — Разместить товары\n"
     "3 — Найти товар или поставщика\n4 — Заказы и техническая помощь\n"
     "5 — Связь с менеджером\n\n"
     "Подробные инструкции — /help. Можно задавать вопросы своими словами.\n"
     "Напишите «меню» для возврата или «стоп» для отключения автоответов.")
-PROMPT = ("Ты автоматический помощник UVMALL. Отвечай по-русски кратко и по делу, максимум 650 символов. "
+PROMPT = ("Ты UVMALL AI — виртуальный помощник маркетплейса UVMALL, использующий GigaChat API. Отвечай по-русски кратко и по делу, максимум 650 символов. "
     "Факты: uvmall.ru — каталог оптовых и розничных товаров поставщиков. "
     "Личный кабинет продавца seller.uvmall.ru. Контакт менеджера t.me/UVMALL19. "
     "Не придумывай цены, наличие, комиссии, сроки доставки, статусы заказов и контакты продавцов. "
@@ -83,9 +83,14 @@ def send(chat, text, business_id="", reply_markup=None):
     return tg("sendMessage", **payload)
 
 def reply_manager(message):
-    if MANAGER_ID:
-        try: send(MANAGER_ID, message)
-        except Exception: log.exception("Manager delivery failed")
+    """Confirm successful manager delivery before promising a handoff."""
+    if not MANAGER_ID: return False
+    try:
+        send(MANAGER_ID, message)
+        return True
+    except Exception:
+        log.exception("Manager delivery failed")
+        return False
 
 def gigachat_ssl_context():
     """Keep normal CA verification, adding a pinned Russian root only for GigaChat."""
@@ -221,24 +226,26 @@ def show_help(cid, bid="", section=None, topic=None):
 def ask_help_question(cid, key, bid=""):
     with LOCK: PENDING[key] = "help_question"
     send(cid, "Напишите ваш вопрос по UVMALL одним сообщением. "
-              "GigaChat подскажет, что можно сделать. Не передавайте пароли, коды, "
+              "UVMALL AI подскажет, что можно сделать. Не передавайте пароли, коды, "
               "данные карт и документы. Для выхода напишите «меню».", bid)
 
 def handoff_manager(cid, sender, key, bid="", topic=""):
-    if MANAGER_ID:
-        reply_manager("UVMALL — запрос клиента на помощь\nTelegram ID: " + str(cid)
-            + ("\n@" + sender.get("username", "") if sender.get("username") else "")
-            + ("\nТема: " + topic[:200] if topic else ""))
+    delivered = reply_manager(
+        "UVMALL AI — запрос клиента на помощь\nTelegram ID: " + str(cid)
+        + ("\n@" + sender.get("username", "") if sender.get("username") else "")
+        + ("\nТема: " + topic[:200] if topic else ""))
+    if delivered:
         with LOCK:
             PAUSED.add(key)
             PENDING.pop(key, None)
-        send(cid, "Запрос направлен менеджеру. Бот приостановил автоответы. "
+        send(cid, "Запрос успешно отправлен менеджеру UVMALL. "
+                  "UVMALL AI приостановил автоответы. "
                   "Прямой контакт: " + CONTACT
-                  + "\nЧтобы снова включить бота, напишите «возобновить».", bid)
+                  + "\nЧтобы снова включить помощника, напишите «возобновить».", bid)
     else:
-        send(cid, "Автоматическая передача обращений пока не настроена. "
-                  "Напишите менеджеру напрямую: " + CONTACT + "\n"
-                  "Бот остаётся доступен для вопросов.", bid)
+        send(cid, "Не удалось автоматически передать обращение менеджеру. "
+                  "Напишите ему напрямую: " + CONTACT + "\n"
+                  "UVMALL AI остаётся доступен для вопросов.", bid)
 
 def handle_callback_query(query):
     # Inline help buttons belong to private chats with @uv_mallbot.
@@ -391,12 +398,16 @@ def process_message(message, business=False):
             send(cid, "Для завершения заявки свяжитесь с менеджером: " + CONTACT, bid)
         else:
             name = state.split(":", 1)[1]
-            reply_manager("UVMALL — новая заявка продавца\nМагазин/имя: " + name
+            delivered = reply_manager("UVMALL AI — новая заявка продавца\nМагазин/имя: " + name
                 + "\nПавильон: " + text[:100]
                 + "\nTelegram ID клиента: " + str(cid)
                 + ("\n@" + sender["username"] if sender.get("username") else "")
                 + "\nОтветить можно через основной Telegram @UVMALL19.")
-            send(cid, "Спасибо. Заявка направлена менеджеру UVMALL.", bid)
+            if delivered:
+                send(cid, "Спасибо. Заявка направлена менеджеру UVMALL.", bid)
+            else:
+                send(cid, "Не удалось переслать заявку автоматически. "
+                          "Свяжитесь с менеджером напрямую: " + CONTACT, bid)
         return
     suggested_topic = hd.topic_by_words(clean)
     if suggested_topic:
@@ -456,8 +467,8 @@ class Handler(BaseHTTPRequestHandler):
                 "manager_configured": bool(MANAGER_ID),
                 "owner_configured": bool(OWNER_ID),
                 "ai_enabled": bool(GIGACHAT_AUTH_KEY),
-                "ai_provider": "GigaChat",
-                "gigachat_status": GIGACHAT_ACCESS["status"],
+                "ai_provider": "UVMALL AI",
+                "uvmall_ai_status": GIGACHAT_ACCESS["status"],
                 "help_enabled": True,
                 "help_topics": sum(len(s["topics"]) for s in hd.SECTIONS.values())
             }, ensure_ascii=False).encode()
@@ -504,16 +515,16 @@ def register_webhook():
            allowed_updates=["message", "callback_query", "business_message", "business_connection"],
            drop_pending_updates=False)
         try:
-            tg("setMyName", name="UVMALL — Помощник")
-            tg("setMyShortDescription", short_description="Официальный помощник UVMALL: товары, арендаторы и связь с менеджером.")
-            tg("setMyDescription", description="UVMALL — онлайн-маркетплейс поставщиков и продавцов. Помощь с регистрацией, размещением товаров, каталогом и заказами. Сайт: https://uvmall.ru/ Связь с менеджером: @UVMALL19.")
+            tg("setMyName", name="UVMALL AI — Помощник")
+            tg("setMyShortDescription", short_description="UVMALL AI — умная помощь покупателям и арендаторам UVMALL.")
+            tg("setMyDescription", description="UVMALL AI — виртуальный помощник маркетплейса UVMALL. Вопросы о товарах, продавцах, регистрации, размещении и поддержке. Сайт: https://uvmall.ru/ Менеджер: @UVMALL19.")
             tg("setMyCommands", commands=[
                 {"command": "start", "description": "Начать и открыть меню"},
                 {"command": "help", "description": "Помощь: темы и инструкции"},
                 {"command": "seller", "description": "Помощь арендаторам"},
                 {"command": "buyer", "description": "Помощь покупателям"},
                 {"command": "tech", "description": "Техническая поддержка"},
-                {"command": "ask", "description": "Задать вопрос GigaChat"},
+                {"command": "ask", "description": "Задать вопрос UVMALL AI"},
                 {"command": "manager", "description": "Связаться с менеджером"},
                 {"command": "myid", "description": "Узнать свой Telegram ID"},
                 {"command": "stop", "description": "Отключить автоответы"}
