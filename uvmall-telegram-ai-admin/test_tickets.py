@@ -33,6 +33,12 @@ class TicketTests(unittest.TestCase):
         tickets.transition(b["id"],"resolved")
         self.assertEqual(len(tickets.list_tickets("new")),1)
         self.assertEqual(len(tickets.list_tickets("all")),2)
+    def test_ai_quota(self):
+        self.assertTrue(tickets.allow_ai(123,limit=2))
+        self.assertTrue(tickets.allow_ai(123,limit=2))
+        self.assertFalse(tickets.allow_ai(123,limit=2))
+        self.assertTrue(tickets.allow_ai(124,limit=2))
+
     def test_anonymous_metrics(self):
         tickets.metric("search")
         tickets.metric("search")
