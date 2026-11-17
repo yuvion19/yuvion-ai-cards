@@ -151,7 +151,7 @@ def process_message(message, business=False):
                 + "\nОтветить можно через основной Telegram @UVMALL19.")
             send(cid, "Спасибо. Заявка направлена менеджеру UVMALL.", bid)
         return
-    if clean in {"", "привет", "здравствуйте", "помощь"}:
+    if clean in {"", "привет", "здравствуйте", "помощь", "/help"}:
         send(cid, WELCOME, bid)
     elif clean == "1" or "стать продавцом" in clean or "арендатор" in clean:
         send(cid, "Подключение продавцов UVMALL. Кабинет: " + SELLER
@@ -249,6 +249,18 @@ def register_webhook():
            secret_token=WEBHOOK_SECRET,
            allowed_updates=["message", "business_message", "business_connection"],
            drop_pending_updates=False)
+        try:
+            tg("setMyName", name="UVMALL — Помощник")
+            tg("setMyShortDescription", short_description="Официальный помощник UVMALL: товары, арендаторы и связь с менеджером.")
+            tg("setMyDescription", description="UVMALL — онлайн-маркетплейс поставщиков и продавцов. Помощь с регистрацией, размещением товаров, каталогом и заказами. Сайт: https://uvmall.ru/ Связь с менеджером: @UVMALL19.")
+            tg("setMyCommands", commands=[
+                {"command": "start", "description": "Начать и открыть меню"},
+                {"command": "help", "description": "Разделы помощи"},
+                {"command": "myid", "description": "Узнать свой Telegram ID"},
+                {"command": "stop", "description": "Отключить автоответы"}
+            ])
+        except Exception:
+            log.exception("Bot profile setup failed; webhook remains active")
         log.info("Webhook registered for @uv_mallbot")
     except Exception:
         log.exception("Webhook registration failed; retry after restart")
