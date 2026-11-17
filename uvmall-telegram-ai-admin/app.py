@@ -24,6 +24,7 @@ import tickets as tk
 import uptime as up
 import privacy as pv
 import seller_tools as st
+import locales as loc
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("uvmall")
@@ -70,7 +71,7 @@ WELCOME = ("Здравствуйте! Вас приветствует UVMALL AI 
     "5 — Связь с менеджером\n\n"
     "Подробные инструкции — /help. Можно задавать вопросы своими словами.\n"
     "Напишите «меню» для возврата или «стоп» для отключения автоответов.")
-PROMPT = ("Ты UVMALL AI — виртуальный помощник маркетплейса UVMALL, использующий GigaChat API. Отвечай по-русски кратко и по делу, максимум 650 символов. "
+PROMPT = ("Ты UVMALL AI — виртуальный помощник маркетплейса UVMALL, использующий GigaChat API. Отвечай на указанном языке кратко и по делу, максимум 650 символов. "
     "Факты: uvmall.ru — каталог оптовых и розничных товаров поставщиков. "
     "Личный кабинет продавца seller.uvmall.ru. Контакт менеджера t.me/UVMALL19. "
     "Не придумывай цены, наличие, комиссии, сроки доставки, статусы заказов и контакты продавцов. "
@@ -179,13 +180,13 @@ def gigachat_token():
         GIGACHAT_ACCESS["status"] = "oauth_failed"
         raise RuntimeError("GigaChat OAuth unavailable")
 
-def gigachat_completion(message):
+def gigachat_completion(message,lang="ru"):
     token = gigachat_token()
     response = post_json(
         "https://api.giga.chat/v1/chat/completions",
         {"model": GIGACHAT_MODEL,
          "messages": [
-             {"role": "system", "content": PROMPT},
+             {"role": "system", "content": PROMPT+" Язык ответа: "+loc.ai_language(lang)+"."},
              {"role": "user", "content": message[:1200]}
          ],
          "temperature": 0.2, "max_tokens": 230, "stream": False},
@@ -211,7 +212,7 @@ def answer_ai(text,customer_id=None):
         return "Вы достигли лимита вопросов UVMALL AI (25 в час). " + \
                "Попробуйте /help или свяжитесь с менеджером: " + CONTACT
     try:
-        result=gigachat_completion(sanitized)
+        result=gigachat_completion(sanitized,tk.get_language(customer_id) if customer_id else "ru")
         if result:tk.metric("ai_answer")
         else:tk.metric("ai_fallback")
         return result
@@ -233,6 +234,15 @@ def probe_gigachat():
         log.warning("GigaChat startup check: HTTP %s", err.code)
     except Exception as err:
         log.warning("GigaChat startup check unavailable: %s", type(err).__name__)
+
+def feedback_markup():
+    return {"inline_keyboard":[[
+        {"text":"Помогло","callback_data":"f|yes"},
+        {"text":"Не помогло","callback_data":"f|no"}
+    ],[
+        {"text":"Другой вопрос","callback_data":"h|ask"},
+        {"text":"Язык","callback_data":"l|menu"}
+    ]]}
 
 def show_help(cid, bid="", section=None, topic=None):
     tk.metric("help_opened")
@@ -370,6 +380,25 @@ def handle_callback_query(query):
     cid = int(chat.get("id") or 0)
     if cid == 0 or int(sender.get("id") or 0) != cid: return
     data = str(query.get("data") or "")
+    if data=="l|menu":
+        send(cid,loc.PICK_TEXT,reply_markup=loc.markup())
+        return
+    if data.startswith("l|"):
+        lang=data.split("|",1)[1]
+        if lang in loc.LANGS:
+            tk.set_language(cid,lang)
+            send(cid,loc.instructions(lang),reply_markup=hd.root_markup())
+        return
+    if data.startswith("f|"):
+        rating=data.split("|",1)[1]
+        if rating in ("yes","no"):
+            mid=int(message.get("message_id") or 0)
+            if mid:
+                added=tk.record_feedback(cid,mid,rating=="yes")
+                if added:
+                    send(cid,"Спасибо за оценку! Можете задать другой вопрос через /ask.",
+                         reply_markup=hd.root_markup())
+        return
     if data=="s|start":
         with LOCK:PENDING["direct:"+str(cid)]="catalog:query"
         send(cid,"Что ищете на UVMALL? Напишите название товара, бренд, "
@@ -690,6 +719,17 @@ def process_message(message, business=False):
         threading.Thread(target=process_media_after_consent,
                          args=(cid,key,record,bid),daemon=True).start()
         return
+    if clean in {"/language","/lang","язык","сменить язык"}:
+        send(cid,loc.PICK_TEXT,bid,loc.markup() if not bid else None)
+        return
+    if clean.startswith("/lang "):
+        language=clean.split(" ",1)[1].strip()
+        if language in loc.LANGS:
+            tk.set_language(cid,language)
+            send(cid,loc.instructions(language),bid,hd.root_markup() if not bid else None)
+        else:
+            send(cid,loc.PICK_TEXT,bid,loc.markup() if not bid else None)
+        return
     if clean in {"/template","шаблон","шаблон excel"}:
         send(cid,"Шаблон таблицы продавца для Excel (CSV UTF-8): "
             +PUBLIC_URL+"/tools/seller-template.csv"
@@ -771,7 +811,8 @@ def process_message(message, business=False):
         response = answer_ai(context + text,cid)
         send(cid, (response or "Не удалось подготовить ответ прямо сейчас. "
              "Посмотрите раздел /help или обратитесь к менеджеру: " + CONTACT)
-             + "\n\nМожно задать следующий вопрос или вернуться в /help.", bid)
+             + "\n\nМожно задать следующий вопрос или вернуться в /help.", bid,
+             feedback_markup() if response and not bid else None)
         return
     if state == "consent":
         if clean not in {"да", "согласен", "согласна"}:
@@ -837,8 +878,10 @@ def process_message(message, business=False):
     elif clean.startswith(("ищу ","найди ","покажи товары ","подбери ","найти ")):
         catalogue_search(cid,text,bid)
     else:
-        send(cid, answer_ai(text,cid) or "Я могу помочь с подключением продавцов и каталогом. "
-            "Напишите «меню» или «менеджер». Сайт: " + SITE, bid)
+        response=answer_ai(text,cid)
+        send(cid, response or "Я могу помочь с подключением продавцов и каталогом. "
+            "Напишите «меню» или «менеджер». Сайт: " + SITE, bid,
+             feedback_markup() if response and not bid else None)
 
 def handle_update(update):
     now = time.time()
@@ -1102,6 +1145,7 @@ def register_webhook():
             ("setMyCommands", {"commands": [
                 {"command": "start", "description": "Начать и открыть меню"},
                 {"command": "help", "description": "Помощь: темы и инструкции"},
+                {"command": "lang", "description": "Выбрать язык ответов"},
                 {"command": "search", "description": "Найти товар в каталоге"},
                 {"command": "catalog", "description": "Ссылка на официальный сайт"},
                 {"command": "site", "description": "Перейти на uvmall.ru"},
@@ -1153,9 +1197,9 @@ def validate_help_center():
     assert catalog_markup(False)["inline_keyboard"][0][0]["url"] == SITE, "Website button must be a normal URL"
     import io
     import unittest
-    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime, test_privacy, test_seller_tools
+    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime, test_privacy, test_seller_tools, test_locales
     suite = unittest.TestSuite()
-    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime,test_privacy,test_seller_tools):
+    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime,test_privacy,test_seller_tools,test_locales):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(mod))
     results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
     if not results.wasSuccessful():
