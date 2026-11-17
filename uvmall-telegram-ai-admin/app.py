@@ -833,25 +833,38 @@ def process_message(message, business=False):
         send(cid, "Напишите название магазина или ваше имя без персональных документов.", bid)
         return
     if state == "name":
+        if pv.sensitive(text):
+            send(cid,"Не отправляйте пароли, коды или данные карт. "
+                 "Напишите только имя или название магазина.",bid)
+            return
         with LOCK: PENDING[key] = "pavilion:" + text[:100]
         send(cid, "Напишите номер павильона / линию ТК «Южные Ворота» или «не знаю».", bid)
         return
     if state.startswith("pavilion:"):
+        if pv.sensitive(text):
+            send(cid,"Не отправляйте в анкете пароли, документы и платёжные данные. "
+                 "Укажите только номер павильона либо «не знаю».",bid)
+            return
         with LOCK: PENDING.pop(key, None)
-        if not MANAGER_ID:
-            send(cid, "Для завершения заявки свяжитесь с менеджером: " + CONTACT, bid)
+        name = state.split(":", 1)[1]
+        ticket=tk.create("seller",cid,
+            "Магазин/имя: "+name[:100]+" | Павильон: "+text[:100],
+            "seller:"+str(cid)+":"+str(message.get("message_id") or int(time.time()//600)),bid)
+        delivered = bool(ticket["notified"]) or reply_manager(
+            "UVMALL AI — заявка продавца №"+str(ticket["id"])+
+            "\nМагазин/имя: "+name[:100]+
+            "\nПавильон: "+text[:100]+
+            "\nTelegram ID клиента: "+str(cid)+
+            ("\n@"+sender["username"] if sender.get("username") else "")+
+            "\nОтветить: /reply "+str(ticket["id"])+" текст"+
+            "\nПанель: /panel")
+        if delivered:
+            tk.notify(ticket["id"])
+            send(cid,"Заявка продавца №"+str(ticket["id"])+
+                 " передана менеджеру UVMALL. Ответ поступит через Telegram при возможности.",bid)
         else:
-            name = state.split(":", 1)[1]
-            delivered = reply_manager("UVMALL AI — новая заявка продавца\nМагазин/имя: " + name
-                + "\nПавильон: " + text[:100]
-                + "\nTelegram ID клиента: " + str(cid)
-                + ("\n@" + sender["username"] if sender.get("username") else "")
-                + "\nОтветить можно через основной Telegram @UVMALL19.")
-            if delivered:
-                send(cid, "Спасибо. Заявка направлена менеджеру UVMALL.", bid)
-            else:
-                send(cid, "Не удалось переслать заявку автоматически. "
-                          "Свяжитесь с менеджером напрямую: " + CONTACT, bid)
+            send(cid,"Автоматически переслать заявку не удалось. "
+                     "Свяжитесь с менеджером напрямую: "+CONTACT,bid)
         return
     suggested_topic = hd.topic_by_words(clean)
     if suggested_topic:
