@@ -380,6 +380,16 @@ def handle_callback_query(query):
     cid = int(chat.get("id") or 0)
     if cid == 0 or int(sender.get("id") or 0) != cid: return
     data = str(query.get("data") or "")
+    if data=="x|template":
+        send(cid,"Скачайте шаблон товаров UVMALL: "+PUBLIC_URL+
+            "/tools/seller-template.csv\n"
+            "Отправьте заполненный .xlsx или .csv сюда документом — UVMALL AI "
+            "проверит структуру, не публикуя товары.")
+        return
+    if data=="u|check":
+        send(cid,"Проверяю основной сайт и кабинет продавцов из сети UVMALL AI…")
+        threading.Thread(target=check_site_for_customer,args=(cid,""),daemon=True).start()
+        return
     if data=="l|menu":
         send(cid,loc.PICK_TEXT,reply_markup=loc.markup())
         return
