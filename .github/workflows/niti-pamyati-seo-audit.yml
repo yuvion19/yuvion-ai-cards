@@ -34,7 +34,14 @@ jobs:
               "/", "/o-narode.html", "/istoriya.html", "/dzhuhuri.html",
               "/slovar.html", "/biblioteka.html", "/izdaniya/",
               "/lyudi.html", "/arhiv.html", "/en/", "/he/",
-              "/muzei/", "/istochniki.html"
+              "/muzei/", "/istochniki.html",
+              "/en/history.html", "/he/history.html", "/en/juhuri.html",
+              "/he/juhuri.html", "/en/library.html", "/he/library.html"
+          ]
+          HREFLANG_GROUPS = [
+              ("/istoriya.html", "/en/history.html", "/he/history.html"),
+              ("/dzhuhuri.html", "/en/juhuri.html", "/he/juhuri.html"),
+              ("/biblioteka.html", "/en/library.html", "/he/library.html"),
           ]
 
           def get(url):
@@ -49,6 +56,7 @@ jobs:
                   self.title = ""
                   self.description = ""
                   self.canonical = ""
+                  self.alternates = {}
                   self.noindex = False
               def handle_starttag(self, tag, attrs):
                   a = dict(attrs)
@@ -62,6 +70,8 @@ jobs:
                           self.noindex = True
                   if tag == "link" and "canonical" in (a.get("rel") or "").lower().split():
                       self.canonical = a.get("href") or ""
+                  if tag == "link" and "alternate" in (a.get("rel") or "").lower().split() and a.get("hreflang"):
+                      self.alternates.setdefault(a["hreflang"], []).append(a.get("href") or "")
               def handle_endtag(self, tag):
                   if tag == "title":
                       self.in_title = False
@@ -110,6 +120,14 @@ jobs:
                       misses.append("noindex")
                   if h.canonical != url:
                       misses.append(f"canonical={h.canonical!r}, expected {url!r}")
+                  for group in HREFLANG_GROUPS:
+                      if path not in group:
+                          continue
+                      expected = dict(zip(("ru", "en", "he"), (ORIGIN + v for v in group)))
+                      expected["x-default"] = ORIGIN + group[0]
+                      for lang, target in expected.items():
+                          if h.alternates.get(lang) != [target]:
+                              misses.append(f"hreflang {lang} must point once to {target}")
                   print(f"CHECK {path}: " + ("OK" if not misses else "; ".join(misses)))
                   if misses:
                       failures.append(path + ": " + "; ".join(misses))
