@@ -36,12 +36,20 @@ jobs:
               "/lyudi.html", "/arhiv.html", "/en/", "/he/",
               "/muzei/", "/istochniki.html",
               "/en/history.html", "/he/history.html", "/en/juhuri.html",
-              "/he/juhuri.html", "/en/library.html", "/he/library.html"
+              "/he/juhuri.html", "/en/library.html", "/he/library.html",
+              "/literatura/", "/en/literature.html", "/he/literature.html",
+              "/shkola.html", "/en/school.html", "/he/school.html",
+              "/bibliografiya-dzhuuri.html", "/en/books.html", "/he/books.html",
+              "/atlas.html", "/en/places.html", "/he/places.html"
           ]
           HREFLANG_GROUPS = [
               ("/istoriya.html", "/en/history.html", "/he/history.html"),
               ("/dzhuhuri.html", "/en/juhuri.html", "/he/juhuri.html"),
               ("/biblioteka.html", "/en/library.html", "/he/library.html"),
+              ("/literatura/", "/en/literature.html", "/he/literature.html"),
+              ("/shkola.html", "/en/school.html", "/he/school.html"),
+              ("/bibliografiya-dzhuuri.html", "/en/books.html", "/he/books.html"),
+              ("/atlas.html", "/en/places.html", "/he/places.html"),
           ]
 
           def get(url):
