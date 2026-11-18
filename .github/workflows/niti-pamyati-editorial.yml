@@ -70,6 +70,8 @@ jobs:
                   summary.write(f"- New four-language selections: {len(added)}\n")
                   summary.write(f"- Preflight issues: {result.get('preflight_issues', 0)}\n")
                   summary.write("- New independently researched historical assertions: 0\n")
+                  summary.write("- Editorial release type: links to existing museum pages only\n")
+                  summary.write("- Paid generative AI calls: 0\n")
           if release.get("status") == "blocked":
               sys.exit("One or more source collections failed checks: review the audit.")
           PY
