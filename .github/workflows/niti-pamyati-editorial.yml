@@ -62,4 +62,14 @@ jobs:
           print("Museum audit:", json.dumps(result, ensure_ascii=False, sort_keys=True))
           if not result.get("ok"):
               sys.exit("Worker did not confirm success.")
+          release = result.get("spotlight") or {}
+          added = release.get("published") or []
+          if os.environ.get("GITHUB_STEP_SUMMARY"):
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write("### Museum editorial publication report\n")
+                  summary.write(f"- New four-language selections: {len(added)}\n")
+                  summary.write(f"- Preflight issues: {result.get('preflight_issues', 0)}\n")
+                  summary.write("- New independently researched historical assertions: 0\n")
+          if release.get("status") == "blocked":
+              sys.exit("One or more source collections failed checks: review the audit.")
           PY
