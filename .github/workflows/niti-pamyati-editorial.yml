@@ -1,0 +1,63 @@
+name: Niti Pamyati — museum checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/niti-pamyati-editorial.yml"
+  schedule:
+    - cron: "13,43 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: niti-pamyati-private-audit
+  cancel-in-progress: false
+
+jobs:
+  museum-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Authenticate GitHub runner and verify museum
+        env:
+          DISPATCH_URL: https://dvhetktolsjjgvozrezq.supabase.co/functions/v1/museum-editorial-dispatch
+          OIDC_AUDIENCE: niti-pamyati-editorial-v1
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from urllib.parse import quote
+          from urllib.request import Request, urlopen
+
+          token_url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
+          separator = "&" if "?" in token_url else "?"
+          token_url += separator + "audience=" + quote(os.environ["OIDC_AUDIENCE"], safe="")
+          token_request = Request(
+              token_url,
+              headers={"Authorization": "Bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]}
+          )
+          with urlopen(token_request, timeout=20) as response:
+              jwt = json.load(response)["value"]
+
+          dispatch_request = Request(
+              os.environ["DISPATCH_URL"],
+              data=b"{}",
+              method="POST",
+              headers={
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer " + jwt,
+                  "User-Agent": "NitiPamyati-Museum-Audit/1.0"
+              }
+          )
+          with urlopen(dispatch_request, timeout=120) as response:
+              result = json.load(response)
+          print("Museum audit:", json.dumps(result, ensure_ascii=False, sort_keys=True))
+          if not result.get("ok"):
+              sys.exit("Worker did not confirm success.")
+          PY
