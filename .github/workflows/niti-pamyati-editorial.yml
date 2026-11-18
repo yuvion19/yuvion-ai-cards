@@ -1,4 +1,5 @@
 name: Niti Pamyati — museum checks
+# Releases only previously published four-language museum source spotlights; never writes PUSK static files.
 
 on:
   push:
