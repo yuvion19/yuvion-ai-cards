@@ -1,4 +1,4 @@
-name: Niti Pamyati — museum checks
+name: Niti Pamyati — verified museum releases
 # Releases only previously published four-language museum source spotlights; never writes PUSK static files.
 # Every released link must resolve in the four corresponding language editions.
 
