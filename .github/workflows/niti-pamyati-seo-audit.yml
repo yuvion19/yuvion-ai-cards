@@ -43,7 +43,12 @@ jobs:
               "/literatura/", "/en/literature.html", "/he/literature.html",
               "/shkola.html", "/en/school.html", "/he/school.html",
               "/bibliografiya-dzhuuri.html", "/en/books.html", "/he/books.html",
-              "/atlas.html", "/en/places.html", "/he/places.html"
+              "/atlas.html", "/en/places.html", "/he/places.html",
+              "/people/", "/en/people/", "/he/people/",
+              "/people/rami-meir.html", "/en/people/rami-meir.html", "/he/people/rami-meir.html",
+              "/people/evgeniya-nazarova.html", "/en/people/evgeniya-nazarova.html", "/he/people/evgeniya-nazarova.html",
+              "/people/iosif-migirov.html", "/en/people/iosif-migirov.html", "/he/people/iosif-migirov.html",
+              "/people/eldar-gurshumov.html", "/en/people/eldar-gurshumov.html", "/he/people/eldar-gurshumov.html"
           ]
           HREFLANG_GROUPS = [
               ("/istoriya.html", "/en/history.html", "/he/history.html"),
@@ -53,6 +58,11 @@ jobs:
               ("/shkola.html", "/en/school.html", "/he/school.html"),
               ("/bibliografiya-dzhuuri.html", "/en/books.html", "/he/books.html"),
               ("/atlas.html", "/en/places.html", "/he/places.html"),
+              ("/people/", "/en/people/", "/he/people/"),
+              ("/people/rami-meir.html", "/en/people/rami-meir.html", "/he/people/rami-meir.html"),
+              ("/people/evgeniya-nazarova.html", "/en/people/evgeniya-nazarova.html", "/he/people/evgeniya-nazarova.html"),
+              ("/people/iosif-migirov.html", "/en/people/iosif-migirov.html", "/he/people/iosif-migirov.html"),
+              ("/people/eldar-gurshumov.html", "/en/people/eldar-gurshumov.html", "/he/people/eldar-gurshumov.html"),
           ]
 
           def get(url):
