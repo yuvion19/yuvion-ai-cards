@@ -6,7 +6,7 @@ on:
     paths:
       - ".github/workflows/niti-pamyati-editorial.yml"
   schedule:
-    - cron: "13,43 * * * *"
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 
 permissions:
