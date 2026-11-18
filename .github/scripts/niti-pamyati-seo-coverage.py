@@ -45,6 +45,8 @@ class PageMeta(HTMLParser):
         self.lang = ""
         self.h1_count = 0
         self.links = []
+        self.images = 0
+        self.images_missing_alt = 0
     def handle_starttag(self, tag, attrs):
         a = {str(k).lower(): (v or "") for k, v in attrs}
         if tag == "html":
@@ -64,6 +66,10 @@ class PageMeta(HTMLParser):
                 self.canonicals.append(a.get("href", ""))
         elif tag == "a" and a.get("href"):
             self.links.append(a["href"])
+        elif tag == "img":
+            self.images += 1
+            if "alt" not in a:
+                self.images_missing_alt += 1
     def handle_endtag(self, tag):
         if tag == "title":
             self._in_title = False
@@ -91,6 +97,8 @@ def inspect(url):
             "canonical": page.canonicals[0] if page.canonicals else "",
             "language": page.lang,
             "h1_count": page.h1_count,
+            "image_count": page.images,
+            "images_missing_alt": page.images_missing_alt,
             "links": page.links,
         })
         if not row["title"]:
@@ -109,6 +117,8 @@ def inspect(url):
             row["warnings"].append("missing H1")
         if page.h1_count > 1:
             row["warnings"].append("multiple H1")
+        if page.images_missing_alt:
+            row["warnings"].append(f"{page.images_missing_alt} image(s) without alt attribute")
         if "noindex" in (xrobots + " ".join(page.robots)).lower():
             row["critical"].append("sitemap page declares noindex")
     except HTTPError as exc:
