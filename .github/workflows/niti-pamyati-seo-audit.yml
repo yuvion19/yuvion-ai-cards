@@ -14,8 +14,11 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
+      - name: Checkout for complete published-site audit
+        uses: actions/checkout@v4
+
       - name: Audit live museum URLs and technical SEO
         shell: bash
         run: |
@@ -166,3 +169,17 @@ jobs:
               sys.exit(f"{len(failures)} SEO audit problem(s). Investigate before editing.")
           print("Core checks passed. This is a technical audit, not proof of search ranking or indexing.")
           PY
+
+      - name: Sitewide sitemap coverage
+        if: always()
+        shell: bash
+        run: python3 .github/scripts/niti-pamyati-seo-coverage.py
+
+      - name: Save complete read-only SEO report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niti-pamyati-seo-coverage
+          path: seo-audit-output/
+          retention-days: 30
+          if-no-files-found: warn
