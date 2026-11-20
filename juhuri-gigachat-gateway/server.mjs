@@ -47,6 +47,8 @@ function retryIp(ip) {
   return true;
 }
 async function receive(req, maxBytes = 24000) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string') return JSON.parse(req.body);
   let size = 0;
   const chunks = [];
   for await (const chunk of req) {
@@ -124,15 +126,15 @@ async function complete({ text, from, to, references }) {
     confidence, generated: true, provider: 'GigaChat', model,
     source_count: references.length };
 }
-const server = http.createServer(async (req, res) => {
+export async function handler(req, res) {
   const origin = req.headers.origin || '';
   const url = new URL(req.url || '/', 'http://localhost');
   if (origin && !allowedOrigins.has(origin)) return reply(res, origin, 403, { error: 'Origin не разрешён' });
   if (req.method === 'OPTIONS') { res.writeHead(204, headers(origin)); res.end(); return; }
-  if (req.method === 'GET' && url.pathname === '/health')
+  if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/api/health'))
     return reply(res, origin, 200, { service: 'Juhuri GigaChat gateway',
       ready: !!tokenKey, model, version: 1 });
-  if (req.method !== 'POST' || url.pathname !== '/v1/translate')
+  if (req.method !== 'POST' || (url.pathname !== '/v1/translate' && url.pathname !== '/api/translate'))
     return reply(res, origin, 404, { error: 'Маршрут не найден' });
   if (!tokenKey) return reply(res, origin, 503, { error: 'GigaChat ожидает ключ API на сервере' });
   if (!(req.headers['content-type'] || '').includes('application/json'))
@@ -162,5 +164,5 @@ const server = http.createServer(async (req, res) => {
     return reply(res, origin, status, { error: 'ИИ-перевод недоступен: ' +
       String(error?.message || 'неизвестная ошибка').slice(0, 180) });
   } finally { inFlight--; }
-});
-server.listen(port, '0.0.0.0', () => console.log('Juhuri gateway on port ' + port));
+}
+if (!process.env.VERCEL) http.createServer(handler).listen(port, '0.0.0.0', () => console.log('Juhuri gateway on port ' + port));
