@@ -1,5 +1,45 @@
 import http from 'node:http';
-import { randomUUID } from 'node:crypto';
+import https from 'node:https';
+import tls from 'node:tls';
+import { readFileSync } from 'node:fs';
+import { randomUUID, X509Certificate } from 'node:crypto';
+
+const rootPEM = readFileSync(new URL('./certs/russian-trusted-root.pem', import.meta.url), 'utf8');
+const subPEM = readFileSync(new URL('./certs/russian-trusted-sub.pem', import.meta.url), 'utf8');
+function verifyCert(pem, expected) {
+  const actual = new X509Certificate(pem).fingerprint256.replace(/:/g,'').toUpperCase();
+  if(actual !== expected) throw new Error('CA certificate fingerprint mismatch');
+}
+verifyCert(rootPEM, 'D26D2D0231B7C39F92CC738512BA54103519E4405D68B5BD703E9788CA8ECF31');
+verifyCert(subPEM, 'BBBDE2103E790B999EC62BD03CF625A5A2E7C316E10AFE6A490EEDEAD8B3FD9B');
+const trustedCAs = tls.rootCertificates.concat([rootPEM,subPEM]);
+function safeFetch(url,opts={}) {
+  return new Promise((resolve,reject) => {
+    const target=new URL(url);
+    if(target.protocol!=='https:' || !['api.giga.chat','ngw.devices.sberbank.ru'].includes(target.hostname)) {
+      return reject(new Error('Unexpected upstream host'));
+    }
+    const req=https.request(target,{method:opts.method||'GET',
+      headers:opts.headers||{},ca:trustedCAs,rejectUnauthorized:true,
+      signal:opts.signal,timeout:19000},response => {
+      const chunks=[];let n=0;
+      response.on('data',chunk=>{
+        n+=chunk.length;
+        if(n>1048576){req.destroy(new Error('Provider response too long'));return;}
+        chunks.push(chunk);
+      });
+      response.on('end',()=>{
+        const content=Buffer.concat(chunks).toString('utf8');
+        resolve({status:response.statusCode,ok:response.statusCode>=200&&response.statusCode<300,
+          json:async()=>JSON.parse(content)});
+      });
+      response.on('error',reject);
+    });
+    req.on('timeout',()=>req.destroy(new Error('GigaChat HTTPS timeout')));
+    req.on('error',reject);
+    req.end(opts.body||'');
+  });
+}
 
 const port = Number(process.env.PORT || 10000);
 const allowedOrigins = new Set([
@@ -62,7 +102,7 @@ async function getToken() {
   if (!tokenKey) throw new Error('GigaChat API-ключ не настроен');
   if (token && Date.now() < tokenExpiry - 90000) return token;
   const authHeader = /^Basic\s/i.test(tokenKey) ? tokenKey : 'Basic ' + tokenKey;
-  const res = await fetch(oauthUrl, {
+  const res = await safeFetch(oauthUrl, {
     method: 'POST',
     headers: { 'Authorization': authHeader, 'RqUID': randomUUID(),
       'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
@@ -101,7 +141,7 @@ async function complete({ text, from, to, references }) {
   ].join('\n');
   const data = JSON.stringify({ task: 'Переведи текст', from: names[from], to: names[to], input: text,
     reference_examples: references });
-  const response = await fetch(completionsUrl, {
+  const response = await safeFetch(completionsUrl, {
     method: 'POST', headers: { Authorization: 'Bearer ' + t,
       'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ model, messages: [{ role: 'system', content: rules },
