@@ -166,6 +166,17 @@ async function complete({ text, from, to, references }) {
     confidence, generated: true, provider: 'GigaChat', model,
     source_count: references.length };
 }
+export async function validateProvider() {
+  const access = await getToken();
+  const response = await safeFetch('https://api.giga.chat/v1/models', {
+    headers: { Authorization: 'Bearer ' + access, Accept: 'application/json' },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!response.ok) return { oauth: true, modelsStatus: response.status };
+  const payload = await response.json();
+  return { oauth: true, modelsStatus: response.status,
+    models: Array.isArray(payload.data) ? payload.data.map(x => x.id).filter(Boolean).slice(0,20) : [] };
+}
 export async function handler(req, res) {
   const origin = req.headers.origin || '';
   const url = new URL(req.url || '/', 'http://localhost');
