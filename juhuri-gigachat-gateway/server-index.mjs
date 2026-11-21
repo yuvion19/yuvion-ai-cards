@@ -8,6 +8,34 @@ const HELD={
   smolsent:new Set([31,35,36,46,69,72,79,123,143,149,150,169,191,193,197,231,238,259,290,292,342,345,352,371,427,447,460,466,497,502,521,532,541,656,666,669,675,769,776,779]),
   smoldoc:new Set([15,16,27,33,53,95,96,106,115,126,132,145,172,237,258,260,328,363,372,377,382,419,429,432,464,474,476,546,560,568])
 };
+/* Small human-readable concept clusters, used as RELATED SEARCH TERMS only.
+ * These do not establish a verified translation, and cannot override exact matches. */
+const CONCEPTS=[
+ ['дом','жилище','жильё','жилье'],['семья','семейство','родные','родственники'],
+ ['привет','здравствуйте','приветствие'],['помощь','поддержка','содействие'],
+ ['работа','труд','занятие'],['учёба','обучение','образование'],
+ ['школа','училище'],['дедушка','дед'],['бабушка','бабка'],
+ ['мать','мама'],['отец','папа'],['ребёнок','дитя','дети'],
+ ['друг','товарищ','приятель'],['радость','счастье','веселье'],
+ ['красивый','прекрасный','красота'],['болезнь','недуг','заболевание'],
+ ['врач','доктор'],['домой','дом'],['вода','водичка'],
+ ['гора','горы'],['река','речка'],['книга','книги'],['слово','слова'],
+ ['память','воспоминание'],['традиция','обычай'],['дорога','путь'],
+ ['еда','пища','питание'],['яблоко','яблоки'],['персик','персики'],
+ ['сейчас','теперь'],['потом','позже'],['первый','начальный'],
+ ['большой','крупный'],['маленький','небольшой'],['сильный','крепкий'],
+ ['говорить','сказать','рассказать'],['слушать','услышать'],
+ ['читать','прочесть'],['писать','написать'],['покупать','купить'],
+ ['продавать','продать'],['думать','размышлять'],['любить','любовь'],
+ ['верить','вера'],['ходить','идти'],['помнить','вспоминать']
+];
+const conceptMap=new Map();
+for(const group of CONCEPTS){
+ const clean=group.map(x=>String(x).toLocaleLowerCase('ru'));
+ for(const term of clean){const old=conceptMap.get(term)||new Set();
+  clean.forEach(w=>{if(w!==term)old.add(w);});conceptMap.set(term,old);
+ }
+}
 let snapshot=null, promise=null, loadedAt=0;
 const maxAge=2*3600000;
 const stop=new Set('и а на в с у по для это как мне мы я он она что из или но до вот та не их ты вы было там есть его ей тебя где как'.split(' '));
@@ -79,7 +107,7 @@ function build(parts){
    total:records.length,bySource:Object.fromEntries(parts.map(p=>[p.group,p.all.length])),
    heldOut:389,bad:parts.reduce((a,p)=>a+p.bad,0),
    sources:'Google SMOL CC BY 4.0 at '+REV,
-   verification:'source-attested; not independently native-speaker-verified',revision:REV
+   verification:'source-attested; not independently native-speaker-verified',semanticMode:'limited curated Russian concept clusters',revision:REV
  }};
 }
 async function getIndex(){
@@ -101,6 +129,11 @@ function rank(query,from,limit){
    const weight=12+Math.min(20,Math.floor(300/Math.max(2,r.length)));
    r.slice(0,750).forEach(i=>bump(i,weight));
    if(s!==t&&s.length>=3)(db.inverted[from].get(s)||[]).slice(0,750).forEach(i=>bump(i,5));
+   if(from==='ru'){
+     for(const related of conceptMap.get(t)||[]){
+       (db.inverted.ru.get(related)||[]).slice(0,120).forEach(i=>bump(i,4));
+     }
+   }
  });
  let result=[...votes].map(([i,score])=>{
    const x=db.records[i];
