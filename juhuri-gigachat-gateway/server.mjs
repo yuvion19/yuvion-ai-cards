@@ -209,6 +209,19 @@ async function complete({ text, from, to, references }) {
     semantic_used: !!reranked.used,
     source_count: references.length };
 }
+export async function validateSemantic() {
+  const access=await getToken();
+  const response=await safeFetch('https://api.giga.chat/v1/embeddings',{
+    method:'POST',headers:{Authorization:'Bearer '+access,
+      'Content-Type':'application/json',Accept:'application/json'},
+    body:JSON.stringify({model:'Embeddings-2',input:['дом','семья','дом семьи']}),
+    signal:AbortSignal.timeout(12000)
+  });
+  if(!response.ok)return {ok:false,httpStatus:response.status};
+  const body=await response.json();
+  return {ok:true,httpStatus:response.status,model:body.model,
+    vectors:body.data?.length,dimension:body.data?.[0]?.embedding?.length};
+}
 export async function validateProvider() {
   const access = await getToken();
   const response = await safeFetch('https://api.giga.chat/v1/models', {
