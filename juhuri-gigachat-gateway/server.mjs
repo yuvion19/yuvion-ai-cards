@@ -128,8 +128,9 @@ function cleanReferences(list) {
     })).filter(x => x.jdt && x.ru);
 }
 /* Juhur AI 3.0 opt-in semantic reranking of licensed textual evidence. */
+let embeddingPaymentUnavailable=false;
 async function semanticRank(text,from,references,accessToken) {
-  if(references.length<2)return {references,used:false};
+  if(references.length<2||embeddingPaymentUnavailable)return {references,used:false};
   try {
     const fromJuh=from==='juh';
     const inputs=[String(text).slice(0,300)].concat(references.map(e=>
@@ -141,6 +142,7 @@ async function semanticRank(text,from,references,accessToken) {
       body:JSON.stringify({model:'Embeddings-2',input:inputs}),
       signal:AbortSignal.timeout(9000)
     });
+    if(response.status===402){embeddingPaymentUnavailable=true;return {references,used:false};}
     if(!response.ok)return {references,used:false};
     const payload=await response.json();
     const sorted=(payload.data||[]).slice().sort((a,b)=>a.index-b.index);
@@ -205,22 +207,9 @@ async function complete({ text, from, to, references }) {
       (notes || 'Результат модели не проверен носителем.'),
     confidence: references.length ? confidence : 'low',
     generated: true, provider: 'GigaChat', model,
-    retrieval_method: reranked.used?'lexical+morphology+Embeddings-2':'lexical+morphology',
+    retrieval_method: reranked.used?'lexical+Embeddings-2':'lexical+meaning-relations',
     semantic_used: !!reranked.used,
     source_count: references.length };
-}
-export async function validateSemantic() {
-  const access=await getToken();
-  const response=await safeFetch('https://api.giga.chat/v1/embeddings',{
-    method:'POST',headers:{Authorization:'Bearer '+access,
-      'Content-Type':'application/json',Accept:'application/json'},
-    body:JSON.stringify({model:'Embeddings-2',input:['дом','семья','дом семьи']}),
-    signal:AbortSignal.timeout(12000)
-  });
-  if(!response.ok)return {ok:false,httpStatus:response.status};
-  const body=await response.json();
-  return {ok:true,httpStatus:response.status,model:body.model,
-    vectors:body.data?.length,dimension:body.data?.[0]?.embedding?.length};
 }
 export async function validateProvider() {
   const access = await getToken();
