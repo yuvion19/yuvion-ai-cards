@@ -127,8 +127,41 @@ function cleanReferences(list) {
       source: String(x.source || '').slice(0, 120)
     })).filter(x => x.jdt && x.ru);
 }
+/* Juhur AI 3.0 opt-in semantic reranking of licensed textual evidence. */
+async function semanticRank(text,from,references,accessToken) {
+  if(references.length<2)return {references,used:false};
+  try {
+    const fromJuh=from==='juh';
+    const inputs=[String(text).slice(0,300)].concat(references.map(e=>
+      (fromJuh?'Джуури: '+e.jdt+'; русское значение: '+e.ru:
+        'Русское значение: '+e.ru+'; джуури: '+e.jdt).slice(0,450)));
+    const response=await safeFetch('https://api.giga.chat/v1/embeddings',{
+      method:'POST',headers:{Authorization:'Bearer '+accessToken,
+        'Content-Type':'application/json',Accept:'application/json'},
+      body:JSON.stringify({model:'Embeddings-2',input:inputs}),
+      signal:AbortSignal.timeout(9000)
+    });
+    if(!response.ok)return {references,used:false};
+    const payload=await response.json();
+    const sorted=(payload.data||[]).slice().sort((a,b)=>a.index-b.index);
+    if(sorted.length!==inputs.length || !sorted.every(x=>Array.isArray(x.embedding)))
+      return {references,used:false};
+    const q=sorted[0].embedding;
+    function cosine(a,b){
+      let dot=0,aa=0,bb=0;
+      for(let i=0;i<a.length&&i<b.length;i++){dot+=a[i]*b[i];aa+=a[i]*a[i];bb+=b[i]*b[i];}
+      return dot/(Math.sqrt(aa*bb)||1);
+    }
+    const ordered=references.map((ref,i)=>({ref,i,s:cosine(q,sorted[i+1].embedding)}))
+      .sort((a,b)=>(b.s+(references.length-b.i)*0.035)-
+        (a.s+(references.length-a.i)*0.035)).map(x=>x.ref);
+    return {references:ordered,used:true};
+  }catch(_){return {references,used:false};}
+}
 async function complete({ text, from, to, references }) {
   const t = await getToken();
+  const reranked = await semanticRank(text,from,references,t);
+  references=reranked.references;
   const names = { ruh: 'русский', ru: 'русский', juh: 'джуури', en: 'английский', he: 'иврит' };
   const rules = [
     'Ты — осторожный помощник по переводу редкого языка джуури (Juhuri, Judeo-Tat).',
@@ -172,6 +205,8 @@ async function complete({ text, from, to, references }) {
       (notes || 'Результат модели не проверен носителем.'),
     confidence: references.length ? confidence : 'low',
     generated: true, provider: 'GigaChat', model,
+    retrieval_method: reranked.used?'lexical+morphology+Embeddings-2':'lexical+morphology',
+    semantic_used: !!reranked.used,
     source_count: references.length };
 }
 export async function validateProvider() {
