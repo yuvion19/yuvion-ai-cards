@@ -123,6 +123,42 @@ class WebhookStatusTests(unittest.TestCase):
         self.assertEqual(app.WEBHOOK_STATUS["state"], "registered")
         self.assertEqual(app.MENU_STATUS["state"], "failed")
 
+    def test_temporary_registration_failure_retries(self):
+        attempts = []
+        def simulate():
+            attempts.append(1)
+            app.set_webhook_state("registration_failed" if len(attempts) == 1 else "registered", registered=len(attempts) > 1)
+            if len(attempts) > 1:
+                app.MENU_STATUS["state"] = "configured"
+        with (patch.object(app, "register_webhook", side_effect=simulate),
+              patch.object(app.time, "sleep") as sleep):
+            app.register_webhook_with_retries()
+        self.assertEqual(len(attempts), 2)
+        sleep.assert_called_once_with(15)
+
+    def test_permanent_configuration_error_does_not_retry(self):
+        attempts = []
+        def simulate():
+            attempts.append(1)
+            app.set_webhook_state("bot_identity_mismatch")
+        with (patch.object(app, "register_webhook", side_effect=simulate),
+              patch.object(app.time, "sleep") as sleep):
+            app.register_webhook_with_retries()
+        self.assertEqual(len(attempts), 1)
+        sleep.assert_not_called()
+
+    def test_temporary_menu_failure_retries_even_after_webhook_registered(self):
+        attempts = []
+        def simulate():
+            attempts.append(1)
+            app.set_webhook_state("registered", registered=True)
+            app.MENU_STATUS["state"] = "failed" if len(attempts) == 1 else "configured"
+        with (patch.object(app, "register_webhook", side_effect=simulate),
+              patch.object(app.time, "sleep") as sleep):
+            app.register_webhook_with_retries()
+        self.assertEqual(len(attempts), 2)
+        sleep.assert_called_once_with(15)
+
 
 if __name__ == "__main__":
     unittest.main()
