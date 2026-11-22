@@ -50,6 +50,10 @@ class WebhookRetryTests(unittest.TestCase):
         self.assertIn(self.update["update_id"], app.SEEN)
         self.assertNotIn(self.update["update_id"], app.PROCESSING)
 
+    def test_menu_button_opens_official_marketplace(self):
+        self.assertEqual(app.MENU_BUTTON["type"], "web_app")
+        self.assertEqual(app.MENU_BUTTON["web_app"]["url"], "https://uvmall.ru/")
+
 
 if __name__ == "__main__":
     unittest.main()
