@@ -54,6 +54,7 @@ LOCK = threading.RLock()
 PENDING = {}
 PAUSED = set()
 SEEN = {}
+PROCESSING = set()
 MAX_BODY = 1048576
 SITE = "https://uvmall.ru/"
 SELLER = "https://seller.uvmall.ru/"
@@ -907,21 +908,42 @@ def process_message(message, business=False):
              feedback_markup() if response and not bid else None)
 
 def handle_update(update):
+    """Acknowledge an update only after successful processing.
+
+    Telegram retries webhook requests on non-2xx responses. A failed update
+    must not remain in SEEN, and concurrent deliveries must not be treated
+    as successful while the first attempt is still running.
+    """
     now = time.time()
     uid = update.get("update_id")
     with LOCK:
         for k, t in list(SEEN.items()):
             if now - t > 3600: SEEN.pop(k, None)
-        if uid in SEEN: return
-        if uid is not None: SEEN[uid] = now
-    if "inline_query" in update:
-        process_inline_query(update["inline_query"])
-    elif "callback_query" in update:
-        handle_callback_query(update["callback_query"])
-    elif "business_message" in update:
-        process_message(update["business_message"], True)
-    elif "message" in update:
-        process_message(update["message"], False)
+        if uid is not None:
+            if uid in SEEN: return
+            if uid in PROCESSING:
+                raise RuntimeError("Telegram update already in progress")
+            PROCESSING.add(uid)
+    try:
+        if "inline_query" in update:
+            process_inline_query(update["inline_query"])
+        elif "callback_query" in update:
+            handle_callback_query(update["callback_query"])
+        elif "business_message" in update:
+            process_message(update["business_message"], True)
+        elif "message" in update:
+            process_message(update["message"], False)
+    except Exception:
+        # Returning HTTP 500 allows Telegram to retry the same update.
+        raise
+    else:
+        if uid is not None:
+            with LOCK:
+                SEEN[uid] = time.time()
+    finally:
+        if uid is not None:
+            with LOCK:
+                PROCESSING.discard(uid)
 
 class Handler(BaseHTTPRequestHandler):
     def json_response(self, code, data):
@@ -1220,9 +1242,9 @@ def validate_help_center():
     assert catalog_markup(False)["inline_keyboard"][0][0]["url"] == SITE, "Website button must be a normal URL"
     import io
     import unittest
-    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime, test_privacy, test_seller_tools, test_locales
+    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime, test_privacy, test_seller_tools, test_locales, test_webhook
     suite = unittest.TestSuite()
-    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime,test_privacy,test_seller_tools,test_locales):
+    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime,test_privacy,test_seller_tools,test_locales,test_webhook):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(mod))
     results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
     if not results.wasSuccessful():
