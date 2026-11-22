@@ -1263,6 +1263,27 @@ def register_webhook():
         set_webhook_state("registration_failed")
         log.exception("Webhook registration failed; retry after restart")
 
+def register_webhook_with_retries():
+    """Retry temporary Telegram API outages without restarting the web service.
+
+    Stop on permanent missing configuration or a mismatched bot identity.
+    Attempts are bounded to avoid hammering Telegram during an outage.
+    """
+    for delay in (0, 15, 60, 180):
+        if delay:
+            time.sleep(delay)
+        register_webhook()
+        with LOCK:
+            state = WEBHOOK_STATUS["state"]
+            menu_state = MENU_STATUS["state"]
+        if state in ("token_missing", "webhook_configuration_missing", "bot_identity_mismatch"):
+            return
+        if state == "registered" and menu_state == "configured":
+            return
+        log.warning("Telegram registration incomplete: webhook=%s, menu=%s", state, menu_state)
+    log.warning("Telegram setup remains incomplete; service needs configuration review")
+
+
 def validate_help_center():
     # Local, network-free checks before starting the production listener.
     assert catalog_markup(False)["inline_keyboard"][0][0]["url"] == SITE, "Website button must be a normal URL"
@@ -1287,7 +1308,7 @@ if __name__ == "__main__":
         threading.Thread(target=cat.background_refresh, daemon=True).start()
     else:
         log.warning("UVMALL product feed not configured: catalogue search will show no products")
-    threading.Thread(target=register_webhook, daemon=True).start()
+    threading.Thread(target=register_webhook_with_retries, daemon=True).start()
     threading.Thread(target=probe_gigachat, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     log.info("UVMALL HTTP webhook service listening on %s", PORT)
