@@ -55,5 +55,74 @@ class WebhookRetryTests(unittest.TestCase):
         self.assertEqual(app.MENU_BUTTON["web_app"]["url"], "https://uvmall.ru/")
 
 
+class WebhookStatusTests(unittest.TestCase):
+    def setUp(self):
+        with app.LOCK:
+            self.before_webhook = dict(app.WEBHOOK_STATUS)
+            self.before_menu = dict(app.MENU_STATUS)
+            app.WEBHOOK_STATUS.update({"state": "pending", "checked_at": None, "registered_at": None})
+            app.MENU_STATUS["state"] = "pending"
+
+    def tearDown(self):
+        with app.LOCK:
+            app.WEBHOOK_STATUS.clear()
+            app.WEBHOOK_STATUS.update(self.before_webhook)
+            app.MENU_STATUS.clear()
+            app.MENU_STATUS.update(self.before_menu)
+
+    def test_missing_token_is_not_reported_as_online(self):
+        with patch.object(app, "TOKEN", ""), patch.object(app, "tg") as telegram:
+            app.register_webhook()
+        self.assertEqual(app.WEBHOOK_STATUS["state"], "token_missing")
+        telegram.assert_not_called()
+
+    def test_missing_webhook_config_is_visible(self):
+        with (patch.object(app, "TOKEN", "example-token"),
+              patch.object(app, "WEBHOOK_SECRET", ""),
+              patch.object(app, "PUBLIC_URL", "https://test.example")):
+            app.register_webhook()
+        self.assertEqual(app.WEBHOOK_STATUS["state"], "webhook_configuration_missing")
+
+    def test_registration_and_website_menu_have_separate_status(self):
+        sent = []
+        def telegram(method, **data):
+            sent.append((method, data))
+            if method == "getMe":
+                return {"username": "uv_mallbot"}
+            if method == "getMyName":
+                return {"name": "UVMALL AI — Помощник"}
+            return True
+        with (patch.object(app, "TOKEN", "example-token"),
+              patch.object(app, "WEBHOOK_SECRET", "example-secret"),
+              patch.object(app, "PUBLIC_URL", "https://example.org"),
+              patch.object(app, "MANAGER_ID", 0),
+              patch.object(app, "tg", side_effect=telegram)):
+            app.register_webhook()
+        self.assertEqual(app.WEBHOOK_STATUS["state"], "registered")
+        self.assertGreater(app.WEBHOOK_STATUS["registered_at"], 0)
+        self.assertEqual(app.MENU_STATUS["state"], "configured")
+        menus = [args for method, args in sent if method == "setChatMenuButton"]
+        self.assertEqual(menus[0]["menu_button"]["web_app"]["url"], app.SITE)
+        self.assertEqual(len([m for m, _ in sent if m == "setWebhook"]), 1)
+
+    def test_menu_failure_does_not_hide_registered_webhook(self):
+        def telegram(method, **_data):
+            if method == "getMe":
+                return {"username": "uv_mallbot"}
+            if method == "getMyName":
+                return {"name": "UVMALL AI — Помощник"}
+            if method == "setChatMenuButton":
+                raise RuntimeError("temporary telegram error")
+            return True
+        with (patch.object(app, "TOKEN", "example-token"),
+              patch.object(app, "WEBHOOK_SECRET", "example-secret"),
+              patch.object(app, "PUBLIC_URL", "https://example.org"),
+              patch.object(app, "MANAGER_ID", 0),
+              patch.object(app, "tg", side_effect=telegram)):
+            app.register_webhook()
+        self.assertEqual(app.WEBHOOK_STATUS["state"], "registered")
+        self.assertEqual(app.MENU_STATUS["state"], "failed")
+
+
 if __name__ == "__main__":
     unittest.main()
