@@ -60,6 +60,7 @@ SITE = "https://uvmall.ru/"
 SELLER = "https://seller.uvmall.ru/"
 CONTACT = "https://t.me/UVMALL19"
 APP_URL = SITE  # Telegram application opens the public marketplace
+MENU_BUTTON = {"type": "web_app", "text": "Открыть UVMALL", "web_app": {"url": SITE}}
 RFQ_DRAFT = {}
 RFQ_RATE = {}
 MEDIA_PENDING = {}
@@ -1206,8 +1207,7 @@ def register_webhook():
                 {"command": "myid", "description": "Узнать свой Telegram ID"},
                 {"command": "stop", "description": "Отключить автоответы"}
             ]}),
-            ("setChatMenuButton", {"menu_button": (
-                {"type":"commands"})}),
+            ("setChatMenuButton", {"menu_button": MENU_BUTTON}),
         ]
         for method, args in operations:
             try:
