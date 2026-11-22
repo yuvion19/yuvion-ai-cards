@@ -31,6 +31,8 @@ log = logging.getLogger("uvmall")
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 MANAGER_ID = int(os.environ.get("ADMIN_CHAT_ID", "0") or "0")
 MANAGER_STATUS = {"reachable": False, "checked": False}
+WEBHOOK_STATUS = {"state": "pending", "checked_at": None, "registered_at": None}
+MENU_STATUS = {"state": "pending"}
 OWNER_ID = int(os.environ.get("OWNER_USER_ID", "0") or "0")
 OWNER_USERNAME = os.environ.get("OWNER_USERNAME", "UVMALL19").lstrip("@").lower()
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
@@ -54,11 +56,13 @@ LOCK = threading.RLock()
 PENDING = {}
 PAUSED = set()
 SEEN = {}
+PROCESSING = set()
 MAX_BODY = 1048576
 SITE = "https://uvmall.ru/"
 SELLER = "https://seller.uvmall.ru/"
 CONTACT = "https://t.me/UVMALL19"
 APP_URL = SITE  # Telegram application opens the public marketplace
+MENU_BUTTON = {"type": "web_app", "text": "Открыть UVMALL", "web_app": {"url": SITE}}
 RFQ_DRAFT = {}
 RFQ_RATE = {}
 MEDIA_PENDING = {}
@@ -907,21 +911,42 @@ def process_message(message, business=False):
              feedback_markup() if response and not bid else None)
 
 def handle_update(update):
+    """Acknowledge an update only after successful processing.
+
+    Telegram retries webhook requests on non-2xx responses. A failed update
+    must not remain in SEEN, and concurrent deliveries must not be treated
+    as successful while the first attempt is still running.
+    """
     now = time.time()
     uid = update.get("update_id")
     with LOCK:
         for k, t in list(SEEN.items()):
             if now - t > 3600: SEEN.pop(k, None)
-        if uid in SEEN: return
-        if uid is not None: SEEN[uid] = now
-    if "inline_query" in update:
-        process_inline_query(update["inline_query"])
-    elif "callback_query" in update:
-        handle_callback_query(update["callback_query"])
-    elif "business_message" in update:
-        process_message(update["business_message"], True)
-    elif "message" in update:
-        process_message(update["message"], False)
+        if uid is not None:
+            if uid in SEEN: return
+            if uid in PROCESSING:
+                raise RuntimeError("Telegram update already in progress")
+            PROCESSING.add(uid)
+    try:
+        if "inline_query" in update:
+            process_inline_query(update["inline_query"])
+        elif "callback_query" in update:
+            handle_callback_query(update["callback_query"])
+        elif "business_message" in update:
+            process_message(update["business_message"], True)
+        elif "message" in update:
+            process_message(update["message"], False)
+    except Exception:
+        # Returning HTTP 500 allows Telegram to retry the same update.
+        raise
+    else:
+        if uid is not None:
+            with LOCK:
+                SEEN[uid] = time.time()
+    finally:
+        if uid is not None:
+            with LOCK:
+                PROCESSING.discard(uid)
 
 class Handler(BaseHTTPRequestHandler):
     def json_response(self, code, data):
@@ -1003,6 +1028,9 @@ class Handler(BaseHTTPRequestHandler):
             self.json_response(200,{
                 "name":"UVMALL AI","status":"online",
                 "telegram_configured":bool(TOKEN),
+                "telegram_webhook_status":WEBHOOK_STATUS["state"],
+                "telegram_webhook_registered_at":WEBHOOK_STATUS["registered_at"],
+                "telegram_menu_button_status":MENU_STATUS["state"],
                 "manager_configured":bool(MANAGER_ID),
                 "manager_chat_reachable":MANAGER_STATUS["reachable"],
                 "ai_provider":"UVMALL AI",
@@ -1143,22 +1171,36 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt,*args):
         log.info(fmt,*args)
 
+def set_webhook_state(state, registered=False):
+    """Keep connectivity state separate from the HTTP server's own health."""
+    now = int(time.time())
+    with LOCK:
+        WEBHOOK_STATUS["state"] = state
+        WEBHOOK_STATUS["checked_at"] = now
+        if registered:
+            WEBHOOK_STATUS["registered_at"] = now
+
+
 def register_webhook():
     if not TOKEN:
+        set_webhook_state("token_missing")
         log.warning("Bot token missing: web service ready, Telegram inactive")
         return
     if not WEBHOOK_SECRET or not PUBLIC_URL.startswith("https://"):
+        set_webhook_state("webhook_configuration_missing")
         log.warning("Missing webhook URL or secret: not registering")
         return
     try:
         me = tg("getMe")
         if me.get("username", "").lower() != "uv_mallbot":
+            set_webhook_state("bot_identity_mismatch")
             log.error("Wrong Telegram bot token; expected @uv_mallbot")
             return
         tg("setWebhook", url=PUBLIC_URL + "/api/telegram",
            secret_token=WEBHOOK_SECRET,
            allowed_updates=["message", "callback_query", "inline_query", "business_message", "business_connection"],
            drop_pending_updates=False)
+        set_webhook_state("registered", registered=True)
         # Profile settings are independent: a Telegram 429 on the name must
         # not prevent updating the help descriptions and command menu.
         operations = [
@@ -1184,8 +1226,7 @@ def register_webhook():
                 {"command": "myid", "description": "Узнать свой Telegram ID"},
                 {"command": "stop", "description": "Отключить автоответы"}
             ]}),
-            ("setChatMenuButton", {"menu_button": (
-                {"type":"commands"})}),
+            ("setChatMenuButton", {"menu_button": MENU_BUTTON}),
         ]
         for method, args in operations:
             try:
@@ -1196,10 +1237,16 @@ def register_webhook():
                         log.info("Telegram bot name already UVMALL AI")
                         continue
                 tg(method, **args)
+                if method == "setChatMenuButton":
+                    with LOCK: MENU_STATUS["state"] = "configured"
                 log.info("Telegram bot profile updated: %s", method)
             except HTTPError as err:
+                if method == "setChatMenuButton":
+                    with LOCK: MENU_STATUS["state"] = "failed"
                 log.warning("Telegram bot profile %s deferred: HTTP %d", method, err.code)
             except Exception as err:
+                if method == "setChatMenuButton":
+                    with LOCK: MENU_STATUS["state"] = "failed"
                 log.warning("Telegram bot profile %s unavailable: %s", method, type(err).__name__)
         if MANAGER_ID:
             try:
@@ -1213,16 +1260,38 @@ def register_webhook():
                 log.warning("Manager chat not yet accessible to bot: %s", type(err).__name__)
         log.info("Webhook registered for @uv_mallbot")
     except Exception:
+        set_webhook_state("registration_failed")
         log.exception("Webhook registration failed; retry after restart")
+
+def register_webhook_with_retries():
+    """Retry temporary Telegram API outages without restarting the web service.
+
+    Stop on permanent missing configuration or a mismatched bot identity.
+    Attempts are bounded to avoid hammering Telegram during an outage.
+    """
+    for delay in (0, 15, 60, 180):
+        if delay:
+            time.sleep(delay)
+        register_webhook()
+        with LOCK:
+            state = WEBHOOK_STATUS["state"]
+            menu_state = MENU_STATUS["state"]
+        if state in ("token_missing", "webhook_configuration_missing", "bot_identity_mismatch"):
+            return
+        if state == "registered" and menu_state == "configured":
+            return
+        log.warning("Telegram registration incomplete: webhook=%s, menu=%s", state, menu_state)
+    log.warning("Telegram setup remains incomplete; service needs configuration review")
+
 
 def validate_help_center():
     # Local, network-free checks before starting the production listener.
     assert catalog_markup(False)["inline_keyboard"][0][0]["url"] == SITE, "Website button must be a normal URL"
     import io
     import unittest
-    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime, test_privacy, test_seller_tools, test_locales
+    import test_helpdesk, test_catalog, test_commerce, test_multimodal, test_tickets, test_uptime, test_privacy, test_seller_tools, test_locales, test_webhook
     suite = unittest.TestSuite()
-    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime,test_privacy,test_seller_tools,test_locales):
+    for mod in (test_helpdesk,test_catalog,test_commerce,test_multimodal,test_tickets,test_uptime,test_privacy,test_seller_tools,test_locales,test_webhook):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(mod))
     results = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
     if not results.wasSuccessful():
@@ -1239,7 +1308,7 @@ if __name__ == "__main__":
         threading.Thread(target=cat.background_refresh, daemon=True).start()
     else:
         log.warning("UVMALL product feed not configured: catalogue search will show no products")
-    threading.Thread(target=register_webhook, daemon=True).start()
+    threading.Thread(target=register_webhook_with_retries, daemon=True).start()
     threading.Thread(target=probe_gigachat, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     log.info("UVMALL HTTP webhook service listening on %s", PORT)

@@ -1,0 +1,24 @@
+name: UVMALL Telegram bot tests
+
+on:
+  pull_request:
+    paths:
+      - "uvmall-telegram-ai-admin/**"
+      - ".github/workflows/uvmall-telegram-bot.yml"
+  push:
+    branches: [uvmall-telegram-ai-admin]
+    paths:
+      - "uvmall-telegram-ai-admin/**"
+      - ".github/workflows/uvmall-telegram-bot.yml"
+
+jobs:
+  bot-unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run all UVMALL bot tests without production secrets
+        run: python -m unittest discover -s uvmall-telegram-ai-admin -p 'test_*.py' -v
