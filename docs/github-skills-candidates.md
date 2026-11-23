@@ -27,3 +27,18 @@ Updated 2026-11-23. This is a **review queue**, not a list of installed or secur
 
 ## Required gates before adoption
 Exact upstream revision and per-file licensing → complete referenced-script audit → duplicate/conflict check → sandbox fixture tests → stage on isolated branch → reviewer approval → merge → agent discovery/readback and behavior test. Never use search-result counts as installation counts.
+
+## Additional official publishers — discovered, not adopted
+
+These six *official-publisher* candidates were verified by GitHub directory listing on 2026-11-23. Each directory contains its own `LICENSE.txt`, but the license terms, references, scripts, dependencies and runtime compatibility have **not** yet been fully audited. The SHAs below identify **only the SKILL.md file**, not the whole package.
+
+| Publisher / source path | SKILL.md blob SHA | Project use | Status |
+| --- | --- | --- | --- |
+| `openai/skills/skills/.curated/gh-fix-ci` | `76bdeb6a7bff93cbe924c0652f1fd7a3c3ffc46c` | Existing CI triage | Discovery only; code/scripts pending |
+| `openai/skills/skills/.curated/security-best-practices` | `45ccbd8d671c4c4cc3e7e0645a16a3f80ec50de7` | App security review | Discovery only; references pending |
+| `openai/skills/skills/.curated/playwright` | `77c01afb31aa602d0b002ae2438c2b67f0335fcb` | Browser checks | Discovery only; assets/scripts/notice pending |
+| `anthropics/skills/skills/mcp-builder` | `d61a9056202a0f8b2d064c896e62f415c45b1bf1` | MCP engineering | Discovery only; scripts pending |
+| `anthropics/skills/skills/skill-creator` | `65b3a402dbd09b8e83f9d637c6b553875189085c` | Skill evaluation | Discovery only; complex assets/scripts pending |
+| `anthropics/skills/skills/webapp-testing` | `4726215301db64a0cc4d41fc3219c61f37a30f4a` | Site validation | Discovery only; examples/scripts pending |
+
+**Source roots:** https://github.com/openai/skills and https://github.com/anthropics/skills. These directories are not ChatGPT plugin installations. Prefer already-authorized, functionally equivalent tools rather than duplicating them.
