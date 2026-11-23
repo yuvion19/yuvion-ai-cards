@@ -6,9 +6,9 @@ description: Check the UVMusic/RITM free music catalog, playback, attribution, s
 # UVMusic catalog and playback QA
 
 ## Actual repository surfaces
-- App: \`uvmusic/index.html\` (includes catalog, search, cards, player, rights view, favorites and recent history).
-- PWA metadata: \`uvmusic/manifest.webmanifest\`.
-- Service worker: \`uvmusic/sw.js\`.
+- App: `uvmusic/index.html` (includes catalog, search, cards, player, rights view, favorites and recent history).
+- PWA metadata: `uvmusic/manifest.webmanifest`.
+- Service worker: `uvmusic/sw.js`.
 - Do not conflate this music catalog with the separate 24/7 radio project.
 
 ## Legal and source verification
@@ -27,7 +27,7 @@ description: Check the UVMusic/RITM free music catalog, playback, attribution, s
 - Ensure the PWA still opens without a network connection where an offline shell is advertised; do not claim audio is offline-ready unless content was explicitly cached.
 
 ## Service-worker precautions
-- The current \`sw.js\` caches GET responses. Review cache growth, audio streaming and range requests, cross-origin failure and storage pressure before changing this policy.
+- The current `sw.js` caches GET responses. Review cache growth, audio streaming and range requests, cross-origin failure and storage pressure before changing this policy.
 - Do not automatically cache entire audio streams as part of a UI performance fix.
 - Respect browser quota limits and do not delete user caches or local data merely to simplify tests.
 - Validate version bump, update activation and network fallback with controlled fixtures.
